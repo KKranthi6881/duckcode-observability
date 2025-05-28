@@ -15,6 +15,12 @@ import { DataAlerts } from './pages/dashboard/DataAlerts';
 import { DataGovernance } from './pages/dashboard/DataGovernance';
 import { Settings } from './pages/dashboard/Settings';
 import FctOrderItemsLineage from './pages/dashboard/FctOrderItemsLineage';
+import { AnomalyDetection } from './pages/dashboard/AnomalyDetection';
+import { AnomalyFreshness } from './pages/dashboard/anomalies/AnomalyFreshness';
+import { AnomalyVolume } from './pages/dashboard/anomalies/AnomalyVolume';
+import { AnomalyPattern } from './pages/dashboard/anomalies/AnomalyPattern';
+import { AnomalySchema } from './pages/dashboard/anomalies/AnomalySchema';
+import { IncidentManager } from './pages/dashboard/IncidentManager';
 import { ThemeProvider } from './contexts/ThemeContext';
 
 // Debug component to test routing
@@ -34,7 +40,7 @@ export function App() {
   return (
     <ThemeProvider>
       <Router>
-        <div className="min-h-screen bg-slate-900 text-white transition-colors duration-200">
+        <div className="min-h-screen bg-gray-100 text-gray-900 transition-colors duration-200">
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
             <div className="absolute -top-40 -right-40 w-96 h-96 bg-purple-500/20 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-blob" />
             <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-[#F5B72F]/20 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-blob animation-delay-2000" />
@@ -49,6 +55,12 @@ export function App() {
               <Route path="fct-order-items" element={<FctOrderItemsLineage />} />
               <Route path="catalog" element={<DataCatalog />} />
               <Route path="alerts" element={<DataAlerts />} />
+              <Route path="anomalies" element={<AnomalyDetection />} />
+              <Route path="anomalies/freshness" element={<AnomalyFreshness />} />
+              <Route path="anomalies/volume" element={<AnomalyVolume />} />
+              <Route path="anomalies/pattern" element={<AnomalyPattern />} />
+              <Route path="anomalies/schema" element={<AnomalySchema />} />
+              <Route path="incidents" element={<IncidentManager />} />
               <Route path="governance" element={<DataGovernance />} />
               <Route path="settings" element={<Settings />} />
             </Route>

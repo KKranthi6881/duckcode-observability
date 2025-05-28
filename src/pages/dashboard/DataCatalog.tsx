@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, Database, Table, FileText, Tag, Clock, Check, X, Star, Key, ChevronLeft, ChevronRight, Network, Calendar, RefreshCw, Info } from 'lucide-react';
+import { Search, Filter, Database, Table, FileText, Tag, Clock, Check, X, Star, Key, ChevronLeft, ChevronRight, Network, Calendar, RefreshCw, Info, Cpu, ArrowRight, GitBranch, Link } from 'lucide-react';
 import { lineageModels, createCustomerLineage, createOrderLineage, TableNode, LineageData } from './components/charts/lineageData';
 
 // Last updated time information
@@ -100,38 +100,38 @@ const TableOverview = ({ table }: { table: TableNode }) => {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-sm font-medium text-slate-300 mb-3">
+        <h3 className="text-sm font-medium text-gray-700 mb-3">
           Description
         </h3>
-        <p className="text-slate-400 text-sm">
+        <p className="text-gray-600 text-sm">
           {table.data.description}
         </p>
       </div>
       <div>
-        <h3 className="text-sm font-medium text-slate-300 mb-3">
+        <h3 className="text-sm font-medium text-gray-700 mb-3">
           Business Context
         </h3>
-        <p className="text-slate-400 text-sm">
+        <p className="text-gray-600 text-sm">
           {businessContext[table.id] || 'No business context available'}
         </p>
       </div>
       <div>
-        <h3 className="text-sm font-medium text-slate-300 mb-3">
+        <h3 className="text-sm font-medium text-gray-700 mb-3">
           Last Updated
         </h3>
-        <p className="text-slate-400 text-sm">
+        <p className="text-gray-600 text-sm">
           {new Date(lastUpdatedInfo[table.id] || Date.now()).toLocaleString()}
         </p>
       </div>
       <div>
-        <h3 className="text-sm font-medium text-slate-300 mb-3">
+        <h3 className="text-sm font-medium text-gray-700 mb-3">
           Quality Score
         </h3>
         <div className="grid grid-cols-4 gap-4">
           {qualityMetrics[table.id] && Object.entries(qualityMetrics[table.id]).map(([metric, score]) => (
-            <div key={metric} className="bg-slate-700 p-3 rounded-lg">
-              <p className="text-xs text-slate-400 capitalize">{metric}</p>
-              <p className="text-lg font-semibold text-white mt-1">
+            <div key={metric} className="bg-gray-100 p-3 rounded-lg">
+              <p className="text-xs text-gray-500 capitalize">{metric}</p>
+              <p className="text-lg font-semibold text-gray-800 mt-1">
                 {score}%
               </p>
             </div>
@@ -147,46 +147,46 @@ const UsageInfo = ({ tableId }: { tableId: string }) => {
   const stats = usageStats[tableId];
   
   if (!stats) {
-    return <p className="text-slate-400 text-sm">No usage data available</p>;
+    return <p className="text-gray-600 text-sm">No usage data available</p>;
   }
   
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-slate-700 p-4 rounded-lg">
-          <p className="text-xs text-slate-400">
+        <div className="bg-gray-100 p-4 rounded-lg">
+          <p className="text-xs text-gray-500">
             Queries (Last 30 Days)
           </p>
-          <p className="text-2xl font-semibold text-white mt-1">
+          <p className="text-2xl font-semibold text-gray-800 mt-1">
             {stats.queries}
           </p>
         </div>
-        <div className="bg-slate-700 p-4 rounded-lg">
-          <p className="text-xs text-slate-400">
+        <div className="bg-gray-100 p-4 rounded-lg">
+          <p className="text-xs text-gray-500">
             Unique Users
           </p>
-          <p className="text-2xl font-semibold text-white mt-1">
+          <p className="text-2xl font-semibold text-gray-800 mt-1">
             {stats.users}
           </p>
         </div>
-        <div className="bg-slate-700 p-4 rounded-lg">
-          <p className="text-xs text-slate-400">
+        <div className="bg-gray-100 p-4 rounded-lg">
+          <p className="text-xs text-gray-500">
             Avg. Query Time
           </p>
-          <p className="text-2xl font-semibold text-white mt-1">
+          <p className="text-2xl font-semibold text-gray-800 mt-1">
             {stats.avgQueryTime}
           </p>
         </div>
       </div>
       <div>
-        <h3 className="text-sm font-medium text-slate-300 mb-3">
+        <h3 className="text-sm font-medium text-gray-700 mb-3">
           Top Queries
         </h3>
-        <div className="bg-slate-700 rounded-lg p-4">
-          <pre className="text-xs text-slate-300 whitespace-pre-wrap">
+        <div className="bg-gray-100 rounded-lg p-4">
+          <pre className="text-xs text-gray-500 whitespace-pre-wrap">
             {`SELECT * FROM ${tableId} WHERE last_update_date > '2023-01-01'`}
           </pre>
-          <p className="text-xs text-slate-400 mt-2">
+          <p className="text-xs text-gray-500 mt-2">
             Run {Math.floor(stats.queries * 0.23)} times by {Math.floor(stats.users * 0.4)} users
           </p>
         </div>
@@ -202,7 +202,7 @@ const SampleData = ({ tableId, columns }: { tableId: string, columns: any[] }) =
   if (!data || data.length === 0) {
     return (
       <div className="text-center py-12">
-        <p className="text-slate-400">
+        <p className="text-gray-600">
           No sample data available for this table.
         </p>
       </div>
@@ -214,21 +214,21 @@ const SampleData = ({ tableId, columns }: { tableId: string, columns: any[] }) =
   
   return (
     <div className="overflow-x-auto">
-      <table className="min-w-full divide-y divide-slate-700">
+      <table className="min-w-full divide-y divide-gray-200">
         <thead>
           <tr>
             {columnKeys.map(key => (
-              <th key={key} className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+              <th key={key} className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                 {key}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-800">
+        <tbody className="divide-y divide-gray-200">
           {data.map((row, rowIndex) => (
-            <tr key={rowIndex} className="hover:bg-slate-700/50">
+            <tr key={rowIndex} className="hover:bg-gray-100">
               {columnKeys.map(key => (
-                <td key={`${rowIndex}-${key}`} className="px-4 py-3 text-sm text-slate-300">
+                <td key={`${rowIndex}-${key}`} className="px-4 py-3 text-sm text-gray-600">
                   {row[key]?.toString() || ''}
                 </td>
               ))}
@@ -240,19 +240,440 @@ const SampleData = ({ tableId, columns }: { tableId: string, columns: any[] }) =
   );
 };
 
-// Modified TableLineage component to show a message instead of using LineageGraph
+// Modified TableLineage component with enhanced relationship details
 const TableLineage = ({ tableId }: { tableId: string }) => {
+  const [lineageData, setLineageData] = useState<LineageData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  useEffect(() => {
+    // Determine which lineage model to use based on the table ID
+    const isCustomerData = ['tpch_customers', 'tpch_nations', 'tpch_regions', 
+                           'stg_tpch_customers', 'stg_tpch_nations', 'stg_tpch_regions', 
+                           'dim_customers'].includes(tableId);
+    
+    const isOrderData = ['tpch_orders', 'tpch_line_items', 
+                         'stg_tpch_orders', 'stg_tpch_line_items', 
+                         'fct_order_items'].includes(tableId);
+    
+    // Load the appropriate lineage data
+    if (isCustomerData) {
+      setLineageData(createCustomerLineage());
+    } else if (isOrderData) {
+      setLineageData(createOrderLineage());
+    }
+    
+    setIsLoading(false);
+  }, [tableId]);
+  
+  // Filter lineage data to only show tables connected to the selected table
+  const getFilteredLineageData = () => {
+    if (!lineageData) return { nodes: [], edges: [] };
+    
+    // Find all connected tables (upstream and downstream)
+    const connectedTableIds = new Set<string>([tableId]);
+    let prevSize = 0;
+    
+    // Keep adding connected tables until no new ones are found
+    while (prevSize !== connectedTableIds.size) {
+      prevSize = connectedTableIds.size;
+      
+      // Add upstream and downstream tables
+      lineageData.edges.forEach(edge => {
+        if (connectedTableIds.has(edge.target) && !connectedTableIds.has(edge.source)) {
+          connectedTableIds.add(edge.source);
+        }
+        if (connectedTableIds.has(edge.source) && !connectedTableIds.has(edge.target)) {
+          connectedTableIds.add(edge.target);
+        }
+      });
+    }
+    
+    // Filter nodes and edges
+    const filteredNodes = lineageData.nodes.filter(node => connectedTableIds.has(node.id));
+    const filteredEdges = lineageData.edges.filter(edge => 
+      connectedTableIds.has(edge.source) && connectedTableIds.has(edge.target)
+    );
+    
+    return { nodes: filteredNodes, edges: filteredEdges };
+  };
+  
+  // Get upstream relationships (sources to current table)
+  const getUpstreamRelationships = (filteredData) => {
+    return filteredData.edges.filter(edge => edge.target === tableId);
+  };
+  
+  // Get downstream relationships (current table to targets)
+  const getDownstreamRelationships = (filteredData) => {
+    return filteredData.edges.filter(edge => edge.source === tableId);
+  };
+  
+  // Get node by ID
+  const getNodeById = (filteredData, nodeId) => {
+    return filteredData.nodes.find(node => node.id === nodeId);
+  };
+  
+  // Get node color based on type
+  const getNodeColor = (type: string) => {
+    switch (type) {
+      case 'source':
+        return 'bg-blue-900/40 border-blue-700/50 text-blue-400';
+      case 'transformation':
+        return 'bg-amber-900/40 border-amber-700/50 text-amber-400';
+      case 'view':
+        return 'bg-purple-900/40 border-purple-700/50 text-purple-400';
+      default:
+        return 'bg-slate-800 border-slate-700 text-slate-300';
+    }
+  };
+  
+  // Get relationship color
+  const getRelationshipColor = (relationship: string) => {
+    switch (relationship) {
+      case 'Transforms':
+        return 'bg-[#2AB7A9]/20 border-[#2AB7A9]/50 text-[#2AB7A9]';
+      case 'Joins':
+        return 'bg-amber-900/20 border-amber-700/50 text-amber-400';
+      case 'References':
+        return 'bg-blue-900/20 border-blue-700/50 text-blue-400';
+      default:
+        return 'bg-slate-800/50 border-slate-700 text-slate-300';
+    }
+  };
+  
+  // Get node icon based on type
+  const getNodeIcon = (type: string) => {
+    switch (type) {
+      case 'source':
+        return <Database className="h-5 w-5 text-blue-400" />;
+      case 'view':
+        return <FileText className="h-5 w-5 text-purple-400" />;
+      default:
+        return <Table className="h-5 w-5 text-amber-400" />;
+    }
+  };
+  
+  // Get relationship icon
+  const getRelationshipIcon = (relationship: string) => {
+    switch (relationship) {
+      case 'Transforms':
+        return <RefreshCw className="h-5 w-5 text-[#2AB7A9]" />;
+      case 'Joins':
+        return <GitBranch className="h-5 w-5 text-amber-400" />;
+      case 'References':
+        return <Link className="h-5 w-5 text-blue-400" />;
+      default:
+        return <ArrowRight className="h-5 w-5 text-slate-400" />;
+    }
+  };
+  
+  if (isLoading) {
+    return (
+      <div className="h-[600px] flex items-center justify-center bg-slate-700/30 rounded-lg border border-slate-600">
+        <div className="text-center">
+          <RefreshCw className="h-8 w-8 text-slate-400 mx-auto mb-4 animate-spin" />
+          <h3 className="text-lg font-medium text-white">
+            Loading Lineage Data...
+          </h3>
+        </div>
+      </div>
+    );
+  }
+  
+  if (!lineageData) {
+    return (
+      <div className="h-[600px] flex items-center justify-center bg-slate-700/30 rounded-lg border border-slate-600">
+        <div className="text-center max-w-md p-6">
+          <Network className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-white mb-2">
+            No Lineage Data Available
+          </h3>
+          <p className="text-sm text-slate-400">
+            We couldn't find lineage information for {tableId}.
+            This table may not have any upstream or downstream dependencies.
+          </p>
+        </div>
+      </div>
+    );
+  }
+  
+  const filteredData = getFilteredLineageData();
+  
+  if (filteredData.edges.length === 0) {
+    return (
+      <div className="h-[600px] flex items-center justify-center bg-slate-700/30 rounded-lg border border-slate-600">
+        <div className="text-center max-w-md p-6">
+          <Network className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-white mb-2">
+            No Relationships Found
+          </h3>
+          <p className="text-sm text-slate-400">
+            {tableId} doesn't appear to have any relationships with other tables in our lineage data.
+          </p>
+        </div>
+      </div>
+    );
+  }
+  
+  const upstreamRelationships = getUpstreamRelationships(filteredData);
+  const downstreamRelationships = getDownstreamRelationships(filteredData);
+  const currentTable = filteredData.nodes.find(node => node.id === tableId);
+  
   return (
-    <div className="h-[600px] flex items-center justify-center bg-slate-700/30 rounded-lg border border-slate-600">
-      <div className="text-center max-w-md p-6">
-        <Network className="h-12 w-12 text-slate-500 mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-white mb-2">
-          Lineage Visualization Temporarily Disabled
-        </h3>
-        <p className="text-sm text-slate-400">
-          The lineage visualization for {tableId} is currently being upgraded.
-          You can still explore table metadata, columns, and sample data.
-        </p>
+    <div className="h-[600px] bg-slate-800 rounded-lg border border-slate-700 overflow-auto p-6">
+      <div className="flex flex-col h-full">
+        <div className="mb-4">
+          <h3 className="text-lg font-medium text-white mb-2">Table Lineage & Relationships</h3>
+          <p className="text-sm text-slate-400">
+            Showing data flow and relationships for <span className="text-[#2AB7A9] font-medium">{tableId}</span>
+          </p>
+        </div>
+        
+        <div className="flex-grow flex flex-col space-y-8">
+          {/* Upstream Relationships */}
+          {upstreamRelationships.length > 0 && (
+            <div>
+              <h4 className="text-sm font-medium text-white mb-3">Upstream Relationships (Data Sources)</h4>
+              <div className="space-y-4">
+                {upstreamRelationships.map(relationship => {
+                  const sourceTable = getNodeById(filteredData, relationship.source);
+                  
+                  return (
+                    <div key={relationship.id} className="bg-slate-700/50 rounded-lg p-4">
+                      <div className="flex items-start">
+                        <div className={`p-3 rounded-lg ${getNodeColor(sourceTable.data.type)} mr-4`}>
+                          {getNodeIcon(sourceTable.data.type)}
+                        </div>
+                        
+                        <div className="flex-grow">
+                          <div className="flex items-center justify-between">
+                            <h5 className="text-sm font-medium text-white">{sourceTable.data.label}</h5>
+                            <span className={`px-2 py-1 rounded text-xs ${getRelationshipColor(relationship.data.relationship)}`}>
+                              {relationship.data.relationship}
+                            </span>
+                          </div>
+                          
+                          <p className="text-xs text-slate-400 mt-1">{sourceTable.data.description || 'No description available'}</p>
+                          
+                          {/* Relationship details */}
+                          <div className="mt-3 p-3 rounded bg-slate-800/50 border border-slate-600">
+                            <div className="flex items-start">
+                              {getRelationshipIcon(relationship.data.relationship)}
+                              <div className="ml-3">
+                                <p className="text-xs text-slate-300">{relationship.data.description || `${relationship.source} → ${relationship.target}`}</p>
+                                
+                                {/* Show columns involved in the relationship */}
+                                <div className="mt-2 grid grid-cols-2 gap-2">
+                                  <div>
+                                    <p className="text-xs text-slate-400 mb-1">Source Columns:</p>
+                                    <div className="space-y-1">
+                                      {sourceTable.data.columns
+                                        .filter(col => col.isPrimaryKey || col.isForeignKey)
+                                        .map(col => (
+                                          <div key={col.id} className="flex items-center">
+                                            {col.isPrimaryKey ? (
+                                              <Key className="h-3 w-3 text-amber-400 mr-1" />
+                                            ) : (
+                                              <Link className="h-3 w-3 text-blue-400 mr-1" />
+                                            )}
+                                            <span className="text-xs text-slate-300">{col.name}</span>
+                                          </div>
+                                        ))}
+                                    </div>
+                                  </div>
+                                  
+                                  <div>
+                                    <p className="text-xs text-slate-400 mb-1">Target Columns:</p>
+                                    <div className="space-y-1">
+                                      {currentTable.data.columns
+                                        .filter(col => col.isPrimaryKey || col.isForeignKey)
+                                        .map(col => (
+                                          <div key={col.id} className="flex items-center">
+                                            {col.isPrimaryKey ? (
+                                              <Key className="h-3 w-3 text-amber-400 mr-1" />
+                                            ) : (
+                                              <Link className="h-3 w-3 text-blue-400 mr-1" />
+                                            )}
+                                            <span className="text-xs text-slate-300">{col.name}</span>
+                                          </div>
+                                        ))}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              
+              <div className="flex justify-center my-4">
+                <ArrowRight className="h-8 w-8 text-[#2AB7A9] rotate-90" />
+              </div>
+            </div>
+          )}
+          
+          {/* Current Table */}
+          {currentTable && (
+            <div className="flex justify-center">
+              <div className="p-5 rounded-lg border-2 border-[#2AB7A9] bg-[#2AB7A9]/20 max-w-lg w-full">
+                <div className="flex items-start">
+                  <div className="mr-4">
+                    {getNodeIcon(currentTable.data.type)}
+                  </div>
+                  <div className="flex-grow">
+                    <h5 className="text-base font-medium text-white">{currentTable.data.label}</h5>
+                    <p className="text-sm text-slate-300 mt-1">{currentTable.data.description || 'No description available'}</p>
+                    
+                    {/* Key columns */}
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <div>
+                        <p className="text-xs text-slate-300 mb-1">Primary Keys:</p>
+                        <div className="space-y-1">
+                          {currentTable.data.columns
+                            .filter(col => col.isPrimaryKey)
+                            .map(col => (
+                              <div key={col.id} className="flex items-center">
+                                <Key className="h-3 w-3 text-amber-400 mr-1" />
+                                <span className="text-xs text-slate-300">{col.name}</span>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <p className="text-xs text-slate-300 mb-1">Foreign Keys:</p>
+                        <div className="space-y-1">
+                          {currentTable.data.columns
+                            .filter(col => col.isForeignKey)
+                            .map(col => (
+                              <div key={col.id} className="flex items-center">
+                                <Link className="h-3 w-3 text-blue-400 mr-1" />
+                                <span className="text-xs text-slate-300">{col.name}</span>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Downstream Relationships */}
+          {downstreamRelationships.length > 0 && (
+            <div>
+              <div className="flex justify-center my-4">
+                <ArrowRight className="h-8 w-8 text-[#2AB7A9] rotate-90" />
+              </div>
+              
+              <h4 className="text-sm font-medium text-white mb-3">Downstream Relationships (Dependent Tables)</h4>
+              <div className="space-y-4">
+                {downstreamRelationships.map(relationship => {
+                  const targetTable = getNodeById(filteredData, relationship.target);
+                  
+                  return (
+                    <div key={relationship.id} className="bg-slate-700/50 rounded-lg p-4">
+                      <div className="flex items-start">
+                        <div className={`p-3 rounded-lg ${getNodeColor(targetTable.data.type)} mr-4`}>
+                          {getNodeIcon(targetTable.data.type)}
+                        </div>
+                        
+                        <div className="flex-grow">
+                          <div className="flex items-center justify-between">
+                            <h5 className="text-sm font-medium text-white">{targetTable.data.label}</h5>
+                            <span className={`px-2 py-1 rounded text-xs ${getRelationshipColor(relationship.data.relationship)}`}>
+                              {relationship.data.relationship}
+                            </span>
+                          </div>
+                          
+                          <p className="text-xs text-slate-400 mt-1">{targetTable.data.description || 'No description available'}</p>
+                          
+                          {/* Relationship details */}
+                          <div className="mt-3 p-3 rounded bg-slate-800/50 border border-slate-600">
+                            <div className="flex items-start">
+                              {getRelationshipIcon(relationship.data.relationship)}
+                              <div className="ml-3">
+                                <p className="text-xs text-slate-300">{relationship.data.description || `${relationship.source} → ${relationship.target}`}</p>
+                                
+                                {/* Show columns involved in the relationship */}
+                                <div className="mt-2 grid grid-cols-2 gap-2">
+                                  <div>
+                                    <p className="text-xs text-slate-400 mb-1">Source Columns:</p>
+                                    <div className="space-y-1">
+                                      {currentTable.data.columns
+                                        .filter(col => col.isPrimaryKey || col.isForeignKey)
+                                        .map(col => (
+                                          <div key={col.id} className="flex items-center">
+                                            {col.isPrimaryKey ? (
+                                              <Key className="h-3 w-3 text-amber-400 mr-1" />
+                                            ) : (
+                                              <Link className="h-3 w-3 text-blue-400 mr-1" />
+                                            )}
+                                            <span className="text-xs text-slate-300">{col.name}</span>
+                                          </div>
+                                        ))}
+                                    </div>
+                                  </div>
+                                  
+                                  <div>
+                                    <p className="text-xs text-slate-400 mb-1">Target Columns:</p>
+                                    <div className="space-y-1">
+                                      {targetTable.data.columns
+                                        .filter(col => col.isPrimaryKey || col.isForeignKey)
+                                        .map(col => (
+                                          <div key={col.id} className="flex items-center">
+                                            {col.isPrimaryKey ? (
+                                              <Key className="h-3 w-3 text-amber-400 mr-1" />
+                                            ) : (
+                                              <Link className="h-3 w-3 text-blue-400 mr-1" />
+                                            )}
+                                            <span className="text-xs text-slate-300">{col.name}</span>
+                                          </div>
+                                        ))}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+        
+        <div className="mt-6 pt-4 border-t border-slate-700">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 rounded-full bg-blue-400"></div>
+              <span className="text-xs text-slate-400">Source Tables</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 rounded-full bg-amber-400"></div>
+              <span className="text-xs text-slate-400">Transformation Tables</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 rounded-full bg-purple-400"></div>
+              <span className="text-xs text-slate-400">Views</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Key className="h-3 w-3 text-amber-400" />
+              <span className="text-xs text-slate-400">Primary Key</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Link className="h-3 w-3 text-blue-400" />
+              <span className="text-xs text-slate-400">Foreign Key</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -280,10 +701,10 @@ export function DataCatalog() {
   const filteredTables = lineageData?.nodes.filter(node => 
     node.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
     node.data.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    node.data.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (node.data.description && node.data.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
     node.data.columns.some(col => 
       col.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      col.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      (col.description && col.description.toLowerCase().includes(searchTerm.toLowerCase()))
     )
   ) || [];
   
@@ -297,13 +718,15 @@ export function DataCatalog() {
   const getTableTypeBadgeColor = (type: string) => {
     switch (type) {
       case 'source':
-        return 'bg-blue-500/20 text-blue-400';
-      case 'transformation':
-        return 'bg-emerald-500/20 text-emerald-400';
+        return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'view':
-        return 'bg-purple-500/20 text-purple-400';
+        return 'bg-purple-100 text-purple-800 border-purple-200';
+      case 'dimension':
+        return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+      case 'fact':
+        return 'bg-amber-100 text-amber-800 border-amber-200';
       default:
-        return 'bg-slate-500/20 text-slate-400';
+        return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
   
@@ -313,16 +736,19 @@ export function DataCatalog() {
     
     const date = new Date(timestamp);
     const now = new Date();
-    const diffInDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+    const diffTime = Math.abs(now.getTime() - date.getTime());
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
     
-    if (diffInDays === 0) {
+    if (diffDays === 0) {
       return 'Today';
-    } else if (diffInDays === 1) {
+    } else if (diffDays === 1) {
       return 'Yesterday';
-    } else if (diffInDays < 7) {
-      return `${diffInDays} days ago`;
+    } else if (diffDays < 7) {
+      return `${diffDays} days ago`;
+    } else if (diffDays < 30) {
+      return `${Math.floor(diffDays / 7)} weeks ago`;
     } else {
-      return date.toLocaleDateString();
+      return `${Math.floor(diffDays / 30)} months ago`;
     }
   };
   
@@ -330,222 +756,309 @@ export function DataCatalog() {
     <>
       <div className="space-y-6">
         <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-white">Data Catalog</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Data Catalog</h1>
           <div className="flex space-x-4">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input 
                 type="text" 
                 placeholder="Search tables, columns, descriptions..." 
-                className="pl-9 pr-4 py-2 bg-slate-700 border border-slate-600 rounded-md text-slate-300 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2AB7A9] focus:border-transparent" 
+                className="pl-9 pr-4 py-2 bg-white border border-gray-300 rounded-md text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent shadow-sm" 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
             <button 
-              className="flex items-center px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-slate-300 hover:bg-slate-600"
+              className="flex items-center px-3 py-1.5 bg-white border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 shadow-sm"
               onClick={() => setShowLineageFilter(!showLineageFilter)}
             >
-              <Filter className="h-4 w-4 mr-2" />
+              <Filter className="h-4 w-4 mr-2 text-gray-500" />
               {selectedLineageModel === 'customer' ? 'Customer Data' : 'Order Data'}
             </button>
           </div>
         </div>
         
         {showLineageFilter && (
-          <div className="bg-slate-800 rounded-lg border border-slate-700 p-4 animate-fade-in">
-            <h3 className="text-sm font-medium text-slate-300 mb-3">
+          <div className="bg-white rounded-lg border border-gray-200 p-4 animate-fade-in shadow-sm">
+            <h3 className="text-sm font-medium text-gray-700 mb-3">
               Select Data Domain
             </h3>
             <div className="flex space-x-4">
               {lineageModels.map(model => (
                 <button
                   key={model.id}
-                  className={`px-4 py-2 rounded-md ${selectedLineageModel === model.id ? 'bg-[#2AB7A9] text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
+                  className={`px-4 py-2 rounded-md text-sm font-medium ${
+                    selectedLineageModel === model.id
+                      ? 'bg-sky-100 text-sky-700 border border-sky-200'
+                      : 'bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200'
+                  }`}
                   onClick={() => {
                     setSelectedLineageModel(model.id);
                     setSelectedTable(null);
                     setShowLineageFilter(false);
                   }}
                 >
-                  {model.name}
+                  {model.icon === 'database' ? (
+                    <Database className="h-4 w-4 inline mr-2" />
+                  ) : (
+                    <FileText className="h-4 w-4 inline mr-2" />
+                  )}
+                  {model.label}
                 </button>
               ))}
             </div>
           </div>
         )}
         
-        <div className="grid grid-cols-12 gap-6">
-          {/* Catalog sidebar */}
-          <div className="col-span-12 md:col-span-4 lg:col-span-3">
-            <div className="bg-slate-800 rounded-lg border border-slate-700 h-full">
-              <div className="p-4 border-b border-slate-700">
-                <h2 className="text-lg font-medium text-white">Tables & Views</h2>
-                <p className="text-xs text-slate-400 mt-1">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-1">
+            <div className="bg-white rounded-lg border border-gray-200 h-full shadow-sm">
+              <div className="p-4 border-b border-gray-200">
+                <h2 className="text-lg font-medium text-gray-800">Tables & Views</h2>
+                <p className="text-xs text-gray-500 mt-1">
                   {filteredTables.length} items in {selectedLineageModel === 'customer' ? 'Customer' : 'Order'} domain
                 </p>
               </div>
               <div className="overflow-y-auto max-h-[700px]">
-                <ul className="divide-y divide-slate-700">
+                <ul className="divide-y divide-gray-200">
                   {filteredTables.map(table => (
                     <li 
                       key={table.id} 
-                      className={`p-4 hover:bg-slate-700 cursor-pointer ${selectedTable?.id === table.id ? 'bg-slate-700' : ''}`}
+                      className={`p-4 hover:bg-gray-50 cursor-pointer ${selectedTable?.id === table.id ? 'bg-sky-50' : ''}`}
                       onClick={() => handleTableClick(table)}
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex items-start">
                           <div className="mr-3 mt-1">
                             {table.data.type === 'source' ? (
-                              <Database className="h-5 w-5 text-blue-400" />
+                              <Database className="h-5 w-5 text-blue-600" />
                             ) : table.data.type === 'view' ? (
-                              <FileText className="h-5 w-5 text-purple-400" />
+                              <FileText className="h-5 w-5 text-purple-600" />
                             ) : (
-                              <Table className="h-5 w-5 text-emerald-400" />
+                              <Table className="h-5 w-5 text-emerald-600" />
                             )}
                           </div>
                           <div>
-                            <h3 className="text-sm font-medium text-white">
+                            <h3 className="text-sm font-medium text-gray-900">
                               {table.data.label}
                             </h3>
-                            <p className="text-xs text-slate-400 mt-1">
-                              {table.data.schema}
+                            <p className="text-xs text-gray-500 mt-1">
+                              {table.data.description?.substring(0, 60)}
+                              {table.data.description && table.data.description.length > 60 ? '...' : ''}
                             </p>
-                            <p className="text-xs text-slate-400 mt-0.5 line-clamp-2">
-                              {table.data.description}
-                            </p>
-                            <div className="flex items-center space-x-2 mt-2">
-                              <span className={`px-2 py-0.5 rounded-full text-xs ${getTableTypeBadgeColor(table.data.type)}`}>
+                            <div className="flex items-center mt-2 space-x-2">
+                              <span className={`px-2 py-0.5 text-xs rounded-full border ${getTableTypeBadgeColor(table.data.type)}`}>
                                 {table.data.type.charAt(0).toUpperCase() + table.data.type.slice(1)}
                               </span>
-                              <span className="flex items-center text-xs text-slate-400">
+                              <span className="flex items-center text-xs text-gray-500">
                                 <Clock className="h-3 w-3 mr-1" />
                                 {formatLastUpdated(lastUpdatedInfo[table.id])}
                               </span>
                             </div>
                           </div>
                         </div>
+                        <div>
+                          <ChevronRight className={`h-5 w-5 ${selectedTable?.id === table.id ? 'text-sky-600' : 'text-gray-400'}`} />
+                        </div>
                       </div>
                     </li>
                   ))}
-                  {filteredTables.length === 0 && (
-                    <li className="p-8 text-center text-slate-400">
-                      No tables match your search criteria
-                    </li>
-                  )}
                 </ul>
               </div>
             </div>
           </div>
           
-          {/* Table details */}
-          <div className="col-span-12 md:col-span-8 lg:col-span-9">
+          <div className="lg:col-span-2">
             {selectedTable ? (
-              <div className="bg-slate-800 rounded-lg border border-slate-700 h-full">
-                <div className="p-6 border-b border-slate-700">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <div className="flex items-center">
-                        <h2 className="text-xl font-medium text-white">
-                          {selectedTable.data.label}
-                        </h2>
-                        <span className={`ml-3 px-2 py-0.5 rounded-full text-xs ${getTableTypeBadgeColor(selectedTable.data.type)}`}>
-                          {selectedTable.data.type.charAt(0).toUpperCase() + selectedTable.data.type.slice(1)}
-                        </span>
+              <div className="bg-white rounded-lg border border-gray-200 h-full shadow-sm">
+                <div className="border-b border-gray-200">
+                  <div className="p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start">
+                        <div className="mr-3 mt-1">
+                          {selectedTable.data.type === 'source' ? (
+                            <Database className="h-6 w-6 text-blue-600" />
+                          ) : selectedTable.data.type === 'view' ? (
+                            <FileText className="h-6 w-6 text-purple-600" />
+                          ) : (
+                            <Table className="h-6 w-6 text-emerald-600" />
+                          )}
+                        </div>
+                        <div>
+                          <h2 className="text-xl font-semibold text-gray-900">
+                            {selectedTable.data.label}
+                          </h2>
+                          <p className="text-sm text-gray-600 mt-1">
+                            {selectedTable.data.description}
+                          </p>
+                          <div className="flex items-center mt-2 space-x-3">
+                            <span className={`px-2 py-0.5 text-xs rounded-full border ${getTableTypeBadgeColor(selectedTable.data.type)}`}>
+                              {selectedTable.data.type.charAt(0).toUpperCase() + selectedTable.data.type.slice(1)}
+                            </span>
+                            <span className="flex items-center text-xs text-gray-500">
+                              <Clock className="h-3 w-3 mr-1" />
+                              Last updated: {new Date(lastUpdatedInfo[selectedTable.id]).toLocaleDateString()}
+                            </span>
+                            <span className="flex items-center text-xs text-gray-500">
+                              <Tag className="h-3 w-3 mr-1" />
+                              {selectedTable.data.columns.length} columns
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                      <p className="text-sm text-slate-400 mt-1">
-                        {selectedTable.data.schema} • {selectedTable.data.columns.length} columns
-                      </p>
-                    </div>
-                    <div className="flex space-x-2">
-                      <button className="p-1.5 rounded bg-slate-700 hover:bg-slate-600 transition-colors">
-                        <RefreshCw className="h-4 w-4 text-slate-400" />
-                      </button>
-                      <button className="p-1.5 rounded bg-slate-700 hover:bg-slate-600 transition-colors">
-                        <Star className="h-4 w-4 text-slate-400" />
-                      </button>
+                      <div>
+                        <button className="flex items-center px-3 py-1.5 bg-sky-100 text-sky-700 rounded-md text-sm hover:bg-sky-200">
+                          <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                          Refresh
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-                
-                <div className="border-b border-slate-700">
-                  <nav className="flex -mb-px">
-                    {['overview', 'columns', 'lineage', 'sample', 'usage'].map(tab => (
-                      <button 
-                        key={tab} 
-                        className={`px-6 py-3 text-sm font-medium border-b-2 ${activeTab === tab ? 'border-[#2AB7A9] text-[#2AB7A9]' : 'border-transparent text-slate-400 hover:text-slate-300'}`}
+                  
+                  <nav className="flex px-4 space-x-4">
+                    {['overview', 'columns', 'lineage', 'sample', 'usage', 'ai-assistant'].map((tab) => (
+                      <button
+                        key={tab}
+                        className={`px-3 py-2 text-sm font-medium border-b-2 ${
+                          activeTab === tab
+                            ? 'border-sky-500 text-sky-600'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        }`}
                         onClick={() => setActiveTab(tab)}
                       >
-                        {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                        {tab === 'overview' && 'Overview'}
+                        {tab === 'columns' && 'Columns'}
+                        {tab === 'lineage' && 'Lineage'}
+                        {tab === 'sample' && 'Sample Data'}
+                        {tab === 'usage' && 'Usage Stats'}
+                        {tab === 'ai-assistant' && (
+                          <span className="flex items-center">
+                            <Cpu className="h-3.5 w-3.5 mr-1.5" />
+                            AI Assistant
+                          </span>
+                        )}
                       </button>
                     ))}
                   </nav>
                 </div>
                 
-                <div className="p-6">
+                {/* Tab Content Section */}
+                <div className="p-4">
                   {activeTab === 'overview' && <TableOverview table={selectedTable} />}
+                  
                   {activeTab === 'columns' && (
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-slate-700">
-                        <thead>
-                          <tr>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                              Name
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                              Type
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                              Key
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                              Description
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-800">
-                          {selectedTable.data.columns.map((column, idx) => (
-                            <tr key={idx} className="hover:bg-slate-700/50">
-                              <td className="px-4 py-3 text-sm text-white">
-                                {column.name}
-                              </td>
-                              <td className="px-4 py-3 text-sm text-slate-300">
-                                {column.type}
-                              </td>
-                              <td className="px-4 py-3 text-sm">
-                                {column.isPrimaryKey && (
-                                  <span className="px-2 py-0.5 rounded-full text-xs bg-yellow-400/20 text-yellow-400">
-                                    Primary
-                                  </span>
-                                )}
-                                {column.isForeignKey && (
-                                  <span className="px-2 py-0.5 rounded-full text-xs bg-blue-400/20 text-blue-400">
-                                    Foreign
-                                  </span>
-                                )}
-                              </td>
-                              <td className="px-4 py-3 text-sm text-slate-300">
-                                {column.description || '-'}
-                              </td>
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center">
+                        <h3 className="text-lg font-medium text-gray-800">Columns</h3>
+                        <div className="relative w-64">
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                          <input 
+                            type="text" 
+                            placeholder="Search columns..." 
+                            className="pl-9 pr-4 py-1.5 w-full bg-white border border-gray-300 rounded-md text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent" 
+                          />
+                        </div>
+                      </div>
+                      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                              <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                              <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                              <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attributes</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {selectedTable.data.columns.map((column, index) => (
+                              <tr key={index} className="hover:bg-gray-50">
+                                <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                                  {column.name}
+                                  {column.isPrimaryKey && (
+                                    <Key className="h-3.5 w-3.5 inline-block ml-1.5 text-amber-500" />
+                                  )}
+                                </td>
+                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{column.type}</td>
+                                <td className="px-4 py-3 text-sm text-gray-500">{column.description || '-'}</td>
+                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                  <div className="flex space-x-2">
+                                    {column.isPrimaryKey && (
+                                      <span className="px-2 py-0.5 text-xs rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                                        Primary Key
+                                      </span>
+                                    )}
+                                    {column.isNullable === false && (
+                                      <span className="px-2 py-0.5 text-xs rounded-full bg-red-100 text-red-800 border border-red-200">
+                                        Not Null
+                                      </span>
+                                    )}
+                                    {column.isUnique && (
+                                      <span className="px-2 py-0.5 text-xs rounded-full bg-purple-100 text-purple-800 border border-purple-200">
+                                        Unique
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   )}
+                  
                   {activeTab === 'lineage' && <TableLineage tableId={selectedTable.id} />}
+                  
                   {activeTab === 'sample' && <SampleData tableId={selectedTable.id} columns={selectedTable.data.columns} />}
+                  
                   {activeTab === 'usage' && <UsageInfo tableId={selectedTable.id} />}
+                  
+                  {activeTab === 'ai-assistant' && (
+                    <div className="space-y-4">
+                      <div className="bg-white rounded-lg border border-gray-200 p-4">
+                        <div className="flex items-start space-x-4">
+                          <div className="flex-shrink-0 bg-sky-100 p-2 rounded-lg">
+                            <Cpu className="h-6 w-6 text-sky-600" />
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-medium text-gray-800">AI Data Assistant</h3>
+                            <p className="text-sm text-gray-600 mt-1">
+                              Ask questions about this table, its data, or how it relates to other tables in your data ecosystem.
+                            </p>
+                            <div className="mt-4 relative">
+                              <input 
+                                type="text" 
+                                placeholder="Ask a question about this table..." 
+                                className="w-full px-4 py-2 bg-white border border-gray-300 rounded-md text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent" 
+                              />
+                              <button className="absolute right-2 top-1/2 transform -translate-y-1/2 px-3 py-1 bg-sky-600 text-white rounded-md text-sm hover:bg-sky-700">
+                                Ask
+                              </button>
+                            </div>
+                            <div className="mt-4 bg-gray-50 rounded-lg p-4 text-sm text-gray-700">
+                              <p className="font-medium mb-2">Example questions:</p>
+                              <ul className="list-disc pl-5 space-y-1">
+                                <li>What is the business purpose of this table?</li>
+                                <li>How does this table relate to the customer dimension?</li>
+                                <li>What are the primary data quality issues with this table?</li>
+                                <li>How fresh is this data and when was it last updated?</li>
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (
-              <div className="bg-slate-800 rounded-lg border border-slate-700 h-full flex items-center justify-center p-6">
+              <div className="bg-white rounded-lg border border-gray-200 h-full flex items-center justify-center p-6 shadow-sm">
                 <div className="text-center">
-                  <Database className="h-12 w-12 text-slate-600 mx-auto" />
-                  <h3 className="mt-4 text-lg font-medium text-white">
+                  <Database className="h-12 w-12 text-gray-400 mx-auto" />
+                  <h3 className="mt-4 text-lg font-medium text-gray-800">
                     Select a table or view
                   </h3>
-                  <p className="mt-2 text-sm text-slate-400 max-w-sm">
+                  <p className="mt-2 text-sm text-gray-500 max-w-sm">
                     Choose a table or view from the catalog to see detailed information,
                     columns, lineage, and sample data.
                   </p>
