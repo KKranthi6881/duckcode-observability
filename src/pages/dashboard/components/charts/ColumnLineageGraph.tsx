@@ -12,11 +12,12 @@ import {
   Position,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { ChevronDown, ChevronRight, Database, Search, Maximize2, Minimize2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, Database, Search, Maximize2, Minimize2, ExternalLink } from 'lucide-react';
 import { createCustomerLineage, createOrderLineage, lineageModels } from './lineageData';
+import { Link } from 'react-router-dom';
 
 // Column Lineage Graph Component
-const ColumnLineageGraph = () => {
+const ColumnLineageGraph = ({ isOverviewMode = false }) => {
   // State for search term and visualization
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedModelId, setSelectedModelId] = useState("customer");
@@ -257,7 +258,7 @@ const ColumnLineageGraph = () => {
   }, [searchTerm, nodes, edges, setNodes, setEdges]);
 
   return (
-    <div style={{ width: "100%", height: "80vh" }} className="border rounded-md">
+    <div style={{ width: "100%", height: isOverviewMode ? "400px" : "80vh" }} className="border rounded-md">
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -266,7 +267,7 @@ const ColumnLineageGraph = () => {
         nodeTypes={nodeTypes}
         fitView
         snapToGrid
-        defaultZoom={0.7}
+        defaultZoom={isOverviewMode ? 0.5 : 0.7}
         minZoom={0.2}
         maxZoom={1.5}
         snapGrid={[15, 15]}
@@ -287,17 +288,19 @@ const ColumnLineageGraph = () => {
                 </option>
               ))}
             </select>
-            <button
-              onClick={() => setExpandedView(!expandedView)}
-              className="p-1 rounded bg-slate-100 hover:bg-slate-200"
-              title={expandedView ? "Minimize view" : "Expand view"}
-            >
-              {expandedView ? (
-                <Minimize2 className="h-4 w-4 text-slate-600" />
-              ) : (
-                <Maximize2 className="h-4 w-4 text-slate-600" />
-              )}
-            </button>
+            {!isOverviewMode && (
+              <button
+                onClick={() => setExpandedView(!expandedView)}
+                className="p-1 rounded bg-slate-100 hover:bg-slate-200"
+                title={expandedView ? "Minimize view" : "Expand view"}
+              >
+                {expandedView ? (
+                  <Minimize2 className="h-4 w-4 text-slate-600" />
+                ) : (
+                  <Maximize2 className="h-4 w-4 text-slate-600" />
+                )}
+              </button>
+            )}
           </div>
           <div className="text-xs text-slate-500">
             {lineageModels.find(m => m.id === selectedModelId)?.description}
@@ -335,12 +338,24 @@ const ColumnLineageGraph = () => {
             </div>
           </div>
           
+          {isOverviewMode && (
+            <div className="mt-2">
+              <Link 
+                to={`/dashboard/lineage?model=${selectedModelId}`}
+                className="flex items-center text-blue-600 text-sm hover:underline"
+              >
+                <span>View full lineage details</span>
+                <ExternalLink className="h-3 w-3 ml-1" />
+              </Link>
+            </div>
+          )}
+          
           <div className="text-xs text-slate-500 italic">
             * Use mouse wheel to zoom in/out, drag to pan, and click on tables to expand/collapse columns
           </div>
         </Panel>
         <Background />
-        <Controls showInteractive={true} />
+        <Controls showInteractive={!isOverviewMode} />
       </ReactFlow>
     </div>
   );
