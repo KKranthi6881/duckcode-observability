@@ -20,7 +20,7 @@ import {
 export function Overview() {
   const [selectedTimeRange, setSelectedTimeRange] = useState('24h');
   const brandColor = "#2AB7A9";
-  const brandColorHover = "#23A597"; // A slightly darker teal for hover
+  const brandColorHover = "#239a8c"; // A slightly darker teal for hover
   const brandLightBg = "bg-[#2AB7A9]/10";
   const brandBorder = "border-[#2AB7A9]/20";
   const brandText = `text-[${brandColor}]`;
@@ -113,12 +113,22 @@ export function Overview() {
     }
   };
 
+  const getIconStyling = (color) => {
+    switch (color) {
+      case 'brand': return { bg: 'bg-[#2AB7A9]/10', text: 'text-[#2AB7A9]' };
+      case 'green': return { bg: 'bg-green-50', text: 'text-green-600' };
+      case 'yellow': return { bg: 'bg-yellow-50', text: 'text-yellow-600' };
+      case 'red': return { bg: 'bg-red-50', text: 'text-red-600' };
+      default: return { bg: 'bg-[#2AB7A9]/10', text: 'text-[#2AB7A9]' };
+    }
+  };
+
   return (
-    <div className="p-6 bg-gray-100 min-h-screen space-y-6">
+    <div className="space-y-6">
       {/* Header with Time Range Selector */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-2">
         <h1 className="text-3xl font-bold text-gray-800 mb-2 sm:mb-0">Data Observability Overview</h1>
-        <div className="flex items-center space-x-2 bg-white border border-gray-300 rounded-lg px-3 py-1.5 shadow-sm">
+        <div className="flex items-center space-x-2 bg-white border border-gray-200 rounded-lg px-3 py-1.5 shadow-sm">
           <Clock className="w-5 h-5 text-gray-500" />
           <select 
             value={selectedTimeRange}
@@ -135,16 +145,20 @@ export function Overview() {
 
       {/* Key Metrics Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {keyMetrics.map(metric => (
-          <Link to={metric.link || '#'} key={metric.title} className={`block p-5 rounded-xl shadow-lg border hover:shadow-xl hover:scale-[1.02] transition-all duration-200 ${getMetricCardStyles(metric.color)}`}>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className={`text-sm font-semibold ${metric.color === 'brand' ? brandText : ''}`}>{metric.title}</h3>
-              <metric.icon className={`w-7 h-7 opacity-80`} />
-            </div>
-            <p className={`text-4xl font-bold ${metric.color === 'brand' ? brandText : ''}`}>{metric.value}</p>
-            <p className={`text-xs mt-1 opacity-70 ${metric.color === 'brand' ? brandText : ''}`}>View Details</p>
-          </Link>
-        ))}
+        {keyMetrics.map(metric => {
+          const iconStyle = getIconStyling(metric.color);
+          return (
+            <Link to={metric.link || '#'} key={metric.title} className={`block p-5 rounded-xl shadow-sm border border-gray-100 bg-white hover:shadow-md hover:border-[#2AB7A9]/20 hover:scale-[1.02] transition-all duration-200`}>
+              <div className="flex justify-between items-center mb-2">
+                <h3 className={`text-sm font-medium text-gray-600`}>{metric.title}</h3>
+                <div className={`p-2 rounded-full ${iconStyle.bg} flex items-center justify-center`}>
+                  <metric.icon className={`w-5 h-5 ${iconStyle.text}`} />
+                </div>
+              </div>
+              <p className={`text-3xl font-semibold text-gray-800 mt-3`}>{metric.value}</p>
+            </Link>
+          );
+        })}
       </div>
 
       {/* Three Column Layout: Lineage, Quality Metrics, Critical Alerts */}
@@ -154,9 +168,9 @@ export function Overview() {
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-800 flex items-center">
               <GitBranch className={`w-5 h-5 mr-2 ${brandText}`} />
-              Data Lineage Summary
+              <Link to="/dashboard/lineage" className="hover:text-[#2AB7A9]">Data Lineage Summary</Link>
             </h3>
-            <Link to="/dashboard/lineage" className={`text-sm font-medium ${brandText} hover:text-[${brandColorHover}]`}>
+            <Link to="/dashboard/lineage" className={`text-sm font-medium text-[#2AB7A9] hover:text-[#239a8c]`}>
               Explore Lineage
             </Link>
           </div>
@@ -180,9 +194,9 @@ export function Overview() {
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-800 flex items-center">
               <CheckCircle className="w-5 h-5 mr-2 text-green-600" />
-              Data Quality
+              <Link to="/dashboard/quality" className="hover:text-[#2AB7A9]">Data Quality</Link>
             </h3>
-            <Link to="/dashboard/quality" className={`text-sm font-medium ${brandText} hover:text-[${brandColorHover}]`}>
+            <Link to="/dashboard/quality" className={`text-sm font-medium text-[#2AB7A9] hover:text-[#239a8c]`}>
               View Details
             </Link>
           </div>
@@ -209,9 +223,9 @@ export function Overview() {
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-800 flex items-center">
               <AlertTriangle className={`w-5 h-5 mr-2 ${brandText}`} />
-              Critical Alerts
+              <Link to="/dashboard/alerts" className="hover:text-[#2AB7A9]">Critical Alerts</Link>
             </h3>
-            <Link to="/dashboard/alerts" className={`text-sm font-medium ${brandText} hover:text-[${brandColorHover}]`}>
+            <Link to="/dashboard/alerts" className={`text-sm font-medium text-[#2AB7A9] hover:text-[#239a8c]`}>
               View All Alerts
             </Link>
           </div>
@@ -237,9 +251,9 @@ export function Overview() {
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-800 flex items-center">
               <Activity className={`w-5 h-5 mr-2 ${brandText}`} />
-              Recent Activity
+              <Link to="/dashboard/activity" className="hover:text-[#2AB7A9]">Recent Activity</Link>
             </h3>
-            <Link to="/dashboard/activity" className={`text-sm font-medium ${brandText} hover:text-[${brandColorHover}]`}>
+            <Link to="/dashboard/activity" className={`text-sm font-medium text-[#2AB7A9] hover:text-[#239a8c]`}>
               View All
             </Link>
           </div>
@@ -261,9 +275,9 @@ export function Overview() {
         <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-800">
-              Data Quality Score Trends
+              <Link to="/dashboard/quality/trends" className="hover:text-[#2AB7A9]">Data Quality Score Trends</Link>
             </h3>
-            <Link to="/dashboard/quality/trends" className={`text-sm font-medium ${brandText} hover:text-[${brandColorHover}]`}>
+            <Link to="/dashboard/quality/trends" className={`text-sm font-medium text-[#2AB7A9] hover:text-[#239a8c]`}>
               View History
             </Link>
           </div>
@@ -278,9 +292,9 @@ export function Overview() {
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-800 flex items-center">
             <Code className={`w-5 h-5 mr-2 ${brandText}`} />
-            Code Health & Repository Status
+            <Link to="/dashboard/code" className="hover:text-[#2AB7A9]">Code Health & Repository Status</Link>
           </h3>
-          <Link to="/dashboard/code" className={`text-sm font-medium ${brandText} hover:text-[${brandColorHover}]`}>
+          <Link to="/dashboard/code" className={`text-sm font-medium text-[#2AB7A9] hover:text-[#239a8c]`}>
             View GitHub
           </Link>
         </div>

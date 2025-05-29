@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Network, Database, Bell, Shield, BarChart3, Settings as SettingsIcon, HelpCircle, Table, AlertTriangle, AlertOctagon } from 'lucide-react';
+import { Network, Database, Bell, Shield, BarChart3, Settings as SettingsIcon, HelpCircle, Table, AlertTriangle, AlertOctagon, Code } from 'lucide-react';
 
 const navigation = [{
   name: 'Overview',
@@ -35,6 +35,10 @@ const navigation = [{
     name: 'Incident Manager',
     href: '/dashboard/incidents',
     icon: AlertOctagon
+  }, {
+    name: 'Code Base',
+    href: '/dashboard/code',
+    icon: Code
   }, {
     name: 'Data Governance',
     href: '/dashboard/governance',

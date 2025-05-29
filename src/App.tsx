@@ -21,6 +21,7 @@ import { AnomalyVolume } from './pages/dashboard/anomalies/AnomalyVolume';
 import { AnomalyPattern } from './pages/dashboard/anomalies/AnomalyPattern';
 import { AnomalySchema } from './pages/dashboard/anomalies/AnomalySchema';
 import { IncidentManager } from './pages/dashboard/IncidentManager';
+import { CodeBase } from './pages/dashboard/CodeBase';
 import { ThemeProvider } from './contexts/ThemeContext';
 
 // Debug component to test routing
@@ -61,6 +62,7 @@ export function App() {
               <Route path="anomalies/pattern" element={<AnomalyPattern />} />
               <Route path="anomalies/schema" element={<AnomalySchema />} />
               <Route path="incidents" element={<IncidentManager />} />
+              <Route path="code" element={<CodeBase />} />
               <Route path="governance" element={<DataGovernance />} />
               <Route path="settings" element={<Settings />} />
             </Route>
