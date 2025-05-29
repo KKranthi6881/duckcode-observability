@@ -19,6 +19,11 @@ import {
 
 export function Overview() {
   const [selectedTimeRange, setSelectedTimeRange] = useState('24h');
+  const brandColor = "#2AB7A9";
+  const brandColorHover = "#23A597"; // A slightly darker teal for hover
+  const brandLightBg = "bg-[#2AB7A9]/10";
+  const brandBorder = "border-[#2AB7A9]/20";
+  const brandText = `text-[${brandColor}]`;
   
   // Sample data for dashboard metrics
   const dashboardData = {
@@ -74,7 +79,7 @@ export function Overview() {
       case 'success': return <CheckCircle className="w-4 h-4 text-green-600" />;
       case 'error': return <XCircle className="w-4 h-4 text-red-600" />;
       case 'warning': return <AlertTriangle className="w-4 h-4 text-yellow-600" />;
-      default: return <Activity className="w-4 h-4 text-sky-600" />;
+      default: return <Activity className={`w-4 h-4 ${brandText}`} />;
     }
   };
 
@@ -83,7 +88,28 @@ export function Overview() {
     switch (severity) {
       case 'high': return 'text-red-700 bg-red-100 border-red-200';
       case 'medium': return 'text-yellow-700 bg-yellow-100 border-yellow-200';
-      default: return 'text-sky-700 bg-sky-100 border-sky-200';
+      default: return `text-teal-700 bg-teal-100 border-teal-200`; // Using Tailwind teal for simplicity here
+    }
+  };
+
+  const keyMetrics = [
+    { title: 'Data Quality Score', value: `${dashboardData.overview.dataQualityScore}%`, icon: Shield, color: 'brand', link: '/dashboard/quality' },
+    { title: 'Healthy Assets', value: dashboardData.overview.healthyAssets, icon: CheckCircle, color: 'green', link: '/dashboard/assets' },
+    { title: 'At Risk Assets', value: dashboardData.overview.atRiskAssets, icon: AlertTriangle, color: 'yellow', link: '/dashboard/assets' },
+    { title: 'Critical Issues', value: dashboardData.overview.criticalIssues, icon: XCircle, color: 'red', link: '/dashboard/issues' },
+    { title: 'Total Data Assets', value: dashboardData.overview.totalAssets, icon: Database, color: 'brand', link: '/dashboard/catalog' },
+    { title: 'AI Solved Quality', value: dashboardData.overview.aiSolvedDataQuality, icon: Cpu, color: 'brand', link: '/dashboard/quality' },
+    { title: 'AI Solved Governance', value: dashboardData.overview.aiSolvedDataGovernance, icon: Cpu, color: 'brand', link: '/dashboard/governance' },
+    { title: 'AI Auto-Cataloged', value: dashboardData.overview.aiSolvedAutoDataCatalog, icon: Cpu, color: 'brand', link: '/dashboard/catalog' },
+  ];
+
+  const getMetricCardStyles = (color) => {
+    switch (color) {
+      case 'brand': return `${brandLightBg} ${brandBorder} ${brandText}`;
+      case 'green': return 'bg-green-50 border-green-200 text-green-600';
+      case 'yellow': return 'bg-yellow-50 border-yellow-200 text-yellow-600';
+      case 'red': return 'bg-red-50 border-red-200 text-red-600';
+      default: return `${brandLightBg} ${brandBorder} ${brandText}`;
     }
   };
 
@@ -109,24 +135,14 @@ export function Overview() {
 
       {/* Key Metrics Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {[ 
-          { title: 'Data Quality Score', value: `${dashboardData.overview.dataQualityScore}%`, icon: Shield, color: 'sky', link: '/dashboard/quality' },
-          { title: 'Healthy Assets', value: dashboardData.overview.healthyAssets, icon: CheckCircle, color: 'green', link: '/dashboard/catalog?status=healthy' },
-          { title: 'At Risk Assets', value: dashboardData.overview.atRiskAssets, icon: AlertTriangle, color: 'yellow', link: '/dashboard/catalog?status=at_risk' },
-          { title: 'Critical Issues', value: dashboardData.overview.criticalIssues, icon: XCircle, color: 'red', link: '/dashboard/incidents?severity=critical' },
-          { title: 'AI Solved: Quality', value: dashboardData.overview.aiSolvedDataQuality, icon: Cpu, color: 'purple', link: '/dashboard/ai-insights/quality' },
-          { title: 'AI Solved: Governance', value: dashboardData.overview.aiSolvedDataGovernance, icon: Cpu, color: 'indigo', link: '/dashboard/ai-insights/governance' },
-          { title: 'AI Solved: Catalog', value: dashboardData.overview.aiSolvedAutoDataCatalog, icon: Cpu, color: 'pink', link: '/dashboard/ai-insights/catalog' },
-          { title: 'Total Assets', value: dashboardData.overview.totalAssets, icon: Database, color: 'gray', link: '/dashboard/catalog' },
-        ].map(metric => (
-          <Link to={metric.link || '#'} key={metric.title} className="block bg-white p-5 rounded-xl shadow-lg border border-gray-200 hover:shadow-xl hover:scale-[1.02] transition-all duration-200 ease-in-out">
+        {keyMetrics.map(metric => (
+          <Link to={metric.link || '#'} key={metric.title} className={`block p-5 rounded-xl shadow-lg border hover:shadow-xl hover:scale-[1.02] transition-all duration-200 ${getMetricCardStyles(metric.color)}`}>
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium text-gray-600">{metric.title}</span>
-              <div className={`p-2.5 rounded-lg bg-${metric.color}-100`}>
-                <metric.icon className={`h-6 w-6 text-${metric.color}-600`} />
-              </div>
+              <h3 className={`text-sm font-semibold ${metric.color === 'brand' ? brandText : ''}`}>{metric.title}</h3>
+              <metric.icon className={`w-7 h-7 opacity-80`} />
             </div>
-            <p className="text-3xl font-semibold text-gray-800">{metric.value}</p>
+            <p className={`text-4xl font-bold ${metric.color === 'brand' ? brandText : ''}`}>{metric.value}</p>
+            <p className={`text-xs mt-1 opacity-70 ${metric.color === 'brand' ? brandText : ''}`}>View Details</p>
           </Link>
         ))}
       </div>
@@ -137,26 +153,23 @@ export function Overview() {
         <div className="lg:col-span-1 bg-white rounded-xl shadow-lg border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-800 flex items-center">
-              <GitBranch className="w-5 h-5 mr-2 text-sky-600" />
+              <GitBranch className={`w-5 h-5 mr-2 ${brandText}`} />
               Data Lineage Summary
             </h3>
-            <Link to="/dashboard/lineage" className="text-sm font-medium text-sky-600 hover:text-sky-700">
-              View Lineage
+            <Link to="/dashboard/lineage" className={`text-sm font-medium ${brandText} hover:text-[${brandColorHover}]`}>
+              Explore Lineage
             </Link>
           </div>
-          <div className="space-y-3">
+          <div className="space-y-3 text-sm">
             {[ 
               { label: 'Total Models', value: dashboardData.lineage.totalModels, icon: Layers },
               { label: 'Source Tables', value: dashboardData.lineage.sourcesTables, icon: Database },
               { label: 'Staging Models', value: dashboardData.lineage.stagingModels, icon: Layers },
               { label: 'Mart Models', value: dashboardData.lineage.martModels, icon: Target },
             ].map(item => (
-              <div key={item.label} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center">
-                  <item.icon className="w-5 h-5 text-gray-500 mr-3" />
-                  <span className="text-sm text-gray-700">{item.label}</span>
-                </div>
-                <span className="text-sm font-semibold text-gray-800">{item.value}</span>
+              <div key={item.label} className="flex justify-between items-center p-2.5 bg-gray-50 rounded-md">
+                <span className="text-gray-600">{item.label}</span>
+                <span className="font-semibold text-gray-800">{item.value}</span>
               </div>
             ))}
           </div>
@@ -169,7 +182,7 @@ export function Overview() {
               <CheckCircle className="w-5 h-5 mr-2 text-green-600" />
               Data Quality
             </h3>
-            <Link to="/dashboard/quality" className="text-sm font-medium text-sky-600 hover:text-sky-700">
+            <Link to="/dashboard/quality" className={`text-sm font-medium ${brandText} hover:text-[${brandColorHover}]`}>
               View Details
             </Link>
           </div>
@@ -195,22 +208,24 @@ export function Overview() {
         <div className="lg:col-span-1 bg-white rounded-xl shadow-lg border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-800 flex items-center">
-              <AlertTriangle className="w-5 h-5 mr-2 text-red-600" />
+              <AlertTriangle className={`w-5 h-5 mr-2 ${brandText}`} />
               Critical Alerts
             </h3>
-            <Link to="/dashboard/alerts" className="text-sm font-medium text-sky-600 hover:text-sky-700">
+            <Link to="/dashboard/alerts" className={`text-sm font-medium ${brandText} hover:text-[${brandColorHover}]`}>
               View All Alerts
             </Link>
           </div>
           <div className="space-y-3">
             {criticalAlerts.slice(0, 4).map(alert => (
-              <div key={alert.id} className={`p-3 rounded-lg border ${getSeverityColor(alert.severity).replace('text-', 'border-').replace('bg-', 'bg-opacity-10 ')}`}>
-                <div className={`font-semibold text-sm mb-0.5 ${getSeverityColor(alert.severity).split(' ')[0]}`}>{alert.title}</div>
-                <p className="text-xs text-gray-600">Table: {alert.table}</p>
-                <p className="text-xs text-gray-500 mt-1">{alert.time}</p>
+              <div key={alert.id} className={`flex items-center justify-between p-3 rounded-lg border ${getSeverityColor(alert.severity)}`}>
+                <div>
+                  <p className="text-sm font-medium">{alert.title}</p>
+                  <p className="text-xs opacity-80">Table: {alert.table}</p>
+                </div>
+                <p className="text-xs opacity-80">{alert.time}</p>
               </div>
             ))}
-            {criticalAlerts.length === 0 && <p className="text-sm text-gray-500">No critical alerts.</p>}
+            {criticalAlerts.length === 0 && <p className="text-sm text-gray-500">No critical alerts. Great job!</p>}
           </div>
         </div>
       </div>
@@ -221,10 +236,10 @@ export function Overview() {
         <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-800 flex items-center">
-              <Activity className="w-5 h-5 mr-2 text-sky-600" />
+              <Activity className={`w-5 h-5 mr-2 ${brandText}`} />
               Recent Activity
             </h3>
-            <Link to="/dashboard/activity" className="text-sm font-medium text-sky-600 hover:text-sky-700">
+            <Link to="/dashboard/activity" className={`text-sm font-medium ${brandText} hover:text-[${brandColorHover}]`}>
               View All
             </Link>
           </div>
@@ -248,11 +263,10 @@ export function Overview() {
             <h3 className="text-lg font-semibold text-gray-800">
               Data Quality Score Trends
             </h3>
-            <Link to="/dashboard/quality/trends" className="text-sm font-medium text-sky-600 hover:text-sky-700">
+            <Link to="/dashboard/quality/trends" className={`text-sm font-medium ${brandText} hover:text-[${brandColorHover}]`}>
               View History
             </Link>
           </div>
-          {/* Assuming DataQualityChart is adapted for light theme or is theme-agnostic */}
           <div className="h-64 md:h-80">
             <DataQualityChart />
           </div>
@@ -263,22 +277,22 @@ export function Overview() {
       <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-800 flex items-center">
-            <Code className="w-5 h-5 mr-2 text-sky-600" />
+            <Code className={`w-5 h-5 mr-2 ${brandText}`} />
             Code Health & Repository Status
           </h3>
-          <Link to="/dashboard/code" className="text-sm font-medium text-sky-600 hover:text-sky-700">
+          <Link to="/dashboard/code" className={`text-sm font-medium ${brandText} hover:text-[${brandColorHover}]`}>
             View GitHub
           </Link>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
           {[ 
-            { title: 'Active Repos', value: dashboardData.codeHealth.activeRepos, icon: GitBranch, color: 'blue' },
-            { title: 'Total Commits', value: dashboardData.codeHealth.totalCommits, icon: Activity, color: 'green' },
-            { title: 'Code Reviews', value: dashboardData.codeHealth.codeReviews, icon: Users, color: 'purple' },
-            { title: 'Deployments', value: dashboardData.codeHealth.deployments, icon: Target, color: 'orange' },
+            { title: 'Active Repos', value: dashboardData.codeHealth.activeRepos, icon: GitBranch, color: 'brand' },
+            { title: 'Total Commits', value: dashboardData.codeHealth.totalCommits, icon: Activity, color: 'green' }, // Keep green for positive connotation
+            { title: 'Code Reviews', value: dashboardData.codeHealth.codeReviews, icon: Users, color: 'brand' },
+            { title: 'Deployments', value: dashboardData.codeHealth.deployments, icon: Target, color: 'brand' },
           ].map(item => (
-            <div key={item.title} className={`bg-${item.color}-50 rounded-lg p-4 text-center border border-${item.color}-200`}>
-              <item.icon className={`w-8 h-8 text-${item.color}-500 mx-auto mb-2`} />
+            <div key={item.title} className={`rounded-lg p-4 text-center ${getMetricCardStyles(item.color)}`}>
+              <item.icon className={`w-8 h-8 mx-auto mb-2`} />
               <div className="text-2xl font-bold text-gray-800">{item.value}</div>
               <div className="text-sm text-gray-600">{item.title}</div>
             </div>
@@ -286,7 +300,7 @@ export function Overview() {
         </div>
         <div className="mt-6 flex flex-col sm:flex-row justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-200">
           <div className="flex items-center mb-2 sm:mb-0">
-            <Database className="w-4 h-4 text-sky-600 mr-2 flex-shrink-0" />
+            <Database className={`w-4 h-4 ${brandText} mr-2 flex-shrink-0`} />
             <span className="text-sm text-gray-700">Latest commit: <span className="font-medium text-gray-800">fix: schema drift detection in customer model</span></span>
           </div>
           <span className="text-xs text-gray-500">30 mins ago</span>

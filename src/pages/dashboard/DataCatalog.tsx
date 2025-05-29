@@ -1029,13 +1029,13 @@ export function DataCatalog() {
                               <input 
                                 type="text" 
                                 placeholder="Ask a question about this table..." 
-                                className="w-full px-4 py-2 bg-white border border-gray-300 rounded-md text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent" 
+                                className="w-full px-4 py-2 bg-white border border-gray-300 rounded-md text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent shadow-sm" 
                               />
                               <button className="absolute right-2 top-1/2 transform -translate-y-1/2 px-3 py-1 bg-sky-600 text-white rounded-md text-sm hover:bg-sky-700">
                                 Ask
                               </button>
                             </div>
-                            <div className="mt-4 bg-gray-50 rounded-lg p-4 text-sm text-gray-700">
+                            <div className="mt-4 bg-gray-50 rounded-lg p-4 text-sm">
                               <p className="font-medium mb-2">Example questions:</p>
                               <ul className="list-disc pl-5 space-y-1">
                                 <li>What is the business purpose of this table?</li>

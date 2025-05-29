@@ -144,199 +144,188 @@ export function DataGovernance() {
   }, 0) / (tableNodes.length || 1);
   
   return (
-    <div className="p-6 bg-gray-100 min-h-screen text-gray-900">
-      <SafeComponent fallback={<p className="text-red-600">Error loading governance data.</p>}>
+    <div className="p-4 sm:p-6 bg-gray-100 text-gray-900 min-h-screen">
+      <SafeComponent fallback={<div className="p-4 text-red-500">Error rendering Data Governance page.</div>}>
+        {/* Header */}
         <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-800">Data Governance</h1>
-            <p className="text-gray-600 mt-1">Manage and monitor data governance policies and compliance.</p>
-          </div>
-          {/* Placeholder for potential global actions, e.g., Refresh button */}
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2 sm:mb-0 flex items-center">
+            <Shield className="h-7 w-7 mr-3 text-sky-600" />
+            Data Governance Hub
+          </h1>
+          {/* Add any header actions here if needed, e.g., Create Policy button */}
         </div>
 
-        {/* Tabs for different governance aspects */}
-        <div className="mb-6">
-          <div className="border-b border-gray-300">
-            <nav className="-mb-px flex space-x-8" aria-label="Tabs">
-              {['tables', 'policies', 'access', 'quality_rules'].map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`
-                    ${activeTab === tab
-                      ? 'border-sky-500 text-sky-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}
-                    whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors
-                  `}
-                >
-                  {tab.charAt(0).toUpperCase() + tab.slice(1).replace('_', ' ')}
-                </button>
-              ))}
-            </nav>
+        {/* Tabs & Filters Toggle */}
+        <div className="mb-6 flex flex-col sm:flex-row justify-between items-center">
+          <div className="flex space-x-1 border border-gray-300 bg-white p-1 rounded-lg shadow-sm mb-2 sm:mb-0">
+            {['tables', 'policies', 'access_control', 'audit_logs'].map(tab => (
+              <button 
+                key={tab} 
+                onClick={() => setActiveTab(tab)} 
+                className={`px-3 sm:px-4 py-2 font-medium text-sm rounded-md transition-colors duration-150 ${activeTab === tab 
+                  ? 'bg-sky-600 text-white shadow-md'
+                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-800'}`}
+              >
+                {tab.charAt(0).toUpperCase() + tab.slice(1).replace('_', ' ')}
+              </button>
+            ))}
           </div>
+          {activeTab === 'tables' && (
+            <button 
+              onClick={() => setShowFilters(!showFilters)} 
+              className="flex items-center bg-white hover:bg-gray-50 text-gray-700 font-semibold py-2 px-4 rounded-lg text-sm border border-gray-300 shadow-sm hover:shadow-md transition-all duration-150"
+            >
+              <Filter className="h-4 w-4 mr-2" />
+              {showFilters ? 'Hide' : 'Show'} Filters
+              {showFilters ? <ChevronUp className="h-4 w-4 ml-1" /> : <ChevronDown className="h-4 w-4 ml-1" />}
+            </button>
+          )}
         </div>
 
-        {activeTab === 'tables' && (
-          <div className="space-y-6">
-            {/* Metrics Overview */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {[ 
-                { title: 'Total Tables', value: tableNodes.length, icon: FileText, color: 'sky' },
-                { title: 'Tables with PII', value: tablesWithPii, icon: Key, color: 'orange' },
-                { title: 'High Compliance', value: tableNodes.filter(node => governanceStatus[node.data.label] && governanceStatus[node.data.label].compliance === 'High').length, icon: CheckCircle, color: 'green' },
-                { title: 'Needs Attention', value: tableNodes.length - Math.floor(avgQuality * tableNodes.length / 100), icon: AlertTriangle, color: 'red' },
-              ].map(metric => (
-                <div key={metric.title} className="bg-white p-5 rounded-xl shadow-lg border border-gray-200 hover:shadow-xl transition-shadow">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-gray-500">{metric.title}</p>
-                    <div className={`p-2 rounded-lg bg-${metric.color}-100`}>
-                      <metric.icon className={`h-5 w-5 text-${metric.color}-600`} />
-                    </div>
+        {/* Filters Section (only for tables tab) */}
+        {activeTab === 'tables' && showFilters && (
+          <div className="mb-6 p-4 sm:p-6 bg-white rounded-xl shadow-lg border border-gray-200 transition-all duration-300 ease-in-out">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
+              <div>
+                <label htmlFor="searchTables" className="block text-sm font-medium text-gray-700 mb-1">Search Tables</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Search className="h-4 w-4 text-gray-400" />
                   </div>
-                  <p className="mt-2 text-3xl font-semibold text-gray-800">{metric.value}</p>
-                </div>
-              ))}
-            </div>
-
-            {/* Filters and Search */}
-            <div className="bg-white p-4 sm:p-6 rounded-xl shadow-lg border border-gray-200">
-              <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4">
-                <div className="relative w-full sm:max-w-xs">
-                  <input 
+                  <input
                     type="text"
-                    placeholder="Search tables..."
-                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 text-sm text-gray-900 placeholder-gray-500 bg-white"
+                    id="searchTables"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Search by table name or description..."
+                    className="w-full p-2.5 pl-10 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 placeholder-gray-400"
                   />
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                </div>
-                <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
-                  <button 
-                    onClick={() => setShowFilters(!showFilters)}
-                    className="flex items-center px-4 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-sky-500"
-                  >
-                    <Filter className="h-4 w-4 mr-2" />
-                    Filters
-                    {showFilters ? <ChevronUp className="h-4 w-4 ml-1.5" /> : <ChevronDown className="h-4 w-4 ml-1.5" />}
-                  </button>
                 </div>
               </div>
+              <div>
+                <label htmlFor="complianceFilter" className="block text-sm font-medium text-gray-700 mb-1">Compliance Level</label>
+                <select 
+                  id="complianceFilter" 
+                  value={complianceFilter} 
+                  onChange={(e) => setComplianceFilter(e.target.value)}
+                  className="w-full p-2.5 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                >
+                  {['All', 'High', 'Medium', 'Low'].map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                </select>
+              </div>
+              {/* Add more filters as needed, e.g., PII Status, Owner */}
+            </div>
+          </div>
+        )}
 
-              {showFilters && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 pt-4 border-t border-gray-200">
-                  <div>
-                    <label htmlFor="complianceFilter" className="block text-sm font-medium text-gray-700 mb-1">Compliance Status</label>
-                    <select 
-                      id="complianceFilter"
-                      className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 text-sm text-gray-900 bg-white"
-                      value={complianceFilter}
-                      onChange={(e) => setComplianceFilter(e.target.value)}
-                    >
-                      {['All', 'High', 'Medium', 'Low'].map(status => (
-                        <option key={status} value={status}>{status}</option>
-                      ))}
-                    </select>
-                  </div>
-                  {/* Add more filters here if needed, e.g., PII status, Owner */}
+        {/* Governance Metrics (only for tables tab) */}
+        {activeTab === 'tables' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6">
+            {[ 
+              { title: 'Total Tables Governed', value: tableNodes.length, icon: FileText, color: 'sky' },
+              { title: 'Tables with PII', value: tablesWithPii, icon: Key, color: 'orange' },
+              { title: 'High Compliance', value: tableNodes.filter(node => governanceStatus[node.data.label] && governanceStatus[node.data.label].compliance === 'High').length, icon: CheckCircle, color: 'green' },
+              { title: 'Needs Attention', value: tableNodes.length - Math.floor(avgQuality * tableNodes.length / 100), icon: AlertTriangle, color: 'red' },
+            ].map(card => (
+              <div key={card.title} className={`bg-white p-5 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 border border-gray-200 flex items-center space-x-4`}>
+                <div className={`p-3 rounded-full bg-${card.color}-100`}>
+                  <card.icon className={`h-6 w-6 text-${card.color}-600`} />
                 </div>
-              )}
-            </div>
+                <div>
+                  <p className="text-sm text-gray-500 font-medium">{card.title}</p>
+                  <p className="text-2xl font-bold text-gray-800">{card.value}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
-            {/* Tables List */}
-            <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    {['Table Name', 'Owner', 'Type', 'PII', 'Compliance', 'Quality Score', 'Last Audit'].map(header => (
-                      <th key={header} scope="col" className="px-6 py-3.5 text-left text-xs sm:text-sm font-semibold text-gray-600 uppercase tracking-wider">
-                        {header}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredTables.length > 0 ? (
-                    filteredTables.map(table => {
-                      const governance = governanceStatus[table.data.label] || { owner: 'N/A', compliance: 'N/A', pii: false, quality: 0, lastAudit: 'N/A' };
-                      return (
-                        <tr key={table.id} className="hover:bg-gray-50 transition-colors">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <div className={`p-2 rounded-md mr-3 bg-${table.data.type === 'source' ? 'blue' : table.data.type === 'staging' ? 'purple' : 'teal'}-100`}>
-                                <FileText className={`h-5 w-5 text-${table.data.type === 'source' ? 'blue' : table.data.type === 'staging' ? 'purple' : 'teal'}-600`} />
-                              </div>
-                              <div>
-                                <p className="text-sm font-semibold text-gray-800">
-                                  {table.data.label}
-                                </p>
-                                <p className="text-xs text-gray-500 mt-0.5">
-                                  {table.data.description ? table.data.description.substring(0, 60) + (table.data.description.length > 60 ? '...' : '') : 'No description'}
-                                </p>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                            {governance.owner}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 capitalize">
-                            {table.data.type || 'Unknown'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            {governance.pii ? (
-                              <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-700 border border-orange-200">
-                                Yes
-                              </span>
-                            ) : (
-                              <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
-                                No
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${ 
-                              governance.compliance === 'High' 
-                                ? 'bg-green-100 text-green-700 border-green-200' 
-                                : governance.compliance === 'Medium' 
-                                  ? 'bg-yellow-100 text-yellow-700 border-yellow-200' 
-                                  : 'bg-red-100 text-red-700 border-red-200'
-                            }`}>
-                              {governance.compliance}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <div className="w-24 bg-gray-200 rounded-full h-2 mr-2">
-                                <div 
-                                  className={`h-2 rounded-full ${ 
-                                    governance.quality >= 90 ? 'bg-green-500' : 
-                                    governance.quality >= 70 ? 'bg-yellow-500' : 
-                                    'bg-red-500'
-                                  }`} 
-                                  style={{ width: `${governance.quality}%` }}
-                                />
-                              </div>
-                              <span className="text-xs text-gray-600">
-                                {governance.quality}%
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                            {governance.lastAudit}
-                          </td>
-                        </tr>
-                      );
-                    })
-                  ) : (
-                    <tr>
-                      <td colSpan={7} className="px-6 py-10 text-center text-gray-500">
-                        No tables match your filters. Try adjusting your search or filter criteria.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+        {/* Content Area (Tables List or other tab content) */}
+        {activeTab === 'tables' && (
+          <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-x-auto">
+            <div className="p-4 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-800">Governed Data Tables</h3>
             </div>
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  {['Table Name', 'Owner', 'Type', 'PII', 'Compliance', 'Quality Score', 'Last Audit'].map(header => (
+                    <th key={header} scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      {header}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredTables.length > 0 ? (
+                  filteredTables.map(table => {
+                    const governance = governanceStatus[table.data.label] || { owner: 'N/A', compliance: 'N/A', pii: false, retention: 'N/A', quality: 0, lastAudit: 'N/A' };
+                    return (
+                      <tr key={table.id} className="hover:bg-gray-50 transition-colors duration-150">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-800">{table.data.label}</div>
+                          <div className="text-xs text-gray-500 truncate max-w-xs">{table.data.description || 'No description'}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                          {governance.owner}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 capitalize">
+                          {table.data.type || 'Unknown'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {governance.pii ? (
+                            <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-700 border border-orange-200">
+                              Yes
+                            </span>
+                          ) : (
+                            <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
+                              No
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${ 
+                            governance.compliance === 'High' 
+                              ? 'bg-green-100 text-green-700 border-green-200' 
+                              : governance.compliance === 'Medium' 
+                                ? 'bg-yellow-100 text-yellow-700 border-yellow-200' 
+                                : 'bg-red-100 text-red-700 border-red-200'
+                          }`}>
+                            {governance.compliance}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="w-24 bg-gray-200 rounded-full h-2 mr-2">
+                              <div 
+                                className={`h-2 rounded-full ${ 
+                                  governance.quality >= 90 ? 'bg-green-500' : 
+                                  governance.quality >= 70 ? 'bg-yellow-500' : 
+                                  'bg-red-500'
+                                }`} 
+                                style={{ width: `${governance.quality}%` }}
+                              />
+                            </div>
+                            <span className="text-xs text-gray-600">
+                              {governance.quality}%
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                          {governance.lastAudit}
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-10 text-center text-gray-500">
+                      No tables match your filters. Try adjusting your search or filter criteria.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         )}
         

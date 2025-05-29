@@ -4,8 +4,8 @@ export function DataQualityChart() {
   return <div className="flex flex-col h-64">
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center">
-          <div className="text-4xl font-bold text-white">98.2%</div>
-          <div className="text-sm text-slate-400 mt-2">
+          <div className="text-4xl font-bold text-[#2AB7A9]">98.2%</div>
+          <div className="text-sm text-gray-500 mt-2">
             Average Quality Score
           </div>
         </div>
@@ -21,10 +21,10 @@ export function DataQualityChart() {
         label: 'Freshness',
         score: 97.0
       }].map(metric => <div key={metric.label} className="text-center">
-            <div className="text-lg font-medium text-white">
+            <div className="text-lg font-medium text-gray-700">
               {metric.score}%
             </div>
-            <div className="text-xs text-slate-400">{metric.label}</div>
+            <div className="text-xs text-gray-500">{metric.label}</div>
           </div>)}
       </div>
     </div>;

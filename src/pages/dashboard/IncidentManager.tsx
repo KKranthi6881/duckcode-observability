@@ -254,75 +254,78 @@ export function IncidentManager() {
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [severityFilter, setSeverityFilter] = useState<string>('all');
-  const [pipelineFilter, setPipelineFilter] = useState<string>('all');
-  
-  // Apply filters
+  const [statusFilter, setStatusFilter] = useState<IncidentStatus | 'all'>('all');
+  const [severityFilter, setSeverityFilter] = useState<IncidentSeverity | 'all'>('all');
+  const [pipelineFilter, setPipelineFilter] = useState<PipelineType | 'all'>('all');
+
   useEffect(() => {
     let result = incidents;
-    
-    // Apply search term
     if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      result = result.filter(incident => 
-        incident.title.toLowerCase().includes(term) || 
-        incident.description.toLowerCase().includes(term) ||
-        incident.pipeline.name.toLowerCase().includes(term) ||
-        (incident.jiraTicket && incident.jiraTicket.toLowerCase().includes(term))
+      result = result.filter(inc => 
+        inc.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        inc.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        inc.pipeline.name.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
-    
-    // Apply status filter
     if (statusFilter !== 'all') {
-      result = result.filter(incident => incident.status === statusFilter);
+      result = result.filter(inc => inc.status === statusFilter);
     }
-    
-    // Apply severity filter
     if (severityFilter !== 'all') {
-      result = result.filter(incident => incident.severity === severityFilter);
+      result = result.filter(inc => inc.severity === severityFilter);
     }
-    
-    // Apply pipeline filter
     if (pipelineFilter !== 'all') {
-      result = result.filter(incident => incident.pipeline.type === pipelineFilter);
+      result = result.filter(inc => inc.pipeline.type === pipelineFilter);
     }
-    
     setFilteredIncidents(result);
-  }, [incidents, searchTerm, statusFilter, severityFilter, pipelineFilter]);
-  
+  }, [searchTerm, statusFilter, severityFilter, pipelineFilter, incidents]);
+
+  const openModal = (incident: Incident) => {
+    setSelectedIncident(incident);
+    setIsModalOpen(true);
+  };
+
   // Helper function to get status badge color
   const getStatusColor = (status: IncidentStatus) => {
     switch (status) {
-      case 'open': return 'bg-red-100 text-red-700 border-red-200';
-      case 'investigating': return 'bg-yellow-100 text-yellow-700 border-yellow-200';
-      case 'resolved': return 'bg-green-100 text-green-700 border-green-200';
-      case 'closed': return 'bg-gray-200 text-gray-700 border-gray-300';
-      default: return 'bg-gray-200 text-gray-700 border-gray-300';
+      case 'open':
+        return 'bg-yellow-100 text-yellow-700 border-yellow-300';
+      case 'investigating':
+        return 'bg-blue-100 text-blue-700 border-blue-300';
+      case 'resolved':
+        return 'bg-green-100 text-green-700 border-green-300';
+      case 'closed':
+        return 'bg-gray-100 text-gray-600 border-gray-300'; 
+      default:
+        return 'bg-gray-100 text-gray-600 border-gray-300';
     }
   };
-  
+
   // Helper function to get severity badge color
   const getSeverityColor = (severity: IncidentSeverity) => {
     switch (severity) {
-      case 'critical': return 'bg-red-100 text-red-700 border-red-200';
-      case 'high': return 'bg-orange-100 text-orange-700 border-orange-200';
-      case 'medium': return 'bg-yellow-100 text-yellow-700 border-yellow-200';
-      case 'low': return 'bg-sky-100 text-sky-700 border-sky-200';
-      default: return 'bg-gray-200 text-gray-700 border-gray-300';
+      case 'critical':
+        return 'bg-red-100 text-red-700 border-red-300 font-medium';
+      case 'high':
+        return 'bg-red-100 text-red-600 border-red-200';
+      case 'medium':
+        return 'bg-orange-100 text-orange-700 border-orange-300';
+      case 'low':
+        return 'bg-yellow-100 text-yellow-700 border-yellow-300';
+      default:
+        return 'bg-gray-100 text-gray-600 border-gray-300';
     }
   };
-  
+
   // Helper function to get pipeline type icon
   const getPipelineIcon = (type: PipelineType) => {
     switch (type) {
-      case 'airflow': return <Workflow className="h-5 w-5 text-blue-500" />;
-      case 'informatica': return <Database className="h-5 w-5 text-purple-500" />;
-      case 'dbt': return <GitMerge className="h-5 w-5 text-green-500" />;
+      case 'airflow': return <Workflow className="h-5 w-5 text-sky-600" />;
+      case 'informatica': return <GitMerge className="h-5 w-5 text-purple-600" />;
+      case 'dbt': return <Database className="h-5 w-5 text-teal-600" />;
       default: return <Server className="h-5 w-5 text-gray-500" />;
     }
   };
-  
+
   // Format time duration (minutes to hours and minutes)
   const formatTimeDuration = (minutes?: number) => {
     if (!minutes) return 'N/A';
@@ -333,7 +336,7 @@ export function IncidentManager() {
     if (hours === 0) return `${mins}m`;
     return `${hours}h ${mins}m`;
   };
-  
+
   // Format date to relative time
   const formatRelativeTime = (dateString: string) => {
     const date = new Date(dateString);
@@ -351,72 +354,40 @@ export function IncidentManager() {
   };
 
   return (
-    <div className="space-y-6 p-6 bg-gray-100 min-h-screen text-gray-900">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-semibold text-gray-800">Incident Manager</h1>
+    <div className="p-4 sm:p-6 bg-gray-100 min-h-screen">
+      {/* Header */}
+      <div className="mb-6 flex flex-col sm:flex-row justify-between items-center">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-3 sm:mb-0 flex items-center">
+          <AlertTriangle className="h-7 w-7 mr-3 text-red-600" />
+          Incident Manager
+        </h1>
         <button 
-          onClick={() => alert('New Incident form not yet implemented.')} 
-          className="flex items-center px-4 py-2 bg-sky-600 text-white rounded-lg text-sm font-semibold hover:bg-sky-700 transition-colors shadow-md focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-opacity-75"
+          onClick={() => alert('Create New Incident form would appear here.')} 
+          className="flex items-center bg-sky-600 text-white px-4 py-2.5 rounded-lg shadow-md hover:bg-sky-700 transition-colors text-sm font-medium focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-opacity-75"
         >
           <PlusCircle className="h-5 w-5 mr-2" />
-          New Incident
+          Create Incident
         </button>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-        {['open', 'investigating', 'resolved', 'closed'].map(status => {
-          const count = incidents.filter(inc => inc.status === status).length;
-          let icon = <AlertTriangle className="h-6 w-6" />;
-          let iconColor = 'text-gray-600';
-          let iconBg = 'bg-gray-100';
-
-          switch (status) {
-            case 'open': icon = <AlertTriangle className="h-6 w-6 text-red-600" />; iconBg = 'bg-red-100'; break;
-            case 'investigating': icon = <RefreshCw className="h-6 w-6 text-yellow-600" />; iconBg = 'bg-yellow-100'; break;
-            case 'resolved': icon = <CheckCircle className="h-6 w-6 text-green-600" />; iconBg = 'bg-green-100'; break;
-            case 'closed': icon = <XCircle className="h-6 w-6 text-gray-600" />; iconBg = 'bg-gray-100'; break;
-          }
-          return (
-            <div key={status} className="bg-white rounded-lg shadow-sm border border-gray-200 p-5 hover:shadow-md transition-shadow duration-200">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-sm font-medium text-gray-500 uppercase">{status}</p>
-                  <p className="text-3xl font-semibold text-gray-900 mt-1">{count}</p>
-                </div>
-                <div className={`p-3 rounded-full ${iconBg}`}>
-                  {icon}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Filters and Search */}
-      <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-          <div>
-            <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">Search</label>
-            <div className="relative">
-              <input 
-                type="text" 
-                id="search"
-                placeholder="Search by title, JIRA ID..."
-                className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 text-gray-900 placeholder-gray-400"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-            </div>
+      {/* Filters */}
+      <div className="mb-6 p-4 sm:p-5 bg-white rounded-xl shadow-lg border border-gray-200">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <input 
+              type="text" 
+              placeholder="Search incidents..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 text-sm text-gray-700 placeholder-gray-500 bg-white transition-shadow focus:shadow-sm"
+            />
           </div>
           <div>
-            <label htmlFor="statusFilter" className="block text-sm font-medium text-gray-700 mb-1">Status</label>
             <select 
-              id="statusFilter"
-              className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 text-gray-900"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              value={statusFilter} 
+              onChange={(e) => setStatusFilter(e.target.value as IncidentStatus | 'all')}
+              className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 text-sm text-gray-700 bg-white transition-shadow focus:shadow-sm"
             >
               <option value="all">All Statuses</option>
               <option value="open">Open</option>
@@ -426,12 +397,10 @@ export function IncidentManager() {
             </select>
           </div>
           <div>
-            <label htmlFor="severityFilter" className="block text-sm font-medium text-gray-700 mb-1">Severity</label>
             <select 
-              id="severityFilter"
-              className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 text-gray-900"
-              value={severityFilter}
-              onChange={(e) => setSeverityFilter(e.target.value)}
+              value={severityFilter} 
+              onChange={(e) => setSeverityFilter(e.target.value as IncidentSeverity | 'all')}
+              className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 text-sm text-gray-700 bg-white transition-shadow focus:shadow-sm"
             >
               <option value="all">All Severities</option>
               <option value="critical">Critical</option>
@@ -441,12 +410,10 @@ export function IncidentManager() {
             </select>
           </div>
           <div>
-            <label htmlFor="pipelineFilter" className="block text-sm font-medium text-gray-700 mb-1">Pipeline Type</label>
             <select 
-              id="pipelineFilter"
-              className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 text-gray-900"
-              value={pipelineFilter}
-              onChange={(e) => setPipelineFilter(e.target.value)}
+              value={pipelineFilter} 
+              onChange={(e) => setPipelineFilter(e.target.value as PipelineType | 'all')}
+              className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 text-sm text-gray-700 bg-white transition-shadow focus:shadow-sm"
             >
               <option value="all">All Pipelines</option>
               <option value="airflow">Airflow</option>
@@ -458,159 +425,160 @@ export function IncidentManager() {
         </div>
       </div>
 
-      {/* Incidents Table */}
-      <div className="bg-white shadow-md rounded-lg border border-gray-200 overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Incident</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Severity</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pipeline</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assignee</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">JIRA</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time Spent</th>
-              <th scope="col" className="relative px-6 py-3">
-                <span className="sr-only">View</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {filteredIncidents.length > 0 ? filteredIncidents.map((incident) => (
-              <tr key={incident.id} className="hover:bg-gray-50 transition-colors duration-150">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900 truncate max-w-xs" title={incident.title}>{incident.title}</div>
-                  <div className="text-xs text-gray-500 truncate max-w-xs" title={incident.description}>{incident.description}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(incident.status)} border`}>
-                    {incident.status}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getSeverityColor(incident.severity)} border`}>
+      {/* Incident List */}
+      {filteredIncidents.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
+          {filteredIncidents.map(incident => (
+            <div 
+              key={incident.id} 
+              onClick={() => openModal(incident)} 
+              className="bg-white rounded-xl shadow-lg hover:shadow-xl border border-gray-200 p-5 cursor-pointer transition-all duration-300 hover:scale-[1.02] flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex justify-between items-start mb-3">
+                  <h2 className="text-lg font-semibold text-gray-800 leading-tight pr-2">{incident.title}</h2>
+                  <span className={`px-2.5 py-1 text-xs font-medium rounded-full border ${getSeverityColor(incident.severity)}`}>
                     {incident.severity}
                   </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
+                </div>
+                <p className="text-sm text-gray-600 mb-3 h-16 overflow-hidden line-clamp-3">{incident.description}</p>
+                
+                <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
                   <div className="flex items-center">
                     {getPipelineIcon(incident.pipeline.type)}
-                    <span className="ml-2 text-sm text-gray-700">{incident.pipeline.name} ({incident.pipeline.type})</span>
+                    <span className="ml-1.5 capitalize">{incident.pipeline.type}: {incident.pipeline.name}</span>
                   </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {formatRelativeTime(incident.created)}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                  {incident.assignee || 'Unassigned'}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {incident.jiraTicket ? (
-                    <a href={`#`} target="_blank" rel="noopener noreferrer" className="text-sky-600 hover:text-sky-700 flex items-center">
-                      {incident.jiraTicket} <ExternalLink className="h-3 w-3 ml-1" />
-                    </a>
-                  ) : (
-                    <span className="text-xs text-gray-500">N/A</span>
+                  <span className={`px-2.5 py-1 rounded-full border ${getStatusColor(incident.status)}`}>
+                    {incident.status}
+                  </span>
+                </div>
+
+                <div className="text-xs text-gray-500 space-y-1 mb-4">
+                  <div className="flex items-center">
+                    <Calendar className="h-3.5 w-3.5 mr-1.5 text-gray-400" />
+                    Created: {formatRelativeTime(incident.created)}
+                  </div>
+                  <div className="flex items-center">
+                    <Clock className="h-3.5 w-3.5 mr-1.5 text-gray-400" />
+                    Last Updated: {formatRelativeTime(incident.lastUpdated)}
+                  </div>
+                  {incident.resolvedAt && (
+                     <div className="flex items-center text-green-600">
+                      <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
+                      Resolved: {formatRelativeTime(incident.resolvedAt)}
+                    </div>
                   )}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                  {formatTimeDuration(incident.timeSpent)}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <button 
-                    onClick={() => { setSelectedIncident(incident); setIsModalOpen(true); }} 
-                    className="text-sky-600 hover:text-sky-700 flex items-center"
-                  >
-                    View <ArrowRight className="h-4 w-4 ml-1" />
-                  </button>
-                </td>
-              </tr>
-            )) : (
-              <tr>
-                <td colSpan={9} className="px-6 py-12 text-center">
-                  <div className="flex flex-col items-center">
-                    <Search className="h-12 w-12 text-gray-400 mb-3" />
-                    <p className="text-xl font-semibold text-gray-500 mb-1">No Incidents Found</p>
-                    <p className="text-sm text-gray-400">Try adjusting your search or filter criteria.</p>
-                  </div>
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+                </div>
+              </div>
+
+              <div className="mt-auto pt-3 border-t border-gray-200 flex justify-between items-center">
+                <div className="text-xs text-gray-500">
+                  {incident.assignee ? `Assigned to: ${incident.assignee}` : 'Unassigned'}
+                </div>
+                <button 
+                  onClick={(e) => { e.stopPropagation(); openModal(incident); }} 
+                  className="text-sm text-sky-600 hover:text-sky-700 font-medium flex items-center"
+                >
+                  View Details <ArrowRight className="h-4 w-4 ml-1" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-12">
+          <Bug className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-gray-700 mb-2">No Incidents Found</h3>
+          <p className="text-gray-500">Try adjusting your filters or check back later.</p>
+        </div>
+      )}
 
       {/* Incident Detail Modal */}
       {isModalOpen && selectedIncident && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center p-4 z-50 transition-opacity duration-300 ease-in-out">
-          <div className="bg-white p-6 rounded-lg shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto relative text-gray-900 transform transition-all duration-300 ease-in-out scale-100">
-            <button 
-              onClick={() => setIsModalOpen(false)} 
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              <XCircle className="h-6 w-6" />
-            </button>
-            <h2 className="text-2xl font-bold mb-2 text-sky-700">{selectedIncident.title}</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 text-sm">
-              {[ 
-                { label: 'Status', value: selectedIncident.status, colorClass: getStatusColor(selectedIncident.status), isBadge: true },
-                { label: 'Severity', value: selectedIncident.severity, colorClass: getSeverityColor(selectedIncident.severity), isBadge: true },
-                { label: 'Pipeline', value: `${selectedIncident.pipeline.name} (${selectedIncident.pipeline.type})`, icon: getPipelineIcon(selectedIncident.pipeline.type) },
-                { label: 'Created', value: new Date(selectedIncident.created).toLocaleString() },
-                { label: 'Last Updated', value: new Date(selectedIncident.lastUpdated).toLocaleString() },
-                { label: 'Assignee', value: selectedIncident.assignee || 'N/A' },
-                { label: 'JIRA Ticket', value: selectedIncident.jiraTicket, isLink: true },
-                { label: 'Time Spent', value: formatTimeDuration(selectedIncident.timeSpent) },
-                ...(selectedIncident.resolvedAt ? [{ label: 'Resolved At', value: new Date(selectedIncident.resolvedAt).toLocaleString() }] : []),
-              ].map(item => (
-                <div key={item.label} className="bg-gray-50 p-3 rounded-md border border-gray-200">
-                  <p className="text-xs font-medium text-gray-500 uppercase">{item.label}</p> 
-                  {item.isBadge ? (
-                    <p className={`mt-1 inline-block px-2 py-0.5 text-xs font-semibold rounded-full ${item.colorClass} border`}>{item.value}</p>
-                  ) : item.icon ? (
-                    <div className="mt-1 flex items-center text-gray-700">
-                      {item.icon}
-                      <span className="ml-2">{item.value}</span>
-                    </div>
-                  ) : item.isLink && item.value !== 'N/A' ? (
-                     <a href="#" target="_blank" rel="noopener noreferrer" className="mt-1 text-sky-600 hover:text-sky-700 flex items-center">{item.value} <ExternalLink className="h-3 w-3 ml-1"/></a>
-                  ) : (
-                    <p className="mt-1 text-gray-700">{item.value}</p>
-                  )}
-                </div>
-              ))}
-            </div>
-            
-            <div className="mb-4">
-              <h3 className="text-lg font-semibold mb-1 text-gray-700">Description</h3>
-              <p className="text-sm bg-gray-50 p-3 rounded-md border border-gray-200 text-gray-700">{selectedIncident.description}</p>
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center p-4 z-50 transition-opacity duration-300 ease-in-out" onClick={() => setIsModalOpen(false)}>
+          <div 
+            className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 sm:p-8 transform transition-all duration-300 ease-in-out scale-100" 
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-start mb-4">
+              <h2 className="text-2xl font-bold text-gray-800">{selectedIncident.title}</h2>
+              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                <XCircle className="h-7 w-7" />
+              </button>
             </div>
 
-            <div className="mb-4">
-              <h3 className="text-lg font-semibold mb-1 text-gray-700">Impacted Systems/Reports</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 mb-5 text-sm">
+              <div className="flex items-center">
+                <strong className="text-gray-600 w-28">Status:</strong> 
+                <span className={`px-3 py-1 rounded-full border text-xs font-semibold ${getStatusColor(selectedIncident.status)}`}>{selectedIncident.status}</span>
+              </div>
+              <div className="flex items-center">
+                <strong className="text-gray-600 w-28">Severity:</strong> 
+                <span className={`px-3 py-1 rounded-full border text-xs font-semibold ${getSeverityColor(selectedIncident.severity)}`}>{selectedIncident.severity}</span>
+              </div>
+              <div className="flex items-center col-span-1 md:col-span-2">
+                <strong className="text-gray-600 w-28">Pipeline:</strong> 
+                <span className="text-gray-700 flex items-center">
+                  {getPipelineIcon(selectedIncident.pipeline.type)} 
+                  <span className="ml-1.5">{selectedIncident.pipeline.name} ({selectedIncident.pipeline.type})</span>
+                </span>
+              </div>
+              <div className="flex items-center">
+                <strong className="text-gray-600 w-28">Created:</strong> <span className="text-gray-700">{new Date(selectedIncident.created).toLocaleString()}</span>
+              </div>
+              <div className="flex items-center">
+                <strong className="text-gray-600 w-28">Last Updated:</strong> <span className="text-gray-700">{new Date(selectedIncident.lastUpdated).toLocaleString()}</span>
+              </div>
+              {selectedIncident.resolvedAt && (
+                <div className="flex items-center text-green-700">
+                  <strong className="text-green-600 w-28">Resolved At:</strong> {new Date(selectedIncident.resolvedAt).toLocaleString()}
+                </div>
+              )}
+              <div className="flex items-center">
+                <strong className="text-gray-600 w-28">Assignee:</strong> <span className="text-gray-700">{selectedIncident.assignee || 'N/A'}</span>
+              </div>
+              <div className="flex items-center">
+                <strong className="text-gray-600 w-28">Time Spent:</strong> <span className="text-gray-700">{formatTimeDuration(selectedIncident.timeSpent) || 'N/A'}</span>
+              </div>
+              {selectedIncident.jiraTicket && (
+                <div className="flex items-center col-span-1 md:col-span-2">
+                  <strong className="text-gray-600 w-28">Jira Ticket:</strong> 
+                  <Link to={`https://jira.example.com/browse/${selectedIncident.jiraTicket}`} target="_blank" className="text-sky-600 hover:text-sky-700 hover:underline flex items-center">
+                    {selectedIncident.jiraTicket} <ExternalLink className="h-4 w-4 ml-1.5" />
+                  </Link>
+                </div>
+              )}
+            </div>
+            
+            <div className="mb-5">
+              <h3 className="text-base font-semibold mb-1.5 text-gray-700">Description</h3>
+              <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-md border border-gray-200 whitespace-pre-wrap">{selectedIncident.description}</p>
+            </div>
+
+            <div className="mb-5">
+              <h3 className="text-base font-semibold mb-1.5 text-gray-700">Impacted Systems/Reports</h3>
               <div className="flex flex-wrap gap-2 bg-gray-50 p-3 rounded-md border border-gray-200">
                 {selectedIncident.impacts.map(impact => (
-                  <span key={impact} className="px-2 py-1 bg-gray-200 text-gray-700 text-xs rounded-full">{impact}</span>
+                  <span key={impact} className="px-2.5 py-1 bg-gray-200 text-gray-700 text-xs rounded-full font-medium">{impact}</span>
                 ))}
               </div>
             </div>
 
             {selectedIncident.aiSuggestions && selectedIncident.aiSuggestions.length > 0 && (
-              <div className="mb-6 p-4 border border-sky-300 rounded-lg bg-sky-50">
-                <div className="flex items-center mb-2">
-                  <Cpu className="h-6 w-6 mr-2 text-sky-600" />
-                  <h3 className="text-xl font-semibold text-sky-700">AI-Assisted Diagnosis & Suggestions</h3>
+              <div className="mb-6 p-4 border border-sky-200 rounded-lg bg-sky-50 shadow-sm">
+                <div className="flex items-center mb-2.5">
+                  <Cpu className="h-6 w-6 mr-2.5 text-sky-600" />
+                  <h3 className="text-lg font-semibold text-sky-700">AI-Assisted Diagnosis & Suggestions</h3>
                 </div>
                 {selectedIncident.aiResolved && (
-                  <div className="flex items-center text-sm text-green-700 mb-2 bg-green-100 p-2 rounded-md border border-green-200">
+                  <div className="flex items-center text-sm text-green-700 mb-2.5 bg-green-100 p-2.5 rounded-md border border-green-200 font-medium">
                     <CheckCircle className="h-4 w-4 mr-2" />
                     This incident was potentially resolved using AI suggestions.
                   </div>
                 )}
-                <ul className="list-disc list-inside space-y-2 text-sm">
+                <ul className="list-disc list-inside space-y-2.5 text-sm">
                   {selectedIncident.aiSuggestions.map((suggestion, index) => (
-                    <li key={index} className="bg-white p-3 rounded-md shadow-sm border border-gray-200 text-gray-700">{suggestion}</li>
+                    <li key={index} className="bg-white p-3 rounded-md shadow-sm border border-gray-200 text-gray-700 hover:border-sky-300 transition-colors">{suggestion}</li>
                   ))}
                 </ul>
                 <div className="mt-3 text-xs text-gray-500">
@@ -620,10 +588,10 @@ export function IncidentManager() {
             )}
 
             <div>
-              <h3 className="text-lg font-semibold mb-2 text-gray-700">Resolution Timeline / Steps</h3>
-              <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
+              <h3 className="text-base font-semibold mb-2 text-gray-700">Resolution Timeline / Steps</h3>
+              <div className="space-y-3 max-h-60 overflow-y-auto pr-2 border border-gray-200 rounded-md p-3 bg-gray-50">
                 {selectedIncident.steps.map(step => (
-                  <div key={step.id} className="flex items-start p-3 bg-gray-50 rounded-md shadow-sm border border-gray-200">
+                  <div key={step.id} className="flex items-start p-3 bg-white rounded-md shadow-sm border border-gray-200 hover:border-gray-300 transition-colors">
                     <div className={`mr-3 mt-1 flex-shrink-0 h-5 w-5 rounded-full flex items-center justify-center 
                       ${step.status === 'success' ? 'bg-green-500' : step.status === 'failed' ? 'bg-red-500' : 'bg-yellow-500'}`}>
                       {step.status === 'success' ? <CheckCircle className="h-3 w-3 text-white"/> : 
@@ -639,16 +607,16 @@ export function IncidentManager() {
               </div>
             </div>
 
-            <div className="mt-6 pt-4 border-t border-gray-300 flex justify-end space-x-3">
+            <div className="mt-6 pt-5 border-t border-gray-300 flex justify-end space-x-3">
               <button 
                 onClick={() => alert('Escalate not implemented')} 
-                className="px-4 py-2 bg-yellow-500 text-white rounded-md text-sm font-medium hover:bg-yellow-600 transition-colors focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-opacity-75 shadow-sm"
+                className="px-4 py-2 bg-yellow-500 text-white rounded-lg text-sm font-medium hover:bg-yellow-600 transition-colors focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-opacity-75 shadow-sm hover:shadow-md"
               >
                 Escalate
               </button>
               <button 
                 onClick={() => setIsModalOpen(false)} 
-                className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-md text-sm font-medium hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-opacity-75 shadow-sm"
+                className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-opacity-75 shadow-sm hover:shadow-md"
               >
                 Close
               </button>

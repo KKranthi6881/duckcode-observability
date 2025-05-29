@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { Sidebar } from './components/Sidebar';
-import { DashboardHeader } from './components/DashboardHeader';
 
 export function DashboardLayout() {
   const location = useLocation();
@@ -18,12 +17,12 @@ export function DashboardLayout() {
   }, [location.pathname]);
 
   return (
-    <div className="min-h-screen bg-slate-900">
+    <div className="min-h-screen bg-background">
       <div className="flex h-screen">
         <Sidebar />
         <div className="flex-1 flex flex-col overflow-hidden">
-          <DashboardHeader />
-          <main className="flex-1 overflow-y-auto bg-slate-900 p-6">
+          
+          <main className="flex-1 overflow-y-auto bg-background p-6">
             <Outlet />
           </main>
         </div>

@@ -282,19 +282,19 @@ export function DataAlerts() {
 
   const getSeverityClass = (severity) => {
     switch (severity) {
-      case 'high': return 'bg-red-100 text-red-700 border-red-300';
-      case 'medium': return 'bg-yellow-100 text-yellow-700 border-yellow-300';
-      case 'low': return 'bg-sky-100 text-sky-700 border-sky-300';
-      default: return 'bg-gray-100 text-gray-700 border-gray-300';
+      case 'high': return 'bg-red-100 text-red-700 border border-red-200 px-2.5 py-0.5 rounded-full text-xs font-medium';
+      case 'medium': return 'bg-yellow-100 text-yellow-800 border border-yellow-300 px-2.5 py-0.5 rounded-full text-xs font-medium';
+      case 'low': return 'bg-sky-100 text-sky-700 border border-sky-200 px-2.5 py-0.5 rounded-full text-xs font-medium';
+      default: return 'bg-gray-100 text-gray-700 border border-gray-300 px-2.5 py-0.5 rounded-full text-xs font-medium';
     }
   };
 
   const getStatusClass = (status) => {
     switch (status) {
-      case 'open': return 'bg-red-100 text-red-700';
-      case 'investigating': return 'bg-yellow-100 text-yellow-700';
-      case 'resolved': return 'bg-green-100 text-green-700';
-      default: return 'bg-gray-100 text-gray-700';
+      case 'open': return 'bg-red-100 text-red-600 px-2.5 py-0.5 rounded-md text-xs font-medium';
+      case 'investigating': return 'bg-yellow-100 text-yellow-700 px-2.5 py-0.5 rounded-md text-xs font-medium';
+      case 'resolved': return 'bg-green-100 text-green-700 px-2.5 py-0.5 rounded-md text-xs font-medium';
+      default: return 'bg-gray-100 text-gray-600 px-2.5 py-0.5 rounded-md text-xs font-medium';
     }
   };
 
@@ -462,7 +462,7 @@ export function DataAlerts() {
               <input
                 type="text"
                 id="search-alerts"
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm"
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 focus:border-sky-500 sm:text-sm"
                 placeholder="Search by title, description, source..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -475,7 +475,7 @@ export function DataAlerts() {
             <label htmlFor="severity-filter" className="block text-sm font-medium text-gray-700 mb-1">Severity</label>
             <select 
               id="severity-filter" 
-              className="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm"
+              className="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 focus:border-sky-500 sm:text-sm"
               value={filters.severity}
               onChange={(e) => handleFilterChange('severity', e.target.value)}
             >
@@ -488,7 +488,7 @@ export function DataAlerts() {
             <label htmlFor="status-filter" className="block text-sm font-medium text-gray-700 mb-1">Status</label>
             <select 
               id="status-filter" 
-              className="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm"
+              className="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 focus:border-sky-500 sm:text-sm"
               value={filters.status}
               onChange={(e) => handleFilterChange('status', e.target.value)}
             >
@@ -501,7 +501,7 @@ export function DataAlerts() {
             <label htmlFor="type-filter" className="block text-sm font-medium text-gray-700 mb-1">Type</label>
             <select 
               id="type-filter" 
-              className="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm"
+              className="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 focus:border-sky-500 sm:text-sm"
               value={filters.type}
               onChange={(e) => handleFilterChange('type', e.target.value)}
             >

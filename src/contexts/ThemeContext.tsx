@@ -10,7 +10,7 @@ export function ThemeProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const [theme, setTheme] = useState<Theme>('dark');
+  const [theme, setTheme] = useState<Theme>('light');
   return <ThemeContext.Provider value={{
     theme,
     setTheme
