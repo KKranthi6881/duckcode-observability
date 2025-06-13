@@ -76,12 +76,12 @@ export function App() {
                 <Header />
                 <main>
                   <Hero />
-                  <Features />
                   <CodeIntegration />
+                  <Features />
                   <Benefits />
-                  <CTA />
+              
                 </main>
-                <Footer />
+
               </>
             } />
           </Routes>
