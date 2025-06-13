@@ -31,7 +31,7 @@ export function Hero() {
                 The ultimate IDE for
               </span>
               <span className="block text-transparent bg-clip-text bg-gradient-to-r from-[#F5B72F] via-[#2AB7A9] to-purple-500 animate-gradient-text">
-                data development
+                Data Teams
               </span>
             </h1>
             <p className="mt-8 max-w-2xl mx-auto text-xl text-slate-300 animate-fade-in animation-delay-200">

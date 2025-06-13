@@ -62,13 +62,15 @@ export function Sidebar() {
 
   return <div className="hidden lg:flex lg:flex-shrink-0 sidebar-container">
       <div className="flex flex-col w-64">
-        <div className="flex flex-col flex-1 min-h-0 bg-white border-r border-gray-200">
+        <div className="flex flex-col flex-1 min-h-0 bg-gray-50 border-r border-gray-200">
           <div className="flex-1 flex flex-col pt-6 pb-4 overflow-y-auto">
-            <div className="flex items-center flex-shrink-0 px-4">
-              <Link to="/" className="flex items-center">
-                <img src="/icon.png" alt="Duckcode Logo" className="h-8 w-auto" />
-                <span className="ml-2 text-xl font-bold text-gray-900">
-                  Duckcode<span style={{ color: logoColor }}>.ai</span>
+            <div className="flex items-center justify-center flex-shrink-0 px-4 mb-4">
+              <Link to="/" className="flex flex-col items-center">
+                <div className=" rounded-lg shadow-md">
+                  <img src="/icon.png" alt="Duckcode Logo" className="h-12 w-auto" />
+                </div>
+                <span className="mt-2 text-xl font-bold text-gray-900">
+                  Duckcode<span style={{ color: logoColor }}></span>
                 </span>
               </Link>
             </div>
