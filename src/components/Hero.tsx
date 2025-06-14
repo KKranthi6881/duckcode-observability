@@ -20,29 +20,37 @@ export function Hero() {
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-12 items-center">
           {/* Left side - Hero content */}
           <div className="lg:col-span-3 animate-fade-in">
-            <h2 className="text-left text-2xl font-bold tracking-tight text-[#2AB7A9] mb-3 animate-fade-in">
-              <span className="flex items-center">
-                <Sparkles className="h-6 w-6 text-[#F5B72F] mr-2 animate-pulse" />
-                AI-Powered Data Development IDE
-                <span className="ml-3 px-2 py-0.5 text-xs font-bold bg-purple-600 text-white rounded-full">Coming Soon</span>
-              </span>
+            <h2 className="text-left text-xl sm:text-2xl font-bold tracking-tight text-[#2AB7A9] mb-3 animate-fade-in flex items-center">
+              <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-[#F5B72F] mr-2 animate-pulse" />
+              AI-Powered IDE for Data Teams
+              <span className="ml-3 px-2 py-0.5 text-xs font-bold bg-purple-600 text-white rounded-full">Private Beta</span>
             </h2>
-            <h1 className="text-left text-5xl font-extrabold tracking-tight text-white sm:text-6xl md:text-7xl">
-              <span className="flex items-center gap-2">
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#F5B72F] via-[#2AB7A9] to-purple-500 animate-gradient-text">20X Faster</span>
-                <span className="text-white">for</span>
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#2AB7A9] to-purple-500">Data Teams</span>
-              </span>
-              <span className="block mt-3 text-3xl sm:text-4xl font-bold text-white animate-title">
-                Accelerate Development & Troubleshooting
-              </span>
-            </h1>
-            <p className="mt-8 text-xl text-slate-300 animate-fade-in animation-delay-200">
-              Our AI-powered IDE delivers <span className="font-bold text-[#F5B72F]">20X faster</span> data warehouse development with built-in lineage visualization, 
-              observability, and automated data quality checks. Coming soon—get started today with our <span className="font-bold text-[#2AB7A9]">free VSCode extension</span>.
+            
+            <div className="space-y-2">
+              <h1 className="text-left text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight">
+                <div className="text-transparent bg-clip-text bg-gradient-to-r from-[#F5B72F] via-[#2AB7A9] to-purple-500 animate-gradient-text">
+                  20X Faster Development.
+                </div>
+                <div className="text-transparent bg-clip-text bg-gradient-to-r from-purple-500 via-[#2AB7A9] to-[#F5B72F] animate-gradient-text">
+                  Zero Guesswork.
+                </div>
+              </h1>
+              
+              <p className="text-2xl sm:text-3xl md:text-4xl font-bold text-white animate-title pt-2">
+                Ship data pipelines and debug issues in minutes—not days.
+              </p>
+            </div>
+            
+            <p className="mt-6 sm:mt-8 text-lg sm:text-xl text-slate-300 animate-fade-in animation-delay-200 max-w-2xl">
+              Built-in lineage, observability, and data quality checks in one powerful VSCode extension.
+              <span className="font-bold text-[#F5B72F]"> 🧪 Now in private beta.</span> Get early access.
             </p>
-            <div className="mt-10 flex items-start animate-fade-in animation-delay-400">
-              <a href="https://marketplace.visualstudio.com/items?itemName=duckcode.duckcode-extension" target="_blank" rel="noopener noreferrer" className="group inline-flex items-center px-8 py-4 border border-transparent text-base font-medium rounded-full shadow-lg text-slate-900 bg-gradient-to-r from-[#F5B72F] to-[#F5B72F]/80 hover:shadow-xl hover:scale-105 transition-all duration-200">
+            
+            <div className="mt-8 sm:mt-10 flex items-start animate-fade-in animation-delay-400">
+              <a href="https://marketplace.visualstudio.com/items?itemName=duckcode.duckcode-extension" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="group inline-flex items-center px-6 py-3 sm:px-8 sm:py-4 border border-transparent text-base font-medium rounded-full shadow-lg text-slate-900 bg-gradient-to-r from-[#F5B72F] to-[#F5B72F]/80 hover:shadow-xl hover:scale-105 transition-all duration-200">
                 Download VSCode Extension
                 <Download className="ml-2 h-5 w-5 group-hover:translate-y-1 transition-transform" />
               </a>
