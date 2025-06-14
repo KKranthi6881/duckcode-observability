@@ -22,6 +22,8 @@ import { AnomalyPattern } from './pages/dashboard/anomalies/AnomalyPattern';
 import { AnomalySchema } from './pages/dashboard/anomalies/AnomalySchema';
 import { IncidentManager } from './pages/dashboard/IncidentManager';
 import { CodeBase } from './pages/dashboard/CodeBase';
+import LoginPage from './pages/auth/LoginPage';
+import RegisterPage from './pages/auth/RegisterPage';
 import { ThemeProvider } from './contexts/ThemeContext';
 
 // Debug component to test routing
@@ -48,6 +50,10 @@ export function App() {
             <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-[#2AB7A9]/20 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-blob animation-delay-4000" />
           </div>
           <Routes>
+            {/* Auth routes */}
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+
             {/* Dashboard routes - properly nested within DashboardLayout */}
             <Route path="/dashboard" element={<DashboardLayout />}>
               <Route index element={<Overview />} />
