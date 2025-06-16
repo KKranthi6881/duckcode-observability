@@ -26,12 +26,24 @@ export function Header() {
           {/* Desktop navigation */}
           <div className="hidden md:flex items-center space-x-6">
 
-            <a 
+            {/* <a 
               href="#waitlist" 
               className="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-[#08141e] bg-gradient-to-r from-[#F5B72F] to-[#F98B32] hover:shadow-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#2AB7A9] focus:ring-offset-[#08141e]"
             >
               Join Waitlist
-            </a>
+            </a> */}
+            <Link 
+              to="/login"
+              className="text-sm font-medium text-slate-300 hover:text-[#F5B72F] transition-colors duration-150"
+            >
+              Login
+            </Link>
+            <Link 
+              to="/register"
+              className="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-[#08141e] bg-gradient-to-r from-[#F5B72F] to-[#F98B32] hover:shadow-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#2AB7A9] focus:ring-offset-[#08141e]"
+            >
+              Register
+            </Link>
           </div>
           
           {/* Mobile menu button */}
@@ -58,13 +70,27 @@ export function Header() {
             >
               IDE Extension
             </a>
-            <a 
+            {/* <a 
               href="#waitlist" 
               className="block px-3 py-2 rounded-md text-base font-medium text-[#08141e] bg-gradient-to-r from-[#F5B72F] to-[#F98B32] hover:opacity-90 hover:shadow-md" 
               onClick={() => setIsMenuOpen(false)}
             >
               Join Waitlist
-            </a>
+            </a> */}
+            <Link 
+              to="/login"
+              className="block px-3 py-2 rounded-md text-base font-medium text-slate-300 hover:text-[#F5B72F] hover:bg-[#050a10]/70"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Login
+            </Link>
+            <Link 
+              to="/register"
+              className="block px-3 py-2 rounded-md text-base font-medium text-[#08141e] bg-gradient-to-r from-[#F5B72F] to-[#F98B32] hover:opacity-90 hover:shadow-md"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Register
+            </Link>
           </div>
         </div>
       )}

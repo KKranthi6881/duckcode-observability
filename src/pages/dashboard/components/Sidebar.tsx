@@ -1,6 +1,10 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Network, Database, Bell, Shield, BarChart3, Settings as SettingsIcon, HelpCircle, Table, AlertTriangle, AlertOctagon, Code } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { 
+  Network, Database, Bell, Shield, BarChart3, Settings as SettingsIcon, 
+  HelpCircle, Table, AlertTriangle, AlertOctagon, Code, UserCircle, LogOut 
+} from 'lucide-react';
+import { useAuth } from '../../../features/auth/contexts/AuthContext';
 
 const navigation = [{
   name: 'Overview',
@@ -58,7 +62,31 @@ const bottomNavigation = [{
 
 export function Sidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, signOut, isLoading: authLoading } = useAuth();
   const logoColor = "#2AB7A9"; 
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      navigate('/login'); 
+    } catch (error) {
+      console.error('Error signing out from sidebar:', error);
+    }
+  };
+
+  const getLinkClasses = (isActive: boolean) => 
+    `group flex items-center px-3 py-3 text-sm font-medium rounded-md transition-colors duration-150 \
+    ${
+      isActive 
+        ? `bg-[${logoColor}]/10 text-[${logoColor}]` 
+        : `text-gray-700 hover:text-[${logoColor}] hover:bg-[${logoColor}]/10`
+    }`;
+
+  const getIconClasses = (isActive: boolean) => 
+    `mr-3 h-5 w-5 flex-shrink-0 ${
+      isActive ? `text-[${logoColor}]` : `text-gray-500 group-hover:text-[${logoColor}]`
+    }`;
 
   return <div className="hidden lg:flex lg:flex-shrink-0 sidebar-container">
       <div className="flex flex-col w-64">
@@ -82,13 +110,9 @@ export function Sidebar() {
                     <Link 
                       key={item.name} 
                       to={item.href} 
-                      className={`group flex items-center px-3 py-3 text-sm rounded-md transition-colors duration-150
-                        ${isActive 
-                          ? `bg-[${logoColor}]/10 text-[${logoColor}] font-semibold border-l-4 border-[${logoColor}]` 
-                          : `text-gray-800 hover:bg-[${logoColor}]/10 hover:text-[${logoColor}] font-medium border-l-4 border-transparent hover:border-[${logoColor}]/30`}
-                      `}
+                      className={getLinkClasses(isActive)}
                     >
-                      <item.icon className={`mr-3 h-5 w-5 flex-shrink-0 ${isActive ? `text-[${logoColor}]` : `text-gray-500 group-hover:text-[${logoColor}]`}`} />
+                      <item.icon className={getIconClasses(isActive)} />
                       {item.name}
                     </Link>
                   );
@@ -108,11 +132,9 @@ export function Sidebar() {
                             <div key={subItem.name}>
                               <Link 
                                 to={subItem.href} 
-                                className={`group flex items-center px-3 py-3 text-sm font-medium rounded-md transition-colors duration-150
-                                  ${isActive ? `bg-[${logoColor}]/10 text-[${logoColor}]` : `text-gray-700 hover:text-[${logoColor}] hover:bg-[${logoColor}]/10`}
-                                `}
+                                className={getLinkClasses(isActive)}
                               >
-                                <subItem.icon className={`mr-3 h-5 w-5 flex-shrink-0 ${isActive ? `text-[${logoColor}]` : `text-gray-500 group-hover:text-[${logoColor}]`}`} />
+                                <subItem.icon className={getIconClasses(isActive)} />
                                 {subItem.name}
                               </Link>
                               
@@ -156,15 +178,35 @@ export function Sidebar() {
                   <Link 
                     key={item.name} 
                     to={item.href} 
-                    className={`group flex items-center px-3 py-3 text-sm font-medium rounded-md transition-colors duration-150
-                      ${isActive ? `bg-[${logoColor}]/10 text-[${logoColor}]` : `text-gray-700 hover:text-[${logoColor}] hover:bg-[${logoColor}]/10`}
-                    `}
+                    className={getLinkClasses(isActive)}
                   >
-                    <item.icon className={`mr-3 h-5 w-5 flex-shrink-0 ${isActive ? `text-[${logoColor}]` : `text-gray-500 group-hover:text-[${logoColor}]`}`} />
+                    <item.icon className={getIconClasses(isActive)} />
                     {item.name}
                   </Link>
                 );
               })}
+
+              {!authLoading && user && (
+                <Link 
+                  key="profile"
+                  to="/profile"
+                  className={getLinkClasses(location.pathname === '/profile')}
+                >
+                  <UserCircle className={getIconClasses(location.pathname === '/profile')} />
+                  Profile
+                </Link>
+              )}
+
+              {!authLoading && user && (
+                <button
+                  key="signout"
+                  onClick={handleSignOut}
+                  className={`${getLinkClasses(false)} w-full text-left`}
+                >
+                  <LogOut className={getIconClasses(false)} />
+                  Sign Out
+                </button>
+              )}
             </div>
           </div>
         </div>
