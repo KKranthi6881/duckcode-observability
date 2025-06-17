@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
+import githubRoutes from './api/routes/github.routes'; // Import GitHub routes
 
 // Load environment variables
 dotenv.config();
@@ -27,16 +28,15 @@ app.use(morgan('dev')); // Use 'combined' for production logging
 
 // --- Basic Routes (for testing) ---
 app.get('/', (req: Request, res: Response) => {
-  res.send('Hello from DuckCode Observability Backend!');
+  res.status(200).json({ message: 'Backend server is running!' });
 });
 
 app.get('/api/health', (req: Request, res: Response) => {
   res.status(200).json({ status: 'UP', timestamp: new Date().toISOString() });
 });
 
-// TODO: Import and use main router from ./api/routes
-// import mainRouter from './api/routes';
-// app.use('/api', mainRouter);
+// Register API routes
+app.use('/api/github', githubRoutes); // Use GitHub routes
 
 // --- Error Handling Middleware (example) ---
 // This should be defined after all other app.use() and routes calls
