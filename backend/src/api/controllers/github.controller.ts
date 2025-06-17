@@ -1,110 +1,167 @@
 import { Request, Response, NextFunction } from 'express';
-import { Octokit } from '@octokit/rest';
-import { createAppAuth } from '@octokit/auth-app';
 import * as githubService from '@/services/github.service';
-import { GitHubInstallationPayload } from '@/types/github.types';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-const GITHUB_APP_ID = process.env.GITHUB_APP_ID;
-const GITHUB_PRIVATE_KEY = process.env.GITHUB_PRIVATE_KEY;
-const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID;
-const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET;
 const FRONTEND_URL = process.env.FRONTEND_URL;
+const GITHUB_APP_NAME = process.env.GITHUB_APP_NAME;
 
-// Debug logging at module load time
-console.log('[DEBUG] Controller Loaded - GITHUB_APP_ID:', GITHUB_APP_ID ? 'Set' : 'Not Set');
-console.log('[DEBUG] Controller Loaded - GITHUB_PRIVATE_KEY:', GITHUB_PRIVATE_KEY ? 'Set (length: ' + GITHUB_PRIVATE_KEY.length + ')' : 'Not Set');
-console.log('[DEBUG] Controller Loaded - GITHUB_CLIENT_ID:', GITHUB_CLIENT_ID ? 'Set' : 'Not Set');
-console.log('[DEBUG] Controller Loaded - GITHUB_CLIENT_SECRET:', GITHUB_CLIENT_SECRET ? 'Set' : 'Not Set');
+export const startGitHubInstallation = async (req: Request, res: Response, next: NextFunction) => {
+  // @ts-ignore
+  const userId = req.user?.id;
 
-if (!GITHUB_APP_ID || !GITHUB_PRIVATE_KEY || !GITHUB_CLIENT_ID || !GITHUB_CLIENT_SECRET) {
-  console.error('CRITICAL: Missing GitHub App credentials in .env file. Check GITHUB_APP_ID, GITHUB_PRIVATE_KEY, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET.');
-  // Optionally, throw an error here to prevent the app from starting incorrectly
-  // throw new Error('Essential GitHub App credentials are not configured. Server cannot start.');
-}
-
-export const handleGitHubSetupCallback = async (req: Request, res: Response, next: NextFunction): Promise<void | Response> => {
-  console.log('[DEBUG] handleGitHubSetupCallback - GITHUB_APP_ID:', GITHUB_APP_ID ? 'Set' : 'Not Set');
-  console.log('[DEBUG] handleGitHubSetupCallback - GITHUB_PRIVATE_KEY:', GITHUB_PRIVATE_KEY ? 'Set (first 30 chars): ' + GITHUB_PRIVATE_KEY?.substring(0,30) : 'Not Set');
-  console.log('[DEBUG] handleGitHubSetupCallback - GITHUB_CLIENT_ID:', GITHUB_CLIENT_ID ? 'Set' : 'Not Set');
-  console.log('[DEBUG] handleGitHubSetupCallback - GITHUB_CLIENT_SECRET:', GITHUB_CLIENT_SECRET ? 'Set' : 'Not Set');
-
-  if (!GITHUB_APP_ID || !GITHUB_PRIVATE_KEY || !GITHUB_CLIENT_ID || !GITHUB_CLIENT_SECRET) {
-    // This check is somewhat redundant if the module-level check is robust,
-    // but good for ensuring they are available in the handler's scope if there were async loading issues (not typical for dotenv).
-    console.error('Error in handleGitHubSetupCallback: GitHub App credentials not available.');
-    return next(new Error('GitHub App ID or Private Key is not configured on the server.'));
+  if (!userId) {
+    // This should ideally not be hit if requireAuth is working, but good to keep
+    return res.status(401).json({ error: 'User not authenticated.' });
   }
 
-  const { installation_id, setup_action, code } = req.query;
-
-  if (!installation_id) {
-    return res.status(400).send('Missing installation_id query parameter.');
+  if (!GITHUB_APP_NAME) {
+    console.error('[Controller] GITHUB_APP_NAME is not set in .env file.');
+    // Send a JSON error response
+    return res.status(500).json({ error: 'GitHub App name is not configured on the server.' });
   }
 
   try {
-    // Ensure private key is formatted correctly (replace escaped newlines if necessary)
-    const formattedPrivateKey = GITHUB_PRIVATE_KEY.replace(/\\n/g, '\n');
+    const state = await githubService.createInstallationState(userId);
+    console.log(`[Controller] Generated state ${state} for user ${userId}.`);
 
-    // 1. Authenticate as the GitHub App to fetch installation details
-    const auth = createAppAuth({
-      appId: Number(GITHUB_APP_ID),
-      privateKey: formattedPrivateKey,
-      clientId: GITHUB_CLIENT_ID,
-      clientSecret: GITHUB_CLIENT_SECRET,
-    });
-
-    const appAuthentication = await auth({ type: 'app' });
-    const appOctokit = new Octokit({ auth: appAuthentication.token });
-
-    // 2. Fetch the installation details
-    const { data: installationDetails } = await appOctokit.apps.getInstallation({
-      installation_id: Number(installation_id),
-    });
-
-    // 3. Fetch accessible repositories if the selection is "selected"
-    let accessibleRepositories: any[] | undefined = undefined;
-    if (installationDetails.repository_selection === 'selected') {
-      // To list repositories for an installation, we need an installation token
-      const installationTokenAuth = await auth({
-        type: 'installation',
-        installationId: Number(installation_id),
-      });
-      const installationOctokit = new Octokit({ auth: installationTokenAuth.token });
-      const { data: reposResponse } = await installationOctokit.apps.listReposAccessibleToInstallation();
-      accessibleRepositories = reposResponse.repositories;
-    }
-
-    // 4. Construct the payload for our service
-    // The structure from Octokit should align well with our GitHubInstallationPayload's 'installation' and 'repositories' fields.
-    // We cast to 'any' for 'installation' to simplify type matching for now; ideally, map fields explicitly or ensure types are identical.
-    const payload: GitHubInstallationPayload = {
-      installation: installationDetails as any, 
-      repositories: accessibleRepositories,
-      setup_action: setup_action as string | undefined,
-      code: code as string | undefined, // Pass along the code if present
-    };
-
-    // 5. Process and save the installation
-    // TODO: Determine how to get supabase_user_id if the installation was initiated by an authenticated user from your app.
-    // For now, passing null. This might involve a session middleware or checking `req.user`.
-    const savedInstallation = await githubService.processGitHubInstallation(payload, null);
-    console.log(`GitHub installation ${savedInstallation.installation_id} processed successfully.`);
-
-    // 6. Redirect user to the frontend
-    // You might want to include query params to indicate success or pass installation_id
-    const redirectUrl = new URL(FRONTEND_URL || '/'); // Default to root if FRONTEND_URL is not set
-    redirectUrl.pathname = '/dashboard'; // Or a specific page like '/settings/integrations'
-    redirectUrl.searchParams.set('github_setup', 'success');
-    redirectUrl.searchParams.set('installation_id', String(savedInstallation.installation_id));
+    const installationUrl = `https://github.com/apps/${GITHUB_APP_NAME}/installations/new?state=${state}`;
+    console.log(`[Controller] Sending GitHub installation URL to frontend: ${installationUrl}`);
     
-    return res.redirect(redirectUrl.toString());
+    // Send the URL back to the frontend in a JSON response
+    res.status(200).json({ installationUrl });
 
   } catch (error) {
-    console.error('Error handling GitHub setup callback:', error);
-    // Pass error to the global error handler in app.ts
-    next(error); 
+    console.error('[Controller] Error starting GitHub installation:', error);
+    // Let the generic error handler deal with it, or send a specific JSON error
+    // For consistency, sending JSON error
+    if (error instanceof Error) {
+        return res.status(500).json({ error: `Error starting GitHub installation: ${error.message}` });
+    }
+    return res.status(500).json({ error: 'An unknown error occurred while starting GitHub installation.' });
+  }
+};
+
+export const handleGitHubSetupCallback = async (req: Request, res: Response, next: NextFunction): Promise<void | Response> => {
+  const { installation_id, setup_action, state } = req.query;
+
+  // Log all params received for debugging
+  console.log(`[Controller] GitHub callback params received:`, {
+    installation_id,
+    setup_action,
+    state,
+    all_params: req.query,
+    headers: req.headers,
+    url: req.url,
+    method: req.method
+  });
+
+  if (!installation_id || typeof installation_id !== 'string') {
+    console.error('[Controller] Missing or invalid installation_id');
+    return res.redirect(`${FRONTEND_URL}/github/callback?status=error&error=missing_installation_id`);
+  }
+
+  // Check for state parameter - if missing, handle this case gracefully
+  if (!state || typeof state !== 'string') {
+    console.warn('[Controller] Callback received without a state parameter.');
+    
+    // First use our debug page to see what's happening
+    if (req.query.installation_id && !req.query.state) {
+      console.log('[Controller] Redirecting to debug page for testing');
+      return res.redirect(`${FRONTEND_URL}/github/debug-callback?installation_id=${req.query.installation_id}&status=error&error=Missing%20security%20verification%20token.%20Please%20try%20installing%20again.&recovery=needed`);
+    }
+
+    // Without a state parameter AND without authentication, we can't securely
+    // associate this installation with a user. We'll redirect to the frontend
+    // with a special error code that can trigger a guided recovery flow.
+    
+    // For security reasons, we can't just process installations without state validation
+    // as that would allow any user to claim any installation.
+    
+    // Instead, we'll redirect to frontend with the installation_id so the UI can guide
+    // the user to claim this installation through a secure flow.
+    const encodedError = encodeURIComponent('Missing security verification token. Please try installing again.');
+    console.log(`[Controller] Redirecting to frontend with recovery needed. URL: ${FRONTEND_URL}/github/callback?status=error&error=${encodedError}&installation_id=${installation_id}&recovery=needed`);
+    return res.redirect(`${FRONTEND_URL}/github/callback?status=error&error=${encodedError}&installation_id=${installation_id}&recovery=needed`);
+  }
+
+  console.log(`[Controller] Received setup callback for installation ID: ${installation_id}, action: ${setup_action}`);
+
+  try {
+    // 1. Validate the state and get the associated user ID
+    const supabaseUserId = await githubService.findAndConsumeState(state);
+
+    if (!supabaseUserId) {
+      console.error(`[Controller] Invalid or expired state token received: ${state}`);
+      return res.redirect(`${FRONTEND_URL}/github/callback?status=error&error=invalid_state_token`);
+    }
+
+    console.log(`[Controller] State validated for user: ${supabaseUserId}`);
+
+    // 2. Process the installation using the ID and associate it with the user
+    await githubService.processInstallationFromId(parseInt(installation_id, 10), supabaseUserId);
+
+    console.log(`[Controller] GitHub installation ${installation_id} processed successfully for user ${supabaseUserId}.`);
+
+    // 3. Redirect to frontend with success status
+    console.log(`[Controller] Redirecting to frontend with success. URL: ${FRONTEND_URL}/github/callback?status=success&installation_id=${installation_id}`);
+    res.redirect(`${FRONTEND_URL}/github/callback?status=success&installation_id=${installation_id}`);
+
+  } catch (error: any) {
+    console.error(`[Controller] Error handling GitHub setup callback for installation ${installation_id}:`, error);
+    const errorMessage = encodeURIComponent(error.message || 'An unexpected error occurred.');
+    console.log(`[Controller] Redirecting to frontend with error. URL: ${FRONTEND_URL}/github/callback?status=error&error=${errorMessage}&installation_id=${installation_id}`);
+    // It's generally best to either send a response OR call next(), but not both.
+    // Since we are handling the response with a redirect, we will not call next().
+    res.redirect(`${FRONTEND_URL}/github/callback?status=error&error=${errorMessage}&installation_id=${installation_id}`);
+  }
+};
+
+/**
+ * Manually links a GitHub installation to the currently authenticated user.
+ * This is used in recovery scenarios where the state parameter was missing in the callback.
+ */
+export const manualLinkInstallation = async (req: Request, res: Response, next: NextFunction): Promise<void | Response> => {
+  // @ts-ignore
+  const userId = req.user?.id;
+  const { installation_id } = req.query;
+  
+  console.log(`[Controller] Manual link request received. User: ${userId}, Installation: ${installation_id}`);
+  console.log(`[Controller] Headers: ${JSON.stringify(req.headers)}`);
+  
+  if (!userId) {
+    console.error(`[Controller] Missing user ID in manual link request`);
+    return res.status(401).json({ 
+      success: false, 
+      message: 'Authentication required to link a GitHub installation' 
+    });
+  }
+  
+  if (!installation_id || typeof installation_id !== 'string') {
+    console.error(`[Controller] Missing or invalid installation_id parameter in manual link request`);
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Missing or invalid installation_id parameter'
+    });
+  }
+  
+  try {
+    // Process the installation using the current authenticated user's ID
+    await githubService.processInstallationFromId(parseInt(installation_id, 10), userId);
+    
+    console.log(`[Controller] Successfully manually linked installation ${installation_id} to user ${userId}`);
+    
+    return res.status(200).json({ 
+      success: true, 
+      message: 'GitHub installation successfully linked to your account',
+      installation_id: installation_id
+    });
+  } catch (error: any) {
+    console.error(`[Controller] Error manual linking installation ${installation_id}:`, error);
+    return res.status(500).json({ 
+      success: false, 
+      message: error.message || 'Failed to link GitHub installation'
+    });
   }
 };

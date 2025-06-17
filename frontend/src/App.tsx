@@ -30,6 +30,8 @@ import ProtectedRoute from './features/auth/components/ProtectedRoute';
 import ForgotPasswordPage from './features/auth/components/ForgotPasswordPage';
 import ResetPasswordPage from './features/auth/components/ResetPasswordPage';
 import ProfilePage from './features/auth/components/ProfilePage';
+import GitHubCallbackPage from './pages/GitHubCallbackPage'; // Import the new page
+import GitHubCallbackDebugPage from './pages/GitHubCallbackDebugPage'; // Import our debug page
 
 // Debug component to test routing
 const DebugComponent = () => {
@@ -82,6 +84,8 @@ const AppContent = () => {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/github/callback" element={<GitHubCallbackPage />} />
+        <Route path="/github/debug-callback" element={<GitHubCallbackDebugPage />} /> {/* Add debug route */}
 
         {/* Protected Routes - All routes within this element will be guarded */}
         <Route element={<ProtectedRoute />}>

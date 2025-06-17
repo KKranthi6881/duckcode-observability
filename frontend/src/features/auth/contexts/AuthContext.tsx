@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
-import { supabase } from '../../../config/supabaseClient'; // Adjusted path
+import { supabase } from '@/config/supabaseClient';
 import { getProfile, Profile } from '../services/authService'; // Import Profile and getProfile
 
 type AuthContextType = {
@@ -21,45 +21,57 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null); // Initialize profile state
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    setIsLoading(true);
-    // Check for initial session
-    supabase.auth.getSession().then(async ({ data: { session: initialSession } }) => {
-      setSession(initialSession);
-      setUser(initialSession?.user ?? null);
-      if (initialSession?.user) {
-        const { profile: userProfile, error: profileError } = await getProfile();
-        if (profileError) {
-          console.error('Error fetching initial profile:', profileError);
+    const checkUser = async () => {
+      try {
+        const { data: { session: initialSession }, error: sessionError } = await supabase.auth.getSession();
+
+        if (sessionError) {
+          throw sessionError;
         }
-        setProfile(userProfile);
-      } else {
+
+        if (initialSession?.user) {
+          const { profile: userProfile, error: profileError } = await getProfile();
+          if (profileError) {
+            console.error('Error fetching initial profile:', profileError);
+            // Don't throw, maybe the user has no profile yet. Allow login.
+          }
+          setSession(initialSession);
+          setUser(initialSession.user);
+          setProfile(userProfile);
+        } else {
+          setSession(null);
+          setUser(null);
+          setProfile(null);
+        }
+      } catch (error) { 
+        console.error("Error during initial auth check:", error);
+        setSession(null);
+        setUser(null);
         setProfile(null);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
-    });
+    };
+
+    checkUser();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
       setSession(newSession);
       setUser(newSession?.user ?? null);
       if (newSession?.user) {
-        setIsLoading(true); // Set loading true while fetching profile
+        // Fetch profile, but don't block UI with a loading spinner here
+        // The main loading is for the initial app load.
         const { profile: userProfile, error: profileError } = await getProfile();
         if (profileError) {
           console.error('Error fetching profile on auth change:', profileError);
         }
         setProfile(userProfile);
-        setIsLoading(false);
       } else {
-        setProfile(null); // Clear profile on sign out
-        // setIsLoading(false); // Already handled by initial load or if no new session
-      }
-      // Ensure loading is false if there's no new session after an event (e.g. SIGNED_OUT)
-      if (!newSession) {
-        setIsLoading(false);
+        setProfile(null);
       }
     });
 
@@ -69,17 +81,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   const signOut = async () => {
-    setIsLoading(true);
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      // State will be cleared by onAuthStateChange listener
-    } catch (error) {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
       console.error('Error signing out:', error);
-      // Optionally set an error state here to show in UI
-    } finally {
-      // setIsLoading(false); // Listener will set loading state
+      throw error;
     }
+    // The onAuthStateChange listener will handle clearing local state.
   };
 
   const value = {

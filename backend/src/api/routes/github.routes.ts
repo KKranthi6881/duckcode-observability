@@ -1,7 +1,26 @@
 import { Router, RequestHandler } from 'express';
-import * as githubController from '@/api/controllers/github.controller'; 
+import * as githubController from '@/api/controllers/github.controller';
+import { requireAuth } from '@/api/middlewares/auth.middleware'; 
 
 const router = Router();
+
+/**
+ * @openapi
+ * /api/github/start-installation:
+ *   get:
+ *     summary: Starts the GitHub App installation process
+ *     description: Generates a state token, saves it with the user's ID, and redirects the user to the GitHub App installation page. Requires authentication.
+ *     tags:
+ *       - GitHub
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       302:
+ *         description: Redirects to the GitHub App installation URL.
+ *       401:
+ *         description: Unauthorized.
+ */
+router.get('/start-installation', requireAuth as RequestHandler, githubController.startGitHubInstallation as RequestHandler);
 
 /**
  * @openapi
@@ -48,6 +67,38 @@ const router = Router();
  *       - GitHub
  */
 router.get('/setup-callback', githubController.handleGitHubSetupCallback as RequestHandler);
+
+/**
+ * @openapi
+ * /api/github/manual-link-installation:
+ *   post:
+ *     summary: Manually links a GitHub installation to the authenticated user
+ *     description: |
+ *       This endpoint is used when the automatic linking process failed due to missing state parameter.
+ *       It requires the user to be authenticated and provides a way to manually associate
+ *       a GitHub App installation with their account.
+ *     parameters:
+ *       - in: query
+ *         name: installation_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: The ID of the GitHub App installation to link.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Installation successfully linked
+ *       400:
+ *         description: Bad request (e.g., missing installation_id)
+ *       401:
+ *         description: Unauthorized (user not authenticated)
+ *       500:
+ *         description: Server error during linking process
+ *     tags:
+ *       - GitHub
+ */
+router.post('/manual-link-installation', requireAuth as RequestHandler, githubController.manualLinkInstallation as RequestHandler);
 
 // Placeholder for webhook handler route
 // router.post('/webhooks', githubController.handleGitHubWebhook);

@@ -1,8 +1,12 @@
-import { useEffect } from 'react';
+import { useEffect, ReactNode } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { Sidebar } from './components/Sidebar';
 
-export function DashboardLayout() {
+interface DashboardLayoutProps {
+  children?: ReactNode;
+}
+
+export function DashboardLayout({ children }: DashboardLayoutProps) {
   const location = useLocation();
   
   useEffect(() => {
@@ -23,7 +27,8 @@ export function DashboardLayout() {
         <div className="flex-1 flex flex-col overflow-hidden">
           
           <main className="flex-1 overflow-y-auto bg-gray-100 p-6">
-            <Outlet />
+            {/* Use children if provided, otherwise fall back to Outlet for router-based content */}
+            {children || <Outlet />}
           </main>
         </div>
       </div>

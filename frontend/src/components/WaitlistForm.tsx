@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase, ensureWaitlistTable } from '../lib/supabase';
+import { supabase } from '@/config/supabaseClient';
 import { CheckCircle, AlertCircle } from 'lucide-react';
 
 interface FormState {
@@ -20,22 +20,6 @@ export function WaitlistForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formStatus, setFormStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
-  const [tableReady, setTableReady] = useState(false);
-
-  // Check if the table exists when component mounts
-  useEffect(() => {
-    const checkTable = async () => {
-      try {
-        await ensureWaitlistTable();
-        setTableReady(true);
-      } catch (err) {
-        console.error('Error checking table:', err);
-        setTableReady(false);
-      }
-    };
-    
-    checkTable();
-  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -104,15 +88,6 @@ export function WaitlistForm() {
   return (
     <div className="w-full max-w-md mx-auto bg-slate-800/50 backdrop-blur-md rounded-xl shadow-lg p-8 border border-slate-700" id="waitlist">
       <h2 className="text-2xl font-bold text-white mb-6 text-center">Join Our Waitlist</h2>
-      
-      {!tableReady && (
-        <div className="p-3 mb-4 bg-amber-900/30 border border-amber-700 rounded-lg flex items-center space-x-2">
-          <AlertCircle className="text-amber-500 w-5 h-5 flex-shrink-0" />
-          <p className="text-amber-200 text-sm">
-            Setting up waitlist database. Please contact the administrator if this message persists.
-          </p>
-        </div>
-      )}
       
       {formStatus === 'success' ? (
         <div className="text-center p-6 bg-green-900/40 border border-green-700 rounded-lg">
@@ -196,9 +171,9 @@ export function WaitlistForm() {
           
           <button
             type="submit"
-            disabled={isSubmitting || !tableReady}
+            disabled={isSubmitting}
             className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-slate-900 bg-gradient-to-r from-[#F5B72F] to-[#F5B72F]/80 hover:from-[#F5B72F] hover:to-[#F5B72F] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#F5B72F] focus:ring-offset-slate-900 transition-all duration-200 ${
-              isSubmitting || !tableReady ? 'opacity-70 cursor-not-allowed' : ''
+              isSubmitting ? 'opacity-70 cursor-not-allowed' : ''
             }`}
           >
             {isSubmitting ? 'Submitting...' : 'Join Waitlist'}
