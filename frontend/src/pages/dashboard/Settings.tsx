@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { User, Mail, Lock, CreditCard, Moon, Sun, Monitor, Bell, Check, Star, Zap } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { PasswordChangeModal } from '@/components/modals/PasswordChangeModal';
@@ -6,6 +6,35 @@ import { PaymentModal } from '@/components/modals/PaymentModal';
 import { useAuth } from '@/features/auth/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Github, Loader2 } from 'lucide-react';
+
+// Define types for GitHub connection status (mirroring backend types)
+interface GitHubAccountInfo {
+  login: string | null;
+  avatarUrl: string | null;
+  type: string | null;
+}
+
+interface GitHubRepositoryInfo { // We might not use all fields here, but good to have
+  id: number;
+  name: string;
+  full_name: string;
+  private: boolean;
+  html_url: string;
+}
+
+interface GitHubConnectionDetails {
+  installationId: number;
+  account: GitHubAccountInfo;
+  repositorySelection: string | null;
+  accessibleRepos: GitHubRepositoryInfo[];
+  totalAccessibleRepoCount: number;
+}
+
+interface GitHubConnectionStatusResponse {
+  isConnected: boolean;
+  details: GitHubConnectionDetails | null;
+  error?: string;
+}
 
 const plans = [{
   name: 'Free',
@@ -40,7 +69,67 @@ const GitHubIntegrationTab = () => {
   const [isLoadingInstall, setIsLoadingInstall] = useState(false);
   const [errorInstall, setErrorInstall] = useState<string | null>(null);
 
+  const [connectionStatus, setConnectionStatus] = useState<GitHubConnectionStatusResponse | null>(null);
+  const [isLoadingStatus, setIsLoadingStatus] = useState(true);
+
   console.log('[Settings.tsx] Rendering GitHubIntegrationTab. Profile:', profile, 'Auth Loading:', authLoading, 'User:', user?.id, 'Session:', session);
+
+  const fetchConnectionStatus = useCallback(async () => {
+    if (!session?.access_token) {
+      setIsLoadingStatus(false);
+      console.log('[Settings.tsx] No session token, cannot fetch GitHub status.');
+      setConnectionStatus({ isConnected: false, details: null });
+      return;
+    }
+    setIsLoadingStatus(true);
+    console.log('[Settings.tsx] Attempting to fetch GitHub connection status...');
+    try {
+      const response = await fetch('/api/github/connection-status', {
+        headers: { 'Authorization': `Bearer ${session.access_token}` },
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Failed to fetch GitHub connection status from server.' }));
+        console.error('[Settings.tsx] API Error fetching GitHub connection status:', response.status, errorData);
+        throw new Error(errorData.message);
+      }
+      const data: GitHubConnectionStatusResponse = await response.json();
+      console.log('[Settings.tsx] Successfully received GitHub connection status:', data);
+      setConnectionStatus(data);
+    } catch (error: any) {
+      console.error('[Settings.tsx] Exception caught while fetching GitHub connection status:', error);
+      setConnectionStatus({ isConnected: false, details: null, error: error.message });
+    } finally {
+      setIsLoadingStatus(false);
+      console.log('[Settings.tsx] Finished fetching GitHub connection status. isLoadingStatus set to false.');
+    }
+  }, [session, setIsLoadingStatus, setConnectionStatus]); // Dependencies for useCallback
+
+  useEffect(() => {
+    console.log('[Settings.tsx] useEffect triggered. AuthLoading:', authLoading);
+    if (!authLoading) {
+      console.log('[Settings.tsx] Auth is not loading, calling fetchConnectionStatus.');
+      fetchConnectionStatus();
+    } else {
+      console.log('[Settings.tsx] Auth is loading, setting isLoadingStatus to true.');
+      setIsLoadingStatus(true); 
+    }
+
+    const handleFocus = () => {
+      console.log('[Settings.tsx] Window focused. AuthLoading:', authLoading);
+      if (!authLoading) { // Only fetch if auth is settled
+          console.log('[Settings.tsx] Window focused and auth not loading, calling fetchConnectionStatus.');
+          fetchConnectionStatus();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    console.log('[Settings.tsx] Added window focus event listener.');
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      console.log('[Settings.tsx] Removed window focus event listener.');
+    };
+  }, [authLoading, fetchConnectionStatus]); // fetchConnectionStatus is now a stable dependency
 
   const handleInstallGitHubApp = async () => {
     console.log('[Settings.tsx] GitHub Install Button CLICKED.');
@@ -85,6 +174,70 @@ const GitHubIntegrationTab = () => {
     } 
   };
 
+  if (isLoadingStatus) {
+    return (
+      <div className="space-y-6 py-6 flex flex-col items-center justify-center">
+        <Loader2 className="h-12 w-12 animate-spin text-muted-foreground mb-4" />
+        <p className="text-sm text-muted-foreground">Loading GitHub Integration status...</p>
+      </div>
+    );
+  }
+
+  if (connectionStatus?.isConnected && connectionStatus.details) {
+    const { account, repositorySelection, totalAccessibleRepoCount, accessibleRepos } = connectionStatus.details;
+    return (
+      <div className="space-y-6">
+        <div>
+          <h3 className="text-lg font-medium">GitHub App Integration</h3>
+          <p className="text-sm text-muted-foreground">
+            Manage your GitHub App connection.
+          </p>
+        </div>
+        <div className="rounded-md border bg-card p-6 shadow">
+          <div className="flex items-center space-x-4">
+            {account?.avatarUrl && (
+              <img src={account.avatarUrl} alt={`${account.login || 'GitHub Account'}'s avatar`} className="h-16 w-16 rounded-full" />
+            )}
+            <div>
+              <p className="text-xl font-semibold">Connected as {account?.login || 'Unknown Account'}</p>
+              <p className="text-sm text-muted-foreground">
+                Repository Access: {repositorySelection === 'all' ? 'All Repositories' : `Selected Repositories (${totalAccessibleRepoCount} accessible)`}
+              </p>
+              {repositorySelection === 'selected' && accessibleRepos && accessibleRepos.length > 0 && (
+                <div className="mt-2 pl-4">
+                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Accessible Repositories:</p>
+                  <ul className="list-disc list-inside mt-1 text-sm text-gray-600 dark:text-gray-300 space-y-1">
+                    {accessibleRepos.map(repo => (
+                      <li key={repo.id}>{repo.full_name}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="mt-6">
+            {/* TODO: Add a "Manage Installation on GitHub" link that goes to: 
+                `https://github.com/settings/installations/${connectionStatus.details.installationId}` 
+            */}
+            <a 
+              href={`https://github.com/settings/installations/${connectionStatus.details.installationId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 mr-2"
+            >
+              Manage on GitHub
+            </a>
+            {/* TODO: Add a "Disconnect" button - this will require a backend endpoint and confirmation modal */}
+            <Button variant="outline" onClick={() => alert('Disconnect functionality to be implemented.')}>
+              Disconnect (Placeholder)
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // If not loading and not connected (or error fetching status), show the install button section
   return (
     <div className="space-y-6">
       <div>
@@ -95,26 +248,23 @@ const GitHubIntegrationTab = () => {
       </div>
       <div className="rounded-md border border-dashed p-6 flex flex-col items-center text-center">
         <Github className="h-12 w-12 text-muted-foreground mb-4" />
-        <h4 className="text-md font-semibold mb-1">Install DuckCode GitHub App</h4>
+        <h4 className="text-md font-semibold mb-1">Connect to GitHub</h4>
         <p className="text-sm text-muted-foreground mb-4">
-          You'll be redirected to GitHub to authorize the installation.
+          Authorize DuckCode Observability to access your repositories.
         </p>
-        {errorInstall && (
-          <p className="text-sm text-red-500 mb-4">Error: {errorInstall}</p>
-        )}
-        <Button
-          variant="outline"
-          onClick={handleInstallGitHubApp}
-          disabled={isLoadingInstall || authLoading}
-          className="w-full sm:w-auto"
-        >
+        <Button onClick={handleInstallGitHubApp} disabled={isLoadingInstall || authLoading}>
           {isLoadingInstall ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Please wait...</>
           ) : (
-            <Github className="mr-2 h-4 w-4" />
+            <><Github className="mr-2 h-4 w-4" /> Install GitHub App</>
           )}
-          Install GitHub App
         </Button>
+        {errorInstall && (
+          <p className="mt-4 text-sm text-red-600">Error: {errorInstall}</p>
+        )}
+        {connectionStatus?.error && !connectionStatus.isConnected && (
+            <p className="mt-4 text-sm text-red-600">Could not load connection status: {connectionStatus.error}</p>
+        )}
       </div>
     </div>
   );

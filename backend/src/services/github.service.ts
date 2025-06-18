@@ -3,6 +3,10 @@ import {
   GitHubAppInstallation,
   GitHubAccessibleRepository,
   GitHubInstallationPayload,
+  GitHubConnectionStatusResponse,
+  GitHubRepositoryInfo,
+  GitHubAccountInfo,
+  GitHubConnectionDetails
 } from '@/types/github.types';
 import { App } from 'octokit';
 import crypto from 'crypto';
@@ -253,6 +257,91 @@ export const getApp = () => {
     // Correctly format the private key by replacing escaped newlines.
     privateKey: GITHUB_PRIVATE_KEY.replace(/\\n/g, '\n'),
   });
+};
+
+export const getInstallationConnectionDetails = async (supabaseUserId: string): Promise<GitHubConnectionStatusResponse> => {
+  if (!supabaseUserId) {
+    return { isConnected: false, details: null, error: 'User ID not provided.' };
+  }
+
+  try {
+    // 1. Find the installation associated with the Supabase user ID
+    const { data: dbInstallation, error: dbError } = await supabaseAdmin
+      .schema(GITHUB_MODULE_SCHEMA)
+      .from('github_app_installations')
+      .select('*') // Select all necessary fields
+      .eq('supabase_user_id', supabaseUserId)
+      .order('created_at', { ascending: false }) // Get the latest if multiple (should ideally be one active)
+      .limit(1)
+      .single();
+
+    if (dbError || !dbInstallation) {
+      if (dbError && dbError.code !== 'PGRST116') { // PGRST116: 'single' row not found (expected if not connected)
+        console.error(`[Service] Error fetching installation for user ${supabaseUserId}:`, dbError);
+      }
+      return { isConnected: false, details: null };
+    }
+
+    // 2. If installation found, fetch accessible repositories
+    const app = getApp(); // Existing function to get Octokit App instance
+    const octokit = await app.getInstallationOctokit(dbInstallation.installation_id);
+
+    const { data: accessibleReposData } = await octokit.rest.apps.listReposAccessibleToInstallation();
+    
+    const mappedRepos: GitHubRepositoryInfo[] = accessibleReposData.repositories.map(repo => ({
+      id: repo.id,
+      name: repo.name,
+      full_name: repo.full_name,
+      private: repo.private,
+      html_url: repo.html_url,
+    }));
+
+    const accountInfo: GitHubAccountInfo = {
+        login: dbInstallation.target_login,
+        avatarUrl: dbInstallation.target_avatar_url,
+        type: dbInstallation.target_type,
+    };
+
+    const connectionDetails: GitHubConnectionDetails = {
+        installationId: dbInstallation.installation_id,
+        account: accountInfo,
+        repositorySelection: dbInstallation.repository_selection,
+        accessibleRepos: mappedRepos,
+        totalAccessibleRepoCount: accessibleReposData.total_count,
+    };
+
+    return {
+      isConnected: true,
+      details: connectionDetails,
+    };
+  } catch (error: any) {
+    console.error(`[Service] Error in getInstallationConnectionDetails for user ${supabaseUserId}:`, error);
+    return { isConnected: false, details: null, error: error.message || 'Failed to get connection details.' };
+  }
+};
+
+export const findInstallationByInstallationId = async (installationId: number): Promise<GitHubAppInstallation | null> => {
+  if (!installationId) {
+    console.error('[Service] findInstallationByInstallationId: installationId not provided.');
+    return null;
+  }
+  try {
+    const { data, error } = await supabaseAdmin
+      .schema(GITHUB_MODULE_SCHEMA)
+      .from('github_app_installations')
+      .select('*')
+      .eq('installation_id', installationId)
+      .maybeSingle(); // Use maybeSingle to return null if not found, instead of erroring
+
+    if (error) {
+      console.error(`[Service] Error fetching installation by installation_id ${installationId}:`, error);
+      return null;
+    }
+    return data;
+  } catch (error: any) {
+    console.error(`[Service] Exception in findInstallationByInstallationId for ${installationId}:`, error);
+    return null;
+  }
 };
 
 // TODO: Add other service functions as needed, e.g.:

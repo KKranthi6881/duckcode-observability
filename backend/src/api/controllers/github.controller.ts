@@ -43,78 +43,58 @@ export const startGitHubInstallation = async (req: Request, res: Response, next:
   }
 };
 
-export const handleGitHubSetupCallback = async (req: Request, res: Response, next: NextFunction): Promise<void | Response> => {
-  const { installation_id, setup_action, state } = req.query;
+export const handleGitHubSetupCallback = async (req: Request, res: Response, next: NextFunction) => {
+  const { installation_id, setup_action, state } = req.query as { installation_id?: string, setup_action?: string, state?: string };
 
-  // Log all params received for debugging
-  console.log(`[Controller] GitHub callback params received:`, {
-    installation_id,
-    setup_action,
-    state,
-    all_params: req.query,
-    headers: req.headers,
-    url: req.url,
-    method: req.method
-  });
-
-  if (!installation_id || typeof installation_id !== 'string') {
-    console.error('[Controller] Missing or invalid installation_id');
+  if (!installation_id) {
+    // If installation_id is missing, it's a critical error regardless of state.
+    console.error('[Controller] GitHub callback missing installation_id.');
     return res.redirect(`${FRONTEND_URL}/github/callback?status=error&error=missing_installation_id`);
   }
 
-  // Check for state parameter - if missing, handle this case gracefully
-  if (!state || typeof state !== 'string') {
-    console.warn('[Controller] Callback received without a state parameter.');
-    
-    // First use our debug page to see what's happening
-    if (req.query.installation_id && !req.query.state) {
-      console.log('[Controller] Redirecting to debug page for testing');
-      return res.redirect(`${FRONTEND_URL}/github/debug-callback?installation_id=${req.query.installation_id}&status=error&error=Missing%20security%20verification%20token.%20Please%20try%20installing%20again.&recovery=needed`);
+  // If state is missing, but we have an installation_id,
+  // it's highly likely a redirect after the user managed their existing installation settings on GitHub.
+  if (!state) {
+    console.log(`[Controller] GitHub callback for installation_id: ${installation_id} without 'state'. Setup_action: '${setup_action}'. Assuming post-management redirect.`);
+    try {
+      // Attempt to find the user associated with this installation to refresh it.
+      const existingInstallation = await githubService.findInstallationByInstallationId(parseInt(installation_id, 10));
+      if (existingInstallation && existingInstallation.supabase_user_id) {
+        console.log(`[Controller] Found existing installation for user ${existingInstallation.supabase_user_id}. Refreshing details from GitHub.`);
+        await githubService.processInstallationFromId(parseInt(installation_id, 10), existingInstallation.supabase_user_id);
+        console.log(`[Controller] Installation details refreshed for ${installation_id}.`);
+      } else {
+        console.warn(`[Controller] Post-management redirect for installation_id: ${installation_id}, but no existing installation record found or user_id missing. Cannot refresh details automatically.`);
+        // If no record, we can't securely update. Redirecting and letting frontend handle it or show an error.
+        // This scenario should be rare if the installation was done through the app initially.
+      }
+    } catch (refreshError: any) {
+      console.error(`[Controller] Error during post-management refresh for installation_id ${installation_id}:`, refreshError);
+      // Proceed with redirect anyway, frontend might show stale data or an error.
     }
-
-    // Without a state parameter AND without authentication, we can't securely
-    // associate this installation with a user. We'll redirect to the frontend
-    // with a special error code that can trigger a guided recovery flow.
-    
-    // For security reasons, we can't just process installations without state validation
-    // as that would allow any user to claim any installation.
-    
-    // Instead, we'll redirect to frontend with the installation_id so the UI can guide
-    // the user to claim this installation through a secure flow.
-    const encodedError = encodeURIComponent('Missing security verification token. Please try installing again.');
-    console.log(`[Controller] Redirecting to frontend with recovery needed. URL: ${FRONTEND_URL}/github/callback?status=error&error=${encodedError}&installation_id=${installation_id}&recovery=needed`);
-    return res.redirect(`${FRONTEND_URL}/github/callback?status=error&error=${encodedError}&installation_id=${installation_id}&recovery=needed`);
+    // Redirecting to the settings page. The Settings.tsx component's useEffect/onFocus
+    // should handle re-fetching the (now hopefully updated) GitHub connection status.
+    return res.redirect(`${FRONTEND_URL}/dashboard/settings?github_post_management=true&installation_id=${installation_id}`);
   }
 
-  console.log(`[Controller] Received setup callback for installation ID: ${installation_id}, action: ${setup_action}`);
-
+  console.log(`[Controller] GitHub callback with state: ${state}, installation_id: ${installation_id}, setup_action: ${setup_action}`);
   try {
-    // 1. Validate the state and get the associated user ID
     const supabaseUserId = await githubService.findAndConsumeState(state);
-
     if (!supabaseUserId) {
-      console.error(`[Controller] Invalid or expired state token received: ${state}`);
-      return res.redirect(`${FRONTEND_URL}/github/callback?status=error&error=invalid_state_token`);
+      console.warn(`[Controller] Invalid or consumed state token: ${state} for installation_id: ${installation_id}`);
+      return res.redirect(`${FRONTEND_URL}/github/callback?status=error&error=invalid_state_token&installation_id=${installation_id}`);
     }
 
-    console.log(`[Controller] State validated for user: ${supabaseUserId}`);
-
-    // 2. Process the installation using the ID and associate it with the user
+    console.log(`[Controller] State token validated for user: ${supabaseUserId}. Processing installation_id: ${installation_id}`);
+    // This service function should ideally handle both new installations and updates to existing ones if necessary.
     await githubService.processInstallationFromId(parseInt(installation_id, 10), supabaseUserId);
-
-    console.log(`[Controller] GitHub installation ${installation_id} processed successfully for user ${supabaseUserId}.`);
-
-    // 3. Redirect to frontend with success status
-    console.log(`[Controller] Redirecting to frontend with success. URL: ${FRONTEND_URL}/github/callback?status=success&installation_id=${installation_id}`);
-    res.redirect(`${FRONTEND_URL}/github/callback?status=success&installation_id=${installation_id}`);
-
+    console.log(`[Controller] Successfully processed installation_id: ${installation_id} for user: ${supabaseUserId}. Redirecting to frontend callback with success.`);
+    
+    // Include setup_action in the success redirect to give more context to the frontend callback page if needed.
+    return res.redirect(`${FRONTEND_URL}/github/callback?status=success&installation_id=${installation_id}&setup_action=${setup_action || 'unknown'}`);
   } catch (error: any) {
-    console.error(`[Controller] Error handling GitHub setup callback for installation ${installation_id}:`, error);
-    const errorMessage = encodeURIComponent(error.message || 'An unexpected error occurred.');
-    console.log(`[Controller] Redirecting to frontend with error. URL: ${FRONTEND_URL}/github/callback?status=error&error=${errorMessage}&installation_id=${installation_id}`);
-    // It's generally best to either send a response OR call next(), but not both.
-    // Since we are handling the response with a redirect, we will not call next().
-    res.redirect(`${FRONTEND_URL}/github/callback?status=error&error=${errorMessage}&installation_id=${installation_id}`);
+    console.error(`[Controller] Error processing GitHub setup callback with state ${state} for installation_id ${installation_id}:`, error);
+    return res.redirect(`${FRONTEND_URL}/github/callback?status=error&error=${encodeURIComponent(error.message)}&installation_id=${installation_id}`);
   }
 };
 
@@ -163,5 +143,23 @@ export const manualLinkInstallation = async (req: Request, res: Response, next: 
       success: false, 
       message: error.message || 'Failed to link GitHub installation'
     });
+  }
+};
+
+export const getGitHubConnectionStatus = async (req: Request, res: Response, next: NextFunction) => {
+  // @ts-ignore
+  const userId = req.user?.id;
+  if (!userId) {
+    // Ensure a response is sent and the function exits.
+    return res.status(401).json({ message: 'User not authenticated.' });
+  }
+  try {
+    // Assuming githubService is an object/module exporting your service functions
+    const connectionStatus = await githubService.getInstallationConnectionDetails(userId);
+    res.json(connectionStatus);
+  } catch (error) {
+    console.error('[Controller] Error getting GitHub connection status:', error);
+    // Pass the error to the next error-handling middleware.
+    next(error);
   }
 };

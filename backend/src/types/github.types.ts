@@ -68,3 +68,32 @@ export interface GitHubAppInstallation {
     code?: string; // The temporary code from GitHub if using the web flow for setup
     [key: string]: any; // Other payload details
   }
+
+  export interface GitHubAccountInfo {
+    login: string | null;
+    avatarUrl: string | null;
+    type: string | null;
+  }
+
+  export interface GitHubRepositoryInfo {
+    id: number;
+    name: string;
+    full_name: string;
+    private: boolean;
+    html_url: string;
+    // Add other fields like default_branch if needed later for CodeBase.tsx
+  }
+
+  export interface GitHubConnectionDetails {
+    installationId: number;
+    account: GitHubAccountInfo;
+    repositorySelection: string | null; // 'all' or 'selected'
+    accessibleRepos: GitHubRepositoryInfo[];
+    totalAccessibleRepoCount: number;
+  }
+
+  export interface GitHubConnectionStatusResponse {
+    isConnected: boolean;
+    details: GitHubConnectionDetails | null;
+    error?: string; // Optional error message
+  }

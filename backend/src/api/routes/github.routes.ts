@@ -100,6 +100,24 @@ router.get('/setup-callback', githubController.handleGitHubSetupCallback as Requ
  */
 router.post('/manual-link-installation', requireAuth as RequestHandler, githubController.manualLinkInstallation as RequestHandler);
 
+/**
+ * @openapi
+ * /api/github/connection-status:
+ *   get:
+ *     summary: Fetches the current user's GitHub connection status
+ *     description: Requires authentication.
+ *     tags:
+ *       - GitHub
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: GitHub connection status
+ *       401:
+ *         description: Unauthorized.
+ */
+router.get('/connection-status', requireAuth as RequestHandler, githubController.getGitHubConnectionStatus as RequestHandler);
+
 // Placeholder for webhook handler route
 // router.post('/webhooks', githubController.handleGitHubWebhook);
 
