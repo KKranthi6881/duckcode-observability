@@ -118,6 +118,118 @@ router.post('/manual-link-installation', requireAuth as RequestHandler, githubCo
  */
 router.get('/connection-status', requireAuth as RequestHandler, githubController.getGitHubConnectionStatus as RequestHandler);
 
+/**
+ * @openapi
+ * /api/github/repos/{owner}/{repo}/contents:
+ *   get:
+ *     summary: Get contents of a repository directory
+ *     description: Fetches content listing for the specified path in a GitHub repository.
+ *     tags:
+ *       - GitHub
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: owner
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The account owner of the repository
+ *       - in: path
+ *         name: repo
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The name of the repository
+ *       - in: query
+ *         name: ref
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: The name of the commit/branch/tag. Default is the repository's default branch.
+ *     responses:
+ *       200:
+ *         description: Repository contents retrieved successfully
+ *       400:
+ *         description: Invalid request parameters
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Repository or path not found
+ *       500:
+ *         description: Server error
+ */
+// Route for ROOT repository contents (e.g., /repos/owner/repo/contents)
+router.get('/repos/:owner/:repo/contents', requireAuth as RequestHandler, (req, res, next) => {
+  req.params.path = ''; // Explicitly set path for root
+  githubController.getRepoContents(req, res, next);
+});
+
+// Route for repository contents IN SUBDIRECTORIES (e.g., /repos/owner/repo/contents/path/to/folder)
+// :path(*) captures 'path/to/folder'
+router.get('/repos/:owner/:repo/contents/:path(*)', requireAuth as RequestHandler, (req, res, next) => {
+  // req.params.path is populated by :path(*)
+  githubController.getRepoContents(req, res, next);
+});
+
+/**
+ * @openapi
+ * /api/github/repos/{owner}/{repo}/content:
+ *   get:
+ *     summary: Get content of a specific file
+ *     description: Fetches the content of a file from a GitHub repository. Returns base64 encoded content.
+ *     tags:
+ *       - GitHub
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: owner
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The account owner of the repository
+ *       - in: path
+ *         name: repo
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The name of the repository
+ *       - in: query
+ *         name: path
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The file path within the repository
+ *       - in: query
+ *         name: ref
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: The name of the commit/branch/tag. Default is the repository's default branch.
+ *     responses:
+ *       200:
+ *         description: File content retrieved successfully
+ *       400:
+ *         description: Invalid request or path is not a file
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: File not found
+ *       500:
+ *         description: Server error
+ */
+// Route for specific file content
+// :path(*) captures 'path/to/file.md'. Handler checks if empty.
+router.get('/repos/:owner/:repo/content/:path(*)', requireAuth as RequestHandler, (req, res, next) => {
+  const filePath = req.params.path;
+  if (!filePath || filePath.trim() === '') {
+    res.status(400).json({ error: 'File path is required and cannot be empty.' });
+    return; // Explicitly return void after sending response
+  }
+  githubController.getFileContent(req, res, next);
+});
+
 // Placeholder for webhook handler route
 // router.post('/webhooks', githubController.handleGitHubWebhook);
 

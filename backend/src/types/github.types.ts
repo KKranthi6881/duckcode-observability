@@ -81,6 +81,7 @@ export interface GitHubAppInstallation {
     full_name: string;
     private: boolean;
     html_url: string;
+    default_branch: string;
     // Add other fields like default_branch if needed later for CodeBase.tsx
   }
 

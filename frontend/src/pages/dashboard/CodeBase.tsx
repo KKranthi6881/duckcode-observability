@@ -1,239 +1,1380 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
-  Code, 
-  GitBranch, 
-  GitFork, 
-  Star, 
-  Clock, 
-  File, 
-  Folder, 
   ChevronRight, 
-  FileCode, 
-  FilePlus, 
+  ChevronDown, 
+  Folder, 
+  File, 
+  Copy, 
+  Code2, 
+  BookOpen, 
+  GitBranch, 
+  Eye, 
+  AlertTriangle,
+  FolderOpen,
   Search,
-  Users,
-  Download,
-  Copy,
+  Github,
+  Lock,
+  Loader2,
   ExternalLink,
-  BookOpen,
-  GitCommit,
-  BarChart,
-  AlertCircle
+  Star,
+  GitFork,
+  CornerLeftUp,
+  Inbox,
+  Settings,
+  Calendar,
+  Users,
+  Database,
+  TrendingUp,
+  Activity,
+  BarChart3,
+  FileText,
+  Zap,
+  PanelLeft,
+  PanelLeftClose
 } from 'lucide-react';
+import { useAuth } from '../../features/auth/contexts/AuthContext';
+import { 
+  getGitHubConnectionStatus, 
+  getRepositoryContents,
+  getFileContent,
+  decodeFileContent,
+  type GitHubConnectionStatus,
+  type GitHubRepository,
+  type GitHubFileItem
+} from '../../services/githubService';
 
-interface FileItem { 
+// FileItem interface for UI state
+interface FileItem {
+  id: string;
   name: string;
-  type: 'file' | 'directory' | 'symlink'; 
-  path: string; 
-  sha: string; 
-  size?: number; 
-  url?: string; 
-  html_url?: string; 
-  download_url?: string | null; 
-  children?: FileItem[]; 
+  path: string;
+  type: 'file' | 'folder';
+  size?: number;
+  isExpanded?: boolean;
+  children?: FileItem[];
+  modified?: string;
 }
 
-interface GitHubRepository {
-  id: number; 
-  node_id: string; 
-  name: string; 
-  full_name: string; 
-  private: boolean;
-  owner: {
-    login: string;
-    avatar_url: string;
-  };
-  description: string | null;
-  html_url: string; 
-  default_branch: string;
+interface TreeNode {
+  id: string;
+  name: string;
+  path: string;
+  type: 'file' | 'folder';
+  size?: number;
+  isExpanded: boolean;
+  children: TreeNode[];
+  level: number;
 }
 
-const GITHUB_APP_NAME = 'your-github-app-name'; 
+const GITHUB_APP_NAME = import.meta.env.VITE_GITHUB_APP_NAME || 'DuckCode-Observability';
+const brandColor = "#2AB7A9";
 
 export function CodeBase() {
-  const [connectedRepos, setConnectedRepos] = useState<GitHubRepository[]>([]);
-  const [isLoadingGitHub, setIsLoadingGitHub] = useState(false);
-  const [gitHubError, setGitHubError] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const { session, isLoading: isAuthLoading } = useAuth();
 
+  // GitHub Connection State
+  const [gitHubConnectionStatus, setGitHubConnectionStatus] = useState<GitHubConnectionStatus | null>(null);
+  const [isLoadingConnection, setIsLoadingConnection] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+
+  // Selected GitHub Repository and its File Tree State
   const [selectedGitHubRepo, setSelectedGitHubRepo] = useState<GitHubRepository | null>(null);
-  const [repoFiles, setRepoFiles] = useState<FileItem[]>([]); 
-  const [currentGitHubPath, setCurrentGitHubPath] = useState<string[]>([]); 
+  const [currentGitHubPath, setCurrentGitHubPath] = useState<string[]>([]); // Path segments, e.g., ['src', 'components']
+  const [repoFiles, setRepoFiles] = useState<FileItem[]>([]); // Flat list of files/dirs for the current path in selected repo
+  const [isLoadingRepoFiles, setIsLoadingRepoFiles] = useState(false);
+  const [repoFilesError, setRepoFilesError] = useState<string | null>(null);
+
+  // Selected File and its Content State
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
   const [selectedFileContent, setSelectedFileContent] = useState<string | null>(null);
-  
-  const [view, setView] = useState<'list' | 'code'>('list'); 
-  const [searchQuery, setSearchQuery] = useState(''); 
-  const [activeTab, setActiveTab] = useState<'code' | 'documentation' | 'lineage' | 'visual' | 'alerts'>('code');
-  const brandColor = "#2AB7A9";
+  const [isLoadingFileContent, setIsLoadingFileContent] = useState(false);
+  const [fileContentError, setFileContentError] = useState<string | null>(null);
 
+  // UI State
+  const [view, setView] = useState<'repos' | 'browser'>('repos'); // Simplified to repos and browser
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeBranch, setActiveBranch] = useState('main');
+  const [activeTab, setActiveTab] = useState<'code' | 'documentation' | 'lineage' | 'visual' | 'alerts'>('code');
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [fileTree, setFileTree] = useState<TreeNode[]>([]);
+  const [isLoadingTree, setIsLoadingTree] = useState(false);
+  const [treeError, setTreeError] = useState<string | null>(null);
+
+  // Fetch GitHub connection status
+  const fetchGitHubConnectionStatus = useCallback(async () => {
+    if (isLoadingConnection) return; // Prevent multiple simultaneous calls
+    
+    console.log('[CodeBase] Starting GitHub connection status fetch');
+    setIsLoadingConnection(true);
+    setConnectionError(null);
+    
+    try {
+      const connectionStatus = await getGitHubConnectionStatus();
+      console.log('[CodeBase] GitHub connection status:', connectionStatus);
+      setGitHubConnectionStatus(connectionStatus);
+    } catch (error: any) {
+      console.error('[CodeBase] Error fetching GitHub connection status:', error);
+      setConnectionError(error.message || 'Failed to fetch GitHub connection status');
+    } finally {
+      setIsLoadingConnection(false);
+    }
+  }, []); // Remove isLoadingConnection dependency to prevent infinite loop
+
+  // Load GitHub status on mount and when session changes
   useEffect(() => {
-    const fetchConnectedRepos = async () => {
-      setIsLoadingGitHub(true);
-      setGitHubError(null);
-      try {
-        console.log('Simulating fetch of connected repos (currently empty).');
-        setConnectedRepos([]); 
-      } catch (err: any) {
-        setGitHubError(err.message);
-        console.error('Error fetching connected repos:', err);
-        setConnectedRepos([]);
-      } finally {
-        setIsLoadingGitHub(false);
+    if (session) {
+      fetchGitHubConnectionStatus();
+    } else {
+      // Clear GitHub data when no session
+      setGitHubConnectionStatus(null);
+      setSelectedGitHubRepo(null);
+      setRepoFiles([]);
+      setSelectedFile(null);
+      setIsLoadingConnection(false);
+    }
+  }, [session]); // Remove fetchGitHubConnectionStatus dependency to prevent infinite loop
+
+  // Fetch GitHub Repository File Tree
+  const fetchGitHubRepoTree = useCallback(async (repo: GitHubRepository, path: string, branch: string) => {
+    console.log(`Fetching tree for ${repo.full_name}, path: '${path}', branch: ${branch}`);
+    setIsLoadingRepoFiles(true);
+    setRepoFilesError(null);
+    
+    try {
+      const [owner, repoName] = repo.full_name.split('/');
+      const contents = await getRepositoryContents(owner, repoName, path, branch);
+      
+      // Convert to FileItem format
+      const fileItems: FileItem[] = contents.map(item => ({
+        id: item.sha,
+        name: item.name,
+        path: item.path,
+        type: item.type === 'dir' ? 'folder' : 'file',
+        size: item.size,
+        modified: '', // GitHub API doesn't provide this in contents endpoint
+      }));
+      
+      setRepoFiles(fileItems);
+      setCurrentGitHubPath(path.split('/').filter(Boolean));
+      console.log(`Successfully fetched ${fileItems.length} items for path: ${path}`);
+    } catch (error: any) {
+      console.error(`Error fetching repo tree for ${repo.full_name}:`, error);
+      
+      // Handle different types of errors
+      if (error.message?.includes('Not Found') || error.message?.includes('404')) {
+        const folderName = path.split('/').pop() || 'root';
+        setRepoFilesError(`Folder "${folderName}" not found or is empty`);
+      } else if (error.message?.includes('rate limit')) {
+        setRepoFilesError('GitHub API rate limit exceeded. Please try again later.');
+      } else {
+        setRepoFilesError(error.message || 'Failed to fetch repository contents');
       }
-    };
-    fetchConnectedRepos();
+      
+      setRepoFiles([]);
+    } finally {
+      setIsLoadingRepoFiles(false);
+    }
   }, []);
 
-  const handleConnectGitHub = () => {
-    if (!GITHUB_APP_NAME || GITHUB_APP_NAME === 'DuckCode Observability Github') {
-      alert('Please configure GITHUB_APP_NAME in CodeBase.tsx');
-      return;
+  // Fetch File Content
+  const fetchFileContent = useCallback(async (file: FileItem) => {
+    if (!selectedGitHubRepo || !session?.access_token) return;
+
+    console.log('[CodeBase] fetchFileContent called for:', file.path);
+    console.log('[CodeBase] Using activeBranch:', activeBranch);
+    console.log('[CodeBase] Using repo default_branch:', selectedGitHubRepo.default_branch);
+
+    setSelectedFile(file);
+    setSelectedFileContent('');
+    setIsLoadingFileContent(true);
+    setFileContentError(null);
+
+    try {
+      const [owner, repoName] = selectedGitHubRepo.full_name.split('/');
+      
+      // Use the repo's default branch like we do for folders
+      const branchToUse = selectedGitHubRepo.default_branch || activeBranch;
+      console.log('[CodeBase] Final branch to use for file content:', branchToUse);
+      
+      const fileData = await getFileContent(owner, repoName, file.path, branchToUse);
+      
+      // Decode the file content if it's base64 encoded
+      const decodedContent = decodeFileContent(fileData.content, fileData.encoding);
+      setSelectedFileContent(decodedContent);
+      console.log(`Successfully fetched content for ${file.path}`);
+    } catch (err: any) {
+      console.error(`Error fetching file content for ${file.path}:`, err);
+      setFileContentError(err.message || 'Failed to fetch file content');
+    } finally {
+      setIsLoadingFileContent(false);
     }
-    window.location.href = `https://github.com/apps/${GITHUB_APP_NAME}/installations/new`;
+  }, [selectedGitHubRepo, session, activeBranch]);
+
+  // Fetch entire repository tree structure
+  const fetchRepositoryTree = useCallback(async (repo: GitHubRepository, branch: string) => {
+    if (!session?.access_token) return;
+
+    console.log('[CodeBase] Fetching repository tree for:', repo.full_name, 'branch:', branch);
+    setIsLoadingTree(true);
+    setTreeError(null);
+
+    try {
+      // Split fullName into owner and repo
+      const [owner, repoName] = repo.full_name.split('/');
+      
+      // First get the root directory contents
+      const rootContents = await getRepositoryContents(owner, repoName, '', branch);
+      console.log('[CodeBase] Root contents:', rootContents);
+
+      // Build the tree structure
+      const tree = await buildTreeStructure(rootContents, owner, repoName, branch, 0);
+      setFileTree(tree);
+      console.log('[CodeBase] Built tree structure:', tree);
+    } catch (error: any) {
+      console.error('[CodeBase] Error fetching repository tree:', error);
+      setTreeError(error.message || 'Failed to fetch repository tree');
+      setFileTree([]);
+    } finally {
+      setIsLoadingTree(false);
+    }
+  }, [session?.access_token]);
+
+  // Build tree structure recursively
+  const buildTreeStructure = async (contents: GitHubFileItem[], owner: string, repoName: string, branch: string, level: number): Promise<TreeNode[]> => {
+    const tree: TreeNode[] = [];
+    
+    for (const item of contents) {
+      const node: TreeNode = {
+        id: `${item.path}-${item.sha}`,
+        name: item.name,
+        path: item.path,
+        type: item.type === 'dir' ? 'folder' : 'file',
+        size: item.size,
+        isExpanded: false,
+        children: [],
+        level
+      };
+      
+      // For folders, we'll load children on demand when expanded
+      tree.push(node);
+    }
+    
+    return tree;
   };
 
-  const handleGitHubRepoClick = async (repo: GitHubRepository) => {
-    setSelectedGitHubRepo(repo);
-    setCurrentGitHubPath([]);
-    setRepoFiles([]); 
+  // Toggle folder expansion
+  const toggleFolderExpansion = async (nodePath: string) => {
+    // First, find the node to check if we need to load children
+    const findNode = (tree: TreeNode[], targetPath: string): TreeNode | null => {
+      for (const node of tree) {
+        if (node.path === targetPath) return node;
+        if (node.children.length > 0) {
+          const found = findNode(node.children, targetPath);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+
+    const targetNode = findNode(fileTree, nodePath);
+    if (!targetNode || targetNode.type !== 'folder') return;
+
+    // If expanding and no children loaded, load them first
+    if (!targetNode.isExpanded && targetNode.children.length === 0) {
+      try {
+        const [owner, repoName] = selectedGitHubRepo!.full_name.split('/');
+        const contents = await getRepositoryContents(owner, repoName, targetNode.path, activeBranch);
+        const children = await buildTreeStructure(contents, owner, repoName, activeBranch, targetNode.level + 1);
+        
+        // Update the tree with both children and expansion state
+        setFileTree(prevTree => {
+          return updateTreeNode(prevTree, nodePath, (node) => {
+            return {
+              ...node,
+              children,
+              isExpanded: true
+            };
+          });
+        });
+      } catch (error) {
+        console.error('Error loading folder contents:', error);
+      }
+    } else {
+      // Just toggle expansion state
+      setFileTree(prevTree => {
+        return updateTreeNode(prevTree, nodePath, (node) => {
+          return {
+            ...node,
+            isExpanded: !node.isExpanded
+          };
+        });
+      });
+    }
+  };
+
+  // Update tree node recursively
+  const updateTreeNode = (tree: TreeNode[], targetPath: string, updateFn: (node: TreeNode) => TreeNode): TreeNode[] => {
+    return tree.map(node => {
+      if (node.path === targetPath) {
+        return updateFn({ ...node });
+      }
+      if (node.children.length > 0) {
+        return {
+          ...node,
+          children: updateTreeNode(node.children, targetPath, updateFn)
+        };
+      }
+      return node;
+    });
+  };
+
+  // Flatten tree for rendering with proper indentation
+  const flattenTree = (tree: TreeNode[]): TreeNode[] => {
+    const flattened: TreeNode[] = [];
+    
+    const traverse = (nodes: TreeNode[]) => {
+      for (const node of nodes) {
+        flattened.push(node);
+        if (node.isExpanded && node.children.length > 0) {
+          traverse(node.children);
+        }
+      }
+    };
+    
+    traverse(tree);
+    return flattened;
+  };
+
+  // Filter tree based on search query
+  const getFilteredTree = (): TreeNode[] => {
+    if (!searchQuery) return flattenTree(fileTree);
+    
+    const filtered: TreeNode[] = [];
+    const traverse = (nodes: TreeNode[]) => {
+      for (const node of nodes) {
+        if (node.name.toLowerCase().includes(searchQuery.toLowerCase())) {
+          filtered.push(node);
+        }
+        if (node.children.length > 0) {
+          traverse(node.children);
+        }
+      }
+    };
+    
+    traverse(fileTree);
+    return filtered;
+  };
+
+  // Handle GitHub Connection
+  const handleConnectGitHub = () => {
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+    window.location.href = `${apiUrl}/api/github/start-installation`;
+  };
+
+  // Event Handlers
+  const handleGitHubRepoClick = (repo: any) => {
+    console.log('[CodeBase] Repository clicked:', repo);
+    
+    const defaultBranch = repo.default_branch || 'main';
+    console.log('[CodeBase] Using default branch:', defaultBranch);
+    
+    const fullRepo: GitHubRepository = {
+      id: repo.id,
+      name: repo.name,
+      full_name: repo.full_name,
+      private: repo.private,
+      html_url: repo.html_url,
+      description: null,
+      created_at: '',
+      updated_at: '',
+      pushed_at: '',
+      clone_url: '',
+      ssh_url: '',
+      stargazers_count: repo.stargazers_count || 0,
+      watchers_count: 0,
+      forks_count: repo.forks_count || 0,
+      language: null,
+      languages_url: '',
+      default_branch: defaultBranch,
+      topics: [],
+      permissions: {
+        admin: false,
+        maintain: false,
+        push: false,
+        triage: false,
+        pull: true
+      }
+    };
+    
+    setSelectedGitHubRepo(fullRepo);
     setSelectedFile(null);
     setSelectedFileContent(null);
-    setView('list'); 
-    console.log('Selected GitHub repo:', repo.full_name);
+    setView('browser');
+    setActiveBranch(defaultBranch);
+    
+    // Fetch the tree structure
+    fetchRepositoryTree(fullRepo, defaultBranch);
   };
 
-  const getFileIcon = (fileName: string, type: 'file' | 'directory' | 'symlink') => {
-    if (type === 'directory') return <Folder className="w-5 h-5 text-yellow-500" />;
-    if (type === 'symlink') return <ExternalLink className="w-5 h-5 text-blue-500" />;
-    if (fileName.endsWith('.sql')) return <FileCode className="w-5 h-5 text-indigo-500" />;
-    if (fileName.endsWith('.py')) return <FileCode className="w-5 h-5 text-green-500" />;
-    if (fileName.endsWith('.md')) return <BookOpen className="w-5 h-5 text-gray-500" />;
-    return <File className="w-5 h-5 text-gray-400" />;
+  const handleTreeItemClick = (node: TreeNode) => {
+    if (node.type === 'folder') {
+      toggleFolderExpansion(node.path);
+    } else {
+      // File clicked - convert to FileItem for compatibility
+      const fileItem: FileItem = {
+        id: node.id,
+        name: node.name,
+        path: node.path,
+        type: node.type,
+        size: node.size
+      };
+      setSelectedFile(fileItem);
+      setActiveTab('code');
+      fetchFileContent(fileItem);
+    }
   };
 
-  return (
-    <div className="flex h-[calc(100vh-var(--header-height,64px))] bg-gray-100">
-      <div className="w-1/4 min-w-[280px] max-w-[400px] bg-white border-r border-gray-200 p-4 flex flex-col shadow-sm">
-        <div className="flex justify-between items-center mb-3">
-          <h2 className="text-base font-semibold text-gray-700">Connected Repositories</h2>
-        </div>
-        <button
-          onClick={handleConnectGitHub}
-          className="w-full mb-3 px-3 py-2 text-sm font-medium text-white bg-slate-800 rounded-md hover:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-opacity-50 flex items-center justify-center transition-colors duration-150"
-        >
-          <GitFork className="w-4 h-4 mr-2" /> Connect New GitHub Repository
-        </button>
+  const handleGitHubFileItemClick = (item: FileItem) => {
+    console.log('[CodeBase] File item clicked:', item);
+    console.log('[CodeBase] Item type:', item.type, 'Item path:', item.path);
+    console.log('[CodeBase] Current activeBranch:', activeBranch);
+    console.log('[CodeBase] Current selectedGitHubRepo:', selectedGitHubRepo?.full_name);
+    console.log('[CodeBase] Current path segments:', currentGitHubPath);
+    
+    if (item.type === 'folder') {
+      console.log('[CodeBase] Navigating to folder:', item.path, 'with branch:', activeBranch);
+      console.log('[CodeBase] selectedGitHubRepo default_branch:', selectedGitHubRepo?.default_branch);
+      
+      // Use the repo's default branch instead of activeBranch as a safety check
+      const branchToUse = selectedGitHubRepo?.default_branch || activeBranch;
+      console.log('[CodeBase] Final branch to use:', branchToUse);
+      
+      fetchGitHubRepoTree(selectedGitHubRepo!, item.path, branchToUse);
+      setView('files');
+    } else {
+      console.log('[CodeBase] Opening file:', item.path);
+      setSelectedFile(item);
+      setView('code');
+      setActiveTab('code'); // Default to code tab
+      fetchFileContent(item);
+    }
+  };
 
-        {isLoadingGitHub && <p className="text-xs text-gray-500 p-2 text-center">Loading repositories...</p>}
-        {gitHubError && <p className="text-xs text-red-600 bg-red-50 p-2 rounded-md text-center">Error: {gitHubError}</p>}
-        
-        {!isLoadingGitHub && connectedRepos.length === 0 && !gitHubError && (
-          <div className="text-center text-xs text-gray-400 mt-6 p-4 border border-dashed rounded-md">
-            <Folder className="h-8 w-8 mx-auto mb-2 text-gray-300" />
-            No repositories connected yet. <br/> Click the button above to get started.
+  const navigateToGitHubPath = (pathIndex: number) => {
+    if (!selectedGitHubRepo) return;
+    const newPathArray = currentGitHubPath.slice(0, pathIndex + 1);
+    const newPathString = newPathArray.join('/');
+    fetchGitHubRepoTree(selectedGitHubRepo, newPathString, activeBranch);
+  };
+
+  const goToParentGitHubDirectory = () => {
+    if (!selectedGitHubRepo || currentGitHubPath.length === 0) return;
+    const newPathArray = currentGitHubPath.slice(0, -1);
+    const newPathString = newPathArray.join('/');
+    fetchGitHubRepoTree(selectedGitHubRepo, newPathString, activeBranch);
+  };
+
+  // Helper Functions
+  const getCurrentDirectoryContents = (): FileItem[] => {
+    // In this flat list model, repoFiles already represents the current directory's content.
+    // Filtering by searchQuery if needed.
+    if (!searchQuery) return repoFiles;
+    return repoFiles.filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  };
+  
+  const getFileIcon = (fileName: string | undefined, itemType: 'file' | 'folder') => {
+    if (itemType === 'folder') return <Folder className="h-4 w-4 mr-2 text-yellow-500 flex-shrink-0" />;
+    
+    // Handle undefined/null fileName
+    if (!fileName) return <File className="h-4 w-4 mr-2 text-gray-400 flex-shrink-0" />;
+    
+    const extension = fileName.split('.').pop()?.toLowerCase();
+    switch(extension) {
+      case 'sql': return <Code2 className="h-4 w-4 mr-2 text-blue-500 flex-shrink-0" />;
+      case 'json': return <File className="h-4 w-4 mr-2 text-purple-500 flex-shrink-0" />;
+      case 'ts': case 'tsx': case 'js': case 'jsx': return <Code2 className="h-4 w-4 mr-2 text-sky-500 flex-shrink-0" />;
+      case 'py': return <Code2 className="h-4 w-4 mr-2 text-green-500 flex-shrink-0" />;
+      case 'md': return <BookOpen className="h-4 w-4 mr-2 text-gray-500 flex-shrink-0" />;
+      case 'sh': case 'bash': return <File className="h-4 w-4 mr-2 text-red-500 flex-shrink-0" />;
+      case 'png': case 'jpg': case 'jpeg': case 'gif': case 'svg': return <File className="h-4 w-4 mr-2 text-indigo-500 flex-shrink-0" />;
+      case 'zip': case 'tar': case 'gz': return <File className="h-4 w-4 mr-2 text-orange-500 flex-shrink-0" />;
+      default: return <File className="h-4 w-4 mr-2 text-gray-400 flex-shrink-0" />;
+    }
+  };
+
+  const getLanguageBadge = (language: string | null | undefined, color?: string) => {
+    if (!language) return null;
+    // Basic color mapping, can be expanded
+    const langColor = color || (language.toLowerCase() === 'typescript' ? 'bg-blue-100 text-blue-700' : 
+                                language.toLowerCase() === 'javascript' ? 'bg-yellow-100 text-yellow-700' :
+                                language.toLowerCase() === 'python' ? 'bg-green-100 text-green-700' :
+                                'bg-gray-100 text-gray-700');
+    return (
+      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${langColor}`}>
+        {language}
+      </span>
+    );
+  };
+
+  const getLanguageColors = (fileExtension?: string) => {
+    switch (fileExtension) {
+      case 'sql':
+        return {
+          keywords: 'text-blue-400 font-semibold',        // SELECT, FROM, WHERE
+          functions: 'text-purple-400 font-medium',       // COUNT, SUM, AVG
+          operators: 'text-red-400 font-medium',          // =, >, <, AND, OR
+          strings: 'text-green-300',                      // 'quoted strings'
+          numbers: 'text-orange-400 font-medium',         // 123, 45.67
+          comments: 'text-gray-500 italic',               // -- comments
+          identifiers: 'text-cyan-300',                   // table.column names
+          types: 'text-yellow-400 font-medium'            // INT, VARCHAR, etc.
+        };
+      case 'py':
+      case 'ipynb':
+        return {
+          keywords: 'text-blue-400 font-semibold',        // def, class, if, etc.
+          functions: 'text-yellow-300 font-medium',       // function names
+          strings: 'text-green-300',                      // "strings"
+          numbers: 'text-orange-400 font-medium',         // 123
+          comments: 'text-gray-500 italic',               // # comments
+          decorators: 'text-pink-400 font-medium',        // @decorator
+          booleans: 'text-purple-400 font-medium',        // True, False, None
+          operators: 'text-red-400'                       // +, -, *, /
+        };
+      case 'js':
+      case 'ts':
+      case 'jsx':
+      case 'tsx':
+        return {
+          keywords: 'text-blue-400 font-semibold',        // function, const, let
+          functions: 'text-yellow-300 font-medium',       // function names
+          strings: 'text-green-300',                      // "strings"
+          numbers: 'text-orange-400 font-medium',         // 123
+          comments: 'text-gray-500 italic',               // // comments
+          booleans: 'text-purple-400 font-medium',        // true, false, null
+          operators: 'text-red-400',                      // +, -, *, /
+          types: 'text-cyan-400 font-medium'              // TypeScript types
+        };
+      case 'json':
+        return {
+          keys: 'text-blue-300 font-medium',              // "key":
+          strings: 'text-green-300',                      // "value"
+          numbers: 'text-orange-400 font-medium',         // 123
+          booleans: 'text-purple-400 font-medium',        // true, false, null
+          comments: 'text-gray-500 italic'
+        };
+      default:
+        return {
+          keywords: 'text-blue-400 font-semibold',
+          strings: 'text-green-300',
+          comments: 'text-gray-500 italic',
+          numbers: 'text-orange-400 font-medium',
+          operators: 'text-red-400',
+          functions: 'text-yellow-300 font-medium',
+          identifiers: 'text-cyan-300'
+        };
+    }
+  };
+
+  const formatCodeWithSyntaxHighlighting = (code: string, fileName?: string) => {
+    const lines = code.split('\n');
+    const fileExtension = fileName?.split('.').pop()?.toLowerCase();
+    const colors = getLanguageColors(fileExtension);
+    
+    const highlightSyntax = (line: string, lineNumber: number) => {
+      if (line.trim() === '') {
+        return <span>&nbsp;</span>;
+      }
+
+      // Handle different comment types - return styled JSX directly
+      if (line.trim().startsWith('--') || line.trim().startsWith('#') || line.trim().startsWith('//')) {
+        return <span className={colors.comments}>{line}</span>;
+      }
+      
+      // Handle block comments
+      if (line.includes('/*') || line.includes('*/') || line.includes('"""') || line.includes("'''")) {
+        return <span className={colors.comments}>{line}</span>;
+      }
+
+      // Enhanced tokenization with better operator handling
+      const tokens = line.split(/(\s+|[().,;=<>!+\-*/%]|['"``].*?['"``])/);
+      
+      return (
+        <span>
+          {tokens.map((token, index) => {
+            if (!token.trim()) {
+              return <span key={index}>{token}</span>;
+            }
+
+            // SQL Highlighting
+            if (fileExtension === 'sql') {
+              // SQL Keywords (blue)
+              const sqlKeywords = ['SELECT', 'FROM', 'WHERE', 'JOIN', 'INNER', 'LEFT', 'RIGHT', 'OUTER', 'FULL', 'ON', 'GROUP', 'ORDER', 'BY', 'HAVING', 'INSERT', 'UPDATE', 'DELETE', 'CREATE', 'DROP', 'ALTER', 'TABLE', 'INDEX', 'VIEW', 'DATABASE', 'SCHEMA', 'UNION', 'ALL', 'CASE', 'WHEN', 'THEN', 'ELSE', 'END', 'AS', 'DISTINCT', 'TOP', 'LIMIT', 'OFFSET', 'FETCH', 'FIRST', 'WITH', 'RECURSIVE', 'CTE'];
+              if (sqlKeywords.includes(token.toUpperCase())) {
+                return <span key={index} className={colors.keywords}>{token}</span>;
+              }
+              
+              // SQL Functions (purple)
+              const sqlFunctions = ['COUNT', 'SUM', 'AVG', 'MAX', 'MIN', 'ROUND', 'FLOOR', 'CEIL', 'ABS', 'SQRT', 'POWER', 'LEN', 'LENGTH', 'SUBSTRING', 'SUBSTR', 'UPPER', 'LOWER', 'TRIM', 'LTRIM', 'RTRIM', 'REPLACE', 'CONCAT', 'COALESCE', 'ISNULL', 'NULLIF', 'CAST', 'CONVERT', 'DATEPART', 'DATEDIFF', 'GETDATE', 'NOW', 'CURRENT_TIMESTAMP', 'ROW_NUMBER', 'RANK', 'DENSE_RANK', 'LAG', 'LEAD', 'FIRST_VALUE', 'LAST_VALUE'];
+              if (sqlFunctions.includes(token.toUpperCase())) {
+                return <span key={index} className={colors.functions}>{token}</span>;
+              }
+              
+              // SQL Operators (red)
+              const sqlOperators = ['=', '>', '<', '>=', '<=', '!=', '<>', 'AND', 'OR', 'NOT', 'IN', 'EXISTS', 'BETWEEN', 'LIKE', 'IS', 'NULL', '+', '-', '*', '/', '%'];
+              if (sqlOperators.includes(token.toUpperCase()) || ['=', '>', '<', '>=', '<=', '!=', '<>', '+', '-', '*', '/', '%'].includes(token)) {
+                return <span key={index} className={colors.operators}>{token}</span>;
+              }
+              
+              // SQL Data Types (yellow)
+              const sqlTypes = ['INT', 'INTEGER', 'BIGINT', 'SMALLINT', 'TINYINT', 'DECIMAL', 'NUMERIC', 'FLOAT', 'REAL', 'VARCHAR', 'CHAR', 'TEXT', 'NVARCHAR', 'NCHAR', 'DATE', 'TIME', 'DATETIME', 'DATETIME2', 'TIMESTAMP', 'BOOLEAN', 'BIT', 'BINARY', 'VARBINARY', 'UUID', 'UNIQUEIDENTIFIER'];
+              if (sqlTypes.includes(token.toUpperCase())) {
+                return <span key={index} className={colors.types}>{token}</span>;
+              }
+              
+              // SQL Identifiers (table.column format) (cyan)
+              if (token.includes('.') && !token.startsWith('.') && !token.endsWith('.')) {
+                return <span key={index} className={colors.identifiers}>{token}</span>;
+              }
+            }
+            
+            // Python Highlighting
+            else if (fileExtension === 'py' || fileExtension === 'ipynb') {
+              // Python Keywords (blue)
+              const pythonKeywords = ['def', 'class', 'if', 'elif', 'else', 'for', 'while', 'try', 'except', 'finally', 'with', 'as', 'import', 'from', 'return', 'yield', 'break', 'continue', 'pass', 'raise', 'assert', 'global', 'nonlocal', 'lambda', 'async', 'await'];
+              if (pythonKeywords.includes(token)) {
+                return <span key={index} className={colors.keywords}>{token}</span>;
+              }
+              
+              // Python Booleans/None (purple)
+              const pythonBooleans = ['True', 'False', 'None'];
+              if (pythonBooleans.includes(token)) {
+                return <span key={index} className={colors.booleans}>{token}</span>;
+              }
+              
+              // Python Decorators (pink)
+              if (token.startsWith('@')) {
+                return <span key={index} className={colors.decorators}>{token}</span>;
+              }
+              
+              // Python Operators (red)
+              const pythonOperators = ['+', '-', '*', '/', '//', '%', '**', '=', '==', '!=', '<', '>', '<=', '>=', 'and', 'or', 'not', 'in', 'is'];
+              if (pythonOperators.includes(token)) {
+                return <span key={index} className={colors.operators}>{token}</span>;
+              }
+            }
+            
+            // JavaScript/TypeScript Highlighting
+            else if (['js', 'ts', 'jsx', 'tsx'].includes(fileExtension || '')) {
+              // JS/TS Keywords (blue)
+              const jsKeywords = ['function', 'const', 'let', 'var', 'if', 'else', 'for', 'while', 'do', 'switch', 'case', 'default', 'break', 'continue', 'return', 'try', 'catch', 'finally', 'throw', 'new', 'this', 'typeof', 'instanceof', 'class', 'extends', 'import', 'export', 'from', 'as', 'async', 'await', 'Promise'];
+              if (jsKeywords.includes(token)) {
+                return <span key={index} className={colors.keywords}>{token}</span>;
+              }
+              
+              // JS/TS Booleans (purple)
+              const jsBooleans = ['true', 'false', 'null', 'undefined'];
+              if (jsBooleans.includes(token)) {
+                return <span key={index} className={colors.booleans}>{token}</span>;
+              }
+              
+              // JS/TS Types (cyan) - TypeScript specific
+              const jsTypes = ['string', 'number', 'boolean', 'object', 'array', 'void', 'any', 'unknown', 'never', 'interface', 'type', 'enum'];
+              if (jsTypes.includes(token) && (fileExtension === 'ts' || fileExtension === 'tsx')) {
+                return <span key={index} className={colors.types}>{token}</span>;
+              }
+              
+              // JS/TS Operators (red)
+              const jsOperators = ['+', '-', '*', '/', '%', '=', '==', '===', '!=', '!==', '<', '>', '<=', '>=', '&&', '||', '!', '&', '|', '^', '<<', '>>', '>>>', '+=', '-=', '*=', '/=', '%='];
+              if (jsOperators.includes(token)) {
+                return <span key={index} className={colors.operators}>{token}</span>;
+              }
+            }
+
+            // JSON Highlighting
+            else if (fileExtension === 'json') {
+              // JSON Keys (blue) - quoted strings followed by colon
+              if (token.match(/^".*":$/)) {
+                return <span key={index} className={colors.keys}>{token}</span>;
+              }
+              
+              // JSON Booleans (purple)
+              if (['true', 'false', 'null'].includes(token)) {
+                return <span key={index} className={colors.booleans}>{token}</span>;
+              }
+            }
+
+            // Universal patterns for all languages
+            
+            // Strings (green) - enhanced detection
+            if ((token.startsWith('"') && token.endsWith('"')) || 
+                (token.startsWith("'") && token.endsWith("'")) || 
+                (token.startsWith('`') && token.endsWith('`'))) {
+              return <span key={index} className={colors.strings}>{token}</span>;
+            }
+
+            // Numbers (orange) - enhanced detection
+            if (/^-?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(token)) {
+              return <span key={index} className={colors.numbers}>{token}</span>;
+            }
+
+            // Function calls (yellow) - words followed by parentheses
+            if (colors.functions && /^[a-zA-Z_][a-zA-Z0-9_]*(?=\()/.test(token)) {
+              return <span key={index} className={colors.functions}>{token}</span>;
+            }
+
+            // Default: return token as-is
+            return <span key={index}>{token}</span>;
+          })}
+        </span>
+      );
+    };
+
+    return (
+      <div className="bg-gray-900 text-gray-100 rounded-lg overflow-hidden">
+        <div className="bg-gray-800 px-4 py-2 border-b border-gray-700 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <div className="flex space-x-1">
+              <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+              <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+            </div>
+            <span className="text-sm text-gray-400 ml-4">{fileName || 'code'}</span>
           </div>
-        )}
-
-        <div className="flex-grow overflow-y-auto space-y-1 -mr-2 pr-2 mt-2">
-          {connectedRepos.map((repo) => (
-            <div
-              key={repo.id}
-              onClick={() => handleGitHubRepoClick(repo)}
-              title={repo.full_name}
-              className={`p-2.5 rounded-md cursor-pointer group hover:bg-sky-50 transition-colors duration-100 ${selectedGitHubRepo?.id === repo.id ? 'bg-sky-100 border border-sky-200 shadow-sm' : 'border border-transparent hover:border-gray-200'}`}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center min-w-0">
-                  <img src={repo.owner.avatar_url} alt={repo.owner.login} className="w-5 h-5 rounded-full mr-2" />
-                  <span className="font-medium text-gray-700 text-xs truncate group-hover:text-sky-700">{repo.full_name}</span>
-                </div>
-                {repo.private && (
-                  <span className="text-xs bg-gray-200 text-gray-600 px-1 py-0.5 rounded-sm ml-1">Private</span>
-                )}
-              </div>
+          <div className="text-xs text-gray-500">
+            {fileExtension?.toUpperCase() || 'TEXT'}
+          </div>
+        </div>
+        <pre className="text-xs font-mono leading-normal">
+          {lines.map((line, index) => (
+            <div key={index} className="flex hover:bg-gray-800/30 transition-colors">
+              <span className="text-right pr-3 py-1 text-gray-400 select-none w-10 bg-gray-800/20 border-r border-gray-600 flex-shrink-0 text-xs font-medium">
+                {index + 1}
+              </span>
+              <span className="flex-1 px-3 py-0.5 whitespace-pre-wrap">
+                {line.trim() === '' ? ' ' : highlightSyntax(line, index + 1)}
+              </span>
             </div>
           ))}
+        </pre>
+      </div>
+    );
+  };
+
+  // Main Render Logic
+  console.log('[CodeBase] Render - isLoadingConnection:', isLoadingConnection, 'gitHubConnectionStatus:', gitHubConnectionStatus);
+  
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      // Maybe show a small notification "Copied!"
+      console.log("Copied to clipboard");
+    }).catch(err => {
+      console.error("Failed to copy: ", err);
+    });
+  };
+
+  // Mock data/renderers for other tabs - these can be expanded later
+  const getMockDocumentation = (filePath: string) => `<h3>Documentation for ${filePath}</h3><p>This is placeholder documentation. Real documentation could be fetched or generated based on the file type or comments within the code.</p>`;
+  const renderLineage = (filePath: string) => <div>Lineage data for {filePath} would be displayed here. (Not Implemented)</div>;
+
+  if (isLoadingConnection) {
+    return (
+      <div className="flex items-center justify-center h-screen p-6">
+        <Loader2 className="h-12 w-12 animate-spin text-gray-500" />
+        <p className="ml-4 text-xl text-gray-600">Loading GitHub Connection...</p>
+      </div>
+    );
+  }
+
+  if (connectionError && (!gitHubConnectionStatus || !gitHubConnectionStatus.isConnected)) {
+    return (
+      <div className="p-6 max-w-2xl mx-auto mt-10 font-sans">
+        <div className="bg-red-50 border-l-4 border-red-500 p-6 rounded-md shadow-md">
+          <div className="flex items-start">
+            <AlertTriangle className="h-8 w-8 text-red-700 mr-4 flex-shrink-0 mt-1" />
+            <div>
+              <h3 className="text-xl font-semibold text-red-800">GitHub Connection Error</h3>
+              <p className="text-red-700 mt-2">{connectionError}</p>
+              <p className="text-red-600 mt-3 text-sm">
+                Please ensure your GitHub account is connected via the <strong>{GITHUB_APP_NAME}</strong> GitHub App and that it has the necessary permissions to access your repositories.
+              </p>
+              <button
+                onClick={() => navigate('/dashboard/settings?tab=integrations')}
+                className="mt-6 px-5 py-2.5 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors duration-150 text-sm font-medium flex items-center shadow-sm hover:shadow-md"
+              >
+                <Settings className="h-4 w-4 mr-2" />
+                Go to GitHub Settings
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  if (!gitHubConnectionStatus?.isConnected) {
+     return (
+      <div className="p-6 max-w-2xl mx-auto mt-10 font-sans">
+        <div className="bg-yellow-50 border-l-4 border-yellow-500 p-6 rounded-md shadow-md">
+          <div className="flex items-start">
+            <AlertTriangle className="h-8 w-8 text-yellow-700 mr-4 flex-shrink-0 mt-1" />
+            <div>
+              <h3 className="text-xl font-semibold text-yellow-800">GitHub Not Connected</h3>
+              <p className="text-yellow-700 mt-2 text-base">
+                To browse your repositories and their code, please connect your GitHub account.
+              </p>
+              <button
+                onClick={() => navigate('/dashboard/settings?tab=integrations')}
+                className="mt-6 px-5 py-2.5 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition-colors duration-150 text-sm font-medium flex items-center shadow-sm hover:shadow-md"
+              >
+                <Github className="h-4 w-4 mr-2" />
+                Connect to GitHub
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Connected State
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      {/* Header Bar */}
+      <div className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <Database className="h-6 w-6 text-[#2AB7A9]" />
+                <h1 className="text-xl font-bold text-gray-900">Code Repository</h1>
+              </div>
+              
+              {/* Breadcrumb Navigation */}
+              {selectedGitHubRepo && (
+                <div className="flex items-center space-x-2 text-sm text-gray-500">
+                  <ChevronRight className="h-4 w-4" />
+                  <button 
+                    onClick={() => setView('repos')}
+                    className="hover:text-[#2AB7A9] transition-colors"
+                  >
+                    Repositories
+                  </button>
+                  {view !== 'repos' && (
+                    <>
+                      <ChevronRight className="h-4 w-4" />
+                      <button 
+                        onClick={() => setView('files')}
+                        className="hover:text-[#2AB7A9] transition-colors"
+                      >
+                        {selectedGitHubRepo.name}
+                      </button>
+                    </>
+                  )}
+                  {selectedFile && view === 'code' && (
+                    <>
+                      <ChevronRight className="h-4 w-4" />
+                      <span className="text-gray-700 font-medium">{selectedFile.name}</span>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+            
+            {/* Search and Actions */}
+            <div className="flex items-center space-x-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search repositories, files..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 pr-4 py-2 w-80 border border-gray-300 rounded-lg focus:ring-2 focus:ring-offset-1 focus:ring-[#2AB7A9] focus:border-transparent"
+                />
+              </div>
+              
+              {view === 'browser' && (
+                <button
+                  onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                  className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+                >
+                  {isSidebarCollapsed ? <PanelLeft className="h-4 w-4 mr-2" /> : <PanelLeftClose className="h-4 w-4 mr-2" />}
+                  {isSidebarCollapsed ? 'Show' : 'Hide'} Files
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="flex-1 p-5 flex flex-col bg-gray-50">
-        {!selectedGitHubRepo ? (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center p-8 bg-white rounded-lg shadow-sm border">
-              <GitCommit className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-              <h3 className="text-md font-medium text-gray-600">Select a Repository</h3>
-              <p className="text-xs text-gray-400 mt-1">
-                Choose a connected repository from the sidebar to browse its files and begin analysis.
-              </p>
-            </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {isAuthLoading ? (
+          <div className="flex items-center justify-center h-64">
+            <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+            <span className="ml-3 text-gray-600">Loading...</span>
+          </div>
+        ) : !session ? (
+          <div className="text-center py-12">
+            <AlertTriangle className="h-12 w-12 mx-auto text-orange-500 mb-4" />
+            <h3 className="text-lg font-medium text-gray-900">Authentication Required</h3>
+            <p className="text-gray-600 mt-2">Please log in to access your repositories.</p>
+            <button
+              onClick={() => navigate('/auth/signin')}
+              className="mt-4 inline-flex items-center px-4 py-2 bg-[#2AB7A9] text-white rounded-lg hover:bg-[#24a497] transition-colors"
+            >
+              Sign In
+            </button>
           </div>
         ) : (
-          <div className="flex-1 flex flex-col min-h-0">
-            <div className="mb-3 pb-3 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-800 truncate" title={selectedGitHubRepo.full_name}>{selectedGitHubRepo.full_name}</h3>
-              </div>
-              <div className="text-xs text-gray-500 mt-1">
-                <span className="hover:underline cursor-pointer" onClick={() => { setCurrentGitHubPath([]); /* fetch root files */ }}>{selectedGitHubRepo.name}</span>
-              </div>
-            </div>
-
-            <div className="flex-1 bg-white rounded-md shadow-sm overflow-y-auto p-1">
-              {view === 'list' && (
-                <div className="p-3">
-                  {isLoadingGitHub && <p className="text-xs text-gray-500">Loading files...</p>}
-                  {!isLoadingGitHub && repoFiles.length === 0 && <p className="text-xs text-gray-400 p-4 text-center">No files loaded or repository is empty. (Implement file fetching for '{currentGitHubPath.join('/') || '/'}')</p>}
-                  {repoFiles.map(item => (
-                    <div key={item.sha} className="flex items-center p-1.5 hover:bg-gray-50 rounded cursor-pointer text-xs" /* onClick={() => handleFileOrDirClick(item)} */ >
-                      {getFileIcon(item.name, item.type)} 
-                      <span className="ml-2 text-gray-700">{item.name}</span>
+          <>
+            {/* Repository Grid View */}
+            {view === 'repos' && (
+              <div>
+                <div className="flex items-center justify-between mb-8">
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-900">Your Repositories</h2>
+                    <p className="text-gray-600 mt-1">Manage and explore your connected GitHub repositories</p>
+                  </div>
+                  
+                  {gitHubConnectionStatus?.isConnected && (
+                    <div className="flex items-center space-x-4">
+                      <div className="flex items-center space-x-2 text-sm text-gray-600">
+                        <div className="h-2 w-2 bg-green-500 rounded-full"></div>
+                        <span>Connected as {gitHubConnectionStatus.details?.account?.login}</span>
+                      </div>
+                      <button
+                        onClick={handleConnectGitHub}
+                        className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+                      >
+                        <Settings className="h-4 w-4 mr-2" />
+                        Manage
+                      </button>
                     </div>
-                  ))}
+                  )}
                 </div>
-              )}
 
-              {view === 'code' && selectedFile && (
-                <div className="flex-1 flex flex-col min-h-0">
-                  <div className="border-b border-gray-200 px-2">
-                    <nav className="-mb-px flex space-x-2" aria-label="Tabs">
-                      {['code', 'documentation', 'lineage', 'visual', 'alerts'].map((tabName) => (
-                        <button
-                          key={tabName}
-                          onClick={() => setActiveTab(tabName as any)}
-                          className={`whitespace-nowrap py-2.5 px-3 border-b-2 font-medium text-xs capitalize 
-                            ${activeTab === tabName 
-                              ? 'border-sky-500 text-sky-600' 
-                              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}
-                          `}
+                {isLoadingConnection ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {[...Array(6)].map((_, i) => (
+                      <div key={i} className="bg-white rounded-xl border border-gray-200 p-6 animate-pulse">
+                        <div className="flex items-center space-x-3 mb-4">
+                          <div className="h-10 w-10 bg-gray-200 rounded-full"></div>
+                          <div className="flex-1">
+                            <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                            <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                          </div>
+                        </div>
+                        <div className="h-3 bg-gray-200 rounded w-full mb-2"></div>
+                        <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+                      </div>
+                    ))}
+                  </div>
+                ) : connectionError ? (
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-6">
+                    <div className="flex items-center">
+                      <AlertTriangle className="h-6 w-6 text-red-500 mr-3" />
+                      <div>
+                        <h3 className="text-lg font-medium text-red-900">Connection Error</h3>
+                        <p className="text-red-700 mt-1">{connectionError}</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={fetchGitHubConnectionStatus}
+                      className="mt-4 inline-flex items-center px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors"
+                    >
+                      Try Again
+                    </button>
+                  </div>
+                ) : !gitHubConnectionStatus?.isConnected ? (
+                  <div className="text-center py-16 bg-white rounded-xl border border-gray-200">
+                    <Github className="h-16 w-16 mx-auto text-gray-300 mb-6" />
+                    <h3 className="text-xl font-medium text-gray-900 mb-2">Connect Your GitHub Account</h3>
+                    <p className="text-gray-600 mb-8 max-w-md mx-auto">
+                      Connect your GitHub account to access and analyze your repositories with our data observability tools.
+                    </p>
+                    <button
+                      onClick={handleConnectGitHub}
+                      className="inline-flex items-center px-6 py-3 bg-[#2AB7A9] text-white text-lg font-medium rounded-lg hover:bg-[#24a497] transition-colors"
+                    >
+                      <Github className="h-5 w-5 mr-2" />
+                      Connect GitHub Account
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {gitHubConnectionStatus.details?.accessibleRepos?.map((repo) => (
+                      <div
+                        key={repo.id}
+                        onClick={() => handleGitHubRepoClick(repo)}
+                        className="bg-white rounded-lg border border-gray-200 p-6 hover:border-[#2AB7A9] hover:shadow-lg transition-all duration-200 cursor-pointer group"
+                      >
+                        <div className="flex items-center space-x-3 mb-4">
+                          <img 
+                            src={repo.owner?.avatar_url || `https://github.com/${repo.full_name?.split('/')[0]}.png`} 
+                            alt={repo.owner?.login || repo.full_name?.split('/')[0]} 
+                            className="h-10 w-10 rounded-full"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-lg font-semibold text-gray-900 group-hover:text-[#2AB7A9] transition-colors truncate">
+                              {repo.name}
+                            </h3>
+                            <p className="text-sm text-gray-600 truncate">{repo.full_name}</p>
+                          </div>
+                          {repo.private && (
+                            <Lock className="h-4 w-4 text-gray-400" />
+                          )}
+                        </div>
+                        
+                        <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+                          {repo.description || 'No description available'}
+                        </p>
+                        
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-4 text-sm text-gray-500">
+                            <div className="flex items-center space-x-1">
+                              <Star className="h-4 w-4" />
+                              <span>{repo.stargazers_count || 0}</span>
+                            </div>
+                            <div className="flex items-center space-x-1">
+                              <GitFork className="h-4 w-4" />
+                              <span>{repo.forks_count || 0}</span>
+                            </div>
+                          </div>
+                          <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-[#2AB7A9] transition-colors" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* File List / Code View Area */}
+            {view === 'files' && (
+              <div>
+                {/* Header: Breadcrumbs, Search, Branch */}
+                <div className="p-4 border-b border-gray-200 bg-gray-50 sticky top-[calc(3.5rem+1px)] z-10"> {/* Adjust top if header height changes */}
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                    <div>
+                      <h2 className="text-2xl font-bold text-gray-900">Your Files</h2>
+                      <p className="text-gray-600 mt-1">Manage and explore your connected GitHub files</p>
+                    </div>
+                    
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <input
+                          type="text"
+                          placeholder="Search files..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="pl-10 pr-4 py-2 w-80 border border-gray-300 rounded-lg focus:ring-2 focus:ring-offset-1 focus:ring-[#2AB7A9] focus:border-transparent"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* File List */}
+                <div className="flex-grow overflow-y-auto">
+                  {isLoadingRepoFiles ? (
+                    <div className="flex items-center justify-center h-full p-6">
+                      <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+                      <p className="ml-3 text-gray-600">Loading files for {currentGitHubPath.join('/') || selectedGitHubRepo.name}...</p>
+                    </div>
+                  ) : repoFilesError ? (
+                    <div className="p-6 text-red-700 bg-red-50 border border-red-200 rounded-md m-4">
+                      <h4 className="font-semibold text-lg mb-1">Error Loading Files</h4>
+                      <p>{repoFilesError}</p>
+                    </div>
+                  ) : (
+                    <div className="p-0">
+                      {currentGitHubPath.length > 0 && (
+                        <div
+                          onClick={goToParentGitHubDirectory}
+                          className="flex items-center p-3 cursor-pointer hover:bg-gray-50 border-b border-gray-100 text-sm text-gray-700"
                         >
-                          {tabName}
-                        </button>
-                      ))}
-                    </nav>
-                  </div>
+                          <CornerLeftUp className="h-4 w-4 mr-2 text-gray-500" />
+                          ..
+                        </div>
+                      )}
+                      {getCurrentDirectoryContents().length === 0 ? (
+                          <div className="p-10 text-center text-gray-500">
+                              <Inbox className="h-16 w-16 mx-auto text-gray-400 mb-4" />
+                              <p className="font-medium text-lg">This directory is empty.</p>
+                              {searchQuery && <p className="text-sm mt-1">No files or folders match your search "{searchQuery}".</p>}
+                          </div>
+                      ) : (
+                        getCurrentDirectoryContents().map((item) => (
+                          <div
+                            key={item.id}
+                            onClick={() => handleGitHubFileItemClick(item)}
+                            className={`flex items-center justify-between p-3 cursor-pointer hover:bg-gray-50 border-b border-gray-100 text-sm ${selectedFile?.id === item.id ? 'bg-[#2AB7A9] bg-opacity-10 border-[#2AB7A9]' : ''}`}
+                          >
+                            <div className="flex items-center truncate">
+                              {getFileIcon(item.name, item.type)}
+                              <span className={`truncate ${selectedFile?.id === item.id ? 'text-[#2AB7A9] font-medium' : 'text-gray-800'}`} title={item.name}>{item.name}</span>
+                            </div>
+                            <div className="text-sm text-gray-400 ml-4 flex-shrink-0">
+                              {item.type === 'file' && item.size !== undefined ? `${(item.size / 1024).toFixed(1)} KB` : ''}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
-                  <div className="flex-1 overflow-auto p-3">
-                    {activeTab === 'code' && (
-                      selectedFileContent ? 
-                      <pre className="text-xs whitespace-pre-wrap break-all"><code>{selectedFileContent}</code></pre> : 
-                      <p className="text-xs text-gray-400">Loading file content or no content...</p>
+            {/* Code View */}
+            {view === 'code' && selectedFile && (
+              <div className="flex flex-col h-full">
+                <div className="border-b border-gray-200 bg-gray-50 sticky top-[calc(3.5rem+1px)] z-10"> {/* Adjust top if header height changes */}
+                  <nav className="-mb-px flex space-x-px px-4" aria-label="Tabs">
+                    {['code', 'documentation', 'lineage', 'visual', 'alerts'].map((tabName) => (
+                      <button
+                        key={tabName}
+                        onClick={() => setActiveTab(tabName as any)}
+                        className={`whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm 
+                                    ${activeTab === tabName
+                                      ? 'text-brand-600'
+                                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+                        style={{borderColor: brandColor, color: brandColor}}
+                      >
+                        {tabName.charAt(0).toUpperCase() + tabName.slice(1)}
+                      </button>
+                    ))}
+                  </nav>
+                </div>
+                
+                <div className="flex-grow overflow-auto p-1 bg-gray-50 relative">
+                  {isLoadingFileContent ? (
+                    <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 z-20">
+                        <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+                        <p className="ml-3 text-gray-600">Loading content for {selectedFile.name}...</p>
+                    </div>
+                  ) : fileContentError ? (
+                    <div className="p-4 text-red-700 bg-red-50 border border-red-200 rounded-md">
+                        <h4 className="font-semibold text-lg mb-1">Error Loading File Content</h4>
+                        <p>{fileContentError}</p>
+                    </div>
+                  ) : selectedFileContent && activeTab === 'code' ? (
+                    <div className="relative">
+                      <button
+                        onClick={() => copyToClipboard(selectedFileContent)}
+                        className="absolute top-2 right-2 p-1.5 bg-gray-200 hover:bg-gray-300 rounded text-gray-600 hover:text-gray-800 transition-colors z-20"
+                        title="Copy code"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </button>
+                      {formatCodeWithSyntaxHighlighting(selectedFileContent, selectedFile.name)}
+                    </div>
+                  ) : activeTab === 'documentation' ? (
+                    <div className="p-4 prose max-w-none" dangerouslySetInnerHTML={{ __html: getMockDocumentation(selectedFile.path) }}></div>
+                  ) : activeTab === 'lineage' ? (
+                    <div className="p-4">{renderLineage(selectedFile.path)}</div>
+                  ) : activeTab === 'visual' ? (
+                    <div className="p-4 text-gray-500">Visual tab content not yet implemented.</div>
+                  ) : activeTab === 'alerts' ? (
+                    <div className="p-4 text-gray-500">Alerts tab content not yet implemented.</div>
+                  ) : null}
+                </div>
+              </div>
+            )}
+            {view === 'browser' && (
+              <div className="flex h-full">
+                {/* Left Sidebar - File Tree */}
+                <div className={`bg-gray-50 border-r border-gray-200 transition-all duration-300 ${isSidebarCollapsed ? 'w-0 overflow-hidden' : 'w-80'}`}>
+                  {/* File Tree Header */}
+                  <div className="p-4 border-b border-gray-200 bg-gray-50 sticky top-0 z-10">
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center text-sm text-gray-600 overflow-hidden">
+                        <button onClick={() => fetchGitHubRepoTree(selectedGitHubRepo, '', activeBranch)} className="hover:underline font-medium text-gray-700 whitespace-nowrap truncate">
+                          {selectedGitHubRepo?.name}
+                        </button>
+                        {currentGitHubPath.map((segment, index) => (
+                          <React.Fragment key={index}>
+                            <span className="mx-1.5 text-gray-400">/</span>
+                            <button
+                              onClick={() => navigateToGitHubPath(index)}
+                              className="hover:underline truncate whitespace-nowrap"
+                              title={segment}
+                            >
+                              {segment}
+                            </button>
+                          </React.Fragment>
+                        ))}
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <div className="relative">
+                          <button className="flex items-center text-sm bg-white border border-gray-300 rounded-md px-3 py-1.5 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-1" style={{borderColor: brandColor, color: brandColor}}>
+                            <GitBranch className="h-4 w-4 mr-1.5" style={{color: brandColor}} />
+                            {activeBranch}
+                            <ChevronDown className="h-4 w-4 ml-1 text-gray-400" />
+                          </button>
+                          {/* TODO: Branch selection dropdown */}
+                        </div>
+                        <div className="relative flex-1">
+                          <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                          <input
+                            type="text"
+                            placeholder="Search files..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-8 pr-2 py-1.5 border border-gray-300 rounded-md text-sm w-full focus:ring-1 focus:outline-none"
+                            style={{borderColor: brandColor}}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* File List */}
+                  <div className="flex-grow overflow-y-auto">
+                    {isLoadingTree ? (
+                      <div className="flex items-center justify-center h-32 p-6">
+                        <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
+                        <p className="ml-3 text-sm text-gray-600">Loading repository tree...</p>
+                      </div>
+                    ) : treeError ? (
+                      <div className="p-4 text-red-700 bg-red-50 border border-red-200 rounded-md m-4">
+                        <h4 className="font-semibold text-sm mb-1">Error Loading Repository Tree</h4>
+                        <p className="text-xs">{treeError}</p>
+                      </div>
+                    ) : (
+                      <div className="p-0">
+                        {getFilteredTree().length === 0 ? (
+                          <div className="p-6 text-center text-gray-500">
+                            <Inbox className="h-12 w-12 mx-auto text-gray-400 mb-3" />
+                            <p className="font-medium text-sm">No files found.</p>
+                            {searchQuery && <p className="text-xs mt-1">No files match "{searchQuery}".</p>}
+                          </div>
+                        ) : (
+                          getFilteredTree().map((node) => (
+                            <div
+                              key={node.id}
+                              onClick={() => handleTreeItemClick(node)}
+                              className={`flex items-center justify-between p-2 cursor-pointer hover:bg-gray-100 border-b border-gray-50 text-sm ${selectedFile?.path === node.path ? 'bg-[#2AB7A9] bg-opacity-10 border-[#2AB7A9]' : ''}`}
+                              style={{ paddingLeft: `${8 + node.level * 16}px` }}
+                            >
+                              <div className="flex items-center truncate">
+                                {node.type === 'folder' && (
+                                  <button className="mr-1 p-0.5 hover:bg-gray-200 rounded">
+                                    {node.isExpanded ? (
+                                      <ChevronDown className="h-3 w-3 text-gray-500" />
+                                    ) : (
+                                      <ChevronRight className="h-3 w-3 text-gray-500" />
+                                    )}
+                                  </button>
+                                )}
+                                {node.type === 'file' && <div className="w-4 mr-1" />}
+                                {getFileIcon(node.name, node.type)}
+                                <span 
+                                  className={`truncate ${selectedFile?.path === node.path ? 'text-[#2AB7A9] font-medium' : 'text-gray-800'}`} 
+                                  title={node.name}
+                                >
+                                  {node.name}
+                                </span>
+                              </div>
+                              <div className="text-xs text-gray-400 ml-4 flex-shrink-0">
+                                {node.type === 'file' && node.size !== undefined ? `${(node.size / 1024).toFixed(1)} KB` : ''}
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
                     )}
-                    {activeTab === 'documentation' && <p className="text-xs">Documentation for {selectedFile.name} (TODO)</p>}
-                    {activeTab === 'lineage' && <p className="text-xs">Lineage for {selectedFile.name} (TODO)</p>}
-                    {activeTab === 'visual' && <p className="text-xs">Visuals for {selectedFile.name} (TODO)</p>}
-                    {activeTab === 'alerts' && <p className="text-xs">Alerts for {selectedFile.name} (TODO)</p>}
                   </div>
                 </div>
-              )}
-              {view === 'code' && !selectedFile && (
-                <div className="flex-1 flex items-center justify-center text-xs text-gray-400">
-                  <p>Select a file to view its content.</p>
+                
+                {/* Right Content Area */}
+                <div className="flex-1 bg-white overflow-hidden">
+                  {selectedFile ? (
+                    <div className="flex flex-col h-full">
+                      {/* File Content Tabs */}
+                      <div className="border-b border-gray-200 bg-gray-50 sticky top-0 z-10">
+                        <nav className="-mb-px flex space-x-px px-4" aria-label="Tabs">
+                          {['code', 'documentation', 'lineage', 'visual', 'alerts'].map((tabName) => (
+                            <button
+                              key={tabName}
+                              onClick={() => setActiveTab(tabName as any)}
+                              className={`whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm 
+                                          ${activeTab === tabName
+                                            ? 'text-brand-600'
+                                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+                              style={activeTab === tabName ? { borderColor: brandColor, color: brandColor } : {}}
+                            >
+                              {tabName.charAt(0).toUpperCase() + tabName.slice(1)}
+                            </button>
+                          ))}
+                        </nav>
+                      </div>
+                      
+                      {/* File Content */}
+                      <div className="flex-grow overflow-auto p-4 bg-gray-50 relative">
+                        {isLoadingFileContent ? (
+                          <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 z-20">
+                              <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+                              <p className="ml-3 text-gray-600">Loading content for {selectedFile.name}...</p>
+                          </div>
+                        ) : fileContentError ? (
+                          <div className="p-4 text-red-700 bg-red-50 border border-red-200 rounded-md">
+                              <h4 className="font-semibold text-lg mb-1">Error Loading File Content</h4>
+                              <p>{fileContentError}</p>
+                          </div>
+                        ) : selectedFileContent && activeTab === 'code' ? (
+                          <div className="relative">
+                            <button
+                              onClick={() => copyToClipboard(selectedFileContent)}
+                              className="absolute top-2 right-2 p-1.5 bg-gray-200 hover:bg-gray-300 rounded text-gray-600 hover:text-gray-800 transition-colors z-20"
+                              title="Copy code"
+                            >
+                              <Copy className="h-4 w-4" />
+                            </button>
+                            {formatCodeWithSyntaxHighlighting(selectedFileContent, selectedFile.name)}
+                          </div>
+                        ) : activeTab === 'documentation' ? (
+                          <div className="p-4 prose max-w-none" dangerouslySetInnerHTML={{ __html: getMockDocumentation(selectedFile.path) }}></div>
+                        ) : activeTab === 'lineage' ? (
+                          <div className="p-4">{renderLineage(selectedFile.path)}</div>
+                        ) : activeTab === 'visual' ? (
+                          <div className="p-4 text-gray-500">Visual tab content not yet implemented.</div>
+                        ) : activeTab === 'alerts' ? (
+                          <div className="p-4 text-gray-500">Alerts tab content not yet implemented.</div>
+                        ) : null}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="h-full flex items-center justify-center">
+                      <div className="text-center">
+                        <File className="h-16 w-16 mx-auto text-gray-300 mb-4" />
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">Select a file to view</h3>
+                        <p className="text-gray-500 max-w-sm mx-auto">
+                          Choose a file from the tree on the left to view its content, documentation, and analysis.
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
   );
 }
+
+// Helper function to format file sizes
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+};

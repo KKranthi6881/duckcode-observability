@@ -86,25 +86,34 @@ export const updateUserPasswordOld = async (newPassword: string): Promise<{ data
  * Fetches the profile for the currently authenticated user.
  * Assumes the user is already authenticated and their ID can be retrieved.
  */
+
+
 export const getProfile = async (): Promise<{ profile: Profile | null; error: Error | null }> => {
+  console.log('[authService getProfile] Attempting to get user.'); // ADDED
   const { data: { user }, error: userError } = await supabase.auth.getUser();
+  console.log('[authService getProfile] supabase.auth.getUser() returned.', { user, userError }); // ADDED
 
   if (userError || !user) {
-    console.error('Error fetching user for profile:', userError);
+    console.error('[authService getProfile] Error fetching user or no user:', userError); // MODIFIED to be more specific
     return { profile: null, error: userError };
   }
 
+  console.log(`[authService getProfile] User found (ID: ${user.id}). Attempting to fetch profile from DB.`); // ADDED
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', user.id)
-    .single(); // .single() assumes there's at most one profile per user
+    .single();
+  console.log('[authService getProfile] supabase.from(\'profiles\').select() returned.', { data, error }); // ADDED
 
-  if (error && error.code !== 'PGRST116') { // PGRST116: 'single' row not found (expected)
-    console.error('Error fetching profile:', error);
+  if (error && error.code !== 'PGRST116') { // PGRST116: 'single' row not found (expected if no profile)
+    console.error('[authService getProfile] Error fetching profile from DB:', error); // MODIFIED
   }
   
-  return { profile: data as Profile | null, error: error && error.code !== 'PGRST116' ? error : null };
+  const profileResult = data as Profile | null;
+  const finalError = error && error.code !== 'PGRST116' ? error : null;
+  console.log('[authService getProfile] Returning:', { profileResult, finalError }); // ADDED
+  return { profile: profileResult, error: finalError };
 };
 
 /**

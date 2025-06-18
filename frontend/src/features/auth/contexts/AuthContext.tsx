@@ -24,52 +24,90 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Quick timeout to prevent infinite loading
+  useEffect(() => {
+    const quickTimeout = setTimeout(() => {
+      console.warn('[AuthContext] Quick timeout: Forcing loading to false after 3 seconds');
+      setIsLoading(false);
+    }, 3000); // Reduced timeout for faster UX
+
+    return () => clearTimeout(quickTimeout);
+  }, []);
+
   useEffect(() => {
     const checkUser = async () => {
+      console.log('[AuthContext] Starting fast auth check');
+      setIsLoading(true);
+      
       try {
+        // Fast session check without profile initially
         const { data: { session: initialSession }, error: sessionError } = await supabase.auth.getSession();
-
+        
         if (sessionError) {
-          throw sessionError;
-        }
-
-        if (initialSession?.user) {
-          const { profile: userProfile, error: profileError } = await getProfile();
-          if (profileError) {
-            console.error('Error fetching initial profile:', profileError);
-            // Don't throw, maybe the user has no profile yet. Allow login.
-          }
-          setSession(initialSession);
-          setUser(initialSession.user);
-          setProfile(userProfile);
-        } else {
+          console.error('[AuthContext] Session error:', sessionError);
           setSession(null);
           setUser(null);
           setProfile(null);
+          setIsLoading(false);
+          return;
+        }
+
+        if (initialSession?.user) {
+          console.log('[AuthContext] Session found, setting user immediately');
+          // Set session and user immediately for fast UI
+          setSession(initialSession);
+          setUser(initialSession.user);
+          setIsLoading(false); // Allow UI to render immediately
+          
+          // Fetch profile in background (non-blocking)
+          console.log('[AuthContext] Fetching profile in background');
+          getProfile()
+            .then(({ profile: userProfile, error: profileError }) => {
+              if (profileError) {
+                console.warn('[AuthContext] Profile fetch failed (non-blocking):', profileError);
+              }
+              setProfile(userProfile);
+            })
+            .catch((err) => {
+              console.warn('[AuthContext] Profile fetch error (non-blocking):', err);
+            });
+        } else {
+          console.log('[AuthContext] No session found');
+          setSession(null);
+          setUser(null);
+          setProfile(null);
+          setIsLoading(false);
         }
       } catch (error) { 
-        console.error("Error during initial auth check:", error);
+        console.error("[AuthContext] Auth check error:", error);
         setSession(null);
         setUser(null);
         setProfile(null);
-      } finally {
         setIsLoading(false);
       }
     };
 
     checkUser();
+  }, []);
 
+  useEffect(() => {
     const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+      console.log('[AuthContext] onAuthStateChange: Event triggered. New session:', newSession);
       setSession(newSession);
-      setUser(newSession?.user ?? null);
+      setUser(newSession?.user || null);
+      
       if (newSession?.user) {
-        // Fetch profile, but don't block UI with a loading spinner here
-        // The main loading is for the initial app load.
-        const { profile: userProfile, error: profileError } = await getProfile();
-        if (profileError) {
-          console.error('Error fetching profile on auth change:', profileError);
-        }
-        setProfile(userProfile);
+        // Fetch profile for new session (non-blocking)
+        getProfile()
+          .then(({ profile: userProfile, error: profileError }) => {
+            if (profileError) {
+              console.warn('[AuthContext] Profile fetch failed on auth change:', profileError);
+            }
+            setProfile(userProfile);
+          })
+          .catch((err) => {
+            console.warn('[AuthContext] Profile fetch error on auth change:', err);
+          });
       } else {
         setProfile(null);
       }

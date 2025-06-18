@@ -260,6 +260,7 @@ export const getApp = () => {
 };
 
 export const getInstallationConnectionDetails = async (supabaseUserId: string): Promise<GitHubConnectionStatusResponse> => {
+  console.log(`[Service getInstallationConnectionDetails] Checking for Supabase User ID: '${supabaseUserId}'`);
   if (!supabaseUserId) {
     return { isConnected: false, details: null, error: 'User ID not provided.' };
   }
@@ -275,6 +276,8 @@ export const getInstallationConnectionDetails = async (supabaseUserId: string): 
       .limit(1)
       .single();
 
+    console.log('[Service getInstallationConnectionDetails] DB query for installation:', { dbInstallation, dbError });
+
     if (dbError || !dbInstallation) {
       if (dbError && dbError.code !== 'PGRST116') { // PGRST116: 'single' row not found (expected if not connected)
         console.error(`[Service] Error fetching installation for user ${supabaseUserId}:`, dbError);
@@ -282,11 +285,15 @@ export const getInstallationConnectionDetails = async (supabaseUserId: string): 
       return { isConnected: false, details: null };
     }
 
+    console.log('[Service getInstallationConnectionDetails] Installation found. Attempting to get Octokit app.');
     // 2. If installation found, fetch accessible repositories
     const app = getApp(); // Existing function to get Octokit App instance
+    console.log('[Service getInstallationConnectionDetails] Octokit app retrieved. Attempting to get installation Octokit.');
     const octokit = await app.getInstallationOctokit(dbInstallation.installation_id);
+    console.log('[Service getInstallationConnectionDetails] Installation Octokit retrieved. Attempting to list accessible repos.');
 
     const { data: accessibleReposData } = await octokit.rest.apps.listReposAccessibleToInstallation();
+    console.log('[Service getInstallationConnectionDetails] Successfully listed accessible repos.');
     
     const mappedRepos: GitHubRepositoryInfo[] = accessibleReposData.repositories.map(repo => ({
       id: repo.id,
@@ -294,6 +301,7 @@ export const getInstallationConnectionDetails = async (supabaseUserId: string): 
       full_name: repo.full_name,
       private: repo.private,
       html_url: repo.html_url,
+      default_branch: repo.default_branch, // Add default branch
     }));
 
     const accountInfo: GitHubAccountInfo = {
@@ -310,13 +318,14 @@ export const getInstallationConnectionDetails = async (supabaseUserId: string): 
         totalAccessibleRepoCount: accessibleReposData.total_count,
     };
 
+    console.log('[Service getInstallationConnectionDetails] Successfully prepared connection details. Returning isConnected: true.');
     return {
       isConnected: true,
       details: connectionDetails,
     };
   } catch (error: any) {
-    console.error(`[Service] Error in getInstallationConnectionDetails for user ${supabaseUserId}:`, error);
-    return { isConnected: false, details: null, error: error.message || 'Failed to get connection details.' };
+    console.error(`[Service getInstallationConnectionDetails] CAUGHT ERROR for user ${supabaseUserId}:`, error);
+    return { isConnected: false, details: null, error: error.message || 'Failed to get connection details due to an internal error.' };
   }
 };
 
