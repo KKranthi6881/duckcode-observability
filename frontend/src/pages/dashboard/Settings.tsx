@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { User, Mail, Lock, CreditCard, Moon, Sun, Monitor, Bell, Check, Star, Zap } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { PasswordChangeModal } from '@/components/modals/PasswordChangeModal';
@@ -292,7 +293,8 @@ export function Settings() {
     company: 'Acme Inc',
     role: 'Data Engineer'
   });
-  const handleImageUpload = event => {
+
+  const handleImageUpload = (event: any) => {
     const file = event.target.files[0];
     if (file) {
       const reader = new FileReader();
@@ -302,228 +304,351 @@ export function Settings() {
       reader.readAsDataURL(file);
     }
   };
+
   const handleSaveProfile = () => {
     alert('Profile updated successfully!');
   };
+
   const handleChangePassword = () => {
     setShowPasswordModal(true);
   };
-  const handleUpdatePayment = plan => {
+
+  const handleUpdatePayment = (plan: any) => {
     setSelectedPlan(plan);
     setShowPaymentModal(true);
   };
+
+  const tabs = [
+    { id: 'profile', label: 'Profile', icon: User },
+    { id: 'notifications', label: 'Notifications', icon: Bell },
+    { id: 'billing', label: 'Billing & Plans', icon: CreditCard },
+    { id: 'github', label: 'GitHub Integration', icon: Github }
+  ];
+
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab === 'github') {
+      setActiveTab('github');
+    }
+  }, [location]);
+
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-white">Settings</h1>
-      </div>
-      <div className="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
-        <div className="border-b border-slate-700">
-          <nav className="flex -mb-px">
-            {['profile', 'appearance', 'notifications', 'billing', 'github'].map(tab => <button key={tab} className={`px-6 py-3 text-sm font-medium border-b-2 ${activeTab === tab ? 'border-[#2AB7A9] text-[#2AB7A9]' : 'border-transparent text-slate-400 hover:text-slate-300'}`} onClick={() => setActiveTab(tab)}>
-                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                </button>)}
-          </nav>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+      {/* Modern Header */}
+      <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-sm">
+        <div className="max-w-7xl mx-auto px-6 py-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Settings</h1>
+              <p className="text-gray-600 dark:text-gray-400 mt-1">Manage your account preferences and integrations</p>
+            </div>
+          </div>
         </div>
-        <div className="p-6">
-          {/* Profile Settings */}
-          {activeTab === 'profile' && <div className="space-y-8">
-              <div>
-                <h3 className="text-lg font-medium text-white">Profile</h3>
-                <p className="text-sm text-slate-400 mt-1">
-                  Manage your account information
-                </p>
-              </div>
-              <div className="grid grid-cols-1 gap-6">
-                <div className="space-y-8 divide-y divide-slate-700">
+      </div>
+
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+          
+          {/* Modern Tab Navigation */}
+          <div className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+            <nav className="flex space-x-8 px-6" aria-label="Tabs">
+              {tabs.map((tab) => {
+                const Icon = tab.icon;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`${
+                      activeTab === tab.id
+                        ? 'border-[#2AB7A9] text-[#2AB7A9] bg-white dark:bg-gray-900'
+                        : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+                    } flex items-center space-x-2 whitespace-nowrap py-4 px-3 border-b-2 font-medium text-sm transition-all duration-200 ease-in-out rounded-t-lg -mb-px`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+
+          {/* Tab Content */}
+          <div className="p-8">
+            {/* Profile Settings */}
+            {activeTab === 'profile' && (
+              <div className="space-y-8">
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Profile Information</h3>
+                  <p className="text-gray-600 dark:text-gray-400 mt-1">
+                    Update your personal details and account information
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                  {/* Profile Photo Section */}
                   <div className="space-y-6">
                     <div>
-                      <label className="block text-sm font-medium text-slate-300">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
                         Profile Photo
                       </label>
-                      <div className="mt-2 flex items-center space-x-4">
-                        <div className="h-16 w-16 rounded-full bg-slate-700 flex items-center justify-center">
-                          {profileImage ? <img src={profileImage} alt="Profile Photo" className="h-16 w-16 rounded-full" /> : <User className="h-8 w-8 text-slate-400" />}
+                      <div className="flex flex-col items-center space-y-4">
+                        <div className="h-24 w-24 rounded-full bg-gray-100 dark:bg-gray-800 border-4 border-gray-200 dark:border-gray-700 flex items-center justify-center overflow-hidden">
+                          {profileImage ? (
+                            <img src={profileImage} alt="Profile" className="h-full w-full object-cover" />
+                          ) : (
+                            <User className="h-10 w-10 text-gray-400" />
+                          )}
                         </div>
-                        <button className="px-3 py-2 bg-slate-700 text-sm text-slate-300 rounded-md hover:bg-slate-600">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageUpload}
+                          className="hidden"
+                          id="profile-upload"
+                        />
+                        <label
+                          htmlFor="profile-upload"
+                          className="cursor-pointer px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-sm font-medium"
+                        >
                           Change Photo
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Profile Form */}
+                  <div className="lg:col-span-2 space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Full Name
+                        </label>
+                        <input
+                          type="text"
+                          value={form.fullName}
+                          onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+                          className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-[#2AB7A9] focus:border-transparent text-gray-900 dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Email Address
+                        </label>
+                        <input
+                          type="email"
+                          value={form.email}
+                          onChange={(e) => setForm({ ...form, email: e.target.value })}
+                          className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-[#2AB7A9] focus:border-transparent text-gray-900 dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Company
+                        </label>
+                        <input
+                          type="text"
+                          value={form.company}
+                          onChange={(e) => setForm({ ...form, company: e.target.value })}
+                          className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-[#2AB7A9] focus:border-transparent text-gray-900 dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Role
+                        </label>
+                        <input
+                          type="text"
+                          value={form.role}
+                          onChange={(e) => setForm({ ...form, role: e.target.value })}
+                          className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-[#2AB7A9] focus:border-transparent text-gray-900 dark:text-white"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex space-x-4 pt-6 border-t border-gray-200 dark:border-gray-700">
+                      <button
+                        onClick={handleSaveProfile}
+                        className="px-6 py-3 bg-[#2AB7A9] text-white rounded-lg hover:bg-[#2AB7A9]/90 font-medium transition-colors"
+                      >
+                        Save Changes
+                      </button>
+                      <button
+                        onClick={handleChangePassword}
+                        className="px-6 py-3 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 font-medium transition-colors flex items-center space-x-2"
+                      >
+                        <Lock className="h-4 w-4" />
+                        <span>Change Password</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Notifications Settings */}
+            {activeTab === 'notifications' && (
+              <div className="space-y-8">
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Notification Preferences</h3>
+                  <p className="text-gray-600 dark:text-gray-400 mt-1">
+                    Choose what notifications you want to receive
+                  </p>
+                </div>
+
+                <div className="space-y-6">
+                  {[
+                    { key: 'email', label: 'Email Notifications', description: 'Receive important updates via email' },
+                    { key: 'push', label: 'Push Notifications', description: 'Get real-time alerts in your browser' },
+                    { key: 'weekly', label: 'Weekly Summary', description: 'Weekly digest of your data insights' },
+                    { key: 'marketing', label: 'Marketing Communications', description: 'Updates about new features and tips' }
+                  ].map((notification) => (
+                    <div key={notification.key} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-900 dark:text-white">{notification.label}</h4>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">{notification.description}</p>
+                      </div>
+                      <button
+                        onClick={() => setNotifications({ ...notifications, [notification.key]: !notifications[notification.key] })}
+                        className={`${
+                          notifications[notification.key] ? 'bg-[#2AB7A9]' : 'bg-gray-200 dark:bg-gray-700'
+                        } relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none`}
+                      >
+                        <span
+                          className={`${
+                            notifications[notification.key] ? 'translate-x-5' : 'translate-x-0'
+                          } pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`}
+                        />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Billing & Plans */}
+            {activeTab === 'billing' && (
+              <div className="space-y-8">
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Billing & Subscription</h3>
+                  <p className="text-gray-600 dark:text-gray-400 mt-1">
+                    Manage your subscription plan and payment methods
+                  </p>
+                </div>
+
+                {/* Current Plan Overview */}
+                <div className="bg-gradient-to-r from-[#2AB7A9]/10 to-blue-500/10 rounded-xl p-6 border border-[#2AB7A9]/20">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-lg font-semibold text-gray-900 dark:text-white">Current Plan: Free</h4>
+                      <p className="text-gray-600 dark:text-gray-400">You're currently on the Free plan</p>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-gray-900 dark:text-white">$0</div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400">per month</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Available Plans */}
+                <div>
+                  <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Available Plans</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {plans.map((plan) => (
+                      <div
+                        key={plan.name}
+                        className={`relative rounded-xl border-2 p-6 transition-all ${
+                          plan.current
+                            ? 'border-[#2AB7A9] bg-[#2AB7A9]/5 shadow-lg'
+                            : 'border-gray-200 dark:border-gray-700 hover:border-[#2AB7A9]/50 hover:shadow-md'
+                        }`}
+                      >
+                        {plan.popular && (
+                          <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                            <span className="inline-flex items-center rounded-full bg-gradient-to-r from-[#2AB7A9] to-blue-500 px-3 py-1 text-xs font-medium text-white shadow-lg">
+                              <Star className="h-3 w-3 mr-1" />
+                              Most Popular
+                            </span>
+                          </div>
+                        )}
+                        
+                        <div className="text-center">
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{plan.name}</h3>
+                          <div className="mt-3">
+                            <span className="text-3xl font-bold text-gray-900 dark:text-white">{plan.price}</span>
+                            <span className="text-gray-600 dark:text-gray-400 text-sm">/{plan.period}</span>
+                          </div>
+                          <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">{plan.description}</p>
+                        </div>
+
+                        <ul className="mt-6 space-y-3">
+                          {plan.features.map((feature) => (
+                            <li key={feature} className="flex items-start text-sm">
+                              <Check className="h-4 w-4 text-[#2AB7A9] mr-3 flex-shrink-0 mt-0.5" />
+                              <span className="text-gray-700 dark:text-gray-300">{feature}</span>
+                            </li>
+                          ))}
+                        </ul>
+
+                        <button
+                          onClick={() => !plan.current && handleUpdatePayment(plan)}
+                          disabled={plan.current}
+                          className={`mt-6 w-full rounded-lg px-4 py-3 text-sm font-medium transition-all ${
+                            plan.current
+                              ? 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                              : plan.popular
+                              ? 'bg-gradient-to-r from-[#2AB7A9] to-blue-500 text-white hover:shadow-lg hover:scale-105'
+                              : 'bg-[#2AB7A9] text-white hover:bg-[#2AB7A9]/90 hover:shadow-md'
+                          }`}
+                        >
+                          {plan.current ? 'Current Plan' : 'Upgrade'}
                         </button>
                       </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-300">
-                        Full Name
-                      </label>
-                      <input type="text" className="mt-2 block w-full rounded-md bg-slate-700 border border-slate-600 text-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#2AB7A9] focus:border-transparent" defaultValue="John Doe" value={form.fullName} onChange={e => setForm({
-                    ...form,
-                    fullName: e.target.value
-                  })} />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-300">
-                        Email
-                      </label>
-                      <input type="email" className="mt-2 block w-full rounded-md bg-slate-700 border border-slate-600 text-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#2AB7A9] focus:border-transparent" defaultValue="john@example.com" value={form.email} onChange={e => setForm({
-                    ...form,
-                    email: e.target.value
-                  })} />
-                    </div>
-                  </div>
-                  <div className="pt-6 space-y-6">
-                    <div>
-                      <h4 className="text-sm font-medium text-slate-300">
-                        Password
-                      </h4>
-                      <button className="mt-2 px-4 py-2 bg-slate-700 text-sm text-slate-300 rounded-md hover:bg-slate-600">
-                        Change Password
-                      </button>
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-medium text-slate-300">
-                        Two-Factor Authentication
-                      </h4>
-                      <button className="mt-2 px-4 py-2 bg-slate-700 text-sm text-slate-300 rounded-md hover:bg-slate-600">
-                        Enable 2FA
-                      </button>
-                    </div>
+                    ))}
                   </div>
                 </div>
-              </div>
-            </div>}
-          {/* Appearance Settings */}
-          {activeTab === 'appearance' && <div className="space-y-8">
-              <div>
-                <h3 className="text-lg font-medium text-white">Appearance</h3>
-                <p className="text-sm text-slate-400 mt-1">
-                  Customize your interface
-                </p>
-              </div>
-              <div className="space-y-6">
-                <div>
-                  <label className="text-sm font-medium text-slate-300">
-                    Theme
-                  </label>
-                  <div className="mt-2 grid grid-cols-3 gap-4">
-                    <button className={`flex items-center justify-center px-4 py-3 rounded-lg border ${theme === 'light' ? 'border-[#2AB7A9] bg-[#2AB7A9]/10' : 'border-slate-600 hover:border-slate-500'}`} onClick={() => setTheme('light')}>
-                      <Sun className="h-5 w-5 mr-2 text-slate-300" />
-                      <span className="text-sm text-slate-300">Light</span>
-                    </button>
-                    <button className={`flex items-center justify-center px-4 py-3 rounded-lg border ${theme === 'dark' ? 'border-[#2AB7A9] bg-[#2AB7A9]/10' : 'border-slate-600 hover:border-slate-500'}`} onClick={() => setTheme('dark')}>
-                      <Moon className="h-5 w-5 mr-2 text-slate-300" />
-                      <span className="text-sm text-slate-300">Dark</span>
-                    </button>
-                    <button className={`flex items-center justify-center px-4 py-3 rounded-lg border ${theme === 'system' ? 'border-[#2AB7A9] bg-[#2AB7A9]/10' : 'border-slate-600 hover:border-slate-500'}`} onClick={() => setTheme('system')}>
-                      <Monitor className="h-5 w-5 mr-2 text-slate-300" />
-                      <span className="text-sm text-slate-300">System</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>}
-          {/* Notifications Settings */}
-          {activeTab === 'notifications' && <div className="space-y-8">
-              <div>
-                <h3 className="text-lg font-medium text-white">
-                  Notifications
-                </h3>
-                <p className="text-sm text-slate-400 mt-1">
-                  Manage your notification preferences
-                </p>
-              </div>
-              <div className="space-y-6">
-                <div className="space-y-4">
-                  {Object.entries(notifications).map(([key, value]) => <div key={key} className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-slate-300 capitalize">
-                          {key.replace('_', ' ')} Notifications
-                        </p>
-                        <p className="text-sm text-slate-400">
-                          Receive {key} notifications
-                        </p>
+
+                {/* Payment Method Section */}
+                <div className="border-t border-gray-200 dark:border-gray-700 pt-8">
+                  <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Payment Method</h4>
+                  <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-4">
+                        <div className="h-12 w-12 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                          <CreditCard className="h-6 w-6 text-gray-400" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">No payment method added</p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Add a payment method to upgrade your plan</p>
+                        </div>
                       </div>
-                      <button className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${value ? 'bg-[#2AB7A9]' : 'bg-slate-600'}`} onClick={() => setNotifications(prev => ({
-                  ...prev,
-                  [key]: !prev[key]
-                }))}>
-                        <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200 ease-in-out ${value ? 'translate-x-5' : 'translate-x-0'}`} />
+                      <button className="px-4 py-2 bg-[#2AB7A9] text-white rounded-lg hover:bg-[#2AB7A9]/90 font-medium transition-colors">
+                        Add Payment Method
                       </button>
-                    </div>)}
-                </div>
-              </div>
-            </div>}
-          {/* Billing Settings */}
-          {activeTab === 'billing' && <div className="space-y-8">
-              <div>
-                <h3 className="text-lg font-medium text-white">
-                  Billing & Plans
-                </h3>
-                <p className="text-sm text-slate-400 mt-1">
-                  Manage your subscription and billing
-                </p>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {plans.map(plan => <div key={plan.name} className={`relative rounded-lg border ${plan.current ? 'border-[#2AB7A9] bg-[#2AB7A9]/5' : 'border-slate-700'} p-6 shadow-sm`}>
-                    {plan.popular && <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                        <span className="inline-flex items-center rounded-full bg-[#2AB7A9]/10 px-3 py-1 text-xs font-medium text-[#2AB7A9]">
-                          Most Popular
-                        </span>
-                      </div>}
-                    <div className="text-center">
-                      <h3 className="text-lg font-medium text-white">
-                        {plan.name}
-                      </h3>
-                      <div className="mt-2">
-                        <span className="text-3xl font-bold text-white">
-                          {plan.price}
-                        </span>
-                        <span className="text-sm text-slate-400">
-                          /{plan.period}
-                        </span>
-                      </div>
-                      <p className="mt-4 text-sm text-slate-400">
-                        {plan.description}
-                      </p>
                     </div>
-                    <ul className="mt-6 space-y-3">
-                      {plan.features.map(feature => <li key={feature} className="flex items-center text-sm text-slate-300">
-                          <Check className="h-4 w-4 text-[#2AB7A9] mr-2 flex-shrink-0" />
-                          {feature}
-                        </li>)}
-                    </ul>
-                    <button className={`mt-6 w-full rounded-md px-3 py-2 text-sm font-medium ${plan.current ? 'bg-slate-700 text-slate-300 cursor-default' : 'bg-[#2AB7A9] text-white hover:bg-[#2AB7A9]/90'}`}>
-                      {plan.current ? 'Current Plan' : 'Upgrade'}
-                    </button>
-                  </div>)}
-              </div>
-              <div className="mt-8 border-t border-slate-700 pt-8">
-                <h4 className="text-sm font-medium text-slate-300">
-                  Payment Method
-                </h4>
-                <div className="mt-4">
-                  <button className="px-4 py-2 bg-slate-700 text-sm text-slate-300 rounded-md hover:bg-slate-600">
-                    <CreditCard className="h-4 w-4 inline mr-2" />
-                    Update Payment Method
-                  </button>
+                  </div>
                 </div>
               </div>
-            </div>}
-          {/* GitHub Integration Settings */}
-          {activeTab === 'github' && <GitHubIntegrationTab />}
+            )}
+
+            {/* GitHub Integration */}
+            {activeTab === 'github' && <GitHubIntegrationTab />}
+          </div>
         </div>
       </div>
-      <div className="flex justify-end mt-6">
-        <button onClick={handleSaveProfile} className="px-4 py-2 bg-[#2AB7A9] text-white rounded-md hover:bg-[#2AB7A9]/90">
-          Save Changes
-        </button>
-      </div>
-      <button onClick={handleChangePassword} className="mt-2 px-4 py-2 bg-slate-700 text-sm text-slate-300 rounded-md hover:bg-slate-600">
-        Change Password
-      </button>
-      {plans.map(plan => <button key={plan.name} onClick={() => handleUpdatePayment(plan)} className={`mt-6 w-full rounded-md px-3 py-2 text-sm font-medium ${plan.current ? 'bg-slate-700 text-slate-300 cursor-default' : 'bg-[#2AB7A9] text-white hover:bg-[#2AB7A9]/90'}`} disabled={plan.current}>
-          {plan.current ? 'Current Plan' : 'Upgrade'}
-        </button>)}
+
+      {/* Modals */}
       <PasswordChangeModal isOpen={showPasswordModal} onClose={() => setShowPasswordModal(false)} />
-      {selectedPlan && <PaymentModal isOpen={showPaymentModal} onClose={() => setShowPaymentModal(false)} plan={selectedPlan} />}
+      {selectedPlan && (
+        <PaymentModal
+          isOpen={showPaymentModal}
+          onClose={() => setShowPaymentModal(false)}
+          plan={selectedPlan}
+        />
+      )}
     </div>
   );
 }
