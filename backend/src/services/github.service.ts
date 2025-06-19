@@ -10,6 +10,7 @@ import {
 } from '@/types/github.types';
 import { App } from 'octokit';
 import crypto from 'crypto';
+import { Octokit } from '@octokit/rest';
 
 const GITHUB_MODULE_SCHEMA = 'github_module';
 
@@ -175,6 +176,74 @@ export const processInstallationFromId = async (installationId: number, supabase
     throw new Error(`Could not process GitHub installation ${installationId}.`);
   }
 };
+
+
+/**
+ * Retrieves a flat list of all files in a repository recursively.
+ * This function uses the Git Trees API, which is much more efficient than
+ * recursively calling the Get Content API.
+ * @param octokit Authenticated Octokit instance.
+ * @param owner Repository owner.
+ * @param repo Repository name.
+ * @returns A promise that resolves to an array of file objects, each with a path and sha.
+ */
+export const listAllRepoFiles = async (octokit: Octokit, owner: string, repo: string): Promise<{ path: string; sha: string; }[]> => {
+  try {
+    // 1. Get the default branch for the repository
+    const { data: repoData } = await octokit.rest.repos.get({ owner, repo });
+    const defaultBranch = repoData.default_branch;
+
+    // 2. Get the commit SHA of the latest commit on the default branch
+    const { data: branchData } = await octokit.rest.repos.getBranch({
+      owner,
+      repo,
+      branch: defaultBranch
+    });
+    const latestCommitSha = branchData.commit.sha;
+
+    // 3. Get the entire git tree recursively using the commit SHA
+    const { data: treeData } = await octokit.rest.git.getTree({
+      owner,
+      repo,
+      tree_sha: latestCommitSha,
+      recursive: 'true' // Use string 'true' as per some library versions
+    });
+
+    // 4. Filter the tree to include only files (blobs) and map to the desired format
+    const files = treeData.tree
+      .filter(item => item.type === 'blob' && item.path)
+      .map(item => ({
+        path: item.path!,
+        sha: item.sha!
+      }));
+
+    return files;
+
+  } catch (error) {
+    console.error(`[GitHubService] Error listing all repo files for ${owner}/${repo}:`, error);
+    // Re-throw the error to be handled by the calling controller
+    throw error;
+  }
+};
+
+/**
+ * A reusable function to get an authenticated Octokit instance for a given user.
+ * This centralizes the logic of fetching connection details and initializing Octokit.
+ * @param userId The Supabase user ID.
+ * @returns An authenticated Octokit instance or null if connection not found.
+ */
+export const getOctokitForUser = async (userId: string): Promise<Octokit | null> => {
+  const connectionStatus = await getInstallationConnectionDetails(userId);
+  if (!connectionStatus.isConnected || !connectionStatus.details) {
+    return null;
+  }
+  const app = getApp();
+  const octokitInstance = await app.getInstallationOctokit(connectionStatus.details.installationId);
+  // We cast the instance to the Octokit type from '@octokit/rest' to satisfy TypeScript
+  return octokitInstance as unknown as Octokit;
+};
+
+
 
 /**
  * Creates a temporary state token and associates it with a user ID to secure the GitHub App installation flow.

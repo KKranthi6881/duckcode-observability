@@ -3,7 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
-import githubRoutes from './api/routes/github.routes'; // Import GitHub routes
+import apiRoutes from './api/routes'; // Imports the main router from routes/index.ts
 
 // Load environment variables
 dotenv.config();
@@ -36,7 +36,7 @@ app.get('/api/health', (req: Request, res: Response) => {
 });
 
 // Register API routes
-app.use('/api/github', githubRoutes); // Use GitHub routes
+app.use('/api', apiRoutes); // Mounts all routes (GitHub, Insights, etc.) under /api
 
 // --- Error Handling Middleware (example) ---
 // This should be defined after all other app.use() and routes calls
