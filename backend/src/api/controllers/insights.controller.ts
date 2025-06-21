@@ -93,6 +93,19 @@ export const processRepository = async (req: Request, res: Response, next: NextF
       return res.status(404).json({ message: 'GitHub connection not found for this user.' });
     }
 
+    // Fetch the installation ID for the user from our new table
+    const { data: installationData, error: installationError } = await supabase
+      .from('github_installations')
+      .select('installation_id')
+      .eq('user_id', userId)
+      .single();
+
+    if (installationError || !installationData) {
+      console.error(`[InsightsController] GitHub App installation not found for user ${userId}:`, installationError);
+      throw new Error('Could not find GitHub App installation for your account. Please install the app on your repository.');
+    }
+    const githubInstallationId = installationData.installation_id;
+
     // 2. Recursively list all files in the repository
     const allFiles = await githubService.listAllRepoFiles(octokit, owner, repo);
 
@@ -118,6 +131,7 @@ export const processRepository = async (req: Request, res: Response, next: NextF
       file_hash: file.sha, // Store the git SHA as the hash to detect changes
       language: getLanguageFromFilePath(file.path),
       parsing_status: 'pending', // Set initial status
+      github_installation_id: githubInstallationId, // Add the installation ID here
     }));
 
     console.log(`Attempting to upsert ${fileRecords.length} files into code_insights.files for repo: ${repositoryFullName}`);
@@ -141,6 +155,46 @@ export const processRepository = async (req: Request, res: Response, next: NextF
     }
 
     console.log(`[InsightsController] Successfully upserted ${data?.length || 0} files for processing.`);
+
+    // --- START: New logic to create processing jobs ---
+    if (data && data.length > 0) {
+      // 1. Find a default prompt template to use for the jobs.
+      const { data: promptTemplate, error: templateError } = await supabase
+        .from('prompt_templates')
+        .select('id')
+        .limit(1)
+        .single();
+
+      if (templateError || !promptTemplate) {
+        console.error('[InsightsController] CRITICAL: Could not find a default prompt template. Job creation failed.', templateError);
+        throw new Error('Database is missing a default prompt template. Cannot create processing jobs.');
+      } else {
+        const defaultPromptTemplateId = promptTemplate.id;
+
+        // 2. Prepare job records for each successfully upserted file.
+        const jobRecords = data.map(file => ({
+          file_id: file.id,
+          prompt_template_id: defaultPromptTemplateId,
+          status: 'pending',
+          retry_count: 0,
+        }));
+
+        console.log(`Attempting to create ${jobRecords.length} processing jobs.`);
+
+        // 3. Insert the jobs.
+        const { error: jobError } = await supabase
+          .from('processing_jobs')
+          .insert(jobRecords);
+
+        if (jobError) {
+          console.error('Supabase DB Error during job creation:', jobError);
+          throw new Error(`Failed to create processing jobs: ${jobError.message}`);
+        }
+
+        console.log(`Successfully created ${jobRecords.length} processing jobs.`);
+      }
+    }
+    // --- END: New logic ---
 
     res.status(202).json({
       message: 'Repository processing initiated. Files have been queued.',

@@ -303,6 +303,9 @@ deno_version = 1
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
+[functions.code-processor]
+import_map = "./import_map.json"
+
 [analytics]
 enabled = true
 port = 54327
