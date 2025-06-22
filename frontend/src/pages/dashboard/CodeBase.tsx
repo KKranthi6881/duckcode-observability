@@ -39,6 +39,8 @@ import {
   getRepositoryContents,
   getFileContent,
   decodeFileContent,
+  processRepositoryForInsights,
+  getProcessingStatus, // Import the new service function
   type GitHubConnectionStatus,
   type GitHubRepository,
   type GitHubFileItem
@@ -102,6 +104,36 @@ export function CodeBase() {
   const [isLoadingTree, setIsLoadingTree] = useState(false);
   const [treeError, setTreeError] = useState<string | null>(null);
 
+  // State for repository processing
+  const [processingRepos, setProcessingRepos] = useState<string[]>([]);
+  const [queuedRepos, setQueuedRepos] = useState<string[]>([]);
+  const [processingError, setProcessingError] = useState<string | null>(null);
+
+  // New state for detailed status
+  interface RepoStatus {
+    progress: number;
+    totalFiles: number;
+    completed: number;
+    failed: number;
+    pending: number;
+    detailedStatus: {
+      filePath: string;
+      status: 'completed' | 'pending' | 'failed';
+      errorMessage: string | null;
+      startedAt?: string;
+      completedAt?: string;
+      duration?: number; // in milliseconds
+    }[];
+    isProcessing: boolean;
+    repositoryFullName: string;
+    startedAt?: string; // ISO timestamp when processing started
+    estimatedCompletion?: string; // Estimated completion time
+    averageFileProcessingTime?: number; // Average time per file in ms
+  }
+  const [reposStatus, setReposStatus] = useState<Record<string, RepoStatus>>({});
+  const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
+  const [selectedRepoForStatusModal, setSelectedRepoForStatusModal] = useState<GitHubRepository | null>(null);
+
   // Fetch GitHub connection status
   const fetchGitHubConnectionStatus = useCallback(async () => {
     if (isLoadingConnection) return; // Prevent multiple simultaneous calls
@@ -135,6 +167,48 @@ export function CodeBase() {
       setIsLoadingConnection(false);
     }
   }, [session]); // Remove fetchGitHubConnectionStatus dependency to prevent infinite loop
+
+  // Initialize processing status on page load/refresh
+  useEffect(() => {
+    const initializeProcessingStatus = async () => {
+      if (!gitHubConnectionStatus?.isConnected || !gitHubConnectionStatus.details?.accessibleRepos) {
+        return;
+      }
+
+      console.log('[CodeBase] Initializing processing status for accessible repos...');
+      
+      // Check processing status for all accessible repositories
+      const reposToCheck = gitHubConnectionStatus.details.accessibleRepos;
+      const activeProcessingRepos: string[] = [];
+      const statusUpdates: { [key: string]: RepoStatus } = {};
+
+      for (const repo of reposToCheck) {
+        try {
+          const [owner, repoName] = repo.full_name.split('/');
+          const status = await getProcessingStatus(owner, repoName);
+          
+          // If there's active processing (progress < 100), add to queued repos
+          if (status && status.progress < 100 && status.progress > 0) {
+            console.log(`[CodeBase] Found active processing for ${repo.full_name}:`, status);
+            activeProcessingRepos.push(repo.full_name);
+            statusUpdates[repo.full_name] = status;
+          }
+        } catch (error) {
+          // Ignore errors for repos that haven't been processed yet
+          console.log(`[CodeBase] No processing status found for ${repo.full_name}`);
+        }
+      }
+
+      // Update state with found active processing
+      if (activeProcessingRepos.length > 0) {
+        console.log(`[CodeBase] Restoring ${activeProcessingRepos.length} active processing jobs:`, activeProcessingRepos);
+        setQueuedRepos(activeProcessingRepos);
+        setReposStatus(statusUpdates);
+      }
+    };
+
+    initializeProcessingStatus();
+  }, [gitHubConnectionStatus]); // Run when GitHub connection status is loaded
 
   // Fetch GitHub Repository File Tree
   const fetchGitHubRepoTree = useCallback(async (repo: GitHubRepository, path: string, branch: string) => {
@@ -373,7 +447,7 @@ export function CodeBase() {
   };
 
   // Event Handlers
-  const handleGitHubRepoClick = (repo: any) => {
+  const handleGitHubRepoClick = async (repo: any) => {
     console.log('[CodeBase] Repository clicked:', repo);
     
     const defaultBranch = repo.default_branch || 'main';
@@ -762,6 +836,34 @@ export function CodeBase() {
     );
   };
 
+  // Polling for status updates
+  useEffect(() => {
+    const reposToPoll = queuedRepos.filter(
+      (repoName) => reposStatus[repoName]?.progress < 100
+    );
+
+    if (reposToPoll.length === 0) {
+      return;
+    }
+
+    const intervalId = setInterval(() => {
+      reposToPoll.forEach(async (repoFullName) => {
+        try {
+          const [owner, repo] = repoFullName.split('/');
+          const status = await getProcessingStatus(owner, repo);
+          setReposStatus((prevStatus) => ({
+            ...prevStatus,
+            [repoFullName]: status,
+          }));
+        } catch (error) {
+          console.error(`[CodeBase] Failed to poll status for ${repoFullName}:`, error);
+        }
+      });
+    }, 5000); // Poll every 5 seconds
+
+    return () => clearInterval(intervalId);
+  }, [queuedRepos, reposStatus]);
+
   // Main Render Logic
   console.log('[CodeBase] Render - isLoadingConnection:', isLoadingConnection, 'gitHubConnectionStatus:', gitHubConnectionStatus);
   
@@ -777,6 +879,65 @@ export function CodeBase() {
   // Mock data/renderers for other tabs - these can be expanded later
   const getMockDocumentation = (filePath: string) => `<h3>Documentation for ${filePath}</h3><p>This is placeholder documentation. Real documentation could be fetched or generated based on the file type or comments within the code.</p>`;
   const renderLineage = (filePath: string) => <div>Lineage data for {filePath} would be displayed here. (Not Implemented)</div>;
+
+  const handleProcessRepo = async (repoFullName: string) => {
+    setProcessingError(null);
+    setProcessingRepos(prev => [...prev, repoFullName]);
+
+    try {
+      console.log(`[CodeBase] Starting processing for repository: ${repoFullName}`);
+      await processRepositoryForInsights(repoFullName);
+      
+      // Add to queued list for polling
+      setQueuedRepos(prev => [...prev, repoFullName]);
+      
+      // Initialize status to show progress bar immediately
+      setReposStatus(prev => ({
+        ...prev,
+        [repoFullName]: {
+          progress: 0,
+          totalFiles: 0, // Will be updated by the first poll
+          completed: 0,
+          failed: 0,
+          pending: 0, // Will be updated
+          detailedStatus: [],
+          isProcessing: true,
+          repositoryFullName: repoFullName
+        }
+      }));
+
+      // Start polling immediately for this repository
+      const [owner, repo] = repoFullName.split('/');
+      try {
+        const initialStatus = await getProcessingStatus(owner, repo);
+        setReposStatus(prev => ({
+          ...prev,
+          [repoFullName]: {
+            ...initialStatus,
+            isProcessing: initialStatus.progress < 100
+          }
+        }));
+        console.log(`[CodeBase] Initial status for ${repoFullName}:`, initialStatus);
+      } catch (statusError) {
+        console.warn(`[CodeBase] Could not get initial status for ${repoFullName}, will retry with polling:`, statusError);
+      }
+
+    } catch (error: any) {
+      console.error(`[CodeBase] Error processing repository ${repoFullName}:`, error);
+      setProcessingError(`Failed to process ${repoFullName}: ${error.message}`);
+      
+      // Remove from queued repos if processing failed to start
+      setQueuedRepos(prev => prev.filter(r => r !== repoFullName));
+      setReposStatus(prev => {
+        const newStatus = { ...prev };
+        delete newStatus[repoFullName];
+        return newStatus;
+      });
+    } finally {
+      // Remove from processing list regardless of outcome
+      setProcessingRepos(prev => prev.filter(r => r !== repoFullName));
+    }
+  };
 
   if (isLoadingConnection) {
     return (
@@ -800,7 +961,7 @@ export function CodeBase() {
                 Please ensure your GitHub account is connected via the <strong>{GITHUB_APP_NAME}</strong> GitHub App and that it has the necessary permissions to access your repositories.
               </p>
               <button
-                onClick={() => navigate('/dashboard/settings?tab=integrations')}
+                onClick={() => navigate('/dashboard/settings?tab=github')}
                 className="mt-6 px-5 py-2.5 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors duration-150 text-sm font-medium flex items-center shadow-sm hover:shadow-md"
               >
                 <Settings className="h-4 w-4 mr-2" />
@@ -857,7 +1018,7 @@ export function CodeBase() {
                   <ChevronRight className="h-4 w-4" />
                   <button 
                     onClick={() => setView('repos')}
-                    className="hover:text-[#2AB7A9] transition-colors"
+                    className="hover:underline font-medium text-gray-700 whitespace-nowrap truncate"
                   >
                     Repositories
                   </button>
@@ -866,7 +1027,7 @@ export function CodeBase() {
                       <ChevronRight className="h-4 w-4" />
                       <button 
                         onClick={() => setView('files')}
-                        className="hover:text-[#2AB7A9] transition-colors"
+                        className="hover:underline font-medium text-gray-700 whitespace-nowrap truncate"
                       >
                         {selectedGitHubRepo.name}
                       </button>
@@ -1042,7 +1203,61 @@ export function CodeBase() {
                               <span>{repo.forks_count || 0}</span>
                             </div>
                           </div>
-                          <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-[#2AB7A9] transition-colors" />
+                          <div className="w-48 text-right">
+                            {(() => {
+                              const status = reposStatus[repo.full_name];
+                              const isProcessing = processingRepos.includes(repo.full_name);
+                              const isQueued = queuedRepos.includes(repo.full_name);
+
+                              if (isQueued && status) {
+                                return (
+                                  <div 
+                                    className="cursor-pointer group" 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedRepoForStatusModal(repo);
+                                      setIsStatusModalOpen(true);
+                                    }}
+                                  >
+                                    <div className="flex items-center justify-between mb-1">
+                                      <span className="text-xs font-medium text-gray-700 group-hover:text-brand-600">Processing...</span>
+                                      <span className="text-xs font-medium text-gray-700 group-hover:text-brand-600">{status.progress}%</span>
+                                    </div>
+                                    <div className="w-full bg-gray-200 rounded-full h-2.5">
+                                      <div 
+                                        className="bg-brand-600 h-2.5 rounded-full text-white flex items-center justify-center text-xs font-bold" 
+                                        style={{ width: `${status.progress}%`, backgroundColor: brandColor }}
+                                      >
+                                        {status.progress > 10 ? `${status.progress}%` : ''}
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              } else {
+                                return (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleProcessRepo(repo.full_name);
+                                    }}
+                                    disabled={isProcessing}
+                                    className={`inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-500 ${
+                                      isProcessing
+                                        ? 'bg-yellow-100 text-yellow-800 cursor-wait'
+                                        : 'text-white bg-brand-600 hover:bg-brand-700'
+                                    }`}
+                                    style={!isProcessing ? { backgroundColor: brandColor } : {}}
+                                  >
+                                    {isProcessing ? (
+                                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing...</>
+                                    ) : (
+                                      'Process for Summary'
+                                    )}
+                                  </button>
+                                );
+                              }
+                            })()}
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -1132,7 +1347,7 @@ export function CodeBase() {
             {/* Code View */}
             {view === 'code' && selectedFile && (
               <div className="flex flex-col h-full">
-                <div className="border-b border-gray-200 bg-gray-50 sticky top-[calc(3.5rem+1px)] z-10"> {/* Adjust top if header height changes */}
+                <div className="border-b border-gray-200 bg-gray-50 sticky top-[calc(3.5rem+1px)] z-10">
                   <nav className="-mb-px flex space-x-px px-4" aria-label="Tabs">
                     {['code', 'documentation', 'lineage', 'visual', 'alerts'].map((tabName) => (
                       <button
@@ -1211,7 +1426,7 @@ export function CodeBase() {
                       
                       <div className="flex items-center gap-2">
                         <div className="relative">
-                          <button className="flex items-center text-sm bg-white border border-gray-300 rounded-md px-3 py-1.5 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-1" style={{borderColor: brandColor, color: brandColor}}>
+                          <button className="flex items-center text-sm bg-white border border-gray-300 rounded-md px-3 py-1.5 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2" style={{borderColor: brandColor, color: brandColor}}>
                             <GitBranch className="h-4 w-4 mr-1.5" style={{color: brandColor}} />
                             {activeBranch}
                             <ChevronDown className="h-4 w-4 ml-1 text-gray-400" />
@@ -1367,13 +1582,296 @@ export function CodeBase() {
       </div>
     </div>
   );
-}
 
-// Helper function to format file sizes
-const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-};
+  // Status Modal
+  if (isStatusModalOpen && selectedRepoForStatusModal && reposStatus[selectedRepoForStatusModal.full_name]) {
+    const status = reposStatus[selectedRepoForStatusModal.full_name];
+    const isCompleted = status.progress >= 100;
+    const startTime = status.startedAt ? new Date(status.startedAt) : null;
+    const currentTime = new Date();
+    const elapsedTime = startTime ? currentTime.getTime() - startTime.getTime() : 0;
+    
+    // Calculate estimated completion time
+    const avgTimePerFile = status.averageFileProcessingTime || (elapsedTime / Math.max(status.completed, 1));
+    const remainingFiles = status.pending;
+    const estimatedRemainingTime = remainingFiles * avgTimePerFile;
+    const estimatedCompletion = new Date(currentTime.getTime() + estimatedRemainingTime);
+    
+    // Format duration helper
+    const formatDuration = (ms: number) => {
+      const seconds = Math.floor(ms / 1000);
+      const minutes = Math.floor(seconds / 60);
+      const hours = Math.floor(minutes / 60);
+      
+      if (hours > 0) return `${hours}h ${minutes % 60}m ${seconds % 60}s`;
+      if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
+      return `${seconds}s`;
+    };
+    
+    // Sort files by status for better organization
+    const sortedFiles = [...status.detailedStatus].sort((a, b) => {
+      const statusOrder = { 'failed': 0, 'pending': 1, 'completed': 2 };
+      return statusOrder[a.status] - statusOrder[b.status];
+    });
+    
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4" onClick={() => setIsStatusModalOpen(false)}>
+        <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[95vh] flex flex-col" onClick={e => e.stopPropagation()}>
+          {/* Header */}
+          <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+            <div className="flex justify-between items-start">
+              <div>
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 rounded-lg bg-brand-100">
+                    <Activity className="h-6 w-6 text-brand-600" style={{ color: brandColor }} />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-900">Processing Status</h2>
+                    <p className="text-gray-600 font-mono text-sm">{selectedRepoForStatusModal.full_name}</p>
+                  </div>
+                </div>
+                
+                {/* Status Badge */}
+                <div className="flex items-center gap-2">
+                  {isCompleted ? (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                      <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                      Completed
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                      <Loader2 className="w-3 h-3 animate-spin mr-2" />
+                      Processing
+                    </span>
+                  )}
+                  
+                  {/* Timing Information */}
+                  <div className="text-sm text-gray-600">
+                    {startTime && (
+                      <span>Started {startTime.toLocaleTimeString()} • </span>
+                    )}
+                    <span>Duration: {formatDuration(elapsedTime)}</span>
+                    {!isCompleted && remainingFiles > 0 && (
+                      <span> • ETA: {estimatedCompletion.toLocaleTimeString()}</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              <button 
+                onClick={() => setIsStatusModalOpen(false)} 
+                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          
+          {/* Progress Overview */}
+          <div className="p-6 bg-gray-50 border-b border-gray-200">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Progress Bar */}
+              <div>
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-lg font-semibold text-gray-800">Overall Progress</span>
+                  <span className="text-2xl font-bold text-gray-900">{status.progress}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-4 mb-2">
+                  <div 
+                    className={`h-4 rounded-full transition-all duration-500 flex items-center justify-center text-xs font-bold text-white ${
+                      isCompleted ? 'bg-green-500' : 'bg-brand-600'
+                    }`}
+                    style={{ 
+                      width: `${status.progress}%`, 
+                      backgroundColor: isCompleted ? '#10B981' : brandColor 
+                    }}
+                  >
+                    {status.progress > 15 ? `${status.progress}%` : ''}
+                  </div>
+                </div>
+                <div className="text-sm text-gray-600">
+                  {status.completed} of {status.totalFiles} files processed
+                </div>
+              </div>
+              
+              {/* Statistics */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="text-center p-4 bg-white rounded-lg border border-gray-200">
+                  <div className="text-2xl font-bold text-green-600">{status.completed}</div>
+                  <div className="text-sm text-gray-600 font-medium">Completed</div>
+                </div>
+                <div className="text-center p-4 bg-white rounded-lg border border-gray-200">
+                  <div className="text-2xl font-bold text-red-600">{status.failed}</div>
+                  <div className="text-sm text-gray-600 font-medium">Failed</div>
+                </div>
+                <div className="text-center p-4 bg-white rounded-lg border border-gray-200">
+                  <div className="text-2xl font-bold text-yellow-600">{status.pending}</div>
+                  <div className="text-sm text-gray-600 font-medium">Pending</div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Success Banner */}
+            {isCompleted && status.failed === 0 && (
+              <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-green-800">
+                      🎉 Processing completed successfully!
+                    </h3>
+                    <div className="mt-1 text-sm text-green-700">
+                      All {status.totalFiles} files have been processed without errors in {formatDuration(elapsedTime)}.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          {/* File Details Table */}
+          <div className="flex-1 overflow-hidden flex flex-col">
+            <div className="p-4 bg-white border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                File Processing Details ({sortedFiles.length} files)
+              </h3>
+            </div>
+            
+            <div className="flex-1 overflow-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50 sticky top-0 z-10">
+                  <tr>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      File Path
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Duration
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Details
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {sortedFiles.map((file, index) => (
+                    <tr key={index} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          {getFileIcon(file.filePath.split('/').pop(), 'file')}
+                          <span className="text-sm font-mono text-gray-900 truncate max-w-xs" title={file.filePath}>
+                            {file.filePath}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {file.status === 'completed' && (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                            Completed
+                          </span>
+                        )}
+                        {file.status === 'pending' && (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                            <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                            Pending
+                          </span>
+                        )}
+                        {file.status === 'failed' && (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            <AlertTriangle className="w-3 h-3 mr-1" />
+                            Failed
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        {file.duration ? formatDuration(file.duration) : 
+                         file.status === 'completed' ? 'N/A' : 
+                         file.status === 'pending' ? '-' : 'N/A'}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600">
+                        {file.errorMessage ? (
+                          <div className="group relative">
+                            <span className="text-red-600 cursor-help">View Error</span>
+                            <div className="absolute hidden group-hover:block bg-gray-900 text-white text-xs rounded-lg py-2 px-3 z-20 w-80 break-words shadow-lg -top-2 left-0">
+                              <div className="font-semibold mb-1">Error Details:</div>
+                              {file.errorMessage}
+                            </div>
+                          </div>
+                        ) : file.status === 'completed' ? (
+                          <span className="text-green-600">✓ Success</span>
+                        ) : file.status === 'pending' ? (
+                          <span className="text-gray-500">Waiting...</span>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+          {/* Footer */}
+          <div className="p-4 bg-gray-50 border-t border-gray-200 flex justify-between items-center">
+            <div className="text-sm text-gray-600">
+              Last updated: {new Date().toLocaleTimeString()}
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setIsStatusModalOpen(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+              >
+                Close
+              </button>
+              {isCompleted && (
+                <button
+                  onClick={() => {
+                    // Navigate to insights or summary view
+                    setIsStatusModalOpen(false);
+                    // Could add navigation to insights page here
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-white rounded-md transition-colors"
+                  style={{ backgroundColor: brandColor }}
+                >
+                  View Insights
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Helper function to format file sizes
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  };
+
+  // Helper function to format file sizes
+  const formatBytes = (bytes: number, decimals = 1) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+  };
+}

@@ -93,11 +93,12 @@ export const processRepository = async (req: Request, res: Response, next: NextF
       return res.status(404).json({ message: 'GitHub connection not found for this user.' });
     }
 
-    // Fetch the installation ID for the user from our new table
-    const { data: installationData, error: installationError } = await supabase
-      .from('github_installations')
+    // Fetch the installation ID for the user from the correct table
+    const { data: installationData, error: installationError } = await supabaseInstance
+      .schema('github_module')
+      .from('github_app_installations')
       .select('installation_id')
-      .eq('user_id', userId)
+      .eq('supabase_user_id', userId)
       .single();
 
     if (installationError || !installationData) {
@@ -205,5 +206,74 @@ export const processRepository = async (req: Request, res: Response, next: NextF
   } catch (error: any) {
     console.error(`[InsightsController] Error in processRepository:`, error);
     next(error); // Pass to the global error handler
+  }
+};
+
+export const getRepositoryProcessingStatus = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const { repositoryFullName } = req.params;
+    if (!repositoryFullName) {
+      return res.status(400).json({ message: 'A valid repositoryFullName is required.' });
+    }
+
+    console.log(`[InsightsController] Fetching processing status for repository: ${repositoryFullName}`);
+
+    const { data: files, error: filesError } = await supabase
+      .from('files')
+      .select(`
+        id,
+        file_path,
+        processing_jobs ( status, error_details )
+      `)
+      .eq('repository_full_name', repositoryFullName)
+      .eq('user_id', userId);
+
+    if (filesError) {
+      console.error('Supabase DB Error during status fetch:', filesError);
+      throw new Error('Failed to fetch processing status.');
+    }
+
+    if (!files || files.length === 0) {
+      return res.status(404).json({ message: 'No files found for this repository. Has it been processed?' });
+    }
+
+    let completed = 0;
+    let failed = 0;
+    let pending = 0;
+
+    const detailedStatus = files.map(file => {
+      const job = Array.isArray(file.processing_jobs) ? file.processing_jobs[0] : file.processing_jobs;
+      const status = job?.status || 'pending';
+      if (status === 'completed') completed++;
+      else if (status === 'failed') failed++;
+      else pending++;
+
+      return {
+        filePath: file.file_path,
+        status: status,
+        errorMessage: job?.error_details || null,
+      };
+    });
+
+    const totalFiles = files.length;
+    const progress = totalFiles > 0 ? Math.round(((completed + failed) / totalFiles) * 100) : 0;
+
+    res.status(200).json({
+      totalFiles,
+      completed,
+      failed,
+      pending,
+      progress,
+      detailedStatus,
+    });
+
+  } catch (error) {
+    console.error(`[InsightsController] Error in getRepositoryProcessingStatus:`, error);
+    next(error);
   }
 };

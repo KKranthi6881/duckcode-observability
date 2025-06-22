@@ -41,4 +41,44 @@ router.post(
   insightsController.processRepository
 );
 
+/**
+ * @swagger
+ * /api/insights/processing-status/{owner}/{repo}:
+ *   get:
+ *     summary: Gets the real-time processing status of a repository.
+ *     tags: [Insights]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: owner
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The owner of the repository.
+ *       - in: path
+ *         name: repo
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The name of the repository.
+ *     responses:
+ *       200:
+ *         description: OK. Returns the current processing status.
+ *       401:
+ *         description: Unauthorized. Authentication required.
+ *       404:
+ *         description: Not Found. No files found for this repository.
+ */
+router.get(
+  '/processing-status/:owner/:repo',
+  requireAuth,
+  (req, res, next) => {
+    // Combine owner and repo into a single repositoryFullName for the controller
+    req.params.repositoryFullName = `${req.params.owner}/${req.params.repo}`;
+    next();
+  },
+  insightsController.getRepositoryProcessingStatus
+);
+
 export default router;

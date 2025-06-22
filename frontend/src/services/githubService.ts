@@ -301,6 +301,48 @@ export const decodeFileContent = (content: string, encoding: string): string => 
   return content;
 };
 
+export const processRepositoryForInsights = async (repositoryFullName: string): Promise<any> => {
+  console.log(`[GitHubService] Requesting to process repository: ${repositoryFullName}`);
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetchWithTimeout(`${API_BASE_URL}/api/insights/process-repository`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ repositoryFullName }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: response.statusText }));
+      throw new Error(`Failed to start repository processing: ${errorData.message}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error(`[GitHubService] Error processing repository ${repositoryFullName}:`, error);
+    throw error;
+  }
+};
+
+export const getProcessingStatus = async (owner: string, repo: string): Promise<any> => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetchWithTimeout(`${API_BASE_URL}/api/insights/processing-status/${owner}/${repo}`, {
+      method: 'GET',
+      headers,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: response.statusText }));
+      throw new Error(`Failed to get processing status: ${errorData.message}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error(`[GitHubService] Error getting processing status for ${owner}/${repo}:`, error);
+    throw error;
+  }
+};
+
 export type {
   GitHubRepository,
   GitHubConnectionStatus,
