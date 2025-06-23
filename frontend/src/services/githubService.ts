@@ -343,6 +343,48 @@ export const getProcessingStatus = async (owner: string, repo: string): Promise<
   }
 };
 
+export const getFileSummary = async (owner: string, repo: string, filePath: string): Promise<any> => {
+  try {
+    const headers = await getAuthHeaders();
+    // Don't encode the file path since the backend route uses wildcard to capture the full path
+    const response = await fetchWithTimeout(`${API_BASE_URL}/api/insights/file-summary/${owner}/${repo}/${filePath}`, {
+      method: 'GET',
+      headers,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: response.statusText }));
+      throw new Error(`Failed to get file summary: ${errorData.message}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error(`[GitHubService] Error getting file summary for ${owner}/${repo}/${filePath}:`, error);
+    throw error;
+  }
+};
+
+export const generateRepositorySummaries = async (owner: string, repo: string): Promise<any> => {
+  console.log(`[GitHubService] Requesting to generate summaries for repository: ${owner}/${repo}`);
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetchWithTimeout(`${API_BASE_URL}/api/insights/generate-summaries/${owner}/${repo}`, {
+      method: 'POST',
+      headers,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: response.statusText }));
+      throw new Error(`Failed to generate summaries: ${errorData.message}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error(`[GitHubService] Error generating summaries for ${owner}/${repo}:`, error);
+    throw error;
+  }
+};
+
 export type {
   GitHubRepository,
   GitHubConnectionStatus,

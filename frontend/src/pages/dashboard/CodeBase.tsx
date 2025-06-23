@@ -6,11 +6,10 @@ import {
   Folder, 
   File, 
   Copy, 
-  Code2, 
-  BookOpen, 
+  Code2,  
   GitBranch, 
   Eye, 
-  AlertTriangle,
+ 
   FolderOpen,
   Search,
   Github,
@@ -31,7 +30,15 @@ import {
   FileText,
   Zap,
   PanelLeft,
-  PanelLeftClose
+  PanelLeftClose,
+  Info,
+  Package,
+  Code,
+  Layers,
+  Lightbulb,
+  BookOpen,
+  AlertTriangle,
+  X
 } from 'lucide-react';
 import { useAuth } from '../../features/auth/contexts/AuthContext';
 import { 
@@ -40,7 +47,9 @@ import {
   getFileContent,
   decodeFileContent,
   processRepositoryForInsights,
-  getProcessingStatus, // Import the new service function
+  getProcessingStatus, 
+  getFileSummary,
+  generateRepositorySummaries,
   type GitHubConnectionStatus,
   type GitHubRepository,
   type GitHubFileItem
@@ -133,6 +142,12 @@ export function CodeBase() {
   const [reposStatus, setReposStatus] = useState<Record<string, RepoStatus>>({});
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
   const [selectedRepoForStatusModal, setSelectedRepoForStatusModal] = useState<GitHubRepository | null>(null);
+
+  // New state for file summary data
+  const [selectedFileSummary, setSelectedFileSummary] = useState<any | null>(null);
+  const [isLoadingFileSummary, setIsLoadingFileSummary] = useState(false);
+  const [fileSummaryError, setFileSummaryError] = useState<string | null>(null);
+  const [summaryGenerationError, setSummaryGenerationError] = useState<string | null>(null);
 
   // Fetch GitHub connection status
   const fetchGitHubConnectionStatus = useCallback(async () => {
@@ -506,6 +521,12 @@ export function CodeBase() {
       setSelectedFile(fileItem);
       setActiveTab('code');
       fetchFileContent(fileItem);
+      
+      // Fetch file summary for documentation tab
+      if (selectedGitHubRepo) {
+        const [owner, repo] = selectedGitHubRepo.full_name.split('/');
+        fetchFileSummary(owner, repo, fileItem.path);
+      }
     }
   };
 
@@ -877,7 +898,166 @@ export function CodeBase() {
   };
 
   // Mock data/renderers for other tabs - these can be expanded later
-  const getMockDocumentation = (filePath: string) => `<h3>Documentation for ${filePath}</h3><p>This is placeholder documentation. Real documentation could be fetched or generated based on the file type or comments within the code.</p>`;
+  // Render documentation tab content
+  const renderDocumentation = () => {
+    if (isLoadingFileSummary) {
+      return (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-6 w-6 animate-spin text-blue-600 mr-2" />
+          <span className="text-gray-600">Loading documentation...</span>
+        </div>
+      );
+    }
+
+    if (fileSummaryError) {
+      return (
+        <div className="p-4 text-red-700 bg-red-50 border border-red-200 rounded-md">
+          <div className="flex items-center">
+            <AlertTriangle className="h-5 w-5 mr-2" />
+            <h4 className="font-semibold">Error Loading Documentation</h4>
+          </div>
+          <p className="mt-1">{fileSummaryError}</p>
+        </div>
+      );
+    }
+
+    if (!selectedFileSummary) {
+      return (
+        <div className="p-4 text-gray-500 bg-gray-50 border border-gray-200 rounded-md">
+          <div className="flex items-center">
+            <FileText className="h-5 w-5 mr-2" />
+            <span>No documentation available for this file.</span>
+          </div>
+        </div>
+      );
+    }
+
+    // The backend returns: { filePath, language, lastProcessed, summary: {summary, dependencies, description}, summaryCreatedAt }
+    const apiResponse = selectedFileSummary;
+    const summaryContent = apiResponse.summary;
+
+    return (
+      <div className="space-y-6">
+        {/* File Information Header */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center mb-2">
+            <FileText className="h-5 w-5 text-blue-600 mr-2" />
+            <h3 className="text-lg font-semibold text-blue-900">File Documentation</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+            <div><span className="font-medium text-gray-700">File:</span> <span className="text-gray-900">{apiResponse.filePath}</span></div>
+            {apiResponse.language && <div><span className="font-medium text-gray-700">Language:</span> <span className="text-gray-900">{apiResponse.language}</span></div>}
+            {apiResponse.lastProcessed && <div><span className="font-medium text-gray-700">Processed:</span> <span className="text-gray-900">{new Date(apiResponse.lastProcessed).toLocaleDateString()}</span></div>}
+            {apiResponse.summaryCreatedAt && <div><span className="font-medium text-gray-700">Generated:</span> <span className="text-gray-900">{new Date(apiResponse.summaryCreatedAt).toLocaleDateString()}</span></div>}
+          </div>
+        </div>
+
+        {/* Summary Section */}
+        {summaryContent?.summary && (
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <div className="flex items-center mb-3">
+              <Info className="h-5 w-5 text-green-600 mr-2" />
+              <h4 className="text-lg font-semibold text-gray-900">Summary</h4>
+            </div>
+            <p className="text-gray-700 leading-relaxed">{summaryContent.summary}</p>
+          </div>
+        )}
+
+        {/* Description Section */}
+        {summaryContent?.description && (
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <div className="flex items-center mb-3">
+              <BookOpen className="h-5 w-5 text-purple-600 mr-2" />
+              <h4 className="text-lg font-semibold text-gray-900">Description</h4>
+            </div>
+            <p className="text-gray-700 leading-relaxed">{summaryContent.description}</p>
+          </div>
+        )}
+
+        {/* Dependencies Section */}
+        {summaryContent?.dependencies && Array.isArray(summaryContent.dependencies) && summaryContent.dependencies.length > 0 && (
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <div className="flex items-center mb-3">
+              <Package className="h-5 w-5 text-orange-600 mr-2" />
+              <h4 className="text-lg font-semibold text-gray-900">Dependencies</h4>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {summaryContent.dependencies.map((dep, index) => (
+                <span key={index} className="px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm font-medium">
+                  {dep}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Functions Section */}
+        {summaryContent?.functions && Array.isArray(summaryContent.functions) && summaryContent.functions.length > 0 && (
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <div className="flex items-center mb-3">
+              <Code className="h-5 w-5 text-blue-600 mr-2" />
+              <h4 className="text-lg font-semibold text-gray-900">Functions & Methods</h4>
+            </div>
+            <div className="space-y-3">
+              {summaryContent.functions.map((func, index) => (
+                <div key={index} className="border-l-4 border-blue-200 pl-4">
+                  <h5 className="font-semibold text-gray-900">{func.name}</h5>
+                  {func.description && <p className="text-gray-700 text-sm mt-1">{func.description}</p>}
+                  {func.parameters && func.parameters.length > 0 && (
+                    <div className="mt-2">
+                      <span className="text-xs font-medium text-gray-600 uppercase tracking-wide">Parameters:</span>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {func.parameters.map((param, paramIndex) => (
+                          <span key={paramIndex} className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">
+                            {param}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Key Points Section */}
+        {summaryContent?.keyPoints && Array.isArray(summaryContent.keyPoints) && summaryContent.keyPoints.length > 0 && (
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <div className="flex items-center mb-3">
+              <Lightbulb className="h-5 w-5 text-yellow-600 mr-2" />
+              <h4 className="text-lg font-semibold text-gray-900">Key Points</h4>
+            </div>
+            <ul className="space-y-2">
+              {summaryContent.keyPoints.map((point, index) => (
+                <li key={index} className="flex items-start">
+                  <span className="inline-block w-2 h-2 bg-yellow-500 rounded-full mt-2 mr-3 flex-shrink-0"></span>
+                  <span className="text-gray-700">{point}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Usage Examples Section */}
+        {summaryContent?.usageExamples && Array.isArray(summaryContent.usageExamples) && summaryContent.usageExamples.length > 0 && (
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <div className="flex items-center mb-3">
+              <Layers className="h-5 w-5 text-indigo-600 mr-2" />
+              <h4 className="text-lg font-semibold text-gray-900">Usage Examples</h4>
+            </div>
+            <div className="space-y-3">
+              {summaryContent.usageExamples.map((example, index) => (
+                <div key={index} className="bg-gray-50 border rounded p-3">
+                  <pre className="text-sm text-gray-800 whitespace-pre-wrap font-mono">{example}</pre>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
   const renderLineage = (filePath: string) => <div>Lineage data for {filePath} would be displayed here. (Not Implemented)</div>;
 
   const handleProcessRepo = async (repoFullName: string) => {
@@ -939,6 +1119,43 @@ export function CodeBase() {
     }
   };
 
+    // Fetch file summary for documentation
+    const fetchFileSummary = async (owner: string, repo: string, filePath: string) => {
+      setIsLoadingFileSummary(true);
+      setFileSummaryError(null);
+      setSelectedFileSummary(null);
+
+      try {
+        console.log(`[CodeBase] Fetching file summary for: ${owner}/${repo}/${filePath}`);
+        console.log(`[CodeBase] Repository full name: ${owner}/${repo}`);
+        console.log(`[CodeBase] File path being requested: "${filePath}"`);
+        console.log(`[CodeBase] Selected file object:`, selectedFile);
+        
+        const summary = await getFileSummary(owner, repo, filePath);
+        setSelectedFileSummary(summary);
+        console.log(`[CodeBase] File summary fetched successfully:`, summary);
+      } catch (error: any) {
+        console.error(`[CodeBase] Error fetching file summary:`, error);
+        console.log(`[CodeBase] Failed request details - Owner: "${owner}", Repo: "${repo}", FilePath: "${filePath}"`);
+        
+        // Provide more specific error messages based on the error type
+        let errorMessage = 'Failed to fetch file summary';
+        if (error.message?.includes('404') || error.message?.includes('not found')) {
+          errorMessage = 'This file has not been processed yet or does not exist in the repository. Try processing the repository first.';
+        } else if (error.message?.includes('401') || error.message?.includes('unauthorized')) {
+          errorMessage = 'You are not authorized to access this file summary.';
+        } else if (error.message?.includes('500')) {
+          errorMessage = 'Server error while fetching file summary. Please try again later.';
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+        
+        setFileSummaryError(errorMessage);
+      } finally {
+        setIsLoadingFileSummary(false);
+      }
+    };
+
   if (isLoadingConnection) {
     return (
       <div className="flex items-center justify-center h-screen p-6">
@@ -955,7 +1172,7 @@ export function CodeBase() {
           <div className="flex items-start">
             <AlertTriangle className="h-8 w-8 text-red-700 mr-4 flex-shrink-0 mt-1" />
             <div>
-              <h3 className="text-xl font-semibold text-red-800">GitHub Connection Error</h3>
+              <h3 className="text-xl font-semibold text-red-900">GitHub Connection Error</h3>
               <p className="text-red-700 mt-2">{connectionError}</p>
               <p className="text-red-600 mt-3 text-sm">
                 Please ensure your GitHub account is connected via the <strong>{GITHUB_APP_NAME}</strong> GitHub App and that it has the necessary permissions to access your repositories.
@@ -1029,7 +1246,7 @@ export function CodeBase() {
                         onClick={() => setView('files')}
                         className="hover:underline font-medium text-gray-700 whitespace-nowrap truncate"
                       >
-                        {selectedGitHubRepo.name}
+                        {selectedGitHubRepo?.name}
                       </button>
                     </>
                   )}
@@ -1115,6 +1332,23 @@ export function CodeBase() {
                     </div>
                   )}
                 </div>
+
+                {summaryGenerationError && (
+                  <div className="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
+                    <div className="flex items-center">
+                      <AlertTriangle className="h-5 w-5 text-red-400 mr-2" />
+                      <div className="text-sm text-red-700">
+                        {summaryGenerationError}
+                      </div>
+                      <button
+                        onClick={() => setSummaryGenerationError(null)}
+                        className="ml-auto text-red-400 hover:text-red-600"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {isLoadingConnection ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -1388,7 +1622,7 @@ export function CodeBase() {
                       {formatCodeWithSyntaxHighlighting(selectedFileContent, selectedFile.name)}
                     </div>
                   ) : activeTab === 'documentation' ? (
-                    <div className="p-4 prose max-w-none" dangerouslySetInnerHTML={{ __html: getMockDocumentation(selectedFile.path) }}></div>
+                    <div className="p-4 prose max-w-none">{renderDocumentation()}</div>
                   ) : activeTab === 'lineage' ? (
                     <div className="p-4">{renderLineage(selectedFile.path)}</div>
                   ) : activeTab === 'visual' ? (
@@ -1553,7 +1787,7 @@ export function CodeBase() {
                             {formatCodeWithSyntaxHighlighting(selectedFileContent, selectedFile.name)}
                           </div>
                         ) : activeTab === 'documentation' ? (
-                          <div className="p-4 prose max-w-none" dangerouslySetInnerHTML={{ __html: getMockDocumentation(selectedFile.path) }}></div>
+                          <div className="p-4 prose max-w-none">{renderDocumentation()}</div>
                         ) : activeTab === 'lineage' ? (
                           <div className="p-4">{renderLineage(selectedFile.path)}</div>
                         ) : activeTab === 'visual' ? (
