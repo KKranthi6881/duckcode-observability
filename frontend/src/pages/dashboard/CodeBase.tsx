@@ -1133,6 +1133,97 @@ export function CodeBase() {
           </div>
         )}
 
+        {/* Execution Flow Section */}
+        {summaryContent?.execution_flow && Array.isArray(summaryContent.execution_flow) && summaryContent.execution_flow.length > 0 && (
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
+            <div className="flex items-center mb-4">
+              <Play className="h-6 w-6 text-blue-600 mr-3" />
+              <h4 className="text-xl font-bold text-gray-900">Execution Flow</h4>
+            </div>
+            <div className="space-y-3">
+              {summaryContent.execution_flow.map((step, idx) => (
+                <div key={idx} className="flex items-start">
+                  <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-semibold mr-4 mt-1 flex-shrink-0">
+                    {idx + 1}
+                  </span>
+                  <p className="text-gray-700 bg-white p-3 rounded border-l-4 border-blue-400 flex-1">{step}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Performance Considerations Section */}
+        {summaryContent?.performance_considerations && Array.isArray(summaryContent.performance_considerations) && summaryContent.performance_considerations.length > 0 && (
+          <div className="bg-gradient-to-r from-orange-50 to-red-50 border border-orange-200 rounded-lg p-6">
+            <div className="flex items-center mb-4">
+              <Zap className="h-6 w-6 text-orange-600 mr-3" />
+              <h4 className="text-xl font-bold text-gray-900">Performance Considerations</h4>
+            </div>
+            <div className="space-y-2">
+              {summaryContent.performance_considerations.map((consideration, idx) => (
+                <div key={idx} className="flex items-start">
+                  <span className="inline-block w-2 h-2 bg-orange-500 rounded-full mt-2 mr-3 flex-shrink-0"></span>
+                  <p className="text-gray-700 bg-white p-3 rounded border-l-4 border-orange-400">{consideration}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Best Practices Section */}
+        {summaryContent?.best_practices && Array.isArray(summaryContent.best_practices) && summaryContent.best_practices.length > 0 && (
+          <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-6">
+            <div className="flex items-center mb-4">
+              <CheckCircle className="h-6 w-6 text-green-600 mr-3" />
+              <h4 className="text-xl font-bold text-gray-900">Best Practices</h4>
+            </div>
+            <div className="space-y-2">
+              {summaryContent.best_practices.map((practice, idx) => (
+                <div key={idx} className="flex items-start">
+                  <CheckCircle className="h-4 w-4 text-green-500 mt-1 mr-3 flex-shrink-0" />
+                  <p className="text-gray-700 bg-white p-3 rounded border-l-4 border-green-400">{practice}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* T-SQL Features Section */}
+        {summaryContent?.tsql_features && Array.isArray(summaryContent.tsql_features) && summaryContent.tsql_features.length > 0 && (
+          <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-6">
+            <div className="flex items-center mb-4">
+              <Database className="h-6 w-6 text-purple-600 mr-3" />
+              <h4 className="text-xl font-bold text-gray-900">T-SQL Features Used</h4>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {summaryContent.tsql_features.map((feature, idx) => (
+                <span key={idx} className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
+                  {feature}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Maintenance Notes Section */}
+        {summaryContent?.maintenance_notes && Array.isArray(summaryContent.maintenance_notes) && summaryContent.maintenance_notes.length > 0 && (
+          <div className="bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 rounded-lg p-6">
+            <div className="flex items-center mb-4">
+              <AlertTriangle className="h-6 w-6 text-yellow-600 mr-3" />
+              <h4 className="text-xl font-bold text-gray-900">Maintenance Notes</h4>
+            </div>
+            <div className="space-y-2">
+              {summaryContent.maintenance_notes.map((note, idx) => (
+                <div key={idx} className="flex items-start">
+                  <AlertTriangle className="h-4 w-4 text-yellow-500 mt-1 mr-3 flex-shrink-0" />
+                  <p className="text-gray-700 bg-white p-3 rounded border-l-4 border-yellow-400">{note}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        
         {/* Dependencies Section */}
         {summaryContent?.dependencies && Array.isArray(summaryContent.dependencies) && summaryContent.dependencies.length > 0 && (
           <div className="bg-white border border-gray-200 rounded-lg p-4">
@@ -1219,13 +1310,13 @@ export function CodeBase() {
   };
   const renderLineage = (filePath: string) => <div>Lineage data for {filePath} would be displayed here. (Not Implemented)</div>;
 
-  const handleProcessRepo = async (repoFullName: string) => {
+  const handleProcessRepo = async (repoFullName: string, selectedLanguage?: string) => {
     setProcessingError(null);
     setProcessingRepos(prev => [...prev, repoFullName]);
 
     try {
-      console.log(`[CodeBase] Starting processing for repository: ${repoFullName}`);
-      await processRepositoryForInsights(repoFullName);
+      console.log(`[CodeBase] Starting processing for repository: ${repoFullName}${selectedLanguage ? ` with language: ${selectedLanguage}` : ''}`);
+      await processRepositoryForInsights(repoFullName, selectedLanguage);
       
       // Add to queued list for polling
       setQueuedRepos(prev => [...prev, repoFullName]);
@@ -1233,36 +1324,14 @@ export function CodeBase() {
       // Initialize status to show progress bar immediately
       setReposStatus(prev => ({
         ...prev,
-        [repoFullName]: {
-          progress: 0,
-          totalFiles: 0, // Will be updated by the first poll
-          completed: 0,
-          failed: 0,
-          pending: 0, // Will be updated
-          detailedStatus: [],
-          isProcessing: true,
-          repositoryFullName: repoFullName
-        }
+        [repoFullName]: { status: 'processing', progress: 0, totalFiles: 0, completedFiles: 0 }
       }));
-
-      // Start polling immediately for this repository
-      const [owner, repo] = repoFullName.split('/');
-      try {
-        const initialStatus = await getProcessingStatus(owner, repo);
-        setReposStatus(prev => ({
-          ...prev,
-          [repoFullName]: {
-            ...initialStatus,
-            isProcessing: initialStatus.progress < 100
-          }
-        }));
-        console.log(`[CodeBase] Initial status for ${repoFullName}:`, initialStatus);
-      } catch (statusError) {
-        console.warn(`[CodeBase] Could not get initial status for ${repoFullName}, will retry with polling:`, statusError);
-      }
-
+      
+      // Start polling for this repo
+      startPolling(repoFullName);
+      
     } catch (error: any) {
-      console.error(`[CodeBase] Error processing repository ${repoFullName}:`, error);
+      console.error(`[CodeBase] Failed to initiate processing for ${repoFullName}:`, error);
       setProcessingError(`Failed to process ${repoFullName}: ${error.message}`);
       
       // Remove from queued repos if processing failed to start
@@ -1365,7 +1434,7 @@ export function CodeBase() {
       setSummaryGenerationError(null);
       
       // Start repository processing
-      await handleProcessRepo(repoFullName);
+      await handleProcessRepo(repoFullName, selectedLanguage);
       
       // Wait for processing to complete before generating summaries
       console.log(`[CodeBase] Repository processing started for ${repoFullName}, waiting for completion...`);
@@ -1636,7 +1705,7 @@ export function CodeBase() {
                     <div className="flex items-center">
                       <AlertTriangle className="h-6 w-6 text-red-500 mr-3" />
                       <div>
-                        <h3 className="text-lg font-medium text-red-900">Connection Error</h3>
+                        <h3 className="text-lg font-bold text-red-900">Connection Error</h3>
                         <p className="text-red-700 mt-1">{connectionError}</p>
                       </div>
                     </div>

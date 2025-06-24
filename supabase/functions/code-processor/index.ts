@@ -228,12 +228,12 @@ const specializedPrompts: Record<string, string> = {
       "tables_involved": ["Database tables accessed or modified"],
       "joins_operations": ["Types of joins and complex operations"],
       "indexes_constraints": ["Indexes, constraints, or performance considerations"],
-      "transactions": ["Transaction handling and ACID properties"]
+      "storage_engines": ["InnoDB, MyISAM, or other storage engine specifics"]
     },
     "code_blocks": [
       {
         "section": "Section name (e.g., 'Main Query', 'Subquery', 'Join Logic')",
-        "code": "Actual code snippet",
+        "code": "Actual code snippet", 
         "explanation": "Detailed explanation of what this code does",
         "business_context": "Why this operation matters for business"
       }
@@ -368,6 +368,236 @@ const specializedPrompts: Record<string, string> = {
   
   Focus on MySQL best practices, performance optimization, and business impact.`,
 
+    tsql: `You are a Microsoft SQL Server expert with extensive experience in T-SQL development, performance tuning, and enterprise database solutions.
+  
+  Analyze the provided T-SQL script and provide a comprehensive summary in JSON format with the following structure:
+  
+  {
+    "summary": {
+      "title": "Brief descriptive title of what this script does",
+      "purpose": "High-level business purpose and objective",
+      "complexity": "Simple|Moderate|Complex|Advanced"
+    },
+    "business_logic": {
+      "main_objectives": ["List of primary business goals"],
+      "data_transformation": "Description of how data is transformed or processed",
+      "business_rules": ["Key business rules implemented"],
+      "stakeholder_impact": "Who uses this code and how"
+    },
+    "technical_details": {
+      "tsql_features": ["T-SQL specific features used (CTEs, window functions, cursors, etc.)"],
+      "sql_server_features": ["SQL Server specific functionality"],
+      "tables_involved": ["Database tables accessed or modified"],
+      "procedures_functions": ["Stored procedures or functions referenced"],
+      "performance_optimization": ["Indexing, query hints, execution plan considerations"]
+    },
+    "code_blocks": [
+      {
+        "section": "Section name",
+        "code": "Actual code snippet",
+        "explanation": "Detailed explanation of what this code does",
+        "business_context": "Why this code matters for business"
+      }
+    ],
+    "error_handling": {
+      "try_catch_blocks": ["Error handling mechanisms implemented"],
+      "error_logging": ["How errors are logged and reported"],
+      "rollback_strategies": ["Data integrity protection measures"]
+    },
+    "dependencies": {
+      "database_objects": ["Tables, views, functions, procedures referenced"],
+      "external_systems": ["Any external data sources or systems"],
+      "prerequisites": ["What needs to exist before running this script"]
+    },
+    "execution_flow": ["Step-by-step breakdown of execution order"],
+    "best_practices": {
+      "followed": ["T-SQL best practices observed"],
+      "improvements": ["Suggested improvements for performance/maintainability"],
+      "sql_server_optimizations": ["SQL Server specific optimization recommendations"]
+    },
+    "maintenance_notes": ["Important considerations for future maintenance"]
+  }
+  
+  Focus on T-SQL best practices, SQL Server optimization, and enterprise-grade database development patterns.`,
+
+    plsql: `You are an Oracle Database developer with deep expertise in PL/SQL programming, performance tuning, and enterprise Oracle solutions.
+  
+  Analyze the provided PL/SQL code and provide a comprehensive summary in JSON format with the following structure:
+  
+  {
+    "summary": {
+      "title": "Brief descriptive title of what this code does",
+      "purpose": "High-level business purpose and objective",
+      "complexity": "Simple|Moderate|Complex|Advanced"
+    },
+    "business_logic": {
+      "main_objectives": ["List of primary business goals"],
+      "data_processing": "Description of how data is processed or manipulated",
+      "business_rules": ["Key business rules implemented"],
+      "stakeholder_impact": "Who benefits from this code"
+    },
+    "technical_details": {
+      "plsql_features": ["PL/SQL specific features used (cursors, collections, exceptions, etc.)"],
+      "oracle_features": ["Oracle-specific functionality leveraged"],
+      "database_objects": ["Tables, views, packages, procedures involved"],
+      "performance_features": ["Bulk operations, parallel processing, optimization techniques"],
+      "transaction_control": ["Transaction management and concurrency handling"]
+    },
+    "code_blocks": [
+      {
+        "section": "Section name",
+        "code": "Actual code snippet",
+        "explanation": "Detailed explanation of what this code does",
+        "business_context": "Why this functionality matters for business"
+      }
+    ],
+    "exception_handling": {
+      "predefined_exceptions": ["Built-in exceptions handled"],
+      "user_defined_exceptions": ["Custom exceptions defined and used"],
+      "error_propagation": ["How errors are handled and propagated"]
+    },
+    "dependencies": {
+      "database_objects": ["Objects this code depends on"],
+      "packages_procedures": ["Other PL/SQL units referenced"],
+      "system_privileges": ["Required Oracle privileges or roles"]
+    },
+    "execution_flow": ["Step-by-step breakdown of execution logic"],
+    "oracle_best_practices": {
+      "followed": ["Oracle and PL/SQL best practices observed"],
+      "improvements": ["Suggested improvements for performance/maintainability"],
+      "optimization_opportunities": ["Oracle-specific optimization recommendations"]
+    },
+    "maintenance_notes": ["Important considerations for future maintenance"]
+  }
+  
+  Focus on Oracle best practices, PL/SQL optimization, and enterprise database development patterns.`,
+
+    pyspark: `You are a big data engineer specializing in Apache Spark, PySpark, and distributed data processing at scale.
+  
+  Analyze the provided PySpark code and provide a comprehensive summary in JSON format with the following structure:
+  
+  {
+    "summary": {
+      "title": "Brief descriptive title of what this PySpark job does",
+      "purpose": "High-level business purpose and objective",
+      "complexity": "Simple|Moderate|Complex|Advanced"
+    },
+    "business_logic": {
+      "main_objectives": ["List of primary business goals"],
+      "data_pipeline_role": "Role in the overall data pipeline",
+      "business_rules": ["Key business rules implemented"],
+      "stakeholder_impact": "Who benefits from this data processing"
+    },
+    "technical_details": {
+      "spark_features": ["Spark/PySpark features used (DataFrames, RDDs, SQL, MLlib, etc.)"],
+      "data_sources": ["Input data sources and formats"],
+      "data_sinks": ["Output destinations and formats"],
+      "transformations": ["Key data transformations applied"],
+      "performance_optimizations": ["Caching, partitioning, broadcast variables used"]
+    },
+    "code_blocks": [
+      {
+        "section": "Section name",
+        "code": "Actual code snippet",
+        "explanation": "Detailed explanation of what this code does",
+        "business_context": "Why this transformation matters for business"
+      }
+    ],
+    "data_processing": {
+      "input_schema": ["Expected input data structure"],
+      "output_schema": ["Resulting data structure"],
+      "data_quality": ["Data validation and cleaning operations"],
+      "aggregations": ["Grouping, aggregation, and analytical operations"]
+    },
+    "spark_optimization": {
+      "partitioning_strategy": ["How data is partitioned for performance"],
+      "caching_strategy": ["DataFrames cached for reuse"],
+      "resource_usage": ["Expected cluster resource requirements"],
+      "scalability_considerations": ["How this scales with data volume"]
+    },
+    "dependencies": {
+      "external_systems": ["Databases, file systems, APIs accessed"],
+      "spark_libraries": ["Additional Spark libraries used"],
+      "configuration": ["Important Spark configuration requirements"]
+    },
+    "execution_flow": ["Step-by-step breakdown of data processing pipeline"],
+    "best_practices": {
+      "followed": ["Spark and big data best practices observed"],
+      "improvements": ["Suggested improvements for performance/reliability"],
+      "optimization_opportunities": ["Specific Spark optimization recommendations"]
+    },
+    "monitoring_considerations": ["Key metrics and monitoring points for production"],
+    "maintenance_notes": ["Important considerations for future maintenance"]
+  }
+  
+  Focus on Spark best practices, distributed computing efficiency, and scalable data processing patterns.`,
+
+    python: `You are a senior Python developer with expertise in software engineering best practices, Python ecosystems, and application architecture.
+  
+  Analyze the provided Python code and provide a comprehensive summary in JSON format with the following structure:
+  
+  {
+    "summary": {
+      "title": "Brief descriptive title of what this Python code does",
+      "purpose": "High-level business purpose and objective",
+      "complexity": "Simple|Moderate|Complex|Advanced"
+    },
+    "business_logic": {
+      "main_objectives": ["List of primary business goals"],
+      "problem_solved": "What business problem this code addresses",
+      "business_rules": ["Key business rules implemented"],
+      "stakeholder_impact": "Who benefits from this functionality"
+    },
+    "technical_details": {
+      "python_features": ["Python-specific features and idioms used"],
+      "libraries_frameworks": ["External packages and frameworks utilized"],
+      "design_patterns": ["Software design patterns implemented"],
+      "data_structures": ["Key data structures and algorithms"],
+      "async_concurrency": ["Asynchronous or concurrent programming approaches"]
+    },
+    "code_blocks": [
+      {
+        "section": "Section name",
+        "code": "Actual code snippet",
+        "explanation": "Detailed explanation of what this code does",
+        "business_context": "Why this functionality matters for business"
+      }
+    ],
+    "architecture": {
+      "code_organization": ["How the code is structured and organized"],
+      "interfaces_apis": ["Public interfaces, APIs, or entry points"],
+      "error_handling": ["Exception handling and error management"],
+      "testing_approach": ["Testing strategy and test coverage"]
+    },
+    "dependencies": {
+      "external_packages": ["Third-party libraries and their purposes"],
+      "system_requirements": ["System or environment dependencies"],
+      "configuration": ["Configuration files or environment variables needed"]
+    },
+    "performance_considerations": {
+      "optimization_techniques": ["Performance optimization approaches used"],
+      "memory_usage": ["Memory management and efficiency considerations"],
+      "scalability": ["How the code scales with input size"]
+    },
+    "code_quality": {
+      "pep8_compliance": ["Adherence to PEP 8 style guidelines"],
+      "documentation": ["Docstrings and code documentation quality"],
+      "type_hints": ["Use of type annotations"],
+      "maintainability": ["Code maintainability assessment"]
+    },
+    "execution_flow": ["Step-by-step breakdown of execution logic"],
+    "best_practices": {
+      "followed": ["Python best practices observed"],
+      "improvements": ["Suggested improvements for code quality"],
+      "pythonic_patterns": ["Pythonic idioms and patterns used"]
+    },
+    "security_considerations": ["Security implications and recommendations"],
+    "deployment_notes": ["Deployment, packaging, and distribution considerations"],
+    "maintenance_notes": ["Important considerations for future maintenance"]
+  }
+  
+  Focus on Python best practices, software engineering principles, and clean code architecture.`,
+
     default: `You are a senior software engineer with expertise across multiple programming languages and technologies.
   
   Analyze the provided code and provide a comprehensive summary in JSON format with the following structure:
@@ -414,31 +644,16 @@ const specializedPrompts: Record<string, string> = {
     }
   }
   
-  Focus on code quality, maintainability, and business impact.`
+  Focus on code quality, maintainability, and business impact.`,
+
 };
 
-// Function to get system prompt based on detected language
-function getSystemPrompt(language: string): string {
-    // Map common file extensions and detected languages to our prompt keys
-    const languageMapping: Record<string, string> = {
-        'sql': 'postgres', // Default SQL to postgres, could be made more sophisticated
-        'generic_sql': 'postgres',
-        'postgres': 'postgres',
-        'postgresql': 'postgres', 
-        'mysql': 'mysql',
-        'dbt': 'dbt',
-        'python': 'default',
-        'javascript': 'default',
-        'typescript': 'default',
-        'java': 'default',
-        'go': 'default',
-        'rust': 'default',
-        'c++': 'default',
-        'c': 'default'
-    };
-    
-    const promptKey = languageMapping[language?.toLowerCase()] || 'default';
-    return specializedPrompts[promptKey] || specializedPrompts.default;
+// Function to get system prompt based on user-selected language
+function getSystemPrompt(selectedLanguage: string): string {
+    // Use the user's selected language directly (no mapping needed)
+    // since job.analysis_language already contains their choice from the dropdown
+    const languageKey = selectedLanguage?.toLowerCase();
+    return specializedPrompts[languageKey] || specializedPrompts.default;
 }
 
 // --- Main Handler ---

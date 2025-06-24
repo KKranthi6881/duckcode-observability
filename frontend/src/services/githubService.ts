@@ -301,14 +301,14 @@ export const decodeFileContent = (content: string, encoding: string): string => 
   return content;
 };
 
-export const processRepositoryForInsights = async (repositoryFullName: string): Promise<any> => {
-  console.log(`[GitHubService] Requesting to process repository: ${repositoryFullName}`);
+export const processRepositoryForInsights = async (repositoryFullName: string, selectedLanguage?: string): Promise<any> => {
+  console.log(`[GitHubService] Requesting to process repository: ${repositoryFullName}${selectedLanguage ? ` with language: ${selectedLanguage}` : ''}`);
   try {
     const headers = await getAuthHeaders();
     const response = await fetchWithTimeout(`${API_BASE_URL}/api/insights/process-repository`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ repositoryFullName }),
+      body: JSON.stringify({ repositoryFullName, selectedLanguage }),
     });
 
     if (!response.ok) {

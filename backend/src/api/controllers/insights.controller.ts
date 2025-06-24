@@ -49,14 +49,14 @@ export const processRepository = async (req: Request, res: Response, next: NextF
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
-    const { repositoryFullName } = req.body;
+    const { repositoryFullName, selectedLanguage } = req.body;
     if (!repositoryFullName || !repositoryFullName.includes('/')) {
-      return res.status(400).json({ message: 'A valid repositoryFullName (e.g., \"owner/repo\") is required.' });
+      return res.status(400).json({ message: 'A valid repositoryFullName (e.g., "owner/repo") is required.' });
     }
 
     const [owner, repo] = repositoryFullName.split('/');
 
-    console.log(`[InsightsController] Starting to process repository: ${repositoryFullName} for user ${userId}`);
+    console.log(`[InsightsController] Starting to process repository: ${repositoryFullName} for user ${userId}${selectedLanguage ? ` with language: ${selectedLanguage}` : ''}`);
 
     // <<< TEST UPSERT START >>>
     try {
@@ -167,6 +167,7 @@ export const processRepository = async (req: Request, res: Response, next: NextF
         retry_count: 0,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
+        analysis_language: selectedLanguage || 'default', // Store the selected language for AI analysis
       }));
 
       console.log(`Attempting to create ${jobRecords.length} processing jobs.`);
