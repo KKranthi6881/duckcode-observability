@@ -365,35 +365,49 @@ export const getFileSummary = async (owner: string, repo: string, filePath: stri
 };
 
 export const generateRepositorySummaries = async (owner: string, repo: string, selectedLanguage?: string): Promise<any> => {
-  console.log(`[GitHubService] Requesting to generate summaries for repository: ${owner}/${repo}`);
-  if (selectedLanguage) {
-    console.log(`[GitHubService] Using specialized analysis for language: ${selectedLanguage}`);
-  }
-  
   try {
     const headers = await getAuthHeaders();
     
-    // Prepare request body with selected language
-    const requestBody = selectedLanguage ? JSON.stringify({ selectedLanguage }) : undefined;
-    
-    const response = await fetchWithTimeout(`${API_BASE_URL}/api/insights/generate-summaries/${owner}/${repo}`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/api/github/repos/${owner}/${repo}/generate-summaries`, {
       method: 'POST',
-      headers: {
-        ...headers,
-        ...(requestBody ? { 'Content-Type': 'application/json' } : {})
-      },
-      ...(requestBody ? { body: requestBody } : {})
+      headers,
+      body: JSON.stringify({ selectedLanguage }),
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: response.statusText }));
-      throw new Error(`Failed to generate summaries: ${errorData.message}`);
+      throw new Error(`Failed to generate summaries: ${response.statusText}`);
     }
 
     return await response.json();
   } catch (error) {
-    console.error(`[GitHubService] Error generating summaries for ${owner}/${repo}:`, error);
+    console.error('[GitHubService] Error generating summaries:', error);
     throw error;
+  }
+};
+
+// Check if a repository has been summarized/documented
+export const getRepositorySummaryStatus = async (owner: string, repo: string): Promise<{ hasSummaries: boolean; summaryCount: number; lastSummaryDate?: string }> => {
+  try {
+    const headers = await getAuthHeaders();
+    
+    const response = await fetchWithTimeout(`${API_BASE_URL}/api/github/repos/${owner}/${repo}/summary-status`, {
+      method: 'GET',
+      headers,
+    });
+
+    if (!response.ok) {
+      // If 404, repository hasn't been processed
+      if (response.status === 404) {
+        return { hasSummaries: false, summaryCount: 0 };
+      }
+      throw new Error(`Failed to get summary status: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('[GitHubService] Error getting summary status:', error);
+    // Return default status on error
+    return { hasSummaries: false, summaryCount: 0 };
   }
 };
 
