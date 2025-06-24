@@ -364,13 +364,25 @@ export const getFileSummary = async (owner: string, repo: string, filePath: stri
   }
 };
 
-export const generateRepositorySummaries = async (owner: string, repo: string): Promise<any> => {
+export const generateRepositorySummaries = async (owner: string, repo: string, selectedLanguage?: string): Promise<any> => {
   console.log(`[GitHubService] Requesting to generate summaries for repository: ${owner}/${repo}`);
+  if (selectedLanguage) {
+    console.log(`[GitHubService] Using specialized analysis for language: ${selectedLanguage}`);
+  }
+  
   try {
     const headers = await getAuthHeaders();
+    
+    // Prepare request body with selected language
+    const requestBody = selectedLanguage ? JSON.stringify({ selectedLanguage }) : undefined;
+    
     const response = await fetchWithTimeout(`${API_BASE_URL}/api/insights/generate-summaries/${owner}/${repo}`, {
       method: 'POST',
-      headers,
+      headers: {
+        ...headers,
+        ...(requestBody ? { 'Content-Type': 'application/json' } : {})
+      },
+      ...(requestBody ? { body: requestBody } : {})
     });
 
     if (!response.ok) {

@@ -160,41 +160,28 @@ export const processRepository = async (req: Request, res: Response, next: NextF
 
     // --- START: New logic to create processing jobs ---
     if (data && data.length > 0) {
-      // 1. Find a default prompt template to use for the jobs.
-      const { data: promptTemplate, error: templateError } = await supabase
-        .from('prompt_templates')
-        .select('id')
-        .limit(1)
-        .single();
+      // 1. Prepare job records for each successfully upserted file.
+      const jobRecords = data.map(file => ({
+        file_id: file.id,
+        status: 'pending',
+        retry_count: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }));
 
-      if (templateError || !promptTemplate) {
-        console.error('[InsightsController] CRITICAL: Could not find a default prompt template. Job creation failed.', templateError);
-        throw new Error('Database is missing a default prompt template. Cannot create processing jobs.');
-      } else {
-        const defaultPromptTemplateId = promptTemplate.id;
+      console.log(`Attempting to create ${jobRecords.length} processing jobs.`);
 
-        // 2. Prepare job records for each successfully upserted file.
-        const jobRecords = data.map(file => ({
-          file_id: file.id,
-          prompt_template_id: defaultPromptTemplateId,
-          status: 'pending',
-          retry_count: 0,
-        }));
+      // 3. Insert the jobs.
+      const { error: jobError } = await supabase
+        .from('processing_jobs')
+        .insert(jobRecords);
 
-        console.log(`Attempting to create ${jobRecords.length} processing jobs.`);
-
-        // 3. Insert the jobs.
-        const { error: jobError } = await supabase
-          .from('processing_jobs')
-          .insert(jobRecords);
-
-        if (jobError) {
-          console.error('Supabase DB Error during job creation:', jobError);
-          throw new Error(`Failed to create processing jobs: ${jobError.message}`);
-        }
-
-        console.log(`Successfully created ${jobRecords.length} processing jobs.`);
+      if (jobError) {
+        console.error('Supabase DB Error during job creation:', jobError);
+        throw new Error(`Failed to create processing jobs: ${jobError.message}`);
       }
+
+      console.log(`Successfully created ${jobRecords.length} processing jobs.`);
     }
     // --- END: New logic ---
 
@@ -430,6 +417,7 @@ export const getFileSummary = async (req: Request, res: Response, next: NextFunc
 export const generateRepositorySummaries = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { owner, repo } = req.params;
+    const { selectedLanguage } = req.body; // Get selected language for specialized analysis
     const repositoryFullName = `${owner}/${repo}`;
     const userId = (req as any).user?.id;
 
@@ -438,6 +426,9 @@ export const generateRepositorySummaries = async (req: Request, res: Response, n
     }
 
     console.log(`[InsightsController] Starting AI summary generation for repository: ${repositoryFullName}`);
+    if (selectedLanguage) {
+      console.log(`[InsightsController] Using specialized analysis for language: ${selectedLanguage}`);
+    }
 
     // Check if user has access to this repository and get Octokit instance
     const octokit = await githubService.getOctokitForUser(userId);
@@ -509,8 +500,13 @@ export const generateRepositorySummaries = async (req: Request, res: Response, n
             return;
           }
 
-          // Generate AI summary
-          const summary = await aiService.generateCodeSummary(fileContent, file.file_path, file.language || 'unknown');
+          // Generate AI summary with selected language for specialized analysis
+          const summary = await aiService.generateCodeSummary(
+            fileContent, 
+            file.file_path, 
+            file.language || 'unknown',
+            selectedLanguage // Pass selected language for specialized prompts
+          );
 
           // Save summary to database
           const { error: insertError } = await supabaseCodeInsights

@@ -136,7 +136,7 @@ async function callLlmApi(
 
     switch (provider.toLowerCase()) {
         case 'openai':
-            return await callOpenAI(model, prompt, params);
+            return await callOpenAIWithSystemPrompt(getSystemPrompt(prompt), prompt, params);
         // TODO: Add cases for 'google', 'anthropic', etc.
         // case 'anthropic':
         //     apiKey = Deno.env.get('ANTHROPIC_CLAUDE_API_KEY');
@@ -158,26 +158,25 @@ async function callLlmApi(
     }
 }
 
-async function callOpenAI(
-    model: string,
-    prompt: string,
-    params?: Record<string, any>
-): Promise<any> {
+// --- OpenAI API with System Prompt ---
+async function callOpenAIWithSystemPrompt(systemPrompt: string, userMessage: string): Promise<any> {
     let apiKey: string | undefined;
     let apiUrl: string;
     let requestBody: any;
     let headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    console.log(`Calling OpenAI API. Model: ${model}`);
+    console.log(`Calling OpenAI API with system prompt`);
 
     apiKey = Deno.env.get('OPENAI_API_KEY');
     if (!apiKey) throw new Error('OpenAI API key not configured.');
     apiUrl = 'https://api.openai.com/v1/chat/completions';
     headers['Authorization'] = `Bearer ${apiKey}`;
     requestBody = {
-        model: model,
-        messages: [{ role: 'user', content: prompt }],
+        model: 'gpt-4.1-mini',
+        messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userMessage },
+        ],
         response_format: { type: "json_object" },
-        ...params,
     };
 
     const response = await fetch(apiUrl, {
@@ -203,6 +202,244 @@ async function callOpenAI(
     }
 }
 
+// Add the specialized prompts object (matching codeSummary.prompts.ts)
+const specializedPrompts: Record<string, string> = {
+    postgres: `You are a senior database engineer specializing in PostgreSQL and data architecture.
+  
+  Analyze the provided PostgreSQL code and provide a comprehensive summary in JSON format with the following structure:
+  
+  {
+    "summary": {
+      "title": "Brief descriptive title of what this code does",
+      "purpose": "High-level business purpose and objective",
+      "complexity": "Simple|Moderate|Complex|Advanced",
+      "code_type": "query|procedure|function|trigger|view|table_creation"
+    },
+    "business_logic": {
+      "main_objectives": ["List of primary business goals"],
+      "data_transformation": "Description of how data is transformed or retrieved",
+      "business_rules": ["Key business rules implemented"],
+      "stakeholder_impact": "Who uses this code and how",
+      "kpis_metrics": ["Key performance indicators or metrics involved"]
+    },
+    "technical_details": {
+      "postgres_features": ["PostgreSQL-specific features used"],
+      "query_type": "SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP and complexity",
+      "tables_involved": ["Database tables accessed or modified"],
+      "joins_operations": ["Types of joins and complex operations"],
+      "indexes_constraints": ["Indexes, constraints, or performance considerations"],
+      "transactions": ["Transaction handling and ACID properties"]
+    },
+    "code_blocks": [
+      {
+        "section": "Section name (e.g., 'Main Query', 'Subquery', 'Join Logic')",
+        "code": "Actual code snippet",
+        "explanation": "Detailed explanation of what this code does",
+        "business_context": "Why this operation matters for business"
+      }
+    ],
+    "execution_flow": ["Step-by-step breakdown of query execution"],
+    "performance_considerations": {
+      "optimization_opportunities": ["Potential performance improvements"],
+      "resource_usage": ["Expected CPU, memory, I/O impact"],
+      "scalability_notes": ["How this performs with large datasets"]
+    },
+    "dependencies": ["External tables, functions, or systems this code depends on"],
+    "best_practices": {
+      "followed": ["PostgreSQL best practices observed"],
+      "improvements": ["Suggested improvements for maintainability"]
+    }
+  }
+  
+  Focus on PostgreSQL best practices, performance optimization, and business impact.`,
+
+    dbt: `You are a senior analytics engineer specializing in dbt and modern data stack architecture.
+  
+  Analyze the provided dbt model and provide a comprehensive summary in JSON format with the following structure:
+  
+  {
+    "summary": {
+      "title": "Brief descriptive title of what this model does",
+      "purpose": "High-level business purpose and objective",
+      "complexity": "Simple|Moderate|Complex|Advanced",
+      "model_type": "staging|intermediate|mart|snapshot|seed"
+    },
+    "business_logic": {
+      "main_objectives": ["List of primary business goals"],
+      "data_transformation": "Description of how raw data is transformed",
+      "business_rules": ["Key business rules implemented"],
+      "stakeholder_impact": "Who uses this model and how",
+      "kpis_metrics": ["Key performance indicators or metrics calculated"]
+    },
+    "technical_details": {
+      "dbt_features": ["dbt-specific features used (macros, tests, documentation, etc.)"],
+      "materialization": "table|view|incremental|ephemeral and reasoning",
+      "source_tables": ["Upstream data sources and their roles"],
+      "sql_operations": ["Main SQL transformations performed"],
+      "jinja_logic": ["Jinja templating and macros used"],
+      "incremental_strategy": "If incremental, what strategy is used"
+    },
+    "code_blocks": [
+      {
+        "section": "Section name (e.g., 'Source Selection', 'Business Logic', 'Final Transformation')",
+        "code": "Actual code snippet",
+        "explanation": "Detailed explanation of what this code does",
+        "business_context": "Why this transformation matters for business"
+      }
+    ],
+    "dbt_project_context": {
+      "dependencies": ["Other dbt models this depends on"],
+      "downstream_models": ["Models that depend on this one"],
+      "data_lineage": "Position in the overall data pipeline",
+      "project_structure": "How this fits into dbt project organization"
+    },
+    "data_quality": {
+      "tests_applied": ["dbt tests configured for this model"],
+      "data_validation": ["Business logic validation rules"],
+      "freshness_requirements": ["Data freshness expectations"]
+    },
+    "performance_considerations": {
+      "query_optimization": ["SQL performance optimizations"],
+      "materialization_rationale": "Why this materialization strategy was chosen",
+      "resource_usage": ["Compute and storage considerations"]
+    },
+    "documentation": {
+      "model_description": "Documented purpose and usage",
+      "column_descriptions": ["Key column definitions and business meaning"],
+      "usage_examples": ["How downstream users should consume this model"]
+    },
+    "execution_flow": ["Step-by-step breakdown of data transformation"],
+    "best_practices": {
+      "followed": ["dbt best practices observed"],
+      "improvements": ["Suggested improvements for maintainability"],
+      "naming_conventions": ["Adherence to naming standards"]
+    },
+    "maintenance_notes": ["Important considerations for future development"]
+  }
+  
+  Focus on dbt best practices, data modeling principles, and how this model fits into the broader analytics engineering workflow.`,
+
+    mysql: `You are a senior database engineer specializing in MySQL and data architecture.
+  
+  Analyze the provided MySQL code and provide a comprehensive summary in JSON format with the following structure:
+  
+  {
+    "summary": {
+      "title": "Brief descriptive title of what this code does",
+      "purpose": "High-level business purpose and objective", 
+      "complexity": "Simple|Moderate|Complex|Advanced",
+      "code_type": "query|procedure|function|trigger|view|table_creation"
+    },
+    "business_logic": {
+      "main_objectives": ["List of primary business goals"],
+      "data_transformation": "Description of how data is transformed or retrieved",
+      "business_rules": ["Key business rules implemented"],
+      "stakeholder_impact": "Who uses this code and how",
+      "kpis_metrics": ["Key performance indicators or metrics involved"]
+    },
+    "technical_details": {
+      "mysql_features": ["MySQL-specific features used"],
+      "query_type": "SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP and complexity",
+      "tables_involved": ["Database tables accessed or modified"],
+      "joins_operations": ["Types of joins and complex operations"],
+      "indexes_constraints": ["Indexes, constraints, or performance considerations"],
+      "storage_engines": ["InnoDB, MyISAM, or other storage engine specifics"]
+    },
+    "code_blocks": [
+      {
+        "section": "Section name (e.g., 'Main Query', 'Subquery', 'Join Logic')",
+        "code": "Actual code snippet", 
+        "explanation": "Detailed explanation of what this code does",
+        "business_context": "Why this operation matters for business"
+      }
+    ],
+    "execution_flow": ["Step-by-step breakdown of query execution"],
+    "performance_considerations": {
+      "optimization_opportunities": ["Potential performance improvements"],
+      "resource_usage": ["Expected CPU, memory, I/O impact"],
+      "scalability_notes": ["How this performs with large datasets"]
+    },
+    "dependencies": ["External tables, functions, or systems this code depends on"],
+    "best_practices": {
+      "followed": ["MySQL best practices observed"],
+      "improvements": ["Suggested improvements for maintainability"]
+    }
+  }
+  
+  Focus on MySQL best practices, performance optimization, and business impact.`,
+
+    default: `You are a senior software engineer with expertise across multiple programming languages and technologies.
+  
+  Analyze the provided code and provide a comprehensive summary in JSON format with the following structure:
+  
+  {
+    "summary": {
+      "title": "Brief descriptive title of what this code does",
+      "purpose": "High-level business purpose and objective",
+      "complexity": "Simple|Moderate|Complex|Advanced",
+      "code_type": "function|class|module|script|configuration"
+    },
+    "business_logic": {
+      "main_objectives": ["List of primary business goals"],
+      "data_transformation": "Description of how data or state is transformed",
+      "business_rules": ["Key business rules implemented"],
+      "stakeholder_impact": "Who uses this code and how",
+      "kpis_metrics": ["Key performance indicators or metrics involved"]
+    },
+    "technical_details": {
+      "language_features": ["Language-specific features used"],
+      "design_patterns": ["Design patterns and architectural approaches"],
+      "data_structures": ["Key data structures and algorithms"],
+      "external_dependencies": ["Libraries, APIs, or services used"],
+      "error_handling": ["Error handling and validation approaches"]
+    },
+    "code_blocks": [
+      {
+        "section": "Section name (e.g., 'Input Validation', 'Core Logic', 'Output Processing')",
+        "code": "Actual code snippet",
+        "explanation": "Detailed explanation of what this code does", 
+        "business_context": "Why this functionality matters for business"
+      }
+    ],
+    "execution_flow": ["Step-by-step breakdown of code execution"],
+    "performance_considerations": {
+      "optimization_opportunities": ["Potential performance improvements"],
+      "resource_usage": ["Expected CPU, memory, network impact"],
+      "scalability_notes": ["How this performs under load"]
+    },
+    "dependencies": ["External systems, databases, or services this code depends on"],
+    "best_practices": {
+      "followed": ["Programming best practices observed"],
+      "improvements": ["Suggested improvements for maintainability"]
+    }
+  }
+  
+  Focus on code quality, maintainability, and business impact.`
+};
+
+// Function to get system prompt based on detected language
+function getSystemPrompt(language: string): string {
+    // Map common file extensions and detected languages to our prompt keys
+    const languageMapping: Record<string, string> = {
+        'sql': 'postgres', // Default SQL to postgres, could be made more sophisticated
+        'generic_sql': 'postgres',
+        'postgres': 'postgres',
+        'postgresql': 'postgres', 
+        'mysql': 'mysql',
+        'dbt': 'dbt',
+        'python': 'default',
+        'javascript': 'default',
+        'typescript': 'default',
+        'java': 'default',
+        'go': 'default',
+        'rust': 'default',
+        'c++': 'default',
+        'c': 'default'
+    };
+    
+    const promptKey = languageMapping[language?.toLowerCase()] || 'default';
+    return specializedPrompts[promptKey] || specializedPrompts.default;
+}
 
 // --- Main Handler ---
 serve(async (req) => {
@@ -268,48 +505,26 @@ serve(async (req) => {
             fileRecord.file_path
         );
 
-        // 4. Fetch Prompt Template
-        console.log(`Fetching prompt template ID: ${job.prompt_template_id}`);
-        const { data: promptRecord, error: promptError } = await supabaseAdmin
-            .from('prompt_templates') // Will use 'code_insights.prompt_templates'
-            .select('*')
-            .eq('id', job.prompt_template_id)
-            .single<PromptTemplate>();
+        // 4. Get System Prompt based on file language
+        console.log(`Getting system prompt for language: ${fileRecord.language}`);
+        const systemPrompt = getSystemPrompt(fileRecord.language);
+        
+        // 5. Construct user message with file details
+        const userMessage = `Please analyze the following code file:
 
-        if (promptError || !promptRecord) {
-            throw new Error(`Failed to fetch prompt template: ${promptError?.message || 'Not found'}`);
-        }
-        console.log(`Prompt template fetched: ${promptRecord.id}`);
+File Path: ${fileRecord.file_path}
+Language: ${fileRecord.language}
 
-        const promptTemplate = promptRecord as PromptTemplate;
+\`\`\`${fileRecord.language}
+${fileContent}
+\`\`\`
 
-        // 5. Construct the prompt for the LLM by replacing all placeholders
-        if (!promptTemplate.user_prompt) {
-            throw new Error(`Prompt template with ID ${promptTemplate.id} has no user_prompt content.`);
-        }
+Provide a comprehensive analysis in the requested JSON format.`;
 
-        const finalPrompt = promptTemplate.user_prompt
-            .replace('{{file_path}}', fileRecord.file_path)
-            .replace('{{language}}', fileRecord.language)
-            .replace('{{code_snippet}}', fileContent);
-
-        // 6. Call the appropriate LLM API based on the prompt template
-        // Fallback logic for provider and model name for schema evolution
-        const llmProvider = promptTemplate.llm_provider || promptTemplate.model_provider;
-        const llmModelName = promptTemplate.llm_model_name || promptTemplate.model_name;
-
-        if (!llmProvider || !llmModelName) {
-            throw new Error(`Could not determine LLM provider or model for prompt template ${promptTemplate.id}`);
-        }
-
-        console.log(`Sending request to LLM provider: ${llmProvider}`);
-        const llmResponse = await callLlmApi(
-            llmProvider,
-            llmModelName,
-            finalPrompt,
-            promptTemplate.llm_parameters
-        );
-        console.log("LLM API call successful.");
+        // 6. Call OpenAI with system and user messages
+        console.log(`Sending request to OpenAI GPT-4.1-mini`);
+        const llmResponse = await callOpenAIWithSystemPrompt(systemPrompt, userMessage);
+        console.log("OpenAI API call successful.");
 
         // 7. Store Results
         console.log(`Storing LLM summary for file_id: ${job.file_id}`);
@@ -319,9 +534,8 @@ serve(async (req) => {
                 job_id: job.id, // Add the job_id here
                 file_id: job.file_id,
                 summary_json: llmResponse,
-                prompt_template_id: job.prompt_template_id,
-                llm_provider: llmProvider,
-                llm_model_name: llmModelName,
+                llm_provider: 'openai',
+                llm_model_name: 'gpt-4.1-mini',
                 // last_processed_at: new Date().toISOString() // Consider adding this here
             })
             .select()

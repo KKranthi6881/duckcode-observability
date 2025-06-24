@@ -6,6 +6,7 @@ ADD COLUMN IF NOT EXISTS github_installation_id BIGINT;
 
 COMMENT ON COLUMN code_insights.files.github_installation_id IS 'The GitHub App installation ID associated with this repository/file.';
 
+/*
 -- 2. Add LLM configuration columns to prompt_templates table
 ALTER TABLE code_insights.prompt_templates
 ADD COLUMN IF NOT EXISTS llm_provider TEXT,
@@ -15,6 +16,7 @@ ADD COLUMN IF NOT EXISTS llm_parameters JSONB;
 COMMENT ON COLUMN code_insights.prompt_templates.llm_provider IS 'The LLM provider to use (e.g., openai, google, anthropic).';
 COMMENT ON COLUMN code_insights.prompt_templates.llm_model_name IS 'The specific model name for the LLM provider.';
 COMMENT ON COLUMN code_insights.prompt_templates.llm_parameters IS 'Additional JSON parameters for the LLM API call.';
+*/
 
 -- 3. Create lease_processing_job() function
 CREATE OR REPLACE FUNCTION code_insights.lease_processing_job()

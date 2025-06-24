@@ -38,7 +38,9 @@ import {
   Lightbulb,
   BookOpen,
   AlertTriangle,
-  X
+  X,
+  Play,
+  CheckCircle
 } from 'lucide-react';
 import { useAuth } from '../../features/auth/contexts/AuthContext';
 import { 
@@ -148,6 +150,22 @@ export function CodeBase() {
   const [isLoadingFileSummary, setIsLoadingFileSummary] = useState(false);
   const [fileSummaryError, setFileSummaryError] = useState<string | null>(null);
   const [summaryGenerationError, setSummaryGenerationError] = useState<string | null>(null);
+
+  // Language selection and summary generation state
+  const [selectedLanguages, setSelectedLanguages] = useState<Record<string, string>>({});
+  const [generatingSummaries, setGeneratingSummaries] = useState<string[]>([]);
+
+  // Available languages for selection
+  const availableLanguages = [
+    { value: 'default', label: 'General Analysis' },
+    { value: 'postgres', label: 'PostgreSQL' },
+    { value: 'mysql', label: 'MySQL' },
+    { value: 'dbt', label: 'dbt ' },
+    { value: 'tsql', label: 'T-SQL (SQL Server)' },
+    { value: 'plsql', label: 'PL/SQL (Oracle)' },
+    { value: 'pyspark', label: 'PySpark' },
+    { value: 'python', label: 'Python' },
+  ];
 
   // Fetch GitHub connection status
   const fetchGitHubConnectionStatus = useCallback(async () => {
@@ -913,7 +931,7 @@ export function CodeBase() {
       return (
         <div className="p-4 text-red-700 bg-red-50 border border-red-200 rounded-md">
           <div className="flex items-center">
-            <AlertTriangle className="h-5 w-5 mr-2" />
+            <AlertTriangle className="h-5 w-5 text-red-700 mr-2" />
             <h4 className="font-semibold">Error Loading Documentation</h4>
           </div>
           <p className="mt-1">{fileSummaryError}</p>
@@ -952,25 +970,166 @@ export function CodeBase() {
           </div>
         </div>
 
-        {/* Summary Section */}
-        {summaryContent?.summary && (
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <div className="flex items-center mb-3">
-              <Info className="h-5 w-5 text-green-600 mr-2" />
-              <h4 className="text-lg font-semibold text-gray-900">Summary</h4>
-            </div>
-            <p className="text-gray-700 leading-relaxed">{summaryContent.summary}</p>
-          </div>
-        )}
+        {/* Rich Structured Documentation */}
+        {summaryContent?.business_logic || summaryContent?.technical_details || summaryContent?.code_blocks ? (
+          <div className="space-y-6">
+            {/* Business Logic Section */}
+            {summaryContent.business_logic && (
+              <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg p-6">
+                <div className="flex items-center mb-4">
+                  <TrendingUp className="h-6 w-6 text-green-600 mr-3" />
+                  <h4 className="text-xl font-bold text-gray-900">Business Logic & Impact</h4>
+                </div>
+                
+                {summaryContent.business_logic.main_objectives && (
+                  <div className="mb-4">
+                    <h5 className="font-semibold text-gray-800 mb-2">📋 Main Objectives</h5>
+                    <ul className="list-disc list-inside space-y-1 text-gray-700 ml-4">
+                      {summaryContent.business_logic.main_objectives.map((obj, idx) => (
+                        <li key={idx}>{obj}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                
+                {summaryContent.business_logic.data_transformation && (
+                  <div className="mb-4">
+                    <h5 className="font-semibold text-gray-800 mb-2">🔄 Data Transformation</h5>
+                    <p className="text-gray-700 bg-white p-3 rounded border-l-4 border-green-400">{summaryContent.business_logic.data_transformation}</p>
+                  </div>
+                )}
+                
+                {summaryContent.business_logic.stakeholder_impact && (
+                  <div className="mb-4">
+                    <h5 className="font-semibold text-gray-800 mb-2">👥 Stakeholder Impact</h5>
+                    <p className="text-gray-700 bg-white p-3 rounded border-l-4 border-blue-400">{summaryContent.business_logic.stakeholder_impact}</p>
+                  </div>
+                )}
+              </div>
+            )}
 
-        {/* Description Section */}
-        {summaryContent?.description && (
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <div className="flex items-center mb-3">
-              <BookOpen className="h-5 w-5 text-purple-600 mr-2" />
-              <h4 className="text-lg font-semibold text-gray-900">Description</h4>
-            </div>
-            <p className="text-gray-700 leading-relaxed">{summaryContent.description}</p>
+            {/* Code Blocks - Step by Step Explanation */}
+            {summaryContent.code_blocks && summaryContent.code_blocks.length > 0 && (
+              <div className="bg-white border border-gray-200 rounded-lg p-6">
+                <div className="flex items-center mb-4">
+                  <Code className="h-6 w-6 text-purple-600 mr-3" />
+                  <h4 className="text-xl font-bold text-gray-900">Step-by-Step Code Walkthrough</h4>
+                </div>
+                
+                <div className="space-y-6">
+                  {summaryContent.code_blocks.map((block, idx) => (
+                    <div key={idx} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                      <div className="flex items-center mb-3">
+                        <span className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-semibold mr-3">
+                          Step {idx + 1}
+                        </span>
+                        <h5 className="text-lg font-semibold text-gray-900">{block.section}</h5>
+                      </div>
+                      
+                      {/* Code Block */}
+                      <div className="mb-4">
+                        <div className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto">
+                          <pre className="text-sm"><code>{block.code}</code></pre>
+                        </div>
+                      </div>
+                      
+                      {/* Technical Explanation */}
+                      <div className="mb-3">
+                        <h6 className="font-semibold text-gray-800 mb-2">🔧 Technical Explanation</h6>
+                        <p className="text-gray-700 bg-blue-50 p-3 rounded border-l-4 border-blue-400">{block.explanation}</p>
+                      </div>
+                      
+                      {/* Business Context */}
+                      <div>
+                        <h6 className="font-semibold text-gray-800 mb-2">💼 Business Context</h6>
+                        <p className="text-gray-700 bg-green-50 p-3 rounded border-l-4 border-green-400">{block.business_context}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Technical Details */}
+            {summaryContent.technical_details && (
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
+                <div className="flex items-center mb-4">
+                  <Settings className="h-6 w-6 text-gray-600 mr-3" />
+                  <h4 className="text-xl font-bold text-gray-900">Technical Implementation</h4>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {summaryContent.technical_details.materialization && (
+                    <div>
+                      <h5 className="font-semibold text-gray-800 mb-2">🏗️ Materialization</h5>
+                      <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
+                        {summaryContent.technical_details.materialization}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {summaryContent.technical_details.source_tables && summaryContent.technical_details.source_tables.length > 0 && (
+                    <div>
+                      <h5 className="font-semibold text-gray-800 mb-2">📊 Source Tables</h5>
+                      <div className="space-y-1">
+                        {summaryContent.technical_details.source_tables.map((table, idx) => (
+                          <span key={idx} className="block bg-orange-100 text-orange-800 px-2 py-1 rounded text-sm">
+                            {table}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {summaryContent.technical_details.sql_operations && summaryContent.technical_details.sql_operations.length > 0 && (
+                    <div>
+                      <h5 className="font-semibold text-gray-800 mb-2">🔍 SQL Operations</h5>
+                      <div className="space-y-1">
+                        {summaryContent.technical_details.sql_operations.map((op, idx) => (
+                          <span key={idx} className="block bg-purple-100 text-purple-800 px-2 py-1 rounded text-sm">
+                            {op}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {summaryContent.technical_details.incremental_strategy && (
+                    <div>
+                      <h5 className="font-semibold text-gray-800 mb-2">⚡ Incremental Strategy</h5>
+                      <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
+                        {summaryContent.technical_details.incremental_strategy}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          /* Fallback: Basic Documentation for non-structured responses */
+          <div className="space-y-6">
+            {/* Summary Section */}
+            {summaryContent?.summary && (
+              <div className="bg-white border border-gray-200 rounded-lg p-4">
+                <div className="flex items-center mb-3">
+                  <Info className="h-5 w-5 text-green-600 mr-2" />
+                  <h4 className="text-lg font-semibold text-gray-900">Summary</h4>
+                </div>
+                <p className="text-gray-700 leading-relaxed">{summaryContent.summary}</p>
+              </div>
+            )}
+
+            {/* Description Section */}
+            {summaryContent?.description && (
+              <div className="bg-white border border-gray-200 rounded-lg p-4">
+                <div className="flex items-center mb-3">
+                  <BookOpen className="h-5 w-5 text-purple-600 mr-2" />
+                  <h4 className="text-lg font-semibold text-gray-900">Description</h4>
+                </div>
+                <p className="text-gray-700 leading-relaxed">{summaryContent.description}</p>
+              </div>
+            )}
           </div>
         )}
 
@@ -1119,42 +1278,148 @@ export function CodeBase() {
     }
   };
 
-    // Fetch file summary for documentation
-    const fetchFileSummary = async (owner: string, repo: string, filePath: string) => {
-      setIsLoadingFileSummary(true);
-      setFileSummaryError(null);
-      setSelectedFileSummary(null);
+  // Handle repository summary generation
+  const handleGenerateSummaries = async (repoFullName: string) => {
+    const selectedLanguage = selectedLanguages[repoFullName];
+    if (!selectedLanguage) {
+      setSummaryGenerationError('Please select a language before generating summaries');
+      return;
+    }
 
-      try {
-        console.log(`[CodeBase] Fetching file summary for: ${owner}/${repo}/${filePath}`);
-        console.log(`[CodeBase] Repository full name: ${owner}/${repo}`);
-        console.log(`[CodeBase] File path being requested: "${filePath}"`);
-        console.log(`[CodeBase] Selected file object:`, selectedFile);
-        
-        const summary = await getFileSummary(owner, repo, filePath);
-        setSelectedFileSummary(summary);
-        console.log(`[CodeBase] File summary fetched successfully:`, summary);
-      } catch (error: any) {
-        console.error(`[CodeBase] Error fetching file summary:`, error);
-        console.log(`[CodeBase] Failed request details - Owner: "${owner}", Repo: "${repo}", FilePath: "${filePath}"`);
-        
-        // Provide more specific error messages based on the error type
-        let errorMessage = 'Failed to fetch file summary';
-        if (error.message?.includes('404') || error.message?.includes('not found')) {
-          errorMessage = 'This file has not been processed yet or does not exist in the repository. Try processing the repository first.';
-        } else if (error.message?.includes('401') || error.message?.includes('unauthorized')) {
-          errorMessage = 'You are not authorized to access this file summary.';
-        } else if (error.message?.includes('500')) {
-          errorMessage = 'Server error while fetching file summary. Please try again later.';
-        } else if (error.message) {
-          errorMessage = error.message;
-        }
-        
-        setFileSummaryError(errorMessage);
-      } finally {
-        setIsLoadingFileSummary(false);
+    try {
+      console.log(`[CodeBase] Starting summary generation for ${repoFullName} with language: ${selectedLanguage}`);
+      setSummaryGenerationError(null);
+      setGeneratingSummaries(prev => [...prev, repoFullName]);
+
+      // Split repoFullName into owner and repo for the API call
+      const [owner, repo] = repoFullName.split('/');
+      await generateRepositorySummaries(owner, repo, selectedLanguage);
+      
+      console.log(`[CodeBase] Successfully generated summaries for ${repoFullName}`);
+      
+      // Refresh current file summary if a file is selected from this repo
+      if (selectedFile && selectedGitHubRepo?.full_name === repoFullName) {
+        await fetchFileSummary(selectedFile.path, selectedGitHubRepo.full_name);
       }
-    };
+
+    } catch (error: any) {
+      console.error(`[CodeBase] Error generating summaries for ${repoFullName}:`, error);
+      setSummaryGenerationError(error.message || 'Failed to generate summaries');
+    } finally {
+      setGeneratingSummaries(prev => prev.filter(repo => repo !== repoFullName));
+    }
+  };
+
+  // Handle language selection for a repository
+  const handleLanguageSelect = (repoFullName: string, language: string) => {
+    setSelectedLanguages(prev => ({ ...prev, [repoFullName]: language }));
+    setSummaryGenerationError(null);
+  };
+
+  // Fetch file summary for documentation
+  const fetchFileSummary = async (owner: string, repo: string, filePath: string) => {
+    setIsLoadingFileSummary(true);
+    setFileSummaryError(null);
+    setSelectedFileSummary(null);
+
+    try {
+      console.log(`[CodeBase] Fetching file summary for: ${owner}/${repo}/${filePath}`);
+      console.log(`[CodeBase] Repository full name: ${owner}/${repo}`);
+      console.log(`[CodeBase] File path being requested: "${filePath}"`);
+      console.log(`[CodeBase] Selected file object:`, selectedFile);
+      
+      const summary = await getFileSummary(owner, repo, filePath);
+      setSelectedFileSummary(summary);
+      console.log(`[CodeBase] File summary fetched successfully:`, summary);
+    } catch (error: any) {
+      console.error(`[CodeBase] Error fetching file summary:`, error);
+      console.log(`[CodeBase] Failed request details - Owner: "${owner}", Repo: "${repo}", FilePath: "${filePath}"`);
+      
+      // Provide more specific error messages based on the error type
+      let errorMessage = 'Failed to fetch file summary';
+      if (error.message?.includes('404') || error.message?.includes('not found')) {
+        errorMessage = 'This file has not been processed yet or does not exist in the repository. Try processing the repository first.';
+      } else if (error.message?.includes('401') || error.message?.includes('unauthorized')) {
+        errorMessage = 'You are not authorized to access this file summary.';
+      } else if (error.message?.includes('500')) {
+        errorMessage = 'Server error while fetching file summary. Please try again later.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setFileSummaryError(errorMessage);
+    } finally {
+      setIsLoadingFileSummary(false);
+    }
+  };
+
+  const handleAnalyzeRepository = async (repoFullName: string) => {
+    const selectedLanguage = selectedLanguages[repoFullName];
+    if (!selectedLanguage) {
+      setSummaryGenerationError('Please select a technology/language before analysis');
+      return;
+    }
+
+    try {
+      console.log(`[CodeBase] Starting unified analysis for ${repoFullName} with language: ${selectedLanguage}`);
+      setSummaryGenerationError(null);
+      
+      // Start repository processing
+      await handleProcessRepo(repoFullName);
+      
+      // Wait for processing to complete before generating summaries
+      console.log(`[CodeBase] Repository processing started for ${repoFullName}, waiting for completion...`);
+      
+      // Poll for completion
+      const [owner, repo] = repoFullName.split('/');
+      let processingComplete = false;
+      let attempts = 0;
+      const maxAttempts = 60; // 5 minutes max (5 second intervals)
+      
+      while (!processingComplete && attempts < maxAttempts) {
+        try {
+          await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
+          const status = await getProcessingStatus(owner, repo);
+          
+          console.log(`[CodeBase] Processing status for ${repoFullName}: ${status.progress}%`);
+          
+          if (status.progress >= 100) {
+            processingComplete = true;
+            console.log(`[CodeBase] Processing completed for ${repoFullName}, starting AI summary generation...`);
+          }
+          attempts++;
+        } catch (statusError) {
+          console.warn(`[CodeBase] Could not check processing status for ${repoFullName}:`, statusError);
+          attempts++;
+        }
+      }
+      
+      if (!processingComplete) {
+        throw new Error('Repository processing did not complete in time. Please try again later.');
+      }
+      
+      // Now generate AI summaries with language-specific prompts
+      setGeneratingSummaries(prev => [...prev, repoFullName]);
+      
+      try {
+        await handleGenerateSummaries(repoFullName);
+        console.log(`[CodeBase] Successfully completed unified analysis for ${repoFullName}`);
+        
+        // Refresh current file summary if a file is selected from this repo
+        if (selectedFile && selectedGitHubRepo?.full_name === repoFullName) {
+          await fetchFileSummary(selectedFile.path, selectedGitHubRepo.full_name);
+        }
+      } finally {
+        setGeneratingSummaries(prev => prev.filter(repo => repo !== repoFullName));
+      }
+
+    } catch (error: any) {
+      console.error(`[CodeBase] Error in unified analysis for ${repoFullName}:`, error);
+      setSummaryGenerationError(error.message || 'Failed to analyze and document repository');
+      // Clean up any state
+      setGeneratingSummaries(prev => prev.filter(repo => repo !== repoFullName));
+    }
+  };
 
   if (isLoadingConnection) {
     return (
@@ -1170,16 +1435,16 @@ export function CodeBase() {
       <div className="p-6 max-w-2xl mx-auto mt-10 font-sans">
         <div className="bg-red-50 border-l-4 border-red-500 p-6 rounded-md shadow-md">
           <div className="flex items-start">
-            <AlertTriangle className="h-8 w-8 text-red-700 mr-4 flex-shrink-0 mt-1" />
+            <AlertTriangle className="h-8 w-8 text-red-500 mr-3" />
             <div>
-              <h3 className="text-xl font-semibold text-red-900">GitHub Connection Error</h3>
-              <p className="text-red-700 mt-2">{connectionError}</p>
+              <h3 className="text-xl font-bold text-red-900">GitHub Connection Error</h3>
+              <p className="text-red-700 mt-1">{connectionError}</p>
               <p className="text-red-600 mt-3 text-sm">
                 Please ensure your GitHub account is connected via the <strong>{GITHUB_APP_NAME}</strong> GitHub App and that it has the necessary permissions to access your repositories.
               </p>
               <button
                 onClick={() => navigate('/dashboard/settings?tab=github')}
-                className="mt-6 px-5 py-2.5 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors duration-150 text-sm font-medium flex items-center shadow-sm hover:shadow-md"
+                className="mt-6 inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
               >
                 <Settings className="h-4 w-4 mr-2" />
                 Go to GitHub Settings
@@ -1198,13 +1463,13 @@ export function CodeBase() {
           <div className="flex items-start">
             <AlertTriangle className="h-8 w-8 text-yellow-700 mr-4 flex-shrink-0 mt-1" />
             <div>
-              <h3 className="text-xl font-semibold text-yellow-800">GitHub Not Connected</h3>
+              <h3 className="text-xl font-bold text-yellow-800">GitHub Not Connected</h3>
               <p className="text-yellow-700 mt-2 text-base">
                 To browse your repositories and their code, please connect your GitHub account.
               </p>
               <button
                 onClick={() => navigate('/dashboard/settings?tab=integrations')}
-                className="mt-6 px-5 py-2.5 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition-colors duration-150 text-sm font-medium flex items-center shadow-sm hover:shadow-md"
+                className="mt-6 inline-flex items-center px-5 py-2.5 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition-colors"
               >
                 <Github className="h-4 w-4 mr-2" />
                 Connect to GitHub
@@ -1437,11 +1702,13 @@ export function CodeBase() {
                               <span>{repo.forks_count || 0}</span>
                             </div>
                           </div>
-                          <div className="w-48 text-right">
+                          <div className="w-64 text-right space-y-2">
                             {(() => {
                               const status = reposStatus[repo.full_name];
                               const isProcessing = processingRepos.includes(repo.full_name);
                               const isQueued = queuedRepos.includes(repo.full_name);
+                              const isGeneratingSummary = generatingSummaries.includes(repo.full_name);
+                              const selectedLang = selectedLanguages[repo.full_name];
 
                               if (isQueued && status) {
                                 return (
@@ -1469,25 +1736,54 @@ export function CodeBase() {
                                 );
                               } else {
                                 return (
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleProcessRepo(repo.full_name);
-                                    }}
-                                    disabled={isProcessing}
-                                    className={`inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-500 ${
-                                      isProcessing
-                                        ? 'bg-yellow-100 text-yellow-800 cursor-wait'
-                                        : 'text-white bg-brand-600 hover:bg-brand-700'
-                                    }`}
-                                    style={!isProcessing ? { backgroundColor: brandColor } : {}}
-                                  >
-                                    {isProcessing ? (
-                                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing...</>
-                                    ) : (
-                                      'Process for Summary'
-                                    )}
-                                  </button>
+                                  <div className="space-y-2">
+                                    {/* Language Selection Dropdown */}
+                                    <div className="w-full">
+                                      <select
+                                        onClick={(e) => e.stopPropagation()}
+                                        onChange={(e) => {
+                                          e.stopPropagation();
+                                          handleLanguageSelect(repo.full_name, e.target.value);
+                                        }}
+                                        value={selectedLang || ''}
+                                        className="w-full text-xs border border-gray-300 rounded-md px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                        disabled={isProcessing || isGeneratingSummary}
+                                      >
+                                        <option value="">Select Technology/Language</option>
+                                        {availableLanguages.map((lang) => (
+                                          <option key={lang.value} value={lang.value}>
+                                            {lang.label}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </div>
+
+                                    {/* Single Unified Process Button */}
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleAnalyzeRepository(repo.full_name);
+                                      }}
+                                      disabled={!selectedLang || isProcessing || isGeneratingSummary}
+                                      className={`w-full inline-flex items-center justify-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 ${
+                                        (!selectedLang || isProcessing || isGeneratingSummary)
+                                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                          : 'text-white bg-purple-600 hover:bg-purple-700'
+                                      }`}
+                                    >
+                                      {(isProcessing || isGeneratingSummary) ? (
+                                        <>
+                                          <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                                          {isProcessing ? 'Analyzing Repository...' : 'Generating Documentation...'}
+                                        </>
+                                      ) : (
+                                        <>
+                                          <FileText className="mr-1 h-3 w-3" />
+                                          Analyze & Document Repository
+                                        </>
+                                      )}
+                                    </button>
+                                  </div>
                                 );
                               }
                             })()}
@@ -1755,7 +2051,7 @@ export function CodeBase() {
                                           ${activeTab === tabName
                                             ? 'text-brand-600'
                                             : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
-                              style={activeTab === tabName ? { borderColor: brandColor, color: brandColor } : {}}
+                              style={{borderColor: brandColor, color: brandColor}}
                             >
                               {tabName.charAt(0).toUpperCase() + tabName.slice(1)}
                             </button>
@@ -1951,11 +2247,9 @@ export function CodeBase() {
             {isCompleted && status.failed === 0 && (
               <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
                 <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  </div>
+                  <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
                   <div className="ml-3">
                     <h3 className="text-sm font-medium text-green-800">
                       🎉 Processing completed successfully!
