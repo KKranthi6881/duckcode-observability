@@ -916,6 +916,45 @@ export function CodeBase() {
   };
 
   // Mock data/renderers for other tabs - these can be expanded later
+  // Helper function to safely render content that might be objects or strings
+  const renderSafeContent = (content: any): React.ReactNode => {
+    if (typeof content === 'string') {
+      return <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{content}</p>;
+    }
+    
+    if (typeof content === 'object' && content !== null) {
+      return (
+        <div className="space-y-3">
+          {Object.entries(content).map(([key, value], index) => (
+            <div key={index} className="border-l-4 border-blue-200 pl-4">
+              <h5 className="font-semibold text-gray-800 mb-2 capitalize">
+                {key.replace(/_/g, ' ')}
+              </h5>
+              <div className="text-gray-700">
+                {typeof value === 'string' ? (
+                  <p className="leading-relaxed whitespace-pre-wrap">{value}</p>
+                ) : Array.isArray(value) ? (
+                  <ul className="list-disc list-inside space-y-1">
+                    {value.map((item, idx) => (
+                      <li key={idx}>{String(item)}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <pre className="text-sm bg-gray-100 p-2 rounded overflow-x-auto">
+                    {JSON.stringify(value, null, 2)}
+                  </pre>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+    
+    // Fallback for other types
+    return <p className="text-gray-700 leading-relaxed">{String(content)}</p>;
+  };
+
   // Render documentation tab content
   const renderDocumentation = () => {
     if (isLoadingFileSummary) {
@@ -971,8 +1010,21 @@ export function CodeBase() {
         </div>
 
         {/* Rich Structured Documentation */}
-        {summaryContent?.business_logic || summaryContent?.technical_details || summaryContent?.code_blocks ? (
+        {summaryContent?.business_logic || summaryContent?.technical_details || summaryContent?.code_blocks || summaryContent?.summary ? (
           <div className="space-y-6">
+            {/* Summary Section */}
+            {summaryContent.summary && (
+              <div className="bg-white border border-gray-200 rounded-lg p-6">
+                <div className="flex items-center mb-4">
+                  <FileText className="h-6 w-6 text-blue-600 mr-3" />
+                  <h4 className="text-xl font-bold text-gray-900">File Summary</h4>
+                </div>
+                <div className="prose max-w-none">
+                  {renderSafeContent(summaryContent.summary)}
+                </div>
+              </div>
+            )}
+
             {/* Business Logic Section */}
             {summaryContent.business_logic && (
               <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg p-6">
@@ -985,7 +1037,7 @@ export function CodeBase() {
                   <div className="mb-4">
                     <h5 className="font-semibold text-gray-800 mb-2">📋 Main Objectives</h5>
                     <ul className="list-disc list-inside space-y-1 text-gray-700 ml-4">
-                      {summaryContent.business_logic.main_objectives.map((obj, idx) => (
+                      {summaryContent.business_logic.main_objectives.map((obj: string, idx: number) => (
                         <li key={idx}>{obj}</li>
                       ))}
                     </ul>
@@ -1017,7 +1069,7 @@ export function CodeBase() {
                 </div>
                 
                 <div className="space-y-6">
-                  {summaryContent.code_blocks.map((block, idx) => (
+                  {summaryContent.code_blocks.map((block: any, idx: number) => (
                     <div key={idx} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                       <div className="flex items-center mb-3">
                         <span className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-semibold mr-3">
@@ -1072,7 +1124,7 @@ export function CodeBase() {
                     <div>
                       <h5 className="font-semibold text-gray-800 mb-2">📊 Source Tables</h5>
                       <div className="space-y-1">
-                        {summaryContent.technical_details.source_tables.map((table, idx) => (
+                        {summaryContent.technical_details.source_tables.map((table: string, idx: number) => (
                           <span key={idx} className="block bg-orange-100 text-orange-800 px-2 py-1 rounded text-sm">
                             {table}
                           </span>
@@ -1085,7 +1137,7 @@ export function CodeBase() {
                     <div>
                       <h5 className="font-semibold text-gray-800 mb-2">🔍 SQL Operations</h5>
                       <div className="space-y-1">
-                        {summaryContent.technical_details.sql_operations.map((op, idx) => (
+                        {summaryContent.technical_details.sql_operations.map((op: string, idx: number) => (
                           <span key={idx} className="block bg-purple-100 text-purple-800 px-2 py-1 rounded text-sm">
                             {op}
                           </span>
@@ -1116,7 +1168,7 @@ export function CodeBase() {
                   <Info className="h-5 w-5 text-green-600 mr-2" />
                   <h4 className="text-lg font-semibold text-gray-900">Summary</h4>
                 </div>
-                <p className="text-gray-700 leading-relaxed">{summaryContent.summary}</p>
+                {renderSafeContent(summaryContent.summary)}
               </div>
             )}
 
