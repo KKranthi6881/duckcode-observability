@@ -14,19 +14,29 @@ import {
   Package,
   Lightbulb,
   Layers,
-  Loader2
+  Loader2,
+  Copy
 } from 'lucide-react';
+import { formatCodeWithSyntaxHighlighting } from '../utils/syntaxHighlighting';
 
 interface DocumentationViewerProps {
   isLoadingFileSummary: boolean;
   fileSummaryError: string | null;
   selectedFileSummary: any;
+  selectedFileName?: string;
+  brandColor: string;
+  copyToClipboard: (text: string) => void;
+  isTextCopied: (text: string) => boolean;
 }
 
 export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
   isLoadingFileSummary,
   fileSummaryError,
   selectedFileSummary,
+  selectedFileName,
+  brandColor,
+  copyToClipboard,
+  isTextCopied,
 }) => {
   // Helper function to safely render content that might be objects or strings
   const renderSafeContent = (content: any): React.ReactNode => {
