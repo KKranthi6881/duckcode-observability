@@ -23,7 +23,7 @@ interface RepositoryGridProps {
   brandColor: string;
   onConnectGitHub: () => void;
   onRepoClick: (repo: any) => void;
-  onLanguageSelect: (repoFullName: string, language: string) => void;
+  onLanguageSelect: (repoId: string, language: string) => void;
   onAnalyzeRepository: (repoFullName: string) => void;
   onStatusModalOpen: (repo: any) => void;
   onClearSummaryError: () => void;
@@ -146,13 +146,13 @@ export const RepositoryGrid: React.FC<RepositoryGridProps> = ({
             <RepositoryCard
               key={repo.id}
               repo={repo}
-              summaryStatus={repoSummaryStatus[repo.full_name]}
-              repoStatus={reposStatus[repo.full_name]}
-              selectedLanguage={selectedLanguages[repo.full_name]}
+              summaryStatus={repoSummaryStatus[repo.id.toString()]}
+              repoStatus={reposStatus[repo.id.toString()]}
+              selectedLanguage={selectedLanguages[repo.id.toString()]}
               availableLanguages={availableLanguages}
-              isProcessing={processingRepos.includes(repo.full_name)}
-              isQueued={queuedRepos.includes(repo.full_name)}
-              isGeneratingSummary={generatingSummaries.includes(repo.full_name)}
+              isProcessing={processingRepos.includes(repo.id.toString())}
+              isQueued={queuedRepos.includes(repo.id.toString())}
+              isGeneratingSummary={generatingSummaries.includes(repo.id.toString())}
               brandColor={brandColor}
               onRepoClick={onRepoClick}
               onLanguageSelect={onLanguageSelect}

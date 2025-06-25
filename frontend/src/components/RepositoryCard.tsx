@@ -34,6 +34,7 @@ interface RepositoryCardProps {
     completed: number;
     failed: number;
     pending: number;
+    isPolling?: boolean;
   };
   selectedLanguage?: string;
   availableLanguages: Array<{ value: string; label: string }>;
@@ -42,7 +43,7 @@ interface RepositoryCardProps {
   isGeneratingSummary: boolean;
   brandColor: string;
   onRepoClick: (repo: any) => void;
-  onLanguageSelect: (repoFullName: string, language: string) => void;
+  onLanguageSelect: (repoId: string, language: string) => void;
   onAnalyzeRepository: (repoFullName: string) => void;
   onStatusModalOpen: (repo: any) => void;
 }
@@ -81,11 +82,21 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
             <h3 className="text-lg font-semibold text-gray-900 group-hover:text-[#2AB7A9] transition-colors truncate">
               {repo.name}
             </h3>
+            {/* Show processing completion badge */}
+            {repoStatus && repoStatus.progress >= 100 && !repoStatus.isPolling && (
+              <div className="flex items-center gap-1">
+                <CheckCircle className="h-4 w-4 text-green-500" />
+                <span className="text-xs text-green-600 font-medium bg-green-50 px-2 py-1 rounded-full">
+                  Processed
+                </span>
+              </div>
+            )}
+            {/* Show documentation status if available */}
             {hasDocumentation && (
               <div className="flex items-center gap-1">
-                <CheckCircle className="h-5 w-5 text-green-500" />
-                <span className="text-xs text-green-600 font-medium">
-                  {summaryStatus.summaryCount} files documented
+                <CheckCircle className="h-4 w-4 text-blue-500" />
+                <span className="text-xs text-blue-600 font-medium bg-blue-50 px-2 py-1 rounded-full">
+                  {summaryStatus.summaryCount} documented
                 </span>
               </div>
             )}
@@ -96,9 +107,16 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
           {repo.private && (
             <Lock className="h-4 w-4 text-gray-400" />
           )}
-          {hasDocumentation && (
+          {/* Show processing completion indicator */}
+          {repoStatus && repoStatus.progress >= 100 && !repoStatus.isPolling && (
             <div className="flex items-center justify-center w-6 h-6 bg-green-100 rounded-full">
               <CheckCircle className="h-4 w-4 text-green-600" />
+            </div>
+          )}
+          {/* Show documentation indicator */}
+          {hasDocumentation && (
+            <div className="flex items-center justify-center w-6 h-6 bg-blue-100 rounded-full">
+              <CheckCircle className="h-4 w-4 text-blue-600" />
             </div>
           )}
         </div>
@@ -120,7 +138,63 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
           </div>
         </div>
         <div className="w-64 text-right space-y-2">
-          {isQueued && repoStatus ? (
+          {/* Show completion status if repository has been fully processed */}
+          {repoStatus && repoStatus.progress >= 100 && !repoStatus.isPolling ? (
+            <div className="space-y-2">
+                             <div className="inline-flex items-center px-3 py-2 bg-green-50 border border-green-200 rounded-lg">
+                 <CheckCircle className="h-4 w-4 text-green-600 mr-2" />
+                 <div className="text-left">
+                   <div className="text-xs font-semibold text-green-800">Processing Complete ✓</div>
+                   <div className="text-xs text-green-600">
+                     {repoStatus.totalFiles} files • {repoStatus.completed} processed
+                     {repoStatus.failed > 0 && (
+                       <span className="text-red-600"> • {repoStatus.failed} failed</span>
+                     )}
+                   </div>
+                   <div className="text-xs text-gray-500 mt-1">
+                     Ready for code analysis
+                   </div>
+                 </div>
+               </div>
+              
+              {/* Re-process button for completed repositories */}
+              <div className="space-y-1">
+                <div className="w-full">
+                  <select
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      onLanguageSelect(repo.id.toString(), e.target.value);
+                    }}
+                    value={selectedLanguage || ''}
+                    className="w-full text-xs border border-gray-300 rounded-md px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  >
+                    <option value="">Select Technology/Language</option>
+                    {availableLanguages.map((lang) => (
+                      <option key={lang.value} value={lang.value}>
+                        {lang.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                                 <button
+                   onClick={(e) => {
+                     e.stopPropagation();
+                     onAnalyzeRepository(repo.full_name);
+                   }}
+                   disabled={!selectedLanguage}
+                   className={`w-full inline-flex items-center justify-center px-2 py-1 border border-transparent text-xs font-medium rounded-md shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${
+                     !selectedLanguage
+                       ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                       : 'text-white bg-green-600 hover:bg-green-700'
+                   }`}
+                 >
+                   <FileText className="mr-1 h-2 w-2" />
+                   Update Analysis
+                 </button>
+              </div>
+            </div>
+          ) : (repoStatus && (repoStatus.isPolling || repoStatus.progress > 0)) || isProcessing || isGeneratingSummary ? (
             <div 
               className="cursor-pointer group" 
               onClick={(e) => {
@@ -129,17 +203,46 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
               }}
             >
               <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-medium text-gray-700 group-hover:text-brand-600">Processing...</span>
-                <span className="text-xs font-medium text-gray-700 group-hover:text-brand-600">{repoStatus.progress}%</span>
+                <span className="text-xs font-medium text-gray-700 group-hover:text-brand-600">
+                  {(repoStatus?.progress || 0) >= 100 ? 'Completed' : 
+                   (isProcessing || isGeneratingSummary) && !repoStatus ? 'Starting...' : 'Processing...'}
+                </span>
+                <span className="text-xs font-medium text-gray-700 group-hover:text-brand-600">
+                  {(isProcessing || isGeneratingSummary) && !repoStatus ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    `${repoStatus?.progress || 0}%`
+                  )}
+                </span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2.5">
                 <div 
-                  className="bg-brand-600 h-2.5 rounded-full text-white flex items-center justify-center text-xs font-bold" 
-                  style={{ width: `${repoStatus.progress}%`, backgroundColor: brandColor }}
+                  className={`h-2.5 rounded-full text-white flex items-center justify-center text-xs font-bold transition-all duration-300 ${
+                    (repoStatus?.progress || 0) >= 100 ? 'bg-green-500' : 
+                    (isProcessing || isGeneratingSummary) && !repoStatus ? 'animate-pulse' : ''
+                  }`}
+                  style={{ 
+                    width: `${Math.max(repoStatus?.progress || ((isProcessing || isGeneratingSummary) && !repoStatus ? 10 : 0), 5)}%`, 
+                    backgroundColor: (repoStatus?.progress || 0) >= 100 ? '#10b981' : brandColor 
+                  }}
                 >
-                  {repoStatus.progress > 10 ? `${repoStatus.progress}%` : ''}
+                  {(repoStatus?.progress || 0) > 10 ? `${repoStatus?.progress || 0}%` : ''}
                 </div>
               </div>
+              {((repoStatus?.totalFiles || 0) > 0 || ((isProcessing || isGeneratingSummary) && !repoStatus)) && (
+                <div className="text-xs text-gray-500 mt-1">
+                  {(isProcessing || isGeneratingSummary) && !repoStatus ? (
+                    'Scanning repository files...'
+                  ) : (
+                    <>
+                      {repoStatus?.completed || 0}/{repoStatus?.totalFiles || 0} files processed
+                      {(repoStatus?.failed || 0) > 0 && (
+                        <span className="text-red-500 ml-1">({repoStatus?.failed || 0} failed)</span>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           ) : (
             <div className="space-y-2">
@@ -149,7 +252,7 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
                   onClick={(e) => e.stopPropagation()}
                   onChange={(e) => {
                     e.stopPropagation();
-                    onLanguageSelect(repo.full_name, e.target.value);
+                    onLanguageSelect(repo.id.toString(), e.target.value);
                   }}
                   value={selectedLanguage || ''}
                   className="w-full text-xs border border-gray-300 rounded-md px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"

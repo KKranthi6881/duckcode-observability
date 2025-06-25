@@ -16,6 +16,7 @@ import {
 import { useAuth } from '../../features/auth/contexts/AuthContext';
 import { useGitHubRepository } from '../../hooks/useGitHubRepository';
 import { useCopyToClipboard } from '../../hooks/useCopyToClipboard';
+import { processRepositoryForInsights, getRepositorySummaryStatus, getGitHubConnectionStatus, getProcessingStatus } from '../../services/githubService';
 import { FileTree } from '../../components/FileTree';
 import { EnhancedCodeViewer } from '../../components/EnhancedCodeViewer';
 import { DocumentationViewer } from '../../components/DocumentationViewer';
@@ -57,6 +58,26 @@ export function CodeBase() {
   const [view, setView] = useState<'repos' | 'browser'>('repos');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'code' | 'documentation' | 'lineage' | 'visual' | 'alerts'>('code');
+  
+  // Language selection state
+  const [selectedLanguages, setSelectedLanguages] = useState<{[repoId: string]: string}>({});
+  const [processingRepos, setProcessingRepos] = useState<string[]>([]);
+  const [generatingSummaries, setGeneratingSummaries] = useState<string[]>([]);
+  const [repoSummaryStatus, setRepoSummaryStatus] = useState<Record<string, { hasSummaries: boolean; summaryCount: number; lastSummaryDate?: string }>>({});
+  const [summaryGenerationError, setSummaryGenerationError] = useState<string | null>(null);
+  
+  // Progress tracking state
+  const [repoProgressStatus, setRepoProgressStatus] = useState<Record<string, {
+    progress: number;
+    totalFiles: number;
+    completed: number;
+    failed: number;
+    pending: number;
+    isPolling: boolean;
+  }>>({});
+  
+  // Polling intervals for tracking progress
+  const [pollingIntervals, setPollingIntervals] = useState<Record<string, NodeJS.Timeout>>({});
 
   // Handle GitHub Connection
   const handleConnectGitHub = () => {
@@ -68,6 +89,314 @@ export function CodeBase() {
     handleRepositorySelect(repo);
     setView('browser');
   };
+
+  // Handle language selection for repository analysis
+  const handleLanguageSelect = (repoId: string, language: string) => {
+    setSelectedLanguages(prev => ({
+      ...prev,
+      [repoId]: language
+    }));
+  };
+
+  // Start polling for repository processing progress
+  const startProgressPolling = (repoId: string, repoFullName: string) => {
+    console.log(`Starting progress polling for ${repoFullName}`);
+    
+    // Initialize progress state
+    setRepoProgressStatus(prev => ({
+      ...prev,
+      [repoId]: {
+        progress: 0,
+        totalFiles: 0,
+        completed: 0,
+        failed: 0,
+        pending: 0,
+        isPolling: true
+      }
+    }));
+
+    const pollProgress = async () => {
+      try {
+        const status = await getProcessingStatus(repoFullName);
+        console.log(`Progress update for ${repoFullName}:`, status);
+        
+        setRepoProgressStatus(prev => ({
+          ...prev,
+          [repoId]: {
+            progress: status.progress || 0,
+            totalFiles: status.totalFiles || 0,
+            completed: status.completed || 0,
+            failed: status.failed || 0,
+            pending: status.pending || 0,
+            isPolling: true
+          }
+        }));
+
+                 // Stop polling if processing is complete
+        if (status.progress >= 100 || (status.totalFiles > 0 && status.pending === 0)) {
+          console.log(`Processing complete for ${repoFullName}, stopping polling`);
+          
+          // Mark as completed and stop polling
+          setRepoProgressStatus(prev => ({
+            ...prev,
+            [repoId]: {
+              ...prev[repoId],
+              progress: 100,
+              totalFiles: status.totalFiles || prev[repoId]?.totalFiles || 0,
+              completed: status.completed || prev[repoId]?.completed || 0,
+              failed: status.failed || prev[repoId]?.failed || 0,
+              pending: 0,
+              isPolling: false
+            }
+          }));
+          
+          stopProgressPolling(repoId);
+          
+          // Update repository summary status
+          const [owner, repoName] = repoFullName.split('/');
+          try {
+            const summaryStatus = await getRepositorySummaryStatus(owner, repoName);
+            setRepoSummaryStatus(prev => ({
+              ...prev,
+              [repoId]: summaryStatus
+            }));
+          } catch (error) {
+            console.error('Error updating summary status:', error);
+          }
+        }
+      } catch (error) {
+        console.error(`Error polling progress for ${repoFullName}:`, error);
+        // If it's a 404 error, the repository hasn't been processed yet, continue polling
+        // For other errors, continue polling but maybe reduce frequency in the future
+        if (error instanceof Error && error.message.includes('404')) {
+          console.log(`Repository ${repoFullName} not yet in processing queue, continuing to poll...`);
+        }
+      }
+    };
+
+    // Poll immediately, then every 2 seconds
+    pollProgress();
+    const interval = setInterval(pollProgress, 2000);
+    
+    setPollingIntervals(prev => ({
+      ...prev,
+      [repoId]: interval
+    }));
+  };
+
+  // Stop polling for repository processing progress
+  const stopProgressPolling = (repoId: string) => {
+    const interval = pollingIntervals[repoId];
+    if (interval) {
+      clearInterval(interval);
+      setPollingIntervals(prev => {
+        const newIntervals = { ...prev };
+        delete newIntervals[repoId];
+        return newIntervals;
+      });
+    }
+    
+    setRepoProgressStatus(prev => ({
+      ...prev,
+      [repoId]: {
+        ...prev[repoId],
+        isPolling: false
+      }
+    }));
+  };
+
+  // Handle repository analysis
+  const handleAnalyzeRepository = async (repoFullName: string) => {
+    // Find the repository data first to get the ID for language selection
+    const repo = gitHubConnectionStatus?.details?.accessibleRepos?.find((r: any) => r.full_name === repoFullName);
+    if (!repo) {
+      console.error('Repository not found with full_name:', repoFullName);
+      console.error('Available repositories:', gitHubConnectionStatus?.details?.accessibleRepos?.map(r => r.full_name));
+      throw new Error(`Repository not found: ${repoFullName}`);
+    }
+
+    const repoId = repo.id.toString();
+    const selectedLanguage = selectedLanguages[repoId] || 'default';
+    
+    try {
+      setProcessingRepos(prev => [...prev, repoId]);
+      setGeneratingSummaries(prev => [...prev, repoId]);
+      setSummaryGenerationError(null);
+
+      console.log(`Starting analysis for repository: ${repo.full_name} with language: ${selectedLanguage}`);
+      console.log('Full repository object:', repo);
+      console.log('Request payload:', { repositoryFullName: repo.full_name, selectedLanguage });
+
+      // Use the existing processRepositoryForInsights function
+      const result = await processRepositoryForInsights(repo.full_name, selectedLanguage);
+      
+      console.log('Repository analysis initiated:', result);
+      
+      // Start polling for progress updates
+      startProgressPolling(repoId, repo.full_name);
+
+      console.log('Repository analysis request completed successfully:', result);
+      
+    } catch (error) {
+      console.error('Error analyzing repository:', error);
+      setSummaryGenerationError(error instanceof Error ? error.message : 'Failed to analyze repository');
+      setRepoSummaryStatus(prev => ({
+        ...prev,
+        [repoId]: { hasSummaries: false, summaryCount: 0 }
+      }));
+    } finally {
+      setProcessingRepos(prev => prev.filter(id => id !== repoId));
+      setGeneratingSummaries(prev => prev.filter(id => id !== repoId));
+    }
+  };
+
+  // Handle status modal
+  const handleStatusModalOpen = (repoFullName: string) => {
+    console.log('Opening status modal for repo:', repoFullName);
+    // You can implement a modal here to show detailed status
+  };
+
+  // Clear summary error
+  const handleClearSummaryError = () => {
+    setSummaryGenerationError(null);
+  };
+
+  // Handle documentation updates
+  const handleUpdateDocumentation = async (filePath: string, section: string, updatedContent: any) => {
+    if (!selectedGitHubRepo) return;
+
+    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+    const [owner, repo] = selectedGitHubRepo.full_name.split('/');
+    
+    console.log('API call details:', {
+      url: `${API_BASE_URL}/api/documentation/update`,
+      owner,
+      repo,
+      filePath,
+      section,
+      contentType: typeof updatedContent,
+      contentPreview: JSON.stringify(updatedContent).substring(0, 100)
+    });
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/documentation/update`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({
+          owner,
+          repo,
+          filePath,
+          section,
+          content: updatedContent,
+        }),
+      });
+
+      console.log('Response status:', response.status, response.statusText);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Response error:', errorText);
+        throw new Error(`Failed to update documentation: ${response.statusText} - ${errorText}`);
+      }
+
+      const result = await response.json();
+      console.log('Documentation updated successfully:', result);
+      
+      // Refresh the documentation data to show the updated content
+      console.log('Refreshing documentation data after successful update...');
+      await fetchFileSummary(owner, repo, filePath);
+      
+    } catch (error) {
+      console.error('Error updating documentation:', error);
+      throw error;
+    }
+  };
+
+  // Load repository summary status for all repositories
+  const loadRepositorySummaryStatus = async () => {
+    if (!gitHubConnectionStatus?.details?.accessibleRepos) return;
+
+    try {
+      const statusPromises = gitHubConnectionStatus.details.accessibleRepos.map(async (repo: any) => {
+        try {
+          const [owner, repoName] = repo.full_name.split('/');
+          const summaryStatus = await getRepositorySummaryStatus(owner, repoName);
+          return { repoId: repo.id.toString(), status: summaryStatus };
+        } catch (error) {
+          console.error(`Error loading summary status for ${repo.full_name}:`, error);
+          return { repoId: repo.id.toString(), status: { hasSummaries: false, summaryCount: 0 } };
+        }
+      });
+
+      const results = await Promise.all(statusPromises);
+      
+      const statusMap = results.reduce((acc, { repoId, status }) => {
+        acc[repoId] = status;
+        return acc;
+      }, {} as Record<string, { hasSummaries: boolean; summaryCount: number; lastSummaryDate?: string }>);
+
+      setRepoSummaryStatus(statusMap);
+    } catch (error) {
+      console.error('Error loading repository summary statuses:', error);
+    }
+  };
+
+  // Load processing status for repositories that might have been previously processed
+  const loadRepositoryProcessingStatus = async () => {
+    if (!gitHubConnectionStatus?.details?.accessibleRepos) return;
+
+    try {
+      const statusPromises = gitHubConnectionStatus.details.accessibleRepos.map(async (repo: any) => {
+        try {
+          const processingStatus = await getProcessingStatus(repo.full_name);
+          return { 
+            repoId: repo.id.toString(), 
+            status: {
+              ...processingStatus,
+              isPolling: false // Not actively polling on load
+            }
+          };
+        } catch (error) {
+          // If repository hasn't been processed, that's expected
+          console.log(`No processing status found for ${repo.full_name} (expected if not processed)`);
+          return null;
+        }
+      });
+
+      const results = await Promise.all(statusPromises);
+      
+      const progressMap = results.reduce((acc, result) => {
+        if (result) {
+          acc[result.repoId] = result.status;
+        }
+        return acc;
+      }, {} as Record<string, any>);
+
+      setRepoProgressStatus(progressMap);
+    } catch (error) {
+      console.error('Error loading repository processing statuses:', error);
+    }
+  };
+
+  // Load repository summary status when GitHub connection status changes
+  React.useEffect(() => {
+    if (gitHubConnectionStatus?.isConnected && gitHubConnectionStatus?.details?.accessibleRepos) {
+      loadRepositorySummaryStatus();
+      loadRepositoryProcessingStatus();
+    }
+  }, [gitHubConnectionStatus]);
+
+  // Cleanup polling intervals on unmount
+  React.useEffect(() => {
+    return () => {
+      Object.values(pollingIntervals).forEach(interval => {
+        clearInterval(interval);
+      });
+    };
+  }, [pollingIntervals]);
 
   // Basic loading state
   if (isLoadingConnection) {
@@ -204,15 +533,15 @@ export function CodeBase() {
             {view === 'repos' && (
               <RepositoryGrid 
                 gitHubConnectionStatus={gitHubConnectionStatus}
-                summaryGenerationError={null}
+                summaryGenerationError={summaryGenerationError}
                 isLoadingConnection={isLoadingConnection}
                 connectionError={connectionError}
-                repoSummaryStatus={{}}
-                reposStatus={{}}
-                selectedLanguages={{}}
-                processingRepos={[]}
+                repoSummaryStatus={repoSummaryStatus}
+                reposStatus={repoProgressStatus}
+                selectedLanguages={selectedLanguages}
+                processingRepos={processingRepos}
                 queuedRepos={[]}
-                generatingSummaries={[]}
+                generatingSummaries={generatingSummaries}
                 availableLanguages={[
                   { value: 'default', label: 'General Analysis' },
                   { value: 'postgres', label: 'PostgreSQL' },
@@ -226,11 +555,19 @@ export function CodeBase() {
                 brandColor={brandColor}
                 onConnectGitHub={handleConnectGitHub}
                 onRepoClick={handleGitHubRepoClick}
-                onLanguageSelect={() => {}}
-                onAnalyzeRepository={() => {}}
-                onStatusModalOpen={() => {}}
-                onClearSummaryError={() => {}}
-                fetchGitHubConnectionStatus={() => {}}
+                onLanguageSelect={handleLanguageSelect}
+                onAnalyzeRepository={handleAnalyzeRepository}
+                onStatusModalOpen={handleStatusModalOpen}
+                onClearSummaryError={handleClearSummaryError}
+                fetchGitHubConnectionStatus={async () => {
+                  try {
+                    const connectionStatus = await getGitHubConnectionStatus();
+                    // This will trigger the useEffect to reload summary statuses
+                    console.log('Refreshed GitHub connection status:', connectionStatus);
+                  } catch (error) {
+                    console.error('Error refreshing GitHub connection status:', error);
+                  }
+                }}
               />
             )}
 
@@ -304,6 +641,7 @@ export function CodeBase() {
                             brandColor={brandColor}
                             copyToClipboard={copyToClipboard}
                             isTextCopied={isTextCopied}
+                            onUpdateDocumentation={handleUpdateDocumentation}
                           />
                         )}
                         {activeTab === 'lineage' && (

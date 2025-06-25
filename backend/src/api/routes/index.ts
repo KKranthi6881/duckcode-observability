@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import githubRoutes from './github.routes';
-import insightsRoutes from './insights.routes'; // Import the new insights routes
+import insightsRoutes from './insights.routes';
+import documentationRoutes from './documentation.routes';
 
 const router = Router();
 
@@ -9,5 +10,8 @@ router.use('/github', githubRoutes);
 
 // Mount the Insights routes
 router.use('/insights', insightsRoutes);
+
+// Mount the Documentation routes
+router.use('/documentation', documentationRoutes);
 
 export default router;

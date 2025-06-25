@@ -202,7 +202,7 @@ async function callOpenAIWithSystemPrompt(systemPrompt: string, userMessage: str
     }
 }
 
-// Add the specialized prompts object (matching codeSummary.prompts.ts)
+// Enhanced specialized prompts with detailed code_blocks analysis for complex code structures
 const specializedPrompts: Record<string, string> = {
     postgres: `You are a senior database engineer specializing in PostgreSQL and data architecture.
   
@@ -228,17 +228,41 @@ const specializedPrompts: Record<string, string> = {
       "tables_involved": ["Database tables accessed or modified"],
       "joins_operations": ["Types of joins and complex operations"],
       "indexes_constraints": ["Indexes, constraints, or performance considerations"],
-      "storage_engines": ["InnoDB, MyISAM, or other storage engine specifics"]
+      "storage_engines": ["PostgreSQL storage considerations"]
     },
     "code_blocks": [
       {
-        "section": "Section name (e.g., 'Main Query', 'Subquery', 'Join Logic')",
+        "section": "Section name (e.g., 'Main Query', 'Complex JOIN Logic', 'Subquery Analysis', 'Window Functions', 'CASE Statements', 'CTE Logic', 'Aggregation Logic')",
         "code": "Actual code snippet", 
-        "explanation": "Detailed explanation of what this code does",
-        "business_context": "Why this operation matters for business"
+        "explanation": "Comprehensive technical explanation including: 1) What this code block accomplishes, 2) How it processes the data step-by-step, 3) Complex logic or algorithms used, 4) Performance implications and optimization opportunities",
+        "business_context": "Why this operation matters for business operations, decision-making, reporting, or data insights",
+        "complexity_breakdown": {
+          "joins_analysis": "For complex joins: explain join types (INNER, LEFT, RIGHT, FULL OUTER), join conditions, table relationships, potential cartesian products, join order optimization, and performance impact on large datasets. Include details about which tables are driving vs driven, cardinality estimates, and join selectivity",
+          "case_statements": "For CASE/WHEN statements: break down each condition branch, explain the conditional logic flow, default/ELSE values, nested CASE scenarios, and business rules implemented. Include data type handling and NULL value considerations",
+          "subqueries": "For subqueries: explain correlated vs non-correlated subqueries, execution order, EXISTS/NOT EXISTS logic, IN/NOT IN operations, and how they relate to the main query performance. Include subquery materialization strategies",
+          "window_functions": "For window functions (ROW_NUMBER, RANK, LAG, LEAD, SUM OVER, etc.): explain partitioning logic, ordering specifications, frame specifications (ROWS/RANGE BETWEEN), and analytical calculations performed. Include performance considerations for large partitions",
+          "cte_analysis": "For Common Table Expressions: explain recursive vs non-recursive CTEs, dependency chain, reusability, and how they improve query readability. Include materialization vs inline execution",
+          "aggregations": "For GROUP BY/aggregations: explain grouping logic, aggregate functions (SUM, COUNT, AVG, MAX, MIN, STRING_AGG), HAVING conditions, ROLLUP/CUBE operations, and data summarization approach. Include partial aggregation strategies",
+          "data_filtering": "For complex WHERE clauses: break down each filter condition, explain AND/OR logic combinations, NULL handling, date range filtering, pattern matching (LIKE, REGEX), and data selection criteria. Include index usage analysis",
+          "data_transformations": "For data manipulation: explain column calculations, data type conversions (CAST/CONVERT), string operations (SUBSTRING, CONCAT, REGEXP_REPLACE), date/time functions (DATE_TRUNC, EXTRACT), mathematical operations, and JSON/JSONB processing",
+          "postgresql_specific": "PostgreSQL-specific features: JSONB operations, array functions, full-text search (tsvector, tsquery), custom data types, extensions used (like PostGIS, pg_stat_statements), lateral joins, and advanced indexing (GIN, GiST, BRIN)",
+          "performance_notes": "Explain indexes utilized, query hints, expected execution plan, query cost estimation, parallel execution possibilities, work_mem requirements, and scalability considerations for large datasets. Include EXPLAIN ANALYZE insights"
+        },
+        "column_details": [
+          {
+            "column_name": "Name of column being processed, created, or transformed",
+            "data_type": "PostgreSQL data type, constraints, and nullability",
+            "source": "Source table, calculation, or transformation origin",
+            "transformation": "Detailed explanation of how this column is calculated, aggregated, or transformed",
+            "business_meaning": "What this column represents in business terms and how it's used by stakeholders",
+            "sample_values": "Example values or value ranges to illustrate the data",
+            "performance_impact": "How this column affects query performance (indexing, sorting, filtering)"
+          }
+        ],
+        "execution_order": "Detailed step-by-step execution order within this code block, especially for complex multi-step operations, subquery execution, join processing order, and materialization points"
       }
     ],
-    "execution_flow": ["Step-by-step breakdown of query execution"],
+    "execution_flow": ["Step-by-step breakdown of complete query execution from data retrieval to final result set"],
     "performance_considerations": {
       "optimization_opportunities": ["Potential performance improvements"],
       "resource_usage": ["Expected CPU, memory, I/O impact"],
@@ -251,7 +275,7 @@ const specializedPrompts: Record<string, string> = {
     }
   }
   
-  Focus on PostgreSQL best practices, performance optimization, and business impact.`,
+  Focus on PostgreSQL best practices, performance optimization, and business impact. Pay special attention to complex queries with multiple joins, large CASE statements, window functions, and CTEs.`,
 
     dbt: `You are a senior analytics engineer specializing in dbt and modern data stack architecture.
   
@@ -281,10 +305,31 @@ const specializedPrompts: Record<string, string> = {
     },
     "code_blocks": [
       {
-        "section": "Section name (e.g., 'Source Selection', 'Business Logic', 'Final Transformation')",
+        "section": "Section name (e.g., 'Source Selection', 'Business Logic', 'Final Transformation', 'Complex Joins', 'Window Functions', 'Macro Usage', 'Data Quality Checks')",
         "code": "Actual code snippet",
-        "explanation": "Detailed explanation of what this code does",
-        "business_context": "Why this transformation matters for business"
+        "explanation": "Comprehensive technical explanation including: 1) What this transformation accomplishes, 2) How it processes the data step-by-step, 3) Complex SQL logic or dbt features used, 4) Performance and materialization implications",
+        "business_context": "Why this transformation matters for business analytics, reporting, or decision-making",
+        "complexity_breakdown": {
+          "sql_analysis": "For complex SQL: explain joins, subqueries, window functions, CTEs, aggregations, and advanced SQL patterns used",
+          "dbt_features": "For dbt-specific features: explain macros, tests, documentation, snapshots, seeds, and dbt project structure integration",
+          "jinja_logic": "For Jinja templating: explain variables, loops, conditionals, macro calls, and dynamic SQL generation",
+          "data_modeling": "For data modeling: explain dimensional modeling concepts, fact/dimension tables, slowly changing dimensions, and data warehouse patterns",
+          "incremental_strategy": "For incremental models: explain merge strategies, unique keys, partition strategies, and data freshness handling",
+          "testing_strategy": "For data quality: explain dbt tests (unique, not_null, accepted_values, relationships), custom tests, and data validation approaches",
+          "performance_optimization": "For performance: explain materialization choices, partitioning, indexing considerations, and query optimization techniques",
+          "data_lineage": "For data lineage: explain upstream dependencies, downstream impacts, and data flow through the pipeline"
+        },
+        "column_details": [
+          {
+            "column_name": "Name of column being created or transformed",
+            "data_type": "Expected data type and constraints",
+            "source": "Source table/column or calculation origin",
+            "transformation": "Detailed explanation of how this column is calculated or derived",
+            "business_meaning": "What this column represents in business terms and how it's used",
+            "data_quality_rules": "Tests, validations, or quality checks applied to this column"
+          }
+        ],
+        "execution_order": "Detailed step-by-step execution order within this dbt model, including dependency resolution and materialization sequence"
       }
     ],
     "dbt_project_context": {
@@ -347,13 +392,36 @@ const specializedPrompts: Record<string, string> = {
     },
     "code_blocks": [
       {
-        "section": "Section name (e.g., 'Main Query', 'Subquery', 'Join Logic')",
+        "section": "Section name (e.g., 'Main Query', 'Complex JOIN Logic', 'Subquery Analysis', 'CASE Statements', 'Stored Procedure Logic', 'Trigger Logic')",
         "code": "Actual code snippet", 
-        "explanation": "Detailed explanation of what this code does",
-        "business_context": "Why this operation matters for business"
+        "explanation": "Comprehensive technical explanation including: 1) What this code block accomplishes, 2) How it processes the data step-by-step, 3) Complex logic or algorithms used, 4) Performance implications and MySQL-specific optimizations",
+        "business_context": "Why this operation matters for business operations, decision-making, reporting, or data insights",
+        "complexity_breakdown": {
+          "joins_analysis": "For complex joins: explain join types (INNER, LEFT, RIGHT, CROSS), join conditions, table relationships, potential cartesian products, join order optimization, and performance impact on large datasets. Include MySQL join buffer usage and nested loop vs hash join considerations",
+          "case_statements": "For CASE/WHEN statements: break down each condition branch, explain the conditional logic flow, default/ELSE values, nested CASE scenarios, and business rules implemented. Include MySQL-specific data type handling",
+          "subqueries": "For subqueries: explain correlated vs non-correlated subqueries, execution order, EXISTS/NOT EXISTS logic, IN/NOT IN operations, and how they relate to the main query performance. Include MySQL subquery optimization strategies",
+          "stored_procedures": "For stored procedures: explain parameter handling, local variables, control flow statements (IF, LOOP, WHILE), cursor usage, exception handling, and transaction management",
+          "aggregations": "For GROUP BY/aggregations: explain grouping logic, aggregate functions (SUM, COUNT, AVG, MAX, MIN, GROUP_CONCAT), HAVING conditions, WITH ROLLUP operations, and data summarization approach. Include loose index scan optimizations",
+          "data_filtering": "For complex WHERE clauses: break down each filter condition, explain AND/OR logic combinations, NULL handling, date range filtering, pattern matching (LIKE, REGEXP), and data selection criteria. Include index usage with EXPLAIN",
+          "data_transformations": "For data manipulation: explain column calculations, data type conversions (CAST/CONVERT), string functions (SUBSTRING, CONCAT, REPLACE), date/time functions (DATE_FORMAT, TIMESTAMPDIFF), mathematical operations, and JSON processing",
+          "mysql_specific": "MySQL-specific features: JSON functions, full-text search (MATCH AGAINST), partitioning, generated columns, common table expressions (MySQL 8.0+), window functions, and storage engine optimizations",
+          "performance_notes": "Explain indexes utilized, query execution plan from EXPLAIN, query cache considerations, buffer pool usage, and scalability considerations for large datasets. Include MySQL-specific optimization hints"
+        },
+        "column_details": [
+          {
+            "column_name": "Name of column being processed, created, or transformed",
+            "data_type": "MySQL data type, constraints, and nullability",
+            "source": "Source table, calculation, or transformation origin",
+            "transformation": "Detailed explanation of how this column is calculated, aggregated, or transformed",
+            "business_meaning": "What this column represents in business terms and how it's used by stakeholders",
+            "sample_values": "Example values or value ranges to illustrate the data",
+            "performance_impact": "How this column affects query performance (indexing, sorting, filtering, storage engine considerations)"
+          }
+        ],
+        "execution_order": "Detailed step-by-step execution order within this code block, especially for complex multi-step operations, subquery execution, join processing order, and temporary table usage"
       }
     ],
-    "execution_flow": ["Step-by-step breakdown of query execution"],
+    "execution_flow": ["Step-by-step breakdown of complete query execution from data retrieval to final result set"],
     "performance_considerations": {
       "optimization_opportunities": ["Potential performance improvements"],
       "resource_usage": ["Expected CPU, memory, I/O impact"],
@@ -366,7 +434,7 @@ const specializedPrompts: Record<string, string> = {
     }
   }
   
-  Focus on MySQL best practices, performance optimization, and business impact.`,
+  Focus on MySQL best practices, performance optimization, and business impact. Pay special attention to complex queries with multiple joins, large CASE statements, stored procedures, and MySQL-specific features.`,
 
     tsql: `You are a Microsoft SQL Server expert with extensive experience in T-SQL development, performance tuning, and enterprise database solutions.
   
@@ -393,10 +461,35 @@ const specializedPrompts: Record<string, string> = {
     },
     "code_blocks": [
       {
-        "section": "Section name",
+        "section": "Section name (e.g., 'Main Query', 'Complex JOIN Logic', 'CTE Analysis', 'Window Functions', 'CASE Statements', 'Stored Procedure Logic', 'Cursor Operations')",
         "code": "Actual code snippet",
-        "explanation": "Detailed explanation of what this code does",
-        "business_context": "Why this code matters for business"
+        "explanation": "Comprehensive technical explanation including: 1) What this code block accomplishes, 2) How it processes the data step-by-step, 3) Complex T-SQL logic or algorithms used, 4) Performance implications and SQL Server-specific optimizations",
+        "business_context": "Why this code matters for business operations, decision-making, reporting, or data insights",
+        "complexity_breakdown": {
+          "joins_analysis": "For complex joins: explain join types (INNER, LEFT, RIGHT, FULL OUTER, CROSS APPLY, OUTER APPLY), join conditions, table relationships, potential cartesian products, join order optimization, and performance impact on large datasets. Include SQL Server join algorithms (nested loops, merge, hash)",
+          "case_statements": "For CASE/WHEN statements: break down each condition branch, explain the conditional logic flow, default/ELSE values, nested CASE scenarios, and business rules implemented. Include T-SQL specific data type handling and implicit conversions",
+          "cte_analysis": "For Common Table Expressions: explain recursive vs non-recursive CTEs, dependency chain, anchor and recursive members, termination conditions, and how they improve query readability vs performance",
+          "window_functions": "For window functions (ROW_NUMBER, RANK, DENSE_RANK, NTILE, LAG, LEAD, SUM OVER, etc.): explain partitioning logic, ordering specifications, frame specifications (ROWS/RANGE), and analytical calculations performed",
+          "stored_procedures": "For stored procedures: explain parameter handling (@variables), local variables, control flow statements (IF/ELSE, WHILE, TRY/CATCH), dynamic SQL, transaction management (BEGIN TRAN, COMMIT, ROLLBACK), and error handling",
+          "cursor_operations": "For cursors: explain cursor types (FORWARD_ONLY, STATIC, DYNAMIC, KEYSET), fetch operations, performance implications, and alternatives like set-based operations",
+          "aggregations": "For GROUP BY/aggregations: explain grouping logic, aggregate functions (SUM, COUNT, AVG, MAX, MIN, STRING_AGG), HAVING conditions, ROLLUP/CUBE/GROUPING SETS operations, and data summarization approach",
+          "data_filtering": "For complex WHERE clauses: break down each filter condition, explain AND/OR logic combinations, NULL handling, date range filtering, pattern matching (LIKE, PATINDEX), and data selection criteria. Include index seek vs scan analysis",
+          "data_transformations": "For data manipulation: explain column calculations, data type conversions (CAST/CONVERT/TRY_CONVERT), string functions (SUBSTRING, CONCAT, REPLACE, STRING_SPLIT), date/time functions (DATEPART, DATEDIFF, FORMAT), mathematical operations, and JSON processing (FOR JSON, OPENJSON)",
+          "tsql_specific": "T-SQL specific features: table-valued functions, MERGE statements, OUTPUT clauses, PIVOT/UNPIVOT operations, temporal tables, columnstore indexes, and memory-optimized tables",
+          "performance_notes": "Explain indexes utilized, execution plan analysis, query hints (NOLOCK, FORCESEEK, etc.), parameter sniffing considerations, and scalability considerations for large datasets. Include SET STATISTICS IO/TIME insights"
+        },
+        "column_details": [
+          {
+            "column_name": "Name of column being processed, created, or transformed",
+            "data_type": "SQL Server data type, constraints, and nullability",
+            "source": "Source table, calculation, or transformation origin",
+            "transformation": "Detailed explanation of how this column is calculated, aggregated, or transformed",
+            "business_meaning": "What this column represents in business terms and how it's used by stakeholders",
+            "sample_values": "Example values or value ranges to illustrate the data",
+            "performance_impact": "How this column affects query performance (indexing, sorting, filtering, columnstore considerations)"
+          }
+        ],
+        "execution_order": "Detailed step-by-step execution order within this code block, especially for complex multi-step operations, CTE execution, join processing order, and tempdb usage"
       }
     ],
     "error_handling": {
@@ -557,10 +650,34 @@ const specializedPrompts: Record<string, string> = {
     },
     "code_blocks": [
       {
-        "section": "Section name",
+        "section": "Section name (e.g., 'Data Processing Pipeline', 'Class Definition', 'Complex Algorithm', 'API Integration', 'Database Operations', 'Error Handling Block')",
         "code": "Actual code snippet",
-        "explanation": "Detailed explanation of what this code does",
-        "business_context": "Why this functionality matters for business"
+        "explanation": "Comprehensive technical explanation including: 1) What this code block accomplishes, 2) How it processes the data/logic step-by-step, 3) Complex algorithms or design patterns used, 4) Performance implications and optimization opportunities",
+        "business_context": "Why this functionality matters for business operations, decision-making, or user experience",
+        "complexity_breakdown": {
+          "algorithm_analysis": "For complex algorithms: explain time/space complexity, algorithm choice rationale, edge cases handled, and optimization techniques used",
+          "data_processing": "For data processing: explain data flow, transformation steps, validation logic, error handling, and performance considerations for large datasets",
+          "class_design": "For classes: explain inheritance hierarchy, composition relationships, method responsibilities, encapsulation principles, and SOLID principles adherence",
+          "function_analysis": "For functions: explain parameters, return values, side effects, pure vs impure functions, and functional programming concepts",
+          "control_flow": "For complex control structures: explain conditional logic, loop structures, exception handling flow, and early returns/breaks",
+          "async_operations": "For async code: explain coroutines, event loops, concurrency patterns, await/async usage, and performance benefits",
+          "data_structures": "For data structures: explain choice rationale (list vs tuple vs set vs dict), memory efficiency, access patterns, and algorithmic complexity",
+          "library_integration": "For external libraries: explain library choice, configuration, error handling, version compatibility, and integration patterns",
+          "database_operations": "For database code: explain ORM usage, query optimization, connection management, transaction handling, and data validation",
+          "api_interactions": "For API code: explain request/response handling, authentication, rate limiting, error handling, and data serialization",
+          "performance_notes": "Explain bottlenecks, profiling considerations, memory usage patterns, and scalability implications"
+        },
+        "column_details": [
+          {
+            "variable_name": "Name of key variable, parameter, or data field",
+            "data_type": "Python type hints or inferred type",
+            "source": "Where this data comes from (user input, database, API, etc.)",
+            "transformation": "How this data is processed, validated, or transformed",
+            "business_meaning": "What this data represents in business terms",
+            "validation_rules": "Data validation, constraints, or business rules applied"
+          }
+        ],
+        "execution_order": "Detailed step-by-step execution order within this code block, especially for complex multi-step operations, async operations, and error handling paths"
       }
     ],
     "architecture": {
@@ -596,7 +713,7 @@ const specializedPrompts: Record<string, string> = {
     "maintenance_notes": ["Important considerations for future maintenance"]
   }
   
-  Focus on Python best practices, software engineering principles, and clean code architecture.`,
+  Focus on Python best practices, software engineering principles, and clean code architecture. Pay special attention to complex data processing pipelines, class hierarchies, async operations, and algorithm implementations.`,
 
     default: `You are a senior software engineer with expertise across multiple programming languages and technologies.
   
@@ -625,10 +742,33 @@ const specializedPrompts: Record<string, string> = {
     },
     "code_blocks": [
       {
-        "section": "Section name (e.g., 'Input Validation', 'Core Logic', 'Output Processing')",
+        "section": "Section name (e.g., 'Input Validation', 'Core Logic', 'Output Processing', 'Complex Algorithms', 'Data Transformations', 'Control Flow Logic')",
         "code": "Actual code snippet",
-        "explanation": "Detailed explanation of what this code does", 
-        "business_context": "Why this functionality matters for business"
+        "explanation": "Comprehensive technical explanation including: 1) What this code block accomplishes, 2) How it processes the data/logic step-by-step, 3) Complex algorithms, patterns, or logic used, 4) Performance implications and optimization opportunities", 
+        "business_context": "Why this functionality matters for business operations, decision-making, or user experience",
+        "complexity_breakdown": {
+          "algorithm_analysis": "For complex algorithms: explain algorithmic approach, time/space complexity, edge cases handled, and optimization techniques used",
+          "data_processing": "For data processing: explain data flow, transformation steps, validation logic, error handling, and performance considerations",
+          "control_structures": "For complex control flow: explain conditional logic, loop structures, recursion, exception handling, and branching logic",
+          "data_structures": "For data structures: explain choice rationale, memory efficiency, access patterns, and performance characteristics",
+          "function_design": "For functions/methods: explain parameters, return values, side effects, reusability, and design principles",
+          "integration_patterns": "For external integrations: explain API calls, database operations, file I/O, network operations, and error handling",
+          "concurrency_patterns": "For concurrent/parallel code: explain threading, async operations, synchronization, and performance benefits",
+          "design_patterns": "For design patterns: explain pattern implementation, benefits, trade-offs, and architectural decisions",
+          "language_specific": "For language-specific features: explain unique language constructs, idioms, optimization techniques, and best practices",
+          "performance_notes": "Explain bottlenecks, optimization opportunities, memory usage patterns, and scalability considerations"
+        },
+        "variable_details": [
+          {
+            "variable_name": "Name of key variable, parameter, or data field",
+            "data_type": "Variable type and constraints",
+            "source": "Where this data comes from (input, calculation, external source, etc.)",
+            "transformation": "How this data is processed, validated, or transformed",
+            "business_meaning": "What this data represents in business terms",
+            "scope_lifetime": "Variable scope, lifetime, and memory considerations"
+          }
+        ],
+        "execution_order": "Detailed step-by-step execution order within this code block, especially for complex multi-step operations, recursive calls, and error handling paths"
       }
     ],
     "execution_flow": ["Step-by-step breakdown of code execution"],
