@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   FileText,
   TrendingUp,
@@ -56,6 +56,148 @@ interface DocumentationViewerProps {
   onUpdateDocumentation?: (filePath: string, section: string, updatedContent: any) => Promise<void>;
 }
 
+interface EditableSectionProps {
+  sectionKey: string;
+  title: string;
+  content: any;
+  icon: React.ReactNode;
+  className?: string;
+  children?: React.ReactNode;
+  editingSection: string | null;
+  isUpdating: string | null;
+  userInfo: any;
+  onUpdateDocumentation?: (filePath: string, section: string, updatedContent: any) => Promise<void>;
+  handleStartEdit: (section: string, currentContent: any) => void;
+  handleSaveEdit: (section: string) => Promise<void>;
+  handleCancelEdit: () => void;
+  formatUserTooltip: (userInfo: any) => string;
+  setTextareaRef: (sectionKey: string, textarea: HTMLTextAreaElement | null) => void;
+  editedContent: any;
+  setEditedContent: React.Dispatch<React.SetStateAction<any>>;
+}
+
+const EditableSection: React.FC<EditableSectionProps> = ({
+  sectionKey,
+  title,
+  content,
+  icon,
+  className = "",
+  children,
+  editingSection,
+  isUpdating,
+  userInfo,
+  onUpdateDocumentation,
+  handleStartEdit,
+  handleSaveEdit,
+  handleCancelEdit,
+  formatUserTooltip,
+  setTextareaRef,
+  editedContent,
+  setEditedContent
+}) => {
+  const isEditing = editingSection === sectionKey;
+  const isCurrentlyUpdating = isUpdating === sectionKey;
+
+  return (
+    <div className={`bg-white border border-gray-200 rounded-lg p-6 shadow-sm ${className}`}>
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center">
+          <div className="p-2 bg-blue-100 rounded-lg mr-3">
+            {icon}
+          </div>
+          <div>
+            <h4 className="text-xl font-bold text-gray-900">{title}</h4>
+            {userInfo && (
+              <div className="flex items-center mt-1 text-xs text-gray-500">
+                {userInfo.avatar_url && (
+                  <img 
+                    src={userInfo.avatar_url} 
+                    alt={userInfo.full_name}
+                    className="w-4 h-4 rounded-full mr-1"
+                  />
+                )}
+                <span>
+                  Last edited by {userInfo.full_name} • {' '}
+                  {new Date(userInfo.updated_at).toLocaleDateString()} at {' '}
+                  {new Date(userInfo.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+        
+        {onUpdateDocumentation && (
+          <div className="flex items-center space-x-2">
+            {!isEditing ? (
+              <button
+                onClick={() => handleStartEdit(sectionKey, content)}
+                className="flex items-center justify-center w-8 h-8 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                title={userInfo ? formatUserTooltip(userInfo) : 'Edit this section'}
+              >
+                <Edit3 className="h-4 w-4" />
+              </button>
+            ) : (
+              <div className="flex items-center space-x-1">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleSaveEdit(sectionKey);
+                  }}
+                  disabled={isCurrentlyUpdating}
+                  className="flex items-center px-3 py-1.5 text-sm text-white bg-green-600 hover:bg-green-700 disabled:bg-green-400 rounded-md transition-colors"
+                >
+                  {isCurrentlyUpdating ? (
+                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4 mr-1" />
+                  )}
+                  {isCurrentlyUpdating ? 'Saving...' : 'Save'}
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCancelEdit();
+                  }}
+                  disabled={isCurrentlyUpdating}
+                  className="flex items-center px-3 py-1.5 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 disabled:opacity-50 rounded-md transition-colors"
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {isEditing ? (
+        <div className="space-y-4">
+          <textarea
+            ref={(el) => setTextareaRef(sectionKey, el)}
+            value={editedContent[sectionKey] || ''}
+            onChange={(e) => {
+              setEditedContent((prev: any) => ({
+                ...prev,
+                [sectionKey]: e.target.value
+              }));
+            }}
+            className="w-full min-h-40 p-3 border border-gray-300 rounded-lg resize-y focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
+            placeholder="Enter your content here..."
+            autoFocus
+            rows={6}
+            key={sectionKey}
+          />
+          <p className="text-sm text-gray-500">
+            You can edit this content directly. For complex objects, use JSON format.
+          </p>
+        </div>
+      ) : (
+        <div>{children}</div>
+      )}
+    </div>
+  );
+};
+
 export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
   isLoadingFileSummary,
   fileSummaryError,
@@ -74,6 +216,14 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
   const [localSummary, setLocalSummary] = useState<any>(null);
   // State for feedback messages
   const [saveMessage, setSaveMessage] = React.useState<{type: 'success' | 'error', text: string} | null>(null);
+  
+  // Refs to store textarea references for cursor position preservation
+  const textareaRefs = useRef<{[key: string]: HTMLTextAreaElement | null}>({});
+
+  // Simple ref assignment without event listeners - we'll use a different approach
+  const setTextareaRef = useCallback((sectionKey: string, textarea: HTMLTextAreaElement | null) => {
+    textareaRefs.current[sectionKey] = textarea;
+  }, []);
 
   // Update local summary when selectedFileSummary changes
   React.useEffect(() => {
@@ -120,7 +270,7 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
     }
     
     console.log('Setting editable content:', editableContent);
-    setEditedContent({ [section]: editableContent });
+    setEditedContent((prev: any) => ({ ...prev, [section]: editableContent }));
     console.log('=== END HANDLE START EDIT DEBUG ===');
   };
 
@@ -363,136 +513,6 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
     return <p className="text-gray-700 leading-relaxed">{String(content)}</p>;
   };
 
-  // Editable section component
-  const EditableSection: React.FC<{
-    sectionKey: string;
-    title: string;
-    content: any;
-    icon: React.ReactNode;
-    className?: string;
-    children?: React.ReactNode;
-  }> = ({ sectionKey, title, content, icon, className = "", children }) => {
-    const isEditing = editingSection === sectionKey;
-    const isCurrentlyUpdating = isUpdating === sectionKey;
-    const userInfo = getUserInfoForSection(sectionKey);
-
-    return (
-      <div className={`bg-white border border-gray-200 rounded-lg p-6 shadow-sm ${className}`}>
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center">
-            <div className="p-2 bg-blue-100 rounded-lg mr-3">
-              {icon}
-            </div>
-            <div>
-              <h4 className="text-xl font-bold text-gray-900">{title}</h4>
-              {userInfo && (
-                <div className="flex items-center mt-1 text-xs text-gray-500">
-                  {userInfo.avatar_url && (
-                    <img 
-                      src={userInfo.avatar_url} 
-                      alt={userInfo.full_name}
-                      className="w-4 h-4 rounded-full mr-1"
-                    />
-                  )}
-                  <span>
-                    Last edited by {userInfo.full_name} • {' '}
-                    {new Date(userInfo.updated_at).toLocaleDateString()} at {' '}
-                    {new Date(userInfo.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-          
-          {onUpdateDocumentation && (
-            <div className="flex items-center space-x-2">
-              {!isEditing ? (
-                <button
-                  onClick={() => handleStartEdit(sectionKey, content)}
-                  className="flex items-center justify-center w-8 h-8 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                  title={userInfo ? formatUserTooltip(userInfo) : 'Edit this section'}
-                >
-                  <Edit3 className="h-4 w-4" />
-                </button>
-              ) : (
-                <div className="flex items-center space-x-1">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleSaveEdit(sectionKey);
-                    }}
-                    disabled={isCurrentlyUpdating}
-                    className="flex items-center px-3 py-1.5 text-sm text-white bg-green-600 hover:bg-green-700 disabled:bg-green-400 rounded-md transition-colors"
-                  >
-                    {isCurrentlyUpdating ? (
-                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                    ) : (
-                      <Save className="h-4 w-4 mr-1" />
-                    )}
-                    {isCurrentlyUpdating ? 'Saving...' : 'Save'}
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleCancelEdit();
-                    }}
-                    disabled={isCurrentlyUpdating}
-                    className="flex items-center px-3 py-1.5 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 disabled:opacity-50 rounded-md transition-colors"
-                  >
-                    <X className="h-4 w-4 mr-1" />
-                    Cancel
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {isEditing ? (
-          <div className="space-y-4">
-            <textarea
-              value={editedContent[sectionKey] || ''}
-              onChange={(e) => {
-                e.stopPropagation();
-                const value = e.target.value;
-                console.log('Textarea onChange - Section:', sectionKey, 'New value:', value);
-                setEditedContent((prev: any) => {
-                  const newContent = {
-                    ...prev,
-                    [sectionKey]: value
-                  };
-                  console.log('Updated editedContent:', newContent);
-                  return newContent;
-                });
-              }}
-              onKeyDown={(e) => {
-                e.stopPropagation();
-              }}
-              onKeyUp={(e) => {
-                e.stopPropagation();
-              }}
-              onClick={(e) => {
-                e.stopPropagation();
-              }}
-              onFocus={(e) => {
-                e.stopPropagation();
-              }}
-              className="w-full min-h-40 p-3 border border-gray-300 rounded-lg resize-y focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
-              placeholder="Enter your content here..."
-              autoFocus
-              rows={6}
-            />
-            <p className="text-sm text-gray-500">
-              You can edit this content directly. For complex objects, use JSON format.
-            </p>
-          </div>
-        ) : (
-          <div>{children}</div>
-        )}
-      </div>
-    );
-  };
-
   if (isLoadingFileSummary) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -585,6 +605,17 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
               title="File Summary"
               content={summaryContent.summary}
               icon={<FileText className="h-6 w-6 text-blue-600" />}
+              editingSection={editingSection}
+              isUpdating={isUpdating}
+              userInfo={getUserInfoForSection("summary")}
+              onUpdateDocumentation={onUpdateDocumentation}
+              handleStartEdit={handleStartEdit}
+              handleSaveEdit={handleSaveEdit}
+              handleCancelEdit={handleCancelEdit}
+              formatUserTooltip={formatUserTooltip}
+              setTextareaRef={setTextareaRef}
+              editedContent={editedContent}
+              setEditedContent={setEditedContent}
             >
               <div className="prose max-w-none">
                 {renderSafeContent(summaryContent.summary)}
@@ -600,6 +631,17 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
               content={summaryContent.business_logic}
               icon={<TrendingUp className="h-6 w-6 text-green-600" />}
               className="bg-gradient-to-r from-green-50 to-blue-50 border-green-200"
+              editingSection={editingSection}
+              isUpdating={isUpdating}
+              userInfo={getUserInfoForSection("business_logic")}
+              onUpdateDocumentation={onUpdateDocumentation}
+              handleStartEdit={handleStartEdit}
+              handleSaveEdit={handleSaveEdit}
+              handleCancelEdit={handleCancelEdit}
+              formatUserTooltip={formatUserTooltip}
+              setTextareaRef={setTextareaRef}
+              editedContent={editedContent}
+              setEditedContent={setEditedContent}
             >
               {summaryContent.business_logic.main_objectives && Array.isArray(summaryContent.business_logic.main_objectives) && summaryContent.business_logic.main_objectives.length > 0 && (
                 <div className="mb-6">
@@ -653,6 +695,17 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
               title="Step-by-Step Code Walkthrough"
               content={summaryContent.code_blocks}
               icon={<Code className="h-6 w-6 text-purple-600" />}
+              editingSection={editingSection}
+              isUpdating={isUpdating}
+              userInfo={getUserInfoForSection("code_blocks")}
+              onUpdateDocumentation={onUpdateDocumentation}
+              handleStartEdit={handleStartEdit}
+              handleSaveEdit={handleSaveEdit}
+              handleCancelEdit={handleCancelEdit}
+              formatUserTooltip={formatUserTooltip}
+              setTextareaRef={setTextareaRef}
+              editedContent={editedContent}
+              setEditedContent={setEditedContent}
             >
               <div className="space-y-8">
                 {summaryContent.code_blocks.map((block: any, idx: number) => (
@@ -700,30 +753,19 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
                         {editingSection === `code_blocks.${idx}.explanation` ? (
                           <div className="space-y-3">
                             <textarea
+                              ref={(el) => setTextareaRef(`code_blocks.${idx}.explanation`, el)}
                               value={editedContent[`code_blocks.${idx}.explanation`] || ''}
                               onChange={(e) => {
-                                e.stopPropagation();
                                 setEditedContent((prev: any) => ({
                                   ...prev,
                                   [`code_blocks.${idx}.explanation`]: e.target.value
                                 }));
                               }}
-                              onKeyDown={(e) => {
-                                e.stopPropagation();
-                              }}
-                              onKeyUp={(e) => {
-                                e.stopPropagation();
-                              }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                              }}
-                              onFocus={(e) => {
-                                e.stopPropagation();
-                              }}
                               className="w-full min-h-32 p-3 border border-gray-300 rounded-lg resize-y focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
                               placeholder="Enter technical explanation..."
                               autoFocus
                               rows={4}
+                              key={`code_blocks.${idx}.explanation`}
                             />
                             <div className="flex items-center space-x-2">
                               <button
@@ -791,30 +833,19 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
                         {editingSection === `code_blocks.${idx}.business_context` ? (
                           <div className="space-y-3">
                             <textarea
+                              ref={(el) => setTextareaRef(`code_blocks.${idx}.business_context`, el)}
                               value={editedContent[`code_blocks.${idx}.business_context`] || ''}
                               onChange={(e) => {
-                                e.stopPropagation();
                                 setEditedContent((prev: any) => ({
                                   ...prev,
                                   [`code_blocks.${idx}.business_context`]: e.target.value
                                 }));
                               }}
-                              onKeyDown={(e) => {
-                                e.stopPropagation();
-                              }}
-                              onKeyUp={(e) => {
-                                e.stopPropagation();
-                              }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                              }}
-                              onFocus={(e) => {
-                                e.stopPropagation();
-                              }}
                               className="w-full min-h-32 p-3 border border-gray-300 rounded-lg resize-y focus:ring-2 focus:ring-green-500 focus:border-transparent font-mono text-sm"
                               placeholder="Enter business context..."
                               autoFocus
                               rows={4}
+                              key={`code_blocks.${idx}.business_context`}
                             />
                             <div className="flex items-center space-x-2">
                               <button
@@ -868,6 +899,17 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
               content={summaryContent.technical_details}
               icon={<Settings className="h-6 w-6 text-gray-600" />}
               className="bg-gray-50 border-gray-200"
+              editingSection={editingSection}
+              isUpdating={isUpdating}
+              userInfo={getUserInfoForSection("technical_details")}
+              onUpdateDocumentation={onUpdateDocumentation}
+              handleStartEdit={handleStartEdit}
+              handleSaveEdit={handleSaveEdit}
+              handleCancelEdit={handleCancelEdit}
+              formatUserTooltip={formatUserTooltip}
+              setTextareaRef={setTextareaRef}
+              editedContent={editedContent}
+              setEditedContent={setEditedContent}
             >
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -942,6 +984,17 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
               content={summaryContent.execution_flow}
               icon={<Play className="h-6 w-6 text-blue-600" />}
               className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200"
+              editingSection={editingSection}
+              isUpdating={isUpdating}
+              userInfo={getUserInfoForSection("execution_flow")}
+              onUpdateDocumentation={onUpdateDocumentation}
+              handleStartEdit={handleStartEdit}
+              handleSaveEdit={handleSaveEdit}
+              handleCancelEdit={handleCancelEdit}
+              formatUserTooltip={formatUserTooltip}
+              setTextareaRef={setTextareaRef}
+              editedContent={editedContent}
+              setEditedContent={setEditedContent}
             >
               <div className="space-y-4">
                 {summaryContent.execution_flow.map((step: string, idx: number) => (
@@ -968,6 +1021,17 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
               content={summaryContent.performance_considerations}
               icon={<Zap className="h-6 w-6 text-orange-600" />}
               className="bg-gradient-to-r from-orange-50 to-red-50 border-orange-200"
+              editingSection={editingSection}
+              isUpdating={isUpdating}
+              userInfo={getUserInfoForSection("performance_considerations")}
+              onUpdateDocumentation={onUpdateDocumentation}
+              handleStartEdit={handleStartEdit}
+              handleSaveEdit={handleSaveEdit}
+              handleCancelEdit={handleCancelEdit}
+              formatUserTooltip={formatUserTooltip}
+              setTextareaRef={setTextareaRef}
+              editedContent={editedContent}
+              setEditedContent={setEditedContent}
             >
               
               {/* Handle both array and object formats */}
@@ -1032,8 +1096,8 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
                       </div>
                     </div>
                                   )}
-              </div>
-              )}
+                </div>
+                )}
             </EditableSection>
           )}
 
@@ -1044,6 +1108,17 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
               content={summaryContent.best_practices}
               icon={<CheckCircle className="h-6 w-6 text-green-600" />}
               className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200"
+              editingSection={editingSection}
+              isUpdating={isUpdating}
+              userInfo={getUserInfoForSection("best_practices")}
+              onUpdateDocumentation={onUpdateDocumentation}
+              handleStartEdit={handleStartEdit}
+              handleSaveEdit={handleSaveEdit}
+              handleCancelEdit={handleCancelEdit}
+              formatUserTooltip={formatUserTooltip}
+              setTextareaRef={setTextareaRef}
+              editedContent={editedContent}
+              setEditedContent={setEditedContent}
             >
               
               {/* Handle both array and object formats */}
@@ -1125,8 +1200,8 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
                       </div>
                     </div>
                                   )}
-              </div>
-              )}
+                </div>
+                )}
             </EditableSection>
           )}
 
