@@ -263,7 +263,17 @@ export function CodeBase() {
 
   // Handle documentation updates
   const handleUpdateDocumentation = async (filePath: string, section: string, updatedContent: any) => {
-    if (!selectedGitHubRepo) return;
+    console.log('=== HANDLE UPDATE DOCUMENTATION DEBUG ===');
+    console.log('FilePath:', filePath);
+    console.log('Section:', section);
+    console.log('Updated content:', updatedContent);
+    console.log('Selected GitHub repo:', selectedGitHubRepo);
+    console.log('Session access token exists:', !!session?.access_token);
+    
+    if (!selectedGitHubRepo) {
+      console.error('No selected GitHub repo');
+      return;
+    }
 
     const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
     const [owner, repo] = selectedGitHubRepo.full_name.split('/');
@@ -638,6 +648,7 @@ export function CodeBase() {
                             fileSummaryError={fileSummaryError}
                             selectedFileSummary={selectedFileSummary}
                             selectedFileName={selectedFile?.name}
+                            selectedFilePath={selectedFile?.path}
                             brandColor={brandColor}
                             copyToClipboard={copyToClipboard}
                             isTextCopied={isTextCopied}

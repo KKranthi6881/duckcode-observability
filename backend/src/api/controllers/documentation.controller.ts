@@ -60,22 +60,43 @@ export const updateDocumentation = async (req: Request, res: Response) => {
       .limit(1)
       .single();
 
-    let updatedSummaryJson;
+    let updatedSummaryJson: any;
     
     if (existingSummary && !summaryError) {
       // Update existing summary
       updatedSummaryJson = { ...existingSummary.summary_json };
       
-      // Add metadata tracking for the updated section
-      if (!updatedSummaryJson._metadata) {
-        updatedSummaryJson._metadata = {};
+      // Extract the actual content from OpenAI response structure if needed
+      let actualContent = updatedSummaryJson;
+      if (updatedSummaryJson?.choices?.[0]?.message?.content) {
+        try {
+          actualContent = JSON.parse(updatedSummaryJson.choices[0].message.content);
+        } catch {
+          actualContent = { summary: updatedSummaryJson.choices[0].message.content };
+        }
       }
-      if (!updatedSummaryJson._metadata.section_updates) {
-        updatedSummaryJson._metadata.section_updates = {};
+      
+      // Add metadata tracking for the updated section
+      if (!actualContent._metadata) {
+        actualContent._metadata = {};
+      }
+      if (!actualContent._metadata.section_updates) {
+        actualContent._metadata.section_updates = {};
       }
       
       // Track who updated this section and when
-      updatedSummaryJson._metadata.section_updates[section] = userInfo;
+      actualContent._metadata.section_updates[section] = userInfo;
+      
+      // Parse the content if it's a JSON string (from frontend)
+      let parsedContent = content;
+      if (typeof content === 'string' && content.trim().startsWith('{')) {
+        try {
+          parsedContent = JSON.parse(content);
+          console.log('Parsed content from JSON string:', parsedContent);
+        } catch (error) {
+          console.log('Content is not valid JSON, keeping as string:', error);
+        }
+      }
       
       // Update the specific section
       if (section.includes('.')) {
@@ -83,18 +104,31 @@ export const updateDocumentation = async (req: Request, res: Response) => {
         const parts = section.split('.');
         if (parts.length === 2) {
           const [parentKey, childKey] = parts;
-          if (!updatedSummaryJson[parentKey]) updatedSummaryJson[parentKey] = {};
-          updatedSummaryJson[parentKey][childKey] = content;
+          if (!actualContent[parentKey]) actualContent[parentKey] = {};
+          actualContent[parentKey][childKey] = parsedContent;
         } else if (parts.length === 3 && parts[0] === 'code_blocks') {
           // Handle code blocks like 'code_blocks.0.explanation'
           const [, blockIndex, propertyKey] = parts;
           const idx = parseInt(blockIndex);
-          if (!updatedSummaryJson.code_blocks) updatedSummaryJson.code_blocks = [];
-          if (!updatedSummaryJson.code_blocks[idx]) updatedSummaryJson.code_blocks[idx] = {};
-          updatedSummaryJson.code_blocks[idx][propertyKey] = content;
+          if (!actualContent.code_blocks) actualContent.code_blocks = [];
+          if (!actualContent.code_blocks[idx]) actualContent.code_blocks[idx] = {};
+          actualContent.code_blocks[idx][propertyKey] = parsedContent;
         }
       } else {
-        updatedSummaryJson[section] = content;
+        actualContent[section] = parsedContent;
+      }
+      
+      // Update the summary_json structure properly
+      if (updatedSummaryJson?.choices?.[0]?.message?.content) {
+        // If it's an OpenAI response structure, update the content within it
+        updatedSummaryJson.choices[0].message.content = JSON.stringify(actualContent);
+        // Also store the content directly for easier access
+        Object.keys(actualContent).forEach(key => {
+          updatedSummaryJson[key] = actualContent[key];
+        });
+      } else {
+        // If it's direct content, replace the entire structure
+        updatedSummaryJson = actualContent;
       }
 
       const { error: updateError } = await supabaseCodeInsights

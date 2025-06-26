@@ -49,6 +49,7 @@ interface DocumentationViewerProps {
   fileSummaryError: string | null;
   selectedFileSummary: any;
   selectedFileName?: string;
+  selectedFilePath?: string;
   brandColor: string;
   copyToClipboard: (text: string) => void;
   isTextCopied: (text: string) => boolean;
@@ -60,6 +61,7 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
   fileSummaryError,
   selectedFileSummary,
   selectedFileName,
+  selectedFilePath,
   brandColor,
   copyToClipboard,
   isTextCopied,
@@ -82,9 +84,14 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
 
   // Handle starting edit mode
   const handleStartEdit = (section: string, currentContent: any) => {
-    setEditingSection(section);
+    console.log('=== HANDLE START EDIT DEBUG ===');
+    console.log('Section:', section);
+    console.log('Current content:', currentContent);
+    console.log('Content type:', typeof currentContent);
+    console.log('Selected file path:', selectedFilePath);
+    console.log('onUpdateDocumentation function:', !!onUpdateDocumentation);
     
-    console.log('Starting edit for section:', section, 'with content:', currentContent, 'type:', typeof currentContent);
+    setEditingSection(section);
     
     // Convert content to string format for editing
     let editableContent = '';
@@ -114,6 +121,7 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
     
     console.log('Setting editable content:', editableContent);
     setEditedContent({ [section]: editableContent });
+    console.log('=== END HANDLE START EDIT DEBUG ===');
   };
 
   // Handle canceling edit
@@ -124,8 +132,15 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
 
   // Handle saving changes
   const handleSaveEdit = async (section: string) => {
-    if (!onUpdateDocumentation || !localSummary) {
-      console.error('Missing dependencies for save:', { onUpdateDocumentation: !!onUpdateDocumentation, localSummary: !!localSummary });
+    console.log('=== HANDLE SAVE EDIT DEBUG ===');
+    console.log('Section:', section);
+    console.log('onUpdateDocumentation:', !!onUpdateDocumentation);
+    console.log('selectedFilePath:', selectedFilePath);
+    console.log('editedContent for section:', editedContent[section]);
+    console.log('Full editedContent:', editedContent);
+    
+    if (!onUpdateDocumentation || !selectedFilePath) {
+      console.error('Missing dependencies for save:', { onUpdateDocumentation: !!onUpdateDocumentation, selectedFilePath: !!selectedFilePath });
       return;
     }
 
@@ -161,13 +176,13 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
       }
 
       console.log('Calling onUpdateDocumentation with:', {
-        filePath: localSummary.filePath,
+        filePath: selectedFilePath,
         section,
         content: contentToSave
       });
 
       await onUpdateDocumentation(
-        localSummary.filePath,
+        selectedFilePath,
         section,
         contentToSave
       );
@@ -175,7 +190,11 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
       console.log('Save successful, updating local state');
 
       // Create a deep copy of the current summary to avoid mutation
-      const updatedSummary = JSON.parse(JSON.stringify(localSummary));
+      const currentSummary = localSummary || selectedFileSummary;
+      const updatedSummary = JSON.parse(JSON.stringify(currentSummary));
+      
+      // The API response structure is: { filePath, language, lastProcessed, summary: {...}, summaryCreatedAt }
+      // We need to update the summary content inside the summary property
       const summaryContent = updatedSummary.summary || {};
       
       // Ensure metadata structure exists
@@ -213,6 +232,7 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
         id: 'current-user'
       };
       
+      // Update the summary content in the correct structure
       updatedSummary.summary = summaryContent;
       
       console.log('Updated summary structure:', updatedSummary);
@@ -435,10 +455,15 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
               onChange={(e) => {
                 e.stopPropagation();
                 const value = e.target.value;
-                setEditedContent((prev: any) => ({
-                  ...prev,
-                  [sectionKey]: value
-                }));
+                console.log('Textarea onChange - Section:', sectionKey, 'New value:', value);
+                setEditedContent((prev: any) => {
+                  const newContent = {
+                    ...prev,
+                    [sectionKey]: value
+                  };
+                  console.log('Updated editedContent:', newContent);
+                  return newContent;
+                });
               }}
               onKeyDown={(e) => {
                 e.stopPropagation();
