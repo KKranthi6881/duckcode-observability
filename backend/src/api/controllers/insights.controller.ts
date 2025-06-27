@@ -210,59 +210,163 @@ export const getRepositoryProcessingStatus = async (req: Request, res: Response,
       return res.status(400).json({ message: 'A valid repositoryFullName is required.' });
     }
 
-    console.log(`[InsightsController] Fetching processing status for repository: ${repositoryFullName}`);
+    console.log(`[InsightsController] Fetching comprehensive processing status for repository: ${repositoryFullName}`);
 
-    const { data: files, error: filesError } = await supabase
-      .from('files')
-      .select(`
-        id,
-        file_path,
-        processing_jobs ( status, error_details )
-      `)
-      .eq('repository_full_name', repositoryFullName)
-      .eq('user_id', userId);
+    // Use the new comprehensive status function that includes vector processing
+    const { data: statusData, error: statusError } = await supabaseCodeInsights
+      .rpc('get_repository_processing_status', {
+        repo_full_name: repositoryFullName,
+        user_id_param: userId
+      });
 
-    if (filesError) {
-      console.error('Supabase DB Error during status fetch:', filesError);
+    if (statusError) {
+      console.error('Supabase DB Error during comprehensive status fetch:', statusError);
       throw new Error('Failed to fetch processing status.');
     }
 
-    if (!files || files.length === 0) {
+    if (!statusData || statusData.length === 0) {
       return res.status(404).json({ message: 'No files found for this repository. Has it been processed?' });
     }
 
-    let completed = 0;
-    let failed = 0;
-    let pending = 0;
+    const status = statusData[0];
+    
+    // Parse the file_details JSONB into a more usable format
+    const detailedStatus = status.file_details.map((file: any) => ({
+      filePath: file.filePath,
+      documentationStatus: file.docStatus,
+      vectorStatus: file.vectorStatus,
+      overallStatus: file.overallStatus,
+      documentationError: file.docError,
+      vectorError: file.vectorError,
+      vectorChunks: file.vectorChunks || 0,
+      isFullyProcessed: file.overallStatus === 'completed'
+    }));
 
-    const detailedStatus = files.map(file => {
-      const job = Array.isArray(file.processing_jobs) ? file.processing_jobs[0] : file.processing_jobs;
-      const status = job?.status || 'pending';
-      if (status === 'completed') completed++;
-      else if (status === 'failed') failed++;
-      else pending++;
-
-      return {
-        filePath: file.file_path,
-        status: status,
-        errorMessage: job?.error_details || null,
-      };
-    });
-
-    const totalFiles = files.length;
-    const progress = totalFiles > 0 ? Math.round(((completed + failed) / totalFiles) * 100) : 0;
-
-    res.status(200).json({
-      totalFiles,
-      completed,
-      failed,
-      pending,
-      progress,
+    const response = {
+      // Overall metrics
+      totalFiles: Number(status.total_files),
+      overallCompleted: Number(status.overall_completed),
+      overallProgress: Number(status.overall_progress),
+      
+      // Documentation-specific metrics
+      documentation: {
+        completed: Number(status.documentation_completed),
+        failed: Number(status.documentation_failed),
+        pending: Number(status.documentation_pending),
+        progress: status.total_files > 0 ? 
+          Math.round((Number(status.documentation_completed) / Number(status.total_files)) * 100) : 0
+      },
+      
+      // Vector-specific metrics
+      vectors: {
+        completed: Number(status.vector_completed),
+        failed: Number(status.vector_failed),
+        pending: Number(status.vector_pending),
+        progress: status.total_files > 0 ? 
+          Math.round((Number(status.vector_completed) / Number(status.total_files)) * 100) : 0
+      },
+      
+      // Detailed file-by-file status
       detailedStatus,
+      
+      // Legacy compatibility (for existing frontend)
+      completed: Number(status.overall_completed),
+      failed: Number(status.documentation_failed) + Number(status.vector_failed),
+      pending: Number(status.documentation_pending) + Number(status.vector_pending),
+      progress: Number(status.overall_progress)
+    };
+
+    console.log(`[InsightsController] Comprehensive status response:`, {
+      totalFiles: response.totalFiles,
+      overallProgress: response.overallProgress,
+      docProgress: response.documentation.progress,
+      vectorProgress: response.vectors.progress
     });
+
+    res.status(200).json(response);
 
   } catch (error) {
     console.error(`[InsightsController] Error in getRepositoryProcessingStatus:`, error);
+    next(error);
+  }
+};
+
+/**
+ * @description Retry vector processing for failed files
+ * @route POST /api/insights/retry-vectors/:repositoryFullName
+ */
+export const retryVectorProcessing = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const { repositoryFullName } = req.params;
+    if (!repositoryFullName) {
+      return res.status(400).json({ message: 'A valid repositoryFullName is required.' });
+    }
+
+    console.log(`[InsightsController] Retrying vector processing for repository: ${repositoryFullName}`);
+
+    // Find files with failed vector processing or completed documentation but pending vectors
+    const { data: jobsToRetry, error: jobsError } = await supabaseCodeInsights
+      .from('processing_jobs')
+      .select(`
+        id,
+        file_id,
+        status,
+        vector_status,
+        files!inner(repository_full_name, file_path)
+      `)
+      .eq('files.repository_full_name', repositoryFullName)
+      .eq('files.user_id', userId)
+      .eq('status', 'completed') // Only retry vector processing for files with completed documentation
+      .in('vector_status', ['failed', 'pending']);
+
+    if (jobsError) {
+      console.error('Error finding jobs to retry:', jobsError);
+      throw new Error('Failed to find vector processing jobs to retry');
+    }
+
+    if (!jobsToRetry || jobsToRetry.length === 0) {
+      return res.status(200).json({
+        message: 'No vector processing jobs found that need retry',
+        retriedCount: 0
+      });
+    }
+
+    // Reset vector processing status to pending for retry
+    const jobIds = jobsToRetry.map(job => job.id);
+    
+    const { error: resetError } = await supabaseCodeInsights
+      .from('processing_jobs')
+      .update({
+        vector_status: 'pending',
+        vector_error_details: null,
+        vector_processed_at: null,
+        updated_at: new Date().toISOString()
+      })
+      .in('id', jobIds);
+
+    if (resetError) {
+      console.error('Error resetting vector processing status:', resetError);
+      throw new Error('Failed to reset vector processing status');
+    }
+
+    console.log(`[InsightsController] Reset vector processing status for ${jobIds.length} jobs`);
+
+    // Note: The actual vector processing will be picked up by the next run of the code processor
+    // You might want to trigger the code processor function here if you have a way to do so
+
+    res.status(200).json({
+      message: `Successfully reset vector processing for ${jobIds.length} files. Processing will resume automatically.`,
+      retriedCount: jobIds.length,
+      jobIds
+    });
+
+  } catch (error) {
+    console.error(`[InsightsController] Error in retryVectorProcessing:`, error);
     next(error);
   }
 };

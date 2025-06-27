@@ -118,31 +118,72 @@ export function CodeBase() {
         const status = await getProcessingStatus(repoFullName);
         console.log(`Progress update for ${repoFullName}:`, status);
         
-        setRepoProgressStatus(prev => ({
-          ...prev,
-          [repoId]: {
+        // Handle both legacy and new comprehensive status formats
+        let formattedStatus;
+        if (status.overallProgress !== undefined) {
+          // New comprehensive format
+          formattedStatus = {
+            ...status,
+            isPolling: true,
+            // Legacy compatibility for existing UI
+            progress: status.overallProgress,
+            completed: status.overallCompleted,
+            totalFiles: status.totalFiles,
+            failed: (status.documentation?.failed || 0) + (status.vectors?.failed || 0),
+            pending: (status.documentation?.pending || 0) + (status.vectors?.pending || 0)
+          };
+        } else {
+          // Legacy format
+          formattedStatus = {
             progress: status.progress || 0,
             totalFiles: status.totalFiles || 0,
             completed: status.completed || 0,
             failed: status.failed || 0,
             pending: status.pending || 0,
             isPolling: true
-          }
+          };
+        }
+        
+        setRepoProgressStatus(prev => ({
+          ...prev,
+          [repoId]: formattedStatus
         }));
 
-                 // Stop polling if processing is complete
-        if (status.progress >= 100 || (status.totalFiles > 0 && status.pending === 0)) {
+        // Enhanced completion detection for separate tracking
+        let isComplete = false;
+        
+        if (status.overallProgress !== undefined) {
+          // New comprehensive format - check if BOTH documentation and vectors are complete
+          const docComplete = status.documentation?.progress >= 100 && status.documentation?.pending === 0;
+          const vectorComplete = status.vectors?.progress >= 100 && status.vectors?.pending === 0;
+          const overallComplete = status.overallProgress >= 100;
+          
+          // Stop polling only when everything is truly complete
+          isComplete = overallComplete && docComplete && vectorComplete;
+          
+          console.log(`Completion check for ${repoFullName}:`, {
+            overallProgress: status.overallProgress,
+            docComplete,
+            vectorComplete,
+            overallComplete,
+            finalDecision: isComplete
+          });
+        } else {
+          // Legacy format
+          const overallProgress = formattedStatus.progress;
+          isComplete = overallProgress >= 100 || 
+            (formattedStatus.totalFiles > 0 && formattedStatus.pending === 0);
+        }
+        
+        if (isComplete) {
           console.log(`Processing complete for ${repoFullName}, stopping polling`);
           
           // Mark as completed and stop polling
           setRepoProgressStatus(prev => ({
             ...prev,
             [repoId]: {
-              ...prev[repoId],
+              ...formattedStatus,
               progress: 100,
-              totalFiles: status.totalFiles || prev[repoId]?.totalFiles || 0,
-              completed: status.completed || prev[repoId]?.completed || 0,
-              failed: status.failed || prev[repoId]?.failed || 0,
               pending: 0,
               isPolling: false
             }
@@ -172,9 +213,9 @@ export function CodeBase() {
       }
     };
 
-    // Poll immediately, then every 2 seconds
+    // Poll immediately, then every 3 seconds (reduced frequency for better performance)
     pollProgress();
-    const interval = setInterval(pollProgress, 2000);
+    const interval = setInterval(pollProgress, 3000);
     
     setPollingIntervals(prev => ({
       ...prev,
@@ -321,12 +362,33 @@ export function CodeBase() {
       const statusPromises = gitHubConnectionStatus.details.accessibleRepos.map(async (repo: any) => {
         try {
           const processingStatus = await getProcessingStatus(repo.full_name);
+          console.log(`Status for ${repo.full_name}:`, processingStatus);
+          
+          // Handle both legacy and new comprehensive status formats
+          let formattedStatus;
+          if (processingStatus.overallProgress !== undefined) {
+            // New comprehensive format
+            formattedStatus = {
+              ...processingStatus,
+              isPolling: false,
+              // Legacy compatibility
+              progress: processingStatus.overallProgress,
+              completed: processingStatus.overallCompleted,
+              totalFiles: processingStatus.totalFiles,
+              failed: (processingStatus.documentation?.failed || 0) + (processingStatus.vectors?.failed || 0),
+              pending: (processingStatus.documentation?.pending || 0) + (processingStatus.vectors?.pending || 0)
+            };
+          } else {
+            // Legacy format
+            formattedStatus = {
+              ...processingStatus,
+              isPolling: false
+            };
+          }
+          
           return { 
             repoId: repo.id.toString(), 
-            status: {
-              ...processingStatus,
-              isPolling: false // Not actively polling on load
-            }
+            status: formattedStatus
           };
         } catch (error) {
           // If repository hasn't been processed, that's expected

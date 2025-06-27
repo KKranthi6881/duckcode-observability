@@ -13,7 +13,8 @@ import {
   Calendar,
   GitCommit,
   Eye,
-  Shield
+  Shield,
+  Network
 } from 'lucide-react';
 import { useProcessingStatus } from '../context/ProcessingStatusContext';
 import { useRepositoryMetadata } from '../hooks/useRepositoryMetadata';
@@ -28,6 +29,41 @@ interface RepositoryCardProps {
     completed?: number;
     pending?: number;
     failed?: number;
+    // New comprehensive status fields
+    overallCompleted?: number;
+    overallProgress?: number;
+    documentation?: {
+      completed: number;
+      failed: number;
+      pending: number;
+      progress: number;
+    };
+    vectors?: {
+      completed: number;
+      failed: number;
+      pending: number;
+      progress: number;
+    };
+    lineage?: {
+      completed: number;
+      failed: number;
+      pending: number;
+      progress: number;
+    };
+    detailedStatus?: Array<{
+      filePath: string;
+      documentationStatus: string;
+      vectorStatus: string;
+      lineageStatus?: string;
+      overallStatus: string;
+      documentationError?: string;
+      vectorError?: string;
+      lineageError?: string;
+      vectorChunks?: number;
+      lineageAssets?: number;
+      lineageRelationships?: number;
+      isFullyProcessed: boolean;
+    }>;
   };
   isProcessing: boolean;
   isQueued: boolean;
@@ -85,42 +121,131 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
     }
   };
 
-  // Get processing info
+  // Get processing info with separate tracking
   const getProcessingInfo = () => {
+    // Check if we have the new comprehensive status format
+    if (repoStatus?.documentation && repoStatus?.vectors) {
+      const docStats = repoStatus.documentation;
+      const vectorStats = repoStatus.vectors;
+      const lineageStats = repoStatus.lineage;
+      
+      return {
+        hasData: true,
+        documentation: {
+          completed: docStats.completed || 0,
+          pending: docStats.pending || 0,
+          failed: docStats.failed || 0,
+          progress: docStats.progress || 0,
+          isActive: docStats.pending > 0 || (docStats.progress < 100 && docStats.progress > 0),
+          isCompleted: docStats.progress >= 100 && docStats.pending === 0
+        },
+        vectors: {
+          completed: vectorStats.completed || 0,
+          pending: vectorStats.pending || 0,
+          failed: vectorStats.failed || 0,
+          progress: vectorStats.progress || 0,
+          isActive: vectorStats.pending > 0 || (vectorStats.progress < 100 && vectorStats.progress > 0),
+          isCompleted: vectorStats.progress >= 100 && vectorStats.pending === 0,
+          totalChunks: repoStatus.detailedStatus?.reduce((sum, file) => sum + (file.vectorChunks || 0), 0) || 0
+        },
+        lineage: lineageStats ? {
+          completed: lineageStats.completed || 0,
+          pending: lineageStats.pending || 0,
+          failed: lineageStats.failed || 0,
+          progress: lineageStats.progress || 0,
+          isActive: lineageStats.pending > 0 || (lineageStats.progress < 100 && lineageStats.progress > 0),
+          isCompleted: lineageStats.progress >= 100 && lineageStats.pending === 0,
+          totalAssets: repoStatus.detailedStatus?.reduce((sum, file) => sum + (file.lineageAssets || 0), 0) || 0,
+          totalRelationships: repoStatus.detailedStatus?.reduce((sum, file) => sum + (file.lineageRelationships || 0), 0) || 0
+        } : null,
+        overall: {
+          totalFiles: repoStatus.totalFiles || 0,
+          fullyCompleted: repoStatus.overallCompleted || 0,
+          isPolling: repoStatus.isPolling || false
+        }
+      };
+    }
+    
+    // Fallback to legacy format support
     if (processingStatus?.isPolling) {
       return {
-        status: 'processing',
-        text: `Processing... ${Math.round(processingStatus.progress)}%`,
-        progress: processingStatus.progress,
-        stats: {
-          total: processingStatus.totalFiles,
-          completed: processingStatus.completed,
-          pending: processingStatus.pending,
-          failed: processingStatus.failed
+        hasData: true,
+        legacy: true,
+        documentation: {
+          completed: processingStatus.completed || 0,
+          pending: processingStatus.pending || 0,
+          failed: processingStatus.failed || 0,
+          progress: processingStatus.progress || 0,
+          isActive: true,
+          isCompleted: false
+        },
+        vectors: {
+          completed: 0,
+          pending: 0,
+          failed: 0,
+          progress: 0,
+          isActive: false,
+          isCompleted: false,
+          totalChunks: 0
+        },
+        overall: {
+          totalFiles: processingStatus.totalFiles || 0,
+          fullyCompleted: 0,
+          isPolling: true
         }
       };
     } else if (processingStatus && processingStatus.progress >= 100) {
       return {
-        status: 'completed',
-        text: 'All Files Processed',
-        progress: 100,
-        stats: {
-          total: processingStatus.totalFiles,
-          completed: processingStatus.completed,
-          pending: processingStatus.pending,
-          failed: processingStatus.failed
+        hasData: true,
+        legacy: true,
+        documentation: {
+          completed: processingStatus.completed || 0,
+          pending: 0,
+          failed: processingStatus.failed || 0,
+          progress: 100,
+          isActive: false,
+          isCompleted: true
+        },
+        vectors: {
+          completed: 0,
+          pending: 0,
+          failed: 0,
+          progress: 0,
+          isActive: false,
+          isCompleted: false,
+          totalChunks: 0
+        },
+        overall: {
+          totalFiles: processingStatus.totalFiles || 0,
+          fullyCompleted: processingStatus.completed || 0,
+          isPolling: false
         }
       };
     } else if (repoStatus && repoStatus.progress >= 100 && !repoStatus.isPolling) {
       return {
-        status: 'completed',
-        text: 'All Files Processed',
-        progress: 100,
-        stats: {
-          total: repoStatus.totalFiles || 0,
+        hasData: true,
+        legacy: true,
+        documentation: {
           completed: repoStatus.completed || 0,
-          pending: repoStatus.pending || 0,
-          failed: repoStatus.failed || 0
+          pending: 0,
+          failed: repoStatus.failed || 0,
+          progress: 100,
+          isActive: false,
+          isCompleted: true
+        },
+        vectors: {
+          completed: 0,
+          pending: 0,
+          failed: 0,
+          progress: 0,
+          isActive: false,
+          isCompleted: false,
+          totalChunks: 0
+        },
+        overall: {
+          totalFiles: repoStatus.totalFiles || 0,
+          fullyCompleted: repoStatus.completed || 0,
+          isPolling: false
         }
       };
     }
@@ -128,8 +253,6 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
   };
 
   const processingInfo = getProcessingInfo();
-
-
 
   return (
     <div
@@ -282,7 +405,7 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
 
         {/* Right side - Status & Action */}
         <div className="flex items-center space-x-3 flex-shrink-0">
-          {/* Processing Status */}
+          {/* Processing Status - Separate Trackers */}
           {processingInfo && (
             <button
               onClick={(e) => {
@@ -290,61 +413,126 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
                 const [owner, repoName] = repo.full_name.split('/');
                 navigate(`/dashboard/code/status/${owner}/${repoName}`);
               }}
-              className="flex items-center space-x-3 hover:bg-gray-50 rounded-md p-2 transition-colors"
+              className="flex flex-col space-y-2 hover:bg-gray-50 rounded-md p-2 transition-colors"
             >
-              {processingInfo.status === 'processing' ? (
-                <div className="flex items-center space-x-2 text-xs">
-                  <Loader2 className="h-3 w-3 animate-spin text-blue-500" />
-                  <div className="text-right">
-                    <div className="flex items-center space-x-2 mb-1">
-                      <span className="text-blue-700 font-medium">{processingInfo.text}</span>
-                      <div className="w-16 bg-gray-200 rounded-full h-1.5">
+              {/* Documentation Tracker */}
+              <div className="flex items-center space-x-2">
+                {processingInfo.documentation.isActive ? (
+                  <Loader2 className="h-3 w-3 animate-spin text-blue-500 flex-shrink-0" />
+                ) : processingInfo.documentation.isCompleted ? (
+                  <CheckCircle className="h-3 w-3 text-green-500 flex-shrink-0" />
+                ) : (
+                  <Clock className="h-3 w-3 text-gray-400 flex-shrink-0" />
+                )}
+                
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center space-x-1 text-xs">
+                    <span className="text-blue-700 font-medium">📄 Documentation</span>
+                    <span className="text-gray-500">
+                      {processingInfo.documentation.completed}/{processingInfo.overall.totalFiles}
+                    </span>
+                    {processingInfo.documentation.failed > 0 && (
+                      <span className="text-red-500">({processingInfo.documentation.failed} failed)</span>
+                    )}
+                  </div>
+                  
+                  {processingInfo.documentation.isActive && (
+                    <div className="w-16 bg-gray-200 rounded-full h-1 mt-1">
+                      <div 
+                        className="bg-gradient-to-r from-blue-500 to-blue-600 h-1 rounded-full transition-all duration-300"
+                        style={{ width: `${processingInfo.documentation.progress}%` }}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Vector Tracker */}
+              <div className="flex items-center space-x-2">
+                {processingInfo.vectors.isActive ? (
+                  <Loader2 className="h-3 w-3 animate-spin text-purple-500 flex-shrink-0" />
+                ) : processingInfo.vectors.isCompleted ? (
+                  <CheckCircle className="h-3 w-3 text-green-500 flex-shrink-0" />
+                ) : processingInfo.documentation.isCompleted ? (
+                  <Clock className="h-3 w-3 text-orange-400 flex-shrink-0" />
+                ) : (
+                  <div className="h-3 w-3 border border-gray-300 rounded-full flex-shrink-0" />
+                )}
+                
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center space-x-1 text-xs">
+                    <span className="text-purple-700 font-medium">🔍 Vectors</span>
+                    <span className="text-gray-500">
+                      {processingInfo.vectors.completed}/{processingInfo.overall.totalFiles}
+                    </span>
+                    {processingInfo.vectors.totalChunks > 0 && (
+                      <span className="text-emerald-600">({processingInfo.vectors.totalChunks} chunks)</span>
+                    )}
+                    {processingInfo.vectors.failed > 0 && (
+                      <span className="text-red-500">({processingInfo.vectors.failed} failed)</span>
+                    )}
+                  </div>
+                  
+                  {processingInfo.vectors.isActive && (
+                    <div className="w-16 bg-gray-200 rounded-full h-1 mt-1">
+                      <div 
+                        className="bg-gradient-to-r from-purple-500 to-purple-600 h-1 rounded-full transition-all duration-300"
+                        style={{ width: `${processingInfo.vectors.progress}%` }}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Lineage Tracker */}
+              {processingInfo.lineage && (
+                <div className="flex items-center space-x-2">
+                  {processingInfo.lineage.isActive ? (
+                    <Loader2 className="h-3 w-3 animate-spin text-emerald-500 flex-shrink-0" />
+                  ) : processingInfo.lineage.isCompleted ? (
+                    <CheckCircle className="h-3 w-3 text-green-500 flex-shrink-0" />
+                  ) : processingInfo.vectors.isCompleted ? (
+                    <Clock className="h-3 w-3 text-orange-400 flex-shrink-0" />
+                  ) : (
+                    <div className="h-3 w-3 border border-gray-300 rounded-full flex-shrink-0" />
+                  )}
+                  
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center space-x-1 text-xs">
+                      <span className="text-emerald-700 font-medium">🔗 Lineage</span>
+                      <span className="text-gray-500">
+                        {processingInfo.lineage.completed}/{processingInfo.overall.totalFiles}
+                      </span>
+                      {processingInfo.lineage.totalAssets > 0 && (
+                        <span className="text-blue-600">({processingInfo.lineage.totalAssets} assets)</span>
+                      )}
+                      {processingInfo.lineage.totalRelationships > 0 && (
+                        <span className="text-indigo-600">({processingInfo.lineage.totalRelationships} links)</span>
+                      )}
+                      {processingInfo.lineage.failed > 0 && (
+                        <span className="text-red-500">({processingInfo.lineage.failed} failed)</span>
+                      )}
+                    </div>
+                    
+                    {processingInfo.lineage.isActive && (
+                      <div className="w-16 bg-gray-200 rounded-full h-1 mt-1">
                         <div 
-                          className="bg-gradient-to-r from-blue-500 to-blue-600 h-1.5 rounded-full transition-all duration-300"
-                          style={{ width: `${processingInfo.progress}%` }}
+                          className="bg-gradient-to-r from-emerald-500 to-emerald-600 h-1 rounded-full transition-all duration-300"
+                          style={{ width: `${processingInfo.lineage.progress}%` }}
                         />
                       </div>
-                    </div>
-                    <div className="flex items-center space-x-1 text-xs text-gray-500">
-                      <span className="text-green-600 font-medium">{processingInfo.stats.completed}</span>
-                      <span>/</span>
-                      <span className="text-gray-600">{processingInfo.stats.total}</span>
-                      {processingInfo.stats.pending > 0 && (
-                        <>
-                          <span>•</span>
-                          <span className="text-orange-600">{processingInfo.stats.pending} pending</span>
-                        </>
-                      )}
-                      {processingInfo.stats.failed > 0 && (
-                        <>
-                          <span>•</span>
-                          <span className="text-red-600">{processingInfo.stats.failed} failed</span>
-                        </>
-                      )}
-                    </div>
+                    )}
                   </div>
                 </div>
-              ) : (
-                <div className="flex items-center space-x-2 text-xs">
-                  <CheckCircle className="h-3 w-3 text-green-500" />
-                  <div className="text-right">
-                    <div className="text-green-700 font-medium mb-1">{processingInfo.text}</div>
-                    <div className="flex items-center space-x-1 text-xs text-gray-500">
-                      <span className="text-green-600 font-medium">{processingInfo.stats.completed} files</span>
-                      {processingInfo.stats.failed > 0 && (
-                        <>
-                          <span>•</span>
-                          <span className="text-red-600">{processingInfo.stats.failed} failed</span>
-                        </>
-                      )}
-                      {processingInfo.stats.total > processingInfo.stats.completed + processingInfo.stats.failed && (
-                        <>
-                          <span>•</span>
-                          <span className="text-gray-500">{processingInfo.stats.total - processingInfo.stats.completed - processingInfo.stats.failed} skipped</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
+              )}
+
+              {/* Overall Status */}
+              {processingInfo.documentation.isCompleted && processingInfo.vectors.isCompleted && (!processingInfo.lineage || processingInfo.lineage.isCompleted) && (
+                <div className="flex items-center justify-center space-x-1 text-xs text-green-700 bg-green-50 rounded px-2 py-1">
+                  <CheckCircle className="h-3 w-3" />
+                  <span className="font-medium">
+                    {processingInfo.lineage ? 'Fully Processed, Vectorized & Mapped' : 'Fully Processed & Vectorized'}
+                  </span>
                 </div>
               )}
             </button>

@@ -7,11 +7,14 @@ import { Octokit } from 'octokit';
 
 // --- Interfaces (ensure these match your actual table structures) ---
 interface ProcessingJob {
-    job_id: string; // uuid
+    id: string; // uuid
     file_id: string; // uuid
     prompt_template_id: string; // uuid
     status: 'pending' | 'processing' | 'completed' | 'failed';
+    vector_status: 'pending' | 'processing' | 'completed' | 'failed';
+    lineage_status: 'pending' | 'processing' | 'completed' | 'failed';
     retry_count: number;
+    lineage_retry_count?: number;
     // Add other relevant fields from your processing_jobs table
     // e.g., created_at, updated_at, leased_at, error_message
 }
@@ -191,6 +194,419 @@ async function getCustomAnalysisSettings(supabaseClient: any, repoFullName: stri
         console.error(`Error in getCustomAnalysisSettings for ${repoFullName}:`, error);
         return null;
     }
+}
+
+// --- Vector Storage Functions ---
+async function generateAndStoreVectors(fileId: string, summaryJson: any, fileRecord?: any): Promise<number> {
+    console.log(`Starting vector generation for file ${fileId}`);
+    
+    // Parse the summary content from the API response
+    let actualSummary = summaryJson;
+    
+    // Handle OpenAI API response format
+    if (summaryJson.choices && Array.isArray(summaryJson.choices) && summaryJson.choices[0]?.message?.content) {
+        try {
+            const contentString = summaryJson.choices[0].message.content;
+            actualSummary = JSON.parse(contentString);
+            console.log(`Parsed summary from OpenAI API response format`);
+        } catch (parseError) {
+            console.error(`Failed to parse OpenAI response content:`, parseError);
+            console.log(`Raw content:`, summaryJson.choices[0].message.content.substring(0, 200) + '...');
+            return 0;
+        }
+    }
+    // Handle direct summary format (if already parsed)
+    else if (summaryJson.summary || summaryJson.business_logic || summaryJson.technical_details) {
+        console.log(`Using direct summary format`);
+        actualSummary = summaryJson;
+    } else {
+        console.error(`Unrecognized summary format for file ${fileId}`);
+        console.log(`Summary keys:`, Object.keys(summaryJson));
+        return 0;
+    }
+    
+    const chunks = extractChunksFromSummary(actualSummary, fileRecord);
+    console.log(`Extracted ${chunks.length} chunks for vectorization`);
+    
+    if (chunks.length === 0) {
+        console.log(`Warning: No chunks extracted from summary for file ${fileId}`);
+        console.log(`Actual summary structure keys:`, Object.keys(actualSummary));
+        console.log(`Sample summary content:`, JSON.stringify(actualSummary, null, 2).substring(0, 300) + '...');
+        return 0;
+    }
+    
+    // Get Supabase client for vector operations
+    const supabaseAdmin = createClient(
+        Deno.env.get('EDGE_FUNCTION_SUPABASE_URL') ?? '',
+        Deno.env.get('EDGE_FUNCTION_SERVICE_ROLE_KEY') ?? '',
+        {
+            db: { schema: 'code_insights' },
+            auth: {
+                persistSession: false,
+                autoRefreshToken: false,
+            }
+        }
+    );
+
+    for (const chunk of chunks) {
+        if (!chunk.content || chunk.content.trim().length === 0) {
+            console.log(`Skipping empty chunk: ${chunk.chunk_id}`);
+            continue;
+        }
+
+        try {
+            // Generate embedding using OpenAI
+            const embedding = await generateEmbedding(chunk.content);
+            const tokenCount = estimateTokenCount(chunk.content);
+
+            // Store in database with enhanced metadata
+            const { error } = await supabaseAdmin
+                .from('document_vectors')
+                .upsert({
+                    file_id: fileId,
+                    chunk_id: chunk.chunk_id,
+                    chunk_type: chunk.chunk_type,
+                    content: chunk.content,
+                    metadata: chunk.metadata,
+                    embedding: JSON.stringify(embedding),
+                    token_count: tokenCount,
+                    
+                    // Enhanced metadata fields
+                    section_type: chunk.metadata.section_type || chunk.chunk_type,
+                    search_priority: chunk.metadata.search_priority || 'medium',
+                    llm_context: chunk.metadata.llm_context || 'general_context',
+                    estimated_line_start: chunk.metadata.estimated_line_range?.start || null,
+                    estimated_line_end: chunk.metadata.estimated_line_range?.end || null,
+                    complexity_score: chunk.metadata.complexity_indicators?.score || 0,
+                    repository_name: chunk.metadata.repository_name || '',
+                    language: chunk.metadata.language || ''
+                }, {
+                    onConflict: 'file_id,chunk_id'
+                });
+
+            if (error) {
+                console.error(`Error storing vector for chunk ${chunk.chunk_id}:`, error);
+                throw error;
+            }
+
+            console.log(`Stored vector for chunk: ${chunk.chunk_id}`);
+        } catch (error) {
+            console.error(`Failed to process chunk ${chunk.chunk_id}:`, error);
+            throw error;
+        }
+    }
+    
+    return chunks.length;
+}
+
+async function generateEmbedding(text: string): Promise<number[]> {
+    const apiKey = Deno.env.get('OPENAI_API_KEY');
+    if (!apiKey) {
+        throw new Error('OpenAI API key not configured');
+    }
+
+    const response = await fetch('https://api.openai.com/v1/embeddings', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            model: 'text-embedding-ada-002',
+            input: text,
+        }),
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`OpenAI embedding API error: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    if (!data.data || data.data.length === 0) {
+        throw new Error('No embedding data received from OpenAI');
+    }
+
+    return data.data[0].embedding;
+}
+
+function extractChunksFromSummary(summaryJson: any, fileRecord?: any): Array<{
+    chunk_id: string;
+    chunk_type: string;
+    content: string;
+    metadata: any;
+}> {
+    const chunks = [];
+
+    try {
+        // Base metadata that applies to all chunks from this file
+        const baseMetadata = {
+            file_path: fileRecord?.file_path || '',
+            repository_name: fileRecord?.repository_full_name || '',
+            language: fileRecord?.language || '',
+            file_id: fileRecord?.id || '',
+            processing_timestamp: new Date().toISOString()
+        };
+
+        // Extract summary with enhanced metadata
+        if (summaryJson.summary) {
+            chunks.push({
+                chunk_id: 'summary',
+                chunk_type: 'summary',
+                content: typeof summaryJson.summary === 'string' 
+                    ? summaryJson.summary 
+                    : JSON.stringify(summaryJson.summary),
+                metadata: { 
+                    ...baseMetadata,
+                    section_name: 'File Summary',
+                    section_type: 'overview',
+                    search_priority: 'high',
+                    llm_context: 'file_overview'
+                }
+            });
+        }
+
+        // Extract business logic with enhanced dependency tracking
+        if (summaryJson.business_logic) {
+            const businessLogicContent = extractBusinessLogicContent(summaryJson.business_logic);
+            if (businessLogicContent) {
+                chunks.push({
+                    chunk_id: 'business_logic',
+                    chunk_type: 'business_logic',
+                    content: businessLogicContent,
+                    metadata: { 
+                        ...baseMetadata,
+                        section_name: 'Business Logic',
+                        section_type: 'business_rules',
+                        search_priority: 'high',
+                        llm_context: 'business_intelligence',
+                        extracted_entities: extractBusinessEntities(summaryJson.business_logic),
+                        business_impact: summaryJson.business_logic.stakeholder_impact || '',
+                        main_objectives: summaryJson.business_logic.main_objectives || []
+                    }
+                });
+            }
+        }
+
+        // Extract code blocks with detailed location and dependency tracking
+        if (summaryJson.code_blocks && Array.isArray(summaryJson.code_blocks)) {
+            summaryJson.code_blocks.forEach((block: any, index: number) => {
+                if (block.code || block.explanation || block.business_context) {
+                    const content = [
+                        block.code && `Code:\n${block.code}`,
+                        block.explanation && `Explanation:\n${block.explanation}`,
+                        block.business_context && `Business Context:\n${block.business_context}`
+                    ].filter(Boolean).join('\n\n');
+
+                    // Enhanced code block metadata with dependency tracking
+                    const codeMetadata = {
+                        ...baseMetadata,
+                        section_name: block.section || `Code Block ${index + 1}`,
+                        section_type: 'code_implementation',
+                        search_priority: 'very_high',
+                        llm_context: 'code_analysis',
+                        block_index: index,
+                        
+                        // Code structure analysis
+                        function_names: extractFunctionNames(block.code),
+                        table_names: extractTableNames(block.code),
+                        column_names: extractColumnNames(block.code),
+                        
+                        // Dependency tracking
+                        dependencies: {
+                            tables: extractTableDependencies(block.code),
+                            functions: extractFunctionDependencies(block.code), 
+                            imports: extractImportDependencies(block.code),
+                            variables: extractVariableDependencies(block.code)
+                        },
+                        
+                        // Code characteristics for LLM understanding
+                        code_patterns: extractCodePatterns(block.code),
+                        complexity_indicators: analyzeCodeComplexity(block.code),
+                        
+                        // Line tracking (estimated from code blocks)
+                        estimated_line_range: estimateLineRange(block.code, index),
+                        
+                        // Context for LLM
+                        code_purpose: block.explanation || '',
+                        business_value: block.business_context || '',
+                        technical_notes: block.complexity_breakdown || {}
+                    };
+
+                    chunks.push({
+                        chunk_id: `code_block_${index}`,
+                        chunk_type: 'code_block',
+                        content,
+                        metadata: codeMetadata
+                    });
+                }
+            });
+        }
+
+        // Extract technical details with system architecture insights
+        if (summaryJson.technical_details) {
+            chunks.push({
+                chunk_id: 'technical_details',
+                chunk_type: 'technical_details',
+                content: typeof summaryJson.technical_details === 'string'
+                    ? summaryJson.technical_details
+                    : JSON.stringify(summaryJson.technical_details),
+                metadata: {
+                    ...baseMetadata,
+                    section_name: 'Technical Details',
+                    section_type: 'architecture',
+                    search_priority: 'high',
+                    llm_context: 'technical_architecture',
+                    technical_entities: extractTechnicalEntities(summaryJson.technical_details),
+                    system_components: extractSystemComponents(summaryJson.technical_details),
+                    data_flow: extractDataFlow(summaryJson.technical_details)
+                }
+            });
+        }
+
+        // Extract other sections with enhanced categorization
+        const otherSections = ['execution_flow', 'performance_considerations', 'best_practices', 'dependencies'];
+        otherSections.forEach(section => {
+            if (summaryJson[section]) {
+                const content = Array.isArray(summaryJson[section])
+                    ? summaryJson[section].join('\n')
+                    : typeof summaryJson[section] === 'string'
+                    ? summaryJson[section]
+                    : JSON.stringify(summaryJson[section]);
+
+                const sectionMetadata = {
+                    ...baseMetadata,
+                    section_name: formatSectionName(section),
+                    section_type: getSectionType(section),
+                    search_priority: getSectionPriority(section),
+                    llm_context: getLLMContext(section),
+                    original_section: section
+                };
+
+                // Add section-specific metadata
+                if (section === 'dependencies') {
+                    sectionMetadata.dependency_analysis = analyzeDependencies(summaryJson[section]);
+                } else if (section === 'performance_considerations') {
+                    sectionMetadata.performance_metrics = extractPerformanceMetrics(summaryJson[section]);
+                }
+
+                chunks.push({
+                    chunk_id: section,
+                    chunk_type: 'technical_details',
+                    content,
+                    metadata: sectionMetadata
+                });
+            }
+        });
+
+    } catch (error) {
+        console.error('Error extracting chunks from summary:', error);
+    }
+
+    return chunks;
+}
+
+// Helper functions for vector processing
+function extractBusinessLogicContent(businessLogic: any): string {
+    if (typeof businessLogic === 'string') {
+        return businessLogic;
+    }
+
+    const parts = [];
+    if (businessLogic.main_objectives) {
+        parts.push(`Main Objectives:\n${Array.isArray(businessLogic.main_objectives) 
+            ? businessLogic.main_objectives.join('\n') 
+            : businessLogic.main_objectives}`);
+    }
+    if (businessLogic.data_transformation) {
+        parts.push(`Data Transformation:\n${businessLogic.data_transformation}`);
+    }
+    if (businessLogic.stakeholder_impact) {
+        parts.push(`Stakeholder Impact:\n${businessLogic.stakeholder_impact}`);
+    }
+
+    return parts.join('\n\n');
+}
+
+function extractBusinessEntities(businessLogic: any): string[] {
+    const entities = [];
+    try {
+        const content = JSON.stringify(businessLogic).toLowerCase();
+        const businessTerms = content.match(/\b(revenue|profit|customer|user|business|metric|kpi|target|goal)\b/g);
+        if (businessTerms) {
+            entities.push(...businessTerms);
+        }
+    } catch (error) {
+        console.error('Error extracting business entities:', error);
+    }
+    return [...new Set(entities)];
+}
+
+function extractTechnicalEntities(technicalDetails: any): any {
+    const entities: any = {};
+    try {
+        if (typeof technicalDetails === 'object') {
+            entities.source_tables = technicalDetails.source_tables || [];
+            entities.materialization = technicalDetails.materialization;
+            entities.sql_operations = technicalDetails.sql_operations || [];
+        }
+    } catch (error) {
+        console.error('Error extracting technical entities:', error);
+    }
+    return entities;
+}
+
+function extractFunctionNames(code: string): string[] {
+    if (!code) return [];
+    
+    const functionPatterns = [
+        /def\s+(\w+)\s*\(/g, // Python functions
+        /function\s+(\w+)\s*\(/g, // JavaScript functions
+        /(\w+)\s*\(/g // General function calls
+    ];
+
+    const functions = new Set<string>();
+    functionPatterns.forEach(pattern => {
+        let match;
+        while ((match = pattern.exec(code)) !== null) {
+            functions.add(match[1]);
+        }
+    });
+
+    return Array.from(functions);
+}
+
+function extractTableNames(code: string): string[] {
+    if (!code) return [];
+    
+    const tablePatterns = [
+        /FROM\s+([`"']?)(\w+)\1/gi, // SQL FROM clauses
+        /JOIN\s+([`"']?)(\w+)\1/gi, // SQL JOIN clauses
+        /UPDATE\s+([`"']?)(\w+)\1/gi, // SQL UPDATE
+        /INSERT\s+INTO\s+([`"']?)(\w+)\1/gi // SQL INSERT
+    ];
+
+    const tables = new Set<string>();
+    tablePatterns.forEach(pattern => {
+        let match;
+        while ((match = pattern.exec(code)) !== null) {
+            tables.add(match[2]);
+        }
+    });
+
+    return Array.from(tables);
+}
+
+function formatSectionName(section: string): string {
+    return section
+        .split('_')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+}
+
+function estimateTokenCount(text: string): number {
+    // Rough estimation: 1 token ≈ 4 characters
+    return Math.ceil(text.length / 4);
 }
 
 // --- OpenAI API with System Prompt ---
@@ -849,6 +1265,671 @@ function getSystemPrompt(selectedLanguage: string, customSettings: { business_ov
     return basePrompt;
 }
 
+// Enhanced helper functions for code intelligence and dependency tracking
+
+function extractColumnNames(code: string): string[] {
+    if (!code) return [];
+    
+    const columnPatterns = [
+        /SELECT\s+(.+?)\s+FROM/gis, // SQL SELECT columns
+        /INSERT\s+INTO\s+\w+\s*\(([^)]+)\)/gis, // SQL INSERT columns  
+        /UPDATE\s+\w+\s+SET\s+(.+?)\s+WHERE/gis, // SQL UPDATE columns
+        /\b(\w+)\s*=\s*[\w\d'"]/g // Assignment patterns
+    ];
+
+    const columns = new Set<string>();
+    columnPatterns.forEach(pattern => {
+        let match;
+        while ((match = pattern.exec(code)) !== null) {
+            if (match[1]) {
+                // Split by comma and clean column names
+                const columnList = match[1].split(',').map(col => 
+                    col.trim().replace(/[`"'\[\]]/g, '').split(/\s+/)[0]
+                ).filter(col => col && !col.match(/^(AS|as|AS|FROM|from|WHERE|where)$/));
+                
+                columnList.forEach(col => {
+                    if (col.length > 0 && col.length < 50) { // Reasonable column name length
+                        columns.add(col);
+                    }
+                });
+            }
+        }
+    });
+
+    return Array.from(columns);
+}
+
+function extractTableDependencies(code: string): Array<{table: string, operation: string, relationship: string}> {
+    if (!code) return [];
+    
+    const dependencies = [];
+    const tablePatterns = [
+        { pattern: /FROM\s+([`"']?)(\w+)\1/gi, operation: 'read', relationship: 'source' },
+        { pattern: /JOIN\s+([`"']?)(\w+)\1/gi, operation: 'read', relationship: 'join' },
+        { pattern: /UPDATE\s+([`"']?)(\w+)\1/gi, operation: 'write', relationship: 'target' },
+        { pattern: /INSERT\s+INTO\s+([`"']?)(\w+)\1/gi, operation: 'write', relationship: 'target' },
+        { pattern: /DELETE\s+FROM\s+([`"']?)(\w+)\1/gi, operation: 'write', relationship: 'target' }
+    ];
+
+    tablePatterns.forEach(({ pattern, operation, relationship }) => {
+        let match;
+        while ((match = pattern.exec(code)) !== null) {
+            dependencies.push({
+                table: match[2],
+                operation,
+                relationship
+            });
+        }
+    });
+
+    return dependencies;
+}
+
+function extractFunctionDependencies(code: string): Array<{function: string, type: string, context: string}> {
+    if (!code) return [];
+    
+    const dependencies = [];
+    const functionPatterns = [
+        { pattern: /def\s+(\w+)\s*\(/g, type: 'definition', context: 'python' },
+        { pattern: /function\s+(\w+)\s*\(/g, type: 'definition', context: 'javascript' },
+        { pattern: /(\w+)\s*\(/g, type: 'call', context: 'general' },
+        { pattern: /CALL\s+(\w+)\s*\(/gi, type: 'procedure_call', context: 'sql' },
+        { pattern: /CREATE\s+(OR\s+REPLACE\s+)?FUNCTION\s+(\w+)/gi, type: 'sql_function', context: 'sql' }
+    ];
+
+    functionPatterns.forEach(({ pattern, type, context }) => {
+        let match;
+        while ((match = pattern.exec(code)) !== null) {
+            const functionName = match[1] || match[2];
+            if (functionName && functionName.length < 50) {
+                dependencies.push({
+                    function: functionName,
+                    type,
+                    context
+                });
+            }
+        }
+    });
+
+    return dependencies;
+}
+
+function extractImportDependencies(code: string): Array<{module: string, type: string, alias?: string}> {
+    if (!code) return [];
+    
+    const dependencies = [];
+    const importPatterns = [
+        { pattern: /import\s+(\w+)/g, type: 'python_import' },
+        { pattern: /from\s+(\w+)\s+import/g, type: 'python_from' },
+        { pattern: /require\s*\(\s*['"]([^'"]+)['"]\s*\)/g, type: 'node_require' },
+        { pattern: /import\s+.*\s+from\s+['"]([^'"]+)['"]/g, type: 'es6_import' },
+        { pattern: /#include\s*[<"]([^>"]+)[>"]/g, type: 'c_include' }
+    ];
+
+    importPatterns.forEach(({ pattern, type }) => {
+        let match;
+        while ((match = pattern.exec(code)) !== null) {
+            dependencies.push({
+                module: match[1],
+                type
+            });
+        }
+    });
+
+    return dependencies;
+}
+
+function extractVariableDependencies(code: string): Array<{variable: string, type: string, scope: string}> {
+    if (!code) return [];
+    
+    const dependencies = [];
+    const variablePatterns = [
+        { pattern: /DECLARE\s+@(\w+)/gi, type: 'sql_variable', scope: 'local' },
+        { pattern: /SET\s+@(\w+)/gi, type: 'sql_assignment', scope: 'local' },
+        { pattern: /var\s+(\w+)/g, type: 'javascript_var', scope: 'function' },
+        { pattern: /let\s+(\w+)/g, type: 'javascript_let', scope: 'block' },
+        { pattern: /const\s+(\w+)/g, type: 'javascript_const', scope: 'block' },
+        { pattern: /(\w+)\s*=/g, type: 'assignment', scope: 'unknown' }
+    ];
+
+    variablePatterns.forEach(({ pattern, type, scope }) => {
+        let match;
+        while ((match = pattern.exec(code)) !== null) {
+            const variable = match[1];
+            if (variable && variable.length < 50) {
+                dependencies.push({
+                    variable,
+                    type,
+                    scope
+                });
+            }
+        }
+    });
+
+    return dependencies;
+}
+
+function extractCodePatterns(code: string): string[] {
+    if (!code) return [];
+    
+    const patterns = [];
+    
+    // SQL patterns
+    if (/SELECT.*FROM.*WHERE/i.test(code)) patterns.push('sql_select_query');
+    if (/WITH\s+\w+\s+AS/i.test(code)) patterns.push('sql_cte');
+    if (/CASE\s+WHEN/i.test(code)) patterns.push('sql_case_statement');
+    if (/ROW_NUMBER\(\)|RANK\(\)/i.test(code)) patterns.push('sql_window_function');
+    if (/GROUP\s+BY/i.test(code)) patterns.push('sql_aggregation');
+    if (/UNION|INTERSECT|EXCEPT/i.test(code)) patterns.push('sql_set_operation');
+    
+    // Programming patterns
+    if (/for\s*\(|for\s+\w+\s+in/i.test(code)) patterns.push('loop');
+    if (/if\s*\(|if\s+\w+/i.test(code)) patterns.push('conditional');
+    if (/try\s*{|try:/i.test(code)) patterns.push('error_handling');
+    if (/async\s+|await\s+/i.test(code)) patterns.push('async_operation');
+    if (/class\s+\w+/i.test(code)) patterns.push('class_definition');
+    
+    return patterns;
+}
+
+function analyzeCodeComplexity(code: string): {score: number, factors: string[]} {
+    if (!code) return { score: 0, factors: [] };
+    
+    let score = 0;
+    const factors = [];
+    
+    // Count complexity factors
+    const nestedQueries = (code.match(/SELECT.*\(.*SELECT/gi) || []).length;
+    const joins = (code.match(/JOIN/gi) || []).length;
+    const caseStatements = (code.match(/CASE\s+WHEN/gi) || []).length;
+    const subqueries = (code.match(/\(.*SELECT/gi) || []).length;
+    const ctes = (code.match(/WITH\s+\w+\s+AS/gi) || []).length;
+    
+    score += nestedQueries * 3;
+    score += joins * 1;
+    score += caseStatements * 2;
+    score += subqueries * 2;
+    score += ctes * 1;
+    
+    if (nestedQueries > 0) factors.push('nested_queries');
+    if (joins > 3) factors.push('multiple_joins');
+    if (caseStatements > 2) factors.push('complex_logic');
+    if (subqueries > 2) factors.push('multiple_subqueries');
+    if (ctes > 0) factors.push('cte_usage');
+    
+    return { score, factors };
+}
+
+function estimateLineRange(code: string, blockIndex: number): {start: number, end: number, confidence: string} {
+    if (!code) return { start: 0, end: 0, confidence: 'none' };
+    
+    const lineCount = code.split('\n').length;
+    
+    // Rough estimation based on block index and content
+    const estimatedStart = (blockIndex * 20) + 1; // Assume ~20 lines per block on average
+    const estimatedEnd = estimatedStart + lineCount - 1;
+    
+    return {
+        start: estimatedStart,
+        end: estimatedEnd,
+        confidence: 'estimated' // Could be 'exact', 'estimated', 'none'
+    };
+}
+
+function extractSystemComponents(technicalDetails: any): string[] {
+    const components = [];
+    
+    if (typeof technicalDetails === 'object') {
+        if (technicalDetails.materialization) components.push(`materialization:${technicalDetails.materialization}`);
+        if (technicalDetails.dbt_features) components.push(...technicalDetails.dbt_features.map((f: string) => `dbt:${f}`));
+        if (technicalDetails.sql_operations) components.push(...technicalDetails.sql_operations.map((op: string) => `sql:${op}`));
+    }
+    
+    return components;
+}
+
+function extractDataFlow(technicalDetails: any): Array<{from: string, to: string, operation: string}> {
+    const dataFlow = [];
+    
+    if (typeof technicalDetails === 'object') {
+        if (technicalDetails.source_tables && technicalDetails.materialization) {
+            technicalDetails.source_tables.forEach((table: string) => {
+                dataFlow.push({
+                    from: table,
+                    to: 'current_model',
+                    operation: technicalDetails.materialization || 'transform'
+                });
+            });
+        }
+    }
+    
+    return dataFlow;
+}
+
+function getSectionType(section: string): string {
+    const sectionTypes: Record<string, string> = {
+        'execution_flow': 'process',
+        'performance_considerations': 'optimization',
+        'best_practices': 'guidelines',
+        'dependencies': 'relationships'
+    };
+    return sectionTypes[section] || 'general';
+}
+
+function getSectionPriority(section: string): string {
+    const priorities: Record<string, string> = {
+        'execution_flow': 'high',
+        'performance_considerations': 'medium',
+        'best_practices': 'medium',
+        'dependencies': 'very_high'
+    };
+    return priorities[section] || 'medium';
+}
+
+function getLLMContext(section: string): string {
+    const contexts: Record<string, string> = {
+        'execution_flow': 'process_understanding',
+        'performance_considerations': 'optimization_analysis',
+        'best_practices': 'code_quality',
+        'dependencies': 'dependency_analysis'
+    };
+    return contexts[section] || 'general_context';
+}
+
+function analyzeDependencies(dependencies: any): {direct: string[], indirect: string[], types: string[]} {
+    const analysis = { direct: [], indirect: [], types: [] };
+    
+    if (Array.isArray(dependencies)) {
+        analysis.direct = dependencies.slice(0, 10); // Limit to first 10
+        analysis.types.push('explicit');
+    } else if (typeof dependencies === 'object') {
+        if (dependencies.external_packages) {
+            analysis.direct.push(...dependencies.external_packages);
+            analysis.types.push('external');
+        }
+        if (dependencies.system_requirements) {
+            analysis.indirect.push(...dependencies.system_requirements);
+            analysis.types.push('system');
+        }
+    }
+    
+    return analysis;
+}
+
+function extractPerformanceMetrics(performance: any): {metrics: string[], optimizations: string[], concerns: string[]} {
+    const metrics = { metrics: [], optimizations: [], concerns: [] };
+    
+    if (Array.isArray(performance)) {
+        metrics.concerns = performance.slice(0, 5);
+    } else if (typeof performance === 'object') {
+        if (performance.optimization_opportunities) {
+            metrics.optimizations.push(...performance.optimization_opportunities);
+        }
+        if (performance.resource_usage) {
+            metrics.metrics.push(...performance.resource_usage);
+        }
+        if (performance.scalability_notes) {
+            metrics.concerns.push(...performance.scalability_notes);
+        }
+    }
+    
+    return metrics;
+}
+
+// --- Lineage Processing Functions ---
+
+interface LineageExtractionResult {
+    assets: Array<{
+        name: string;
+        type: string;
+        schema?: string;
+        database?: string;
+        description?: string;
+        columns?: Array<{
+            name: string;
+            type?: string;
+            description?: string;
+        }>;
+        metadata: Record<string, any>;
+    }>;
+    relationships: Array<{
+        sourceAsset: string;
+        targetAsset: string;
+        relationshipType: string;
+        operationType?: string;
+        transformationLogic?: string;
+        businessContext?: string;
+        confidenceScore: number;
+        discoveredAtLine?: number;
+    }>;
+    fileDependencies: Array<{
+        importPath: string;
+        importType: string;
+        importStatement: string;
+        aliasUsed?: string;
+        specificItems?: string[];
+        confidenceScore: number;
+    }>;
+    functions: Array<{
+        name: string;
+        type: string;
+        signature?: string;
+        returnType?: string;
+        parameters?: Array<{
+            name: string;
+            type?: string;
+            description?: string;
+        }>;
+        description?: string;
+        businessLogic?: string;
+        lineStart?: number;
+        lineEnd?: number;
+        complexityScore: number;
+    }>;
+    businessContext: {
+        mainPurpose: string;
+        businessImpact: string;
+        stakeholders?: string[];
+        dataDomain?: string;
+        businessCriticality: string;
+        dataFreshness?: string;
+        executionFrequency?: string;
+    };
+}
+
+const SQL_LINEAGE_PROMPT = `You are an expert SQL analyst. Analyze the provided SQL code and extract comprehensive data lineage information.
+
+**Code to analyze:**
+\`\`\`sql
+{{code}}
+\`\`\`
+
+**File path:** {{filePath}}
+
+**Extract the following information and return as JSON:**
+
+{
+  "assets": [
+    {
+      "name": "table_name",
+      "type": "table|view|function|procedure",
+      "schema": "schema_name",
+      "database": "database_name", 
+      "description": "Business purpose of this asset",
+      "columns": [
+        {
+          "name": "column_name",
+          "type": "data_type",
+          "description": "Column purpose"
+        }
+      ],
+      "metadata": {
+        "materialization": "table|view|incremental"
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "sourceAsset": "source_table",
+      "targetAsset": "target_table", 
+      "relationshipType": "reads_from|writes_to|transforms|aggregates|joins",
+      "operationType": "select|insert|update|delete|merge",
+      "transformationLogic": "Detailed description of how data is transformed",
+      "businessContext": "Why this transformation exists from business perspective",
+      "confidenceScore": 0.95,
+      "discoveredAtLine": 45
+    }
+  ],
+  "fileDependencies": [
+    {
+      "importPath": "schema.other_table",
+      "importType": "references",
+      "importStatement": "FROM schema.other_table",
+      "confidenceScore": 0.9
+    }
+  ],
+  "functions": [
+    {
+      "name": "calculate_revenue",
+      "type": "function",
+      "signature": "calculate_revenue(amount DECIMAL, tax_rate DECIMAL) RETURNS DECIMAL",
+      "returnType": "DECIMAL",
+      "parameters": [
+        {"name": "amount", "type": "DECIMAL", "description": "Base amount"}
+      ],
+      "description": "Calculates total revenue including tax",
+      "businessLogic": "Applies tax calculation for financial reporting",
+      "lineStart": 10,
+      "lineEnd": 25,
+      "complexityScore": 0.3
+    }
+  ],
+  "businessContext": {
+    "mainPurpose": "Primary business purpose of this code",
+    "businessImpact": "How this affects business operations",
+    "stakeholders": ["Finance Team", "Data Analytics"],
+    "dataDomain": "finance",
+    "businessCriticality": "high",
+    "dataFreshness": "Updated daily at 6 AM",
+    "executionFrequency": "daily"
+  }
+}
+
+**Guidelines:**
+- Use fully qualified names (database.schema.table) when possible
+- Be specific about transformation logic
+- Assign confidence scores based on code clarity (0.0-1.0)
+- Focus on data flow, not just syntax
+- Consider implicit relationships (shared column names, naming conventions)`;
+
+const PYTHON_LINEAGE_PROMPT = `You are an expert Python/PySpark analyst. Analyze the provided Python code and extract comprehensive data lineage information.
+
+**Code to analyze:**
+\`\`\`python
+{{code}}
+\`\`\`
+
+**File path:** {{filePath}}
+
+Return JSON with assets, relationships, fileDependencies, functions, and businessContext following the same structure as the SQL prompt.
+
+**Guidelines:**
+- Identify DataFrame operations (read, write, transform, join, filter, aggregate)
+- Track data flow through variable assignments
+- Recognize Spark SQL operations and table references
+- Focus on business-relevant transformations`;
+
+const GENERIC_LINEAGE_PROMPT = `You are an expert code analyst. Extract data lineage information from this code to the best of your ability.
+
+**Code:** \`\`\`{{language}}
+{{code}}
+\`\`\`
+
+**File path:** {{filePath}}
+**Language:** {{language}}
+
+Return JSON with assets, relationships, fileDependencies, functions, and businessContext. Use conservative confidence scores for unfamiliar languages.`;
+
+function getLineagePromptForLanguage(language: string): string {
+    const lang = language.toLowerCase();
+    
+    if (lang.includes('sql') || lang.includes('snowflake') || lang.includes('postgres') || 
+        lang.includes('mysql') || lang.includes('bigquery') || lang.includes('redshift')) {
+        return SQL_LINEAGE_PROMPT;
+    }
+    
+    if (lang.includes('python') || lang.includes('pyspark') || lang.includes('py')) {
+        return PYTHON_LINEAGE_PROMPT;
+    }
+    
+    return GENERIC_LINEAGE_PROMPT;
+}
+
+function interpolatePrompt(template: string, variables: { code: string; filePath: string; language?: string }): string {
+    let prompt = template;
+    
+    prompt = prompt.replace(/\{\{code\}\}/g, variables.code);
+    prompt = prompt.replace(/\{\{filePath\}\}/g, variables.filePath);
+    prompt = prompt.replace(/\{\{language\}\}/g, variables.language || 'unknown');
+    
+    return prompt;
+}
+
+async function processFileLineage(fileId: string, fileRecord: FileRecord, existingDocumentation: any): Promise<LineageExtractionResult> {
+    try {
+        console.log(`Starting lineage extraction for ${fileRecord.file_path}`);
+        
+        // Get file content (either from existing documentation or fetch from GitHub)
+        let fileContent = '';
+        
+        if (existingDocumentation?.code_content) {
+            fileContent = existingDocumentation.code_content;
+        } else if (existingDocumentation?.summary) {
+            // Try to extract code from code_blocks in the summary
+            const codeBlocks = existingDocumentation.summary.code_blocks;
+            if (codeBlocks && Array.isArray(codeBlocks)) {
+                fileContent = codeBlocks.map((block: any) => block.code).filter(Boolean).join('\n\n');
+            }
+        }
+        
+        if (!fileContent) {
+            // Fetch from GitHub as fallback
+            const installationToken = await getGitHubInstallationToken(fileRecord.github_installation_id);
+            fileContent = await fetchGitHubFileContent(
+                installationToken,
+                fileRecord.repository_full_name,
+                fileRecord.file_path
+            );
+        }
+        
+        if (!fileContent) {
+            throw new Error('Could not retrieve file content for lineage processing');
+        }
+        
+        // Get appropriate prompt for the language
+        const promptTemplate = getLineagePromptForLanguage(fileRecord.language);
+        
+        // Interpolate variables into the prompt
+        const prompt = interpolatePrompt(promptTemplate, {
+            code: fileContent,
+            filePath: fileRecord.file_path,
+            language: fileRecord.language
+        });
+        
+        console.log(`Extracting lineage for ${fileRecord.file_path} using ${fileRecord.language} prompt`);
+        
+        // Call OpenAI API for lineage extraction
+        const response = await callOpenAIWithSystemPrompt(
+            'You are an expert data lineage analyst. Always return valid JSON that matches the requested schema exactly.',
+            prompt
+        );
+        
+        // Parse and validate the result
+        const lineageResult: LineageExtractionResult = typeof response === 'string' 
+            ? JSON.parse(response) 
+            : response;
+        
+        // Validate and enhance the result
+        const enhancedResult = validateAndEnhanceLineageResult(lineageResult, fileRecord.file_path, fileRecord.language);
+        
+        // Store lineage data in database
+        await storeLineageData(fileId, enhancedResult);
+        
+        return enhancedResult;
+        
+    } catch (error) {
+        console.error('Error extracting lineage with LLM:', error);
+        
+        // Return minimal result on error
+        return {
+            assets: [],
+            relationships: [],
+            fileDependencies: [],
+            functions: [],
+            businessContext: {
+                mainPurpose: 'Analysis failed - manual review needed',
+                businessImpact: 'Unknown',
+                businessCriticality: 'medium'
+            }
+        };
+    }
+}
+
+function validateAndEnhanceLineageResult(
+    result: LineageExtractionResult,
+    filePath: string,
+    language: string
+): LineageExtractionResult {
+    // Ensure all required fields exist
+    result.assets = result.assets || [];
+    result.relationships = result.relationships || [];
+    result.fileDependencies = result.fileDependencies || [];
+    result.functions = result.functions || [];
+    result.businessContext = result.businessContext || {
+        mainPurpose: 'Data processing',
+        businessImpact: 'Unknown',
+        businessCriticality: 'medium'
+    };
+    
+    // Enhance assets with file context
+    result.assets.forEach(asset => {
+        asset.metadata = asset.metadata || {};
+        asset.metadata.sourceFile = filePath;
+        asset.metadata.sourceLanguage = language;
+        asset.metadata.extractedAt = new Date().toISOString();
+    });
+    
+    // Validate confidence scores
+    result.relationships.forEach(rel => {
+        if (rel.confidenceScore < 0 || rel.confidenceScore > 1) {
+            rel.confidenceScore = 0.5; // Default to medium confidence
+        }
+    });
+    
+    result.fileDependencies.forEach(dep => {
+        if (dep.confidenceScore < 0 || dep.confidenceScore > 1) {
+            dep.confidenceScore = 0.5;
+        }
+    });
+    
+    // Enhance functions with complexity scoring
+    result.functions.forEach(func => {
+        if (!func.complexityScore || func.complexityScore < 0 || func.complexityScore > 1) {
+            // Simple heuristic based on parameters and description length
+            const paramCount = func.parameters?.length || 0;
+            const descLength = (func.description || '').length;
+            func.complexityScore = Math.min(1, (paramCount * 0.1) + (descLength / 1000));
+        }
+    });
+    
+    return result;
+}
+
+async function storeLineageData(fileId: string, lineageResult: LineageExtractionResult): Promise<void> {
+    // Note: This is a simplified version. In a real implementation, you would:
+    // 1. Store discovered assets in data_assets table
+    // 2. Store columns in data_columns table
+    // 3. Store functions in code_functions table
+    // 4. Store file dependencies in file_dependencies table
+    // 5. Store relationships in data_lineage table
+    
+    console.log(`Storing lineage data: ${lineageResult.assets.length} assets, ${lineageResult.relationships.length} relationships`);
+    
+    // For now, just log the results
+    // In a full implementation, you would make database calls here
+}
+
+function calculateOverallConfidence(lineageResult: LineageExtractionResult): number {
+    const allScores = [
+        ...lineageResult.relationships.map(r => r.confidenceScore),
+        ...lineageResult.fileDependencies.map(d => d.confidenceScore)
+    ];
+    
+    if (allScores.length === 0) return 0.5;
+    
+    return allScores.reduce((sum, score) => sum + score, 0) / allScores.length;
+}
+
 // --- Main Handler ---
 serve(async (req) => {
     console.log("Code processor function invoked.");
@@ -888,6 +1969,10 @@ serve(async (req) => {
         jobId = job.id; // Correctly get job ID from the first element of the array
 
         console.log(`Leased job ID: ${job.id} for file ID: ${job.file_id}`);
+        
+        // Determine the job type based on status
+        const isVectorOnlyJob = job.status === 'completed' && job.vector_status === 'processing';
+        console.log(`Job type: ${isVectorOnlyJob ? 'Vector-only processing' : 'Documentation processing'}`);
 
         // 2. Fetch the corresponding file record to get repository and installation details
         console.log(`Fetching file record for file_id: ${job.file_id}`);
@@ -900,32 +1985,57 @@ serve(async (req) => {
         if (fileError || !fileRecord) {
             throw new Error(`Failed to fetch file record for file_id ${job.file_id}: ${fileError?.message || 'Not found'}`);
         }
-        if (fileRecord.github_installation_id == null) { // Check for null or undefined
-            throw new Error(`Missing github_installation_id for file_id ${job.file_id}. Cannot authenticate with GitHub.`);
+        
+        // For vector-only jobs, we don't need GitHub access
+        if (!isVectorOnlyJob) {
+            if (fileRecord.github_installation_id == null) { // Check for null or undefined
+                throw new Error(`Missing github_installation_id for file_id ${job.file_id}. Cannot authenticate with GitHub.`);
+            }
+            console.log(`File record fetched. Installation ID: ${fileRecord.github_installation_id}`);
+        } else {
+            console.log(`File record fetched for vector processing.`);
         }
-        console.log(`File record fetched. Installation ID: ${fileRecord.github_installation_id}`);
 
-        // 3. Fetch GitHub File Content
-        const installationToken = await getGitHubInstallationToken(fileRecord.github_installation_id);
-        const fileContent = await fetchGitHubFileContent(
-            installationToken,
-            fileRecord.repository_full_name,
-            fileRecord.file_path
-        );
+        let llmResponse: any;
+        
+        if (isVectorOnlyJob) {
+            // For vector-only jobs, fetch existing summary from database
+            console.log(`Fetching existing summary for vector processing: ${job.file_id}`);
+            const { data: existingSummary, error: summaryError } = await supabaseAdmin
+                .from('code_summaries')
+                .select('summary_json')
+                .eq('file_id', job.file_id)
+                .single();
 
-        // 4. Fetch custom analysis settings for this repository
-        console.log(`Fetching custom analysis settings for repository: ${fileRecord.repository_full_name}`);
-        const customSettings = await getCustomAnalysisSettings(supabaseAdmin, fileRecord.repository_full_name);
-        
-        // Use custom language if available, otherwise use file language
-        const analysisLanguage = customSettings?.language || fileRecord.language;
-        
-        // 5. Get System Prompt based on language and custom settings
-        console.log(`Getting system prompt for language: ${analysisLanguage} with custom settings:`, customSettings);
-        const systemPrompt = getSystemPrompt(analysisLanguage, customSettings);
-        
-        // 6. Construct user message with file details
-        const userMessage = `Please analyze the following code file:
+            if (summaryError || !existingSummary) {
+                throw new Error(`Failed to fetch existing summary for vector processing: ${summaryError?.message || 'Not found'}`);
+            }
+            
+            llmResponse = existingSummary.summary_json;
+            console.log('Existing summary fetched for vector processing');
+        } else {
+            // For documentation jobs, perform full LLM analysis
+            // 3. Fetch GitHub File Content
+            const installationToken = await getGitHubInstallationToken(fileRecord.github_installation_id);
+            const fileContent = await fetchGitHubFileContent(
+                installationToken,
+                fileRecord.repository_full_name,
+                fileRecord.file_path
+            );
+
+            // 4. Fetch custom analysis settings for this repository
+            console.log(`Fetching custom analysis settings for repository: ${fileRecord.repository_full_name}`);
+            const customSettings = await getCustomAnalysisSettings(supabaseAdmin, fileRecord.repository_full_name);
+            
+            // Use custom language if available, otherwise use file language
+            const analysisLanguage = customSettings?.language || fileRecord.language;
+            
+            // 5. Get System Prompt based on language and custom settings
+            console.log(`Getting system prompt for language: ${analysisLanguage} with custom settings:`, customSettings);
+            const systemPrompt = getSystemPrompt(analysisLanguage, customSettings);
+            
+            // 6. Construct user message with file details
+            const userMessage = `Please analyze the following code file:
 
 File Path: ${fileRecord.file_path}
 Language: ${analysisLanguage}
@@ -936,54 +2046,140 @@ ${fileContent}
 
 Provide a comprehensive analysis in the requested JSON format.`;
 
-        // 7. Call OpenAI with system and user messages
-        console.log(`Sending request to OpenAI GPT-4.1-mini`);
-        const llmResponse = await callOpenAIWithSystemPrompt(systemPrompt, userMessage);
-        console.log("OpenAI API call successful.");
+            // 7. Call OpenAI with system and user messages
+            console.log(`Sending request to OpenAI GPT-4.1-mini`);
+            llmResponse = await callOpenAIWithSystemPrompt(systemPrompt, userMessage);
+            console.log("OpenAI API call successful.");
 
-        // 8. Store Results
-        console.log(`Storing LLM summary for file_id: ${job.file_id}`);
-        const { data: summaryData, error: summaryError } = await supabaseAdmin
-            .from('code_summaries') // Will use 'code_insights.code_summaries'
-            .upsert({
-                job_id: job.id, // Add the job_id here
-                file_id: job.file_id,
-                summary_json: llmResponse,
-                llm_provider: 'openai',
-                llm_model_name: 'gpt-4.1-mini',
-                // last_processed_at: new Date().toISOString() // Consider adding this here
-            })
-            .select()
-            .single(); // Assuming upsert on unique constraint returns the row
+            // 8. Store Results
+            console.log(`Storing LLM summary for file_id: ${job.file_id}`);
+            const { data: summaryData, error: summaryError } = await supabaseAdmin
+                .from('code_summaries') // Will use 'code_insights.code_summaries'
+                .upsert({
+                    job_id: job.id, // Add the job_id here
+                    file_id: job.file_id,
+                    summary_json: llmResponse,
+                    llm_provider: 'openai',
+                    llm_model_name: 'gpt-4.1-mini',
+                    // last_processed_at: new Date().toISOString() // Consider adding this here
+                })
+                .select()
+                .single(); // Assuming upsert on unique constraint returns the row
 
-        if (summaryError) {
-            throw new Error(`Failed to store LLM summary: ${summaryError.message}`);
-        }
-        console.log('LLM summary stored:', summaryData);
-
-        // 9. Update Job and File Status to 'completed'
-        console.log(`Updating job ${job.id} and file ${job.file_id} status to completed.`);
-        const { error: updateJobError } = await supabaseAdmin
-            .from('processing_jobs') // Will use 'code_insights.processing_jobs'
-            .update({ status: 'completed', updated_at: new Date().toISOString() })
-            .eq('id', job.id);
-
-        if (updateJobError) {
-            throw new Error(`Failed to update job status to completed: ${updateJobError.message}`);
+            if (summaryError) {
+                throw new Error(`Failed to store LLM summary: ${summaryError.message}`);
+            }
+            console.log('LLM summary stored:', summaryData);
         }
 
-        const { error: updateFileError } = await supabaseAdmin
-            .from('files') // Will use 'code_insights.files'
-            .update({ parsing_status: 'completed', last_processed_at: new Date().toISOString() })
-            .eq('id', job.file_id);
+        // 8.5. Generate and Store Vector Embeddings
+        console.log(`Generating vector embeddings for file_id: ${job.file_id}`);
+        
+        // Update vector status to processing
+        await supabaseAdmin.rpc('update_vector_processing_status', {
+            job_id_param: job.id,
+            new_status: 'processing'
+        });
 
-        if (updateFileError) {
-            throw new Error(`Failed to update file parsing_status: ${updateFileError.message}`);
+        try {
+            const chunksCount = await generateAndStoreVectors(job.file_id, llmResponse, fileRecord);
+            console.log(`Vector embeddings stored successfully: ${chunksCount} chunks`);
+            
+            // Update vector status to completed
+            await supabaseAdmin.rpc('update_vector_processing_status', {
+                job_id_param: job.id,
+                new_status: 'completed',
+                chunks_count: chunksCount
+            });
+        } catch (vectorError) {
+            console.error('Error storing vector embeddings:', vectorError);
+            
+            // Update vector status to failed
+            await supabaseAdmin.rpc('update_vector_processing_status', {
+                job_id_param: job.id,
+                new_status: 'failed',
+                error_details: vectorError.message || 'Unknown vector processing error'
+            });
+            
+            // Don't fail the entire job for vector storage issues
+            console.log('Continuing without vector storage - vector processing can be retried later');
+        }
+
+        // 8.6. Process Lineage Extraction (if enabled)
+        if (job.lineage_status === 'pending' || (job.lineage_status === 'processing' && !isVectorOnlyJob)) {
+            console.log(`Starting lineage processing for file_id: ${job.file_id}`);
+            
+            // Update lineage status to processing
+            await supabaseAdmin.rpc('update_lineage_processing_status', {
+                job_id_param: job.id,
+                new_status: 'processing'
+            });
+
+            try {
+                const lineageResult = await processFileLineage(job.file_id, fileRecord, llmResponse);
+                console.log(`Lineage processing completed: ${lineageResult.assets.length} assets, ${lineageResult.relationships.length} relationships`);
+                
+                // Update lineage status to completed
+                await supabaseAdmin.rpc('update_lineage_processing_status', {
+                    job_id_param: job.id,
+                    new_status: 'completed',
+                    dependencies_extracted: {
+                        fileDependencies: lineageResult.fileDependencies,
+                        extractedAt: new Date().toISOString()
+                    },
+                    assets_discovered: {
+                        assets: lineageResult.assets,
+                        functions: lineageResult.functions,
+                        businessContext: lineageResult.businessContext,
+                        extractedAt: new Date().toISOString()
+                    },
+                    confidence_score: calculateOverallConfidence(lineageResult)
+                });
+            } catch (lineageError) {
+                console.error('Error processing lineage:', lineageError);
+                
+                // Update lineage status to failed
+                await supabaseAdmin.rpc('update_lineage_processing_status', {
+                    job_id_param: job.id,
+                    new_status: 'failed',
+                    error_details: lineageError.message || 'Unknown lineage processing error'
+                });
+                
+                // Don't fail the entire job for lineage processing issues
+                console.log('Continuing without lineage processing - can be retried later');
+            }
+        }
+
+        // 9. Update Job and File Status
+        if (isVectorOnlyJob) {
+            // For vector-only jobs, we don't update the main status since it's already completed
+            console.log(`Vector processing completed for job ${job.id}`);
+        } else {
+            // For documentation jobs, update status to completed
+            console.log(`Updating job ${job.id} and file ${job.file_id} status to completed.`);
+            const { error: updateJobError } = await supabaseAdmin
+                .from('processing_jobs') // Will use 'code_insights.processing_jobs'
+                .update({ status: 'completed', updated_at: new Date().toISOString() })
+                .eq('id', job.id);
+
+            if (updateJobError) {
+                throw new Error(`Failed to update job status to completed: ${updateJobError.message}`);
+            }
+
+            const { error: updateFileError } = await supabaseAdmin
+                .from('files') // Will use 'code_insights.files'
+                .update({ parsing_status: 'completed', last_processed_at: new Date().toISOString() })
+                .eq('id', job.file_id);
+
+            if (updateFileError) {
+                throw new Error(`Failed to update file parsing_status: ${updateFileError.message}`);
+            }
         }
 
         console.log(`[Info] Job ${job.id} processed successfully.`);
 
-        return new Response(JSON.stringify({ success: true, jobId: job.id, message: 'Job processed successfully' }), {
+        const jobType = isVectorOnlyJob ? 'Vector-only job' : 'Documentation job';
+        return new Response(JSON.stringify({ success: true, jobId: job.id, message: `${jobType} processed successfully` }), {
             status: 200, headers: { 'Content-Type': 'application/json' },
         });
 

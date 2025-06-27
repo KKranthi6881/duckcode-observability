@@ -167,4 +167,44 @@ router.post(
   insightsController.generateRepositorySummaries
 );
 
+/**
+ * @swagger
+ * /api/insights/retry-vectors/{owner}/{repo}:
+ *   post:
+ *     summary: Retry vector processing for files with failed or pending vector status
+ *     tags: [Insights]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: owner
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The owner of the repository.
+ *       - in: path
+ *         name: repo
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The name of the repository.
+ *     responses:
+ *       200:
+ *         description: OK. Vector processing retry initiated.
+ *       401:
+ *         description: Unauthorized. Authentication required.
+ *       500:
+ *         description: Internal Server Error.
+ */
+router.post(
+  '/retry-vectors/:owner/:repo',
+  requireAuth,
+  (req, res, next) => {
+    // Combine owner and repo into a single repositoryFullName for the controller
+    req.params.repositoryFullName = `${req.params.owner}/${req.params.repo}`;
+    next();
+  },
+  insightsController.retryVectorProcessing
+);
+
 export default router;

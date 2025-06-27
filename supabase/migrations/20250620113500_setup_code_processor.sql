@@ -26,6 +26,7 @@ AS $$
 DECLARE
     job_row code_insights.processing_jobs%ROWTYPE;
 BEGIN
+    -- First, try to lease a pending documentation job
     UPDATE code_insights.processing_jobs
     SET 
         status = 'processing', 
@@ -43,8 +44,32 @@ BEGIN
 
     IF FOUND THEN
         RETURN NEXT job_row;
+        RETURN;
     END IF;
 
+    -- If no pending documentation jobs, try to lease a job that needs vector processing
+    UPDATE code_insights.processing_jobs
+    SET 
+        vector_status = 'processing',
+        leased_at = NOW(),
+        updated_at = NOW()
+    WHERE id = (
+        SELECT pj.id
+        FROM code_insights.processing_jobs pj
+        WHERE pj.status = 'completed' 
+          AND pj.vector_status = 'pending'
+        ORDER BY pj.retry_count ASC, pj.created_at ASC
+        FOR UPDATE SKIP LOCKED
+        LIMIT 1
+    )
+    RETURNING * INTO job_row;
+
+    IF FOUND THEN
+        RETURN NEXT job_row;
+        RETURN;
+    END IF;
+
+    -- No jobs available
     RETURN;
 END;
 $$;
