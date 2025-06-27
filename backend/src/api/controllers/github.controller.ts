@@ -276,3 +276,48 @@ export const getFileContent = async (req: Request, res: Response, next: NextFunc
     });
   }
 };
+
+// Get detailed repository information
+export const getRepositoryDetails = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.user?.id) {
+      res.status(401).json({ message: 'Authentication required to access repository details' });
+      return;
+    }
+
+    const userId = req.user.id;
+    const { owner, repo } = req.params;
+
+    if (!owner || !repo) {
+      res.status(400).json({ message: 'Owner and repository name are required' });
+      return;
+    }
+
+    // Get GitHub installation details for this user
+    const connectionStatus = await githubService.getInstallationConnectionDetails(userId);
+    
+    if (!connectionStatus.isConnected || !connectionStatus.details) {
+      res.status(404).json({ message: 'GitHub connection not found' });
+      return;
+    }
+    
+    // Get the Octokit app instance
+    const app = githubService.getApp();
+    const octokit = await app.getInstallationOctokit(connectionStatus.details.installationId);
+
+    // Fetch repository details
+    const { data } = await octokit.rest.repos.get({
+      owner,
+      repo,
+    });
+
+    res.json(data);
+  } catch (error: any) {
+    console.error('[Controller] Error getting repository details:', error);
+    const statusCode = error.status || 500;
+    res.status(statusCode).json({
+      message: error.message || 'Failed to fetch repository details',
+      error: error.response?.data?.message || error.message
+    });
+  }
+};

@@ -230,6 +230,41 @@ router.get('/repos/:owner/:repo/content/:path(*)', requireAuth as RequestHandler
   githubController.getFileContent(req, res, next);
 });
 
+/**
+ * @openapi
+ * /api/github/repos/{owner}/{repo}:
+ *   get:
+ *     summary: Get detailed repository information
+ *     description: Fetches detailed information about a GitHub repository including metadata like dates, size, etc.
+ *     tags:
+ *       - GitHub
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: owner
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The account owner of the repository
+ *       - in: path
+ *         name: repo
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The name of the repository
+ *     responses:
+ *       200:
+ *         description: Repository details retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Repository not found
+ *       500:
+ *         description: Server error
+ */
+router.get('/repos/:owner/:repo', requireAuth as RequestHandler, githubController.getRepositoryDetails as RequestHandler);
+
 // Placeholder for webhook handler route
 // router.post('/webhooks', githubController.handleGitHubWebhook);
 

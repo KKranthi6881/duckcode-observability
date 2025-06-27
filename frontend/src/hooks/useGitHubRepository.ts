@@ -6,6 +6,7 @@ import {
   getFileContent,
   decodeFileContent,
   getFileSummary,
+  getRepositoryDetails,
   type GitHubConnectionStatus,
   type GitHubRepository,
   type GitHubFileItem

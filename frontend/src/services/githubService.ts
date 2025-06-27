@@ -434,6 +434,39 @@ export const generateRepositorySummaries = async (owner: string, repo: string, s
 };
 
 // Check if a repository has been summarized/documented
+export const getRepositoryDetails = async (owner: string, repo: string): Promise<GitHubRepository> => {
+  console.log('[GitHubService] getRepositoryDetails called with:', { owner, repo });
+  
+  try {
+    const headers = await getAuthHeaders();
+    
+    const url = `${API_BASE_URL}/api/github/repos/${owner}/${repo}`;
+    
+    console.log('[GitHubService] Making API request to:', url);
+
+    const response = await fetchWithTimeout(url, {
+      method: 'GET',
+      headers,
+    });
+
+    console.log('[GitHubService] Repository details response status:', response.status, response.statusText);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[GitHubService] Repository details error response:', errorText);
+      throw new Error(`Failed to fetch repository details: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log('[GitHubService] Repository details data:', data);
+    
+    return data;
+  } catch (error) {
+    console.error('[GitHubService] Error in getRepositoryDetails:', error);
+    throw error;
+  }
+};
+
 export const getRepositorySummaryStatus = async (owner: string, repo: string): Promise<{ hasSummaries: boolean; summaryCount: number; lastSummaryDate?: string }> => {
   try {
     const headers = await getAuthHeaders();

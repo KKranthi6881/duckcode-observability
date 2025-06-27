@@ -8,9 +8,15 @@ import {
   Loader2,
   Wand,
   Clock,
-  AlertCircle
+  AlertCircle,
+  GitBranch,
+  Calendar,
+  GitCommit,
+  Eye,
+  Shield
 } from 'lucide-react';
 import { useProcessingStatus } from '../context/ProcessingStatusContext';
+import { useRepositoryMetadata } from '../hooks/useRepositoryMetadata';
 
 interface RepositoryCardProps {
   repo: any;
@@ -48,8 +54,36 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
   const { processingStatuses } = useProcessingStatus();
   const processingStatus = processingStatuses[repo.full_name];
   
+  // Fetch detailed repository metadata
+  const { metadata, isLoading: isLoadingMetadata } = useRepositoryMetadata(repo.full_name);
+  
   const isAnalyzing = isProcessing || isQueued || isGeneratingSummary || processingStatus?.isPolling;
   const hasDocumentation = summaryStatus?.hasSummaries;
+
+  // Helper function to format dates
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInMs = now.getTime() - date.getTime();
+    const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+    
+    if (diffInDays === 0) {
+      return 'Today';
+    } else if (diffInDays === 1) {
+      return 'Yesterday';
+    } else if (diffInDays < 7) {
+      return `${diffInDays} days ago`;
+    } else if (diffInDays < 30) {
+      const weeks = Math.floor(diffInDays / 7);
+      return `${weeks} week${weeks > 1 ? 's' : ''} ago`;
+    } else if (diffInDays < 365) {
+      const months = Math.floor(diffInDays / 30);
+      return `${months} month${months > 1 ? 's' : ''} ago`;
+    } else {
+      const years = Math.floor(diffInDays / 365);
+      return `${years} year${years > 1 ? 's' : ''} ago`;
+    }
+  };
 
   // Get processing info
   const getProcessingInfo = () => {
@@ -95,6 +129,8 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
 
   const processingInfo = getProcessingInfo();
 
+
+
   return (
     <div
       onClick={() => onRepoClick(repo)}
@@ -131,21 +167,112 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
               )}
             </div>
             
-            <div className="flex items-center space-x-3 text-xs text-gray-500">
-              <span className="truncate max-w-48">{repo.description || repo.full_name}</span>
-              <div className="flex items-center space-x-2 flex-shrink-0">
-                <div className="flex items-center space-x-1">
-                  <Star className="h-3 w-3" />
-                  <span>{repo.stargazers_count || 0}</span>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <GitFork className="h-3 w-3" />
-                  <span>{repo.forks_count || 0}</span>
-                </div>
-                {repo.language && (
+            <div className="space-y-2">
+              <div className="flex items-center space-x-3 text-xs text-gray-500">
+                <span className="truncate max-w-48">{repo.description || repo.full_name}</span>
+                <div className="flex items-center space-x-2 flex-shrink-0">
                   <div className="flex items-center space-x-1">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    <span>{repo.language}</span>
+                    <Star className="h-3 w-3" />
+                    <span>{repo.stargazers_count || 0}</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <GitFork className="h-3 w-3" />
+                    <span>{repo.forks_count || 0}</span>
+                  </div>
+                  {repo.language && (
+                    <div className="flex items-center space-x-1">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                      <span>{repo.language}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Repository Metadata */}
+              <div className="flex items-center flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
+                {/* Show available metadata based on what we have */}
+                {(metadata?.default_branch || repo.default_branch) && (
+                  <div className="flex items-center space-x-1" title={`Default branch: ${metadata?.default_branch || repo.default_branch}`}>
+                    <GitBranch className="h-3 w-3 text-gray-400" />
+                    <span className="font-medium">{metadata?.default_branch || repo.default_branch}</span>
+                  </div>
+                )}
+                
+                {/* Show last commit date if available from metadata */}
+                {metadata?.pushed_at && (
+                  <div className="flex items-center space-x-1" title={`Last commit: ${new Date(metadata.pushed_at).toLocaleString()}`}>
+                    <GitCommit className="h-3 w-3 text-green-500" />
+                    <span>{formatDate(metadata.pushed_at)}</span>
+                  </div>
+                )}
+                
+                {/* Show repository updated date if different from pushed */}
+                {metadata?.updated_at && metadata.updated_at !== metadata.pushed_at && (
+                  <div className="flex items-center space-x-1" title={`Repository updated: ${new Date(metadata.updated_at).toLocaleString()}`}>
+                    <Calendar className="h-3 w-3 text-blue-500" />
+                    <span>{formatDate(metadata.updated_at)}</span>
+                  </div>
+                )}
+                
+                {/* Show repository size if available */}
+                {metadata?.size && metadata.size > 0 && (
+                  <div className="flex items-center space-x-1" title={`Repository size: ${metadata.size} KB`}>
+                    <Eye className="h-3 w-3 text-purple-500" />
+                    <span>
+                      {metadata.size < 1024 
+                        ? `${metadata.size}KB` 
+                        : `${(metadata.size / 1024).toFixed(1)}MB`
+                      }
+                    </span>
+                  </div>
+                )}
+                
+                {/* Show open issues count if available */}
+                {metadata?.open_issues_count && metadata.open_issues_count > 0 && (
+                  <div className="flex items-center space-x-1" title={`Open issues: ${metadata.open_issues_count}`}>
+                    <AlertCircle className="h-3 w-3 text-orange-500" />
+                    <span>{metadata.open_issues_count}</span>
+                  </div>
+                )}
+                
+                {/* Show license if available */}
+                {metadata?.license && (
+                  <div className="flex items-center space-x-1" title={`License: ${metadata.license.name}`}>
+                    <Shield className="h-3 w-3 text-gray-400" />
+                    <span className="uppercase">{metadata.license.key}</span>
+                  </div>
+                )}
+                
+                {/* Show repository type */}
+                {repo.private && (
+                  <div className="flex items-center space-x-1" title="Private repository">
+                    <Lock className="h-3 w-3 text-orange-500" />
+                    <span>Private</span>
+                  </div>
+                )}
+                
+                {/* Show repository URL as a clickable link */}
+                {repo.html_url && (
+                  <div className="flex items-center space-x-1">
+                    <a 
+                      href={repo.html_url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center space-x-1 text-blue-600 hover:text-blue-800 transition-colors"
+                      title="View on GitHub"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Eye className="h-3 w-3" />
+                      <span>GitHub</span>
+                    </a>
+                  </div>
+                )}
+                
+                {/* Loading indicator for metadata */}
+                {isLoadingMetadata && (
+                  <div className="flex items-center space-x-1 text-gray-400">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    <span>Loading...</span>
                   </div>
                 )}
               </div>
@@ -228,10 +355,10 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onStatusCheck();
+                const [owner, repoName] = repo.full_name.split('/');
+                navigate(`/dashboard/code/status/${owner}/${repoName}`);
               }}
-              className="flex items-center px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
-              disabled
+              className="flex items-center px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
             >
               <Clock className="h-3 w-3 mr-1" />
               View Status
