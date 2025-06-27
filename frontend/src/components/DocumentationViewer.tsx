@@ -453,14 +453,14 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
           formattedParts.push(
             <div key={i} className="mb-3">
               <span className="font-semibold text-blue-700">{part}</span>
-              <span className="ml-1">{nextPart.trim()}</span>
+              <span className="ml-1 break-words">{nextPart.trim()}</span>
             </div>
           );
           i++; // Skip the next part since we've already processed it
         } else if (i === 0 && part.trim()) {
           // This is the introductory text before the numbered points
           formattedParts.push(
-            <div key={i} className="mb-4 font-medium text-gray-800">
+            <div key={i} className="mb-4 font-medium text-gray-800 break-words">
               {part.trim()}
             </div>
           );
@@ -471,7 +471,7 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
     }
     
     // If no numbered points, return as regular text with line breaks preserved
-    return <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{text}</p>;
+    return <p className="text-gray-700 leading-relaxed whitespace-pre-wrap break-words">{text}</p>;
   };
 
   // Helper function to safely render content that might be objects or strings
@@ -485,7 +485,7 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
         <div className="space-y-3">
           {Object.entries(content).map(([key, value], index) => (
             <div key={index} className="border-l-4 border-blue-200 pl-4">
-              <h5 className="font-semibold text-gray-800 mb-2 capitalize">
+              <h5 className="font-semibold text-gray-800 mb-2 capitalize break-words">
                 {key.replace(/_/g, ' ')}
               </h5>
               <div className="text-gray-700">
@@ -494,11 +494,11 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
                 ) : Array.isArray(value) ? (
                   <ul className="list-disc list-inside space-y-1">
                     {value.map((item, idx) => (
-                      <li key={idx}>{String(item)}</li>
+                      <li key={idx} className="break-words">{String(item)}</li>
                     ))}
                   </ul>
                 ) : (
-                  <pre className="text-sm bg-gray-100 p-2 rounded overflow-x-auto">
+                  <pre className="text-sm bg-gray-100 p-2 rounded overflow-x-auto whitespace-pre-wrap break-words">
                     {JSON.stringify(value, null, 2)}
                   </pre>
                 )}
@@ -510,7 +510,7 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
     }
     
     // Fallback for other types
-    return <p className="text-gray-700 leading-relaxed">{String(content)}</p>;
+    return <p className="text-gray-700 leading-relaxed break-words">{String(content)}</p>;
   };
 
   if (isLoadingFileSummary) {
@@ -566,11 +566,11 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
       {/* File Information Header */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <div className="flex items-center mb-2">
-          <FileText className="h-5 w-5 text-blue-600 mr-2" />
+          <FileText className="h-5 w-5 text-blue-600 mr-2 flex-shrink-0" />
           <h3 className="text-lg font-semibold text-blue-900">File Documentation</h3>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-          <div><span className="font-medium text-gray-700">File:</span> <span className="text-gray-900">{apiResponse.filePath}</span></div>
+        <div className="grid grid-cols-1 gap-3 text-sm">
+          <div><span className="font-medium text-gray-700">File:</span> <span className="text-gray-900 break-all">{apiResponse.filePath}</span></div>
           {apiResponse.language && <div><span className="font-medium text-gray-700">Language:</span> <span className="text-gray-900">{apiResponse.language}</span></div>}
           {apiResponse.lastProcessed && <div><span className="font-medium text-gray-700">Processed:</span> <span className="text-gray-900">{new Date(apiResponse.lastProcessed).toLocaleDateString()}</span></div>}
           {apiResponse.summaryCreatedAt && <div><span className="font-medium text-gray-700">Generated:</span> <span className="text-gray-900">{new Date(apiResponse.summaryCreatedAt).toLocaleDateString()}</span></div>}
@@ -617,7 +617,7 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
               editedContent={editedContent}
               setEditedContent={setEditedContent}
             >
-              <div className="prose max-w-none">
+              <div className="w-full overflow-hidden">
                 {renderSafeContent(summaryContent.summary)}
               </div>
             </EditableSection>
@@ -654,7 +654,7 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
                       {summaryContent.business_logic.main_objectives.map((obj: string, idx: number) => (
                         <li key={idx} className="flex items-start">
                           <ArrowRight className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                          <span>{obj}</span>
+                          <span className="break-words">{obj}</span>
                         </li>
                       ))}
                     </ul>
@@ -669,7 +669,7 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
                     <h5 className="font-semibold text-gray-800">Data Transformation</h5>
                   </div>
                   <div className="bg-white rounded-lg border border-blue-200 p-4 border-l-4 border-l-blue-500">
-                    <p className="text-gray-700 leading-relaxed">{summaryContent.business_logic.data_transformation}</p>
+                    <p className="text-gray-700 leading-relaxed break-words">{summaryContent.business_logic.data_transformation}</p>
                   </div>
                 </div>
               )}
@@ -681,7 +681,7 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
                     <h5 className="font-semibold text-gray-800">Stakeholder Impact</h5>
                   </div>
                   <div className="bg-white rounded-lg border border-purple-200 p-4 border-l-4 border-l-purple-500">
-                    <p className="text-gray-700 leading-relaxed">{summaryContent.business_logic.stakeholder_impact}</p>
+                    <p className="text-gray-700 leading-relaxed break-words">{summaryContent.business_logic.stakeholder_impact}</p>
                   </div>
                 </div>
               )}
@@ -721,7 +721,7 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
                     {block.code && (
                       <div className="mb-6">
                         <div className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto border-l-4 border-purple-500">
-                          <pre className="text-sm font-mono"><code>{block.code}</code></pre>
+                          <pre className="text-sm font-mono whitespace-pre-wrap break-words"><code>{block.code}</code></pre>
                         </div>
                       </div>
                     )}
@@ -911,68 +911,77 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
               editedContent={editedContent}
               setEditedContent={setEditedContent}
             >
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {summaryContent.technical_details.materialization && (
-                  <div className="bg-white p-4 rounded-lg border border-gray-200">
-                    <div className="flex items-center mb-3">
-                      <Server className="h-5 w-5 text-blue-600 mr-2" />
-                      <h5 className="font-semibold text-gray-800">Materialization</h5>
+              {/* Check if technical_details has structured properties */}
+              {(summaryContent.technical_details.materialization || 
+                summaryContent.technical_details.source_tables || 
+                summaryContent.technical_details.sql_operations || 
+                summaryContent.technical_details.incremental_strategy) ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {summaryContent.technical_details.materialization && (
+                    <div className="bg-white p-4 rounded-lg border border-gray-200">
+                      <div className="flex items-center mb-3">
+                        <Server className="h-5 w-5 text-blue-600 mr-2" />
+                        <h5 className="font-semibold text-gray-800">Materialization</h5>
+                      </div>
+                      <span className="inline-flex items-center bg-blue-100 text-blue-800 px-3 py-2 rounded-full text-sm font-medium">
+                        <Database className="h-4 w-4 mr-2" />
+                        {summaryContent.technical_details.materialization}
+                      </span>
                     </div>
-                    <span className="inline-flex items-center bg-blue-100 text-blue-800 px-3 py-2 rounded-full text-sm font-medium">
-                      <Database className="h-4 w-4 mr-2" />
-                      {summaryContent.technical_details.materialization}
-                    </span>
-                  </div>
-                )}
-                
-                {summaryContent.technical_details.source_tables && summaryContent.technical_details.source_tables.length > 0 && (
-                  <div className="bg-white p-4 rounded-lg border border-gray-200">
-                    <div className="flex items-center mb-3">
-                      <BarChart3 className="h-5 w-5 text-orange-600 mr-2" />
-                      <h5 className="font-semibold text-gray-800">Source Tables</h5>
+                  )}
+                  
+                  {summaryContent.technical_details.source_tables && Array.isArray(summaryContent.technical_details.source_tables) && summaryContent.technical_details.source_tables.length > 0 && (
+                    <div className="bg-white p-4 rounded-lg border border-gray-200">
+                      <div className="flex items-center mb-3">
+                        <BarChart3 className="h-5 w-5 text-orange-600 mr-2" />
+                        <h5 className="font-semibold text-gray-800">Source Tables</h5>
+                      </div>
+                      <div className="space-y-2">
+                        {summaryContent.technical_details.source_tables.map((table: string, idx: number) => (
+                          <div key={idx} className="flex items-center bg-orange-50 text-orange-800 px-3 py-2 rounded-lg text-sm border border-orange-200">
+                            <Database className="h-4 w-4 mr-2" />
+                            {table}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      {summaryContent.technical_details.source_tables.map((table: string, idx: number) => (
-                        <div key={idx} className="flex items-center bg-orange-50 text-orange-800 px-3 py-2 rounded-lg text-sm border border-orange-200">
-                          <Database className="h-4 w-4 mr-2" />
-                          {table}
-                        </div>
-                      ))}
+                  )}
+                  
+                  {summaryContent.technical_details.sql_operations && Array.isArray(summaryContent.technical_details.sql_operations) && summaryContent.technical_details.sql_operations.length > 0 && (
+                    <div className="bg-white p-4 rounded-lg border border-gray-200">
+                      <div className="flex items-center mb-3">
+                        <Code className="h-5 w-5 text-purple-600 mr-2" />
+                        <h5 className="font-semibold text-gray-800">SQL Operations</h5>
+                      </div>
+                      <div className="space-y-2">
+                        {summaryContent.technical_details.sql_operations.map((op: string, idx: number) => (
+                          <div key={idx} className="flex items-center bg-purple-50 text-purple-800 px-3 py-2 rounded-lg text-sm border border-purple-200">
+                            <Activity className="h-4 w-4 mr-2" />
+                            {op}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
-                
-                {summaryContent.technical_details.sql_operations && summaryContent.technical_details.sql_operations.length > 0 && (
-                  <div className="bg-white p-4 rounded-lg border border-gray-200">
-                    <div className="flex items-center mb-3">
-                      <Code className="h-5 w-5 text-purple-600 mr-2" />
-                      <h5 className="font-semibold text-gray-800">SQL Operations</h5>
+                  )}
+                  
+                  {summaryContent.technical_details.incremental_strategy && (
+                    <div className="bg-white p-4 rounded-lg border border-gray-200">
+                      <div className="flex items-center mb-3">
+                        <ArrowUpRight className="h-5 w-5 text-green-600 mr-2" />
+                        <h5 className="font-semibold text-gray-800">Incremental Strategy</h5>
+                      </div>
+                      <span className="inline-flex items-center bg-green-100 text-green-800 px-3 py-2 rounded-full text-sm font-medium">
+                        <Clock className="h-4 w-4 mr-2" />
+                        {summaryContent.technical_details.incremental_strategy}
+                      </span>
                     </div>
-                    <div className="space-y-2">
-                      {summaryContent.technical_details.sql_operations.map((op: string, idx: number) => (
-                        <div key={idx} className="flex items-center bg-purple-50 text-purple-800 px-3 py-2 rounded-lg text-sm border border-purple-200">
-                          <Activity className="h-4 w-4 mr-2" />
-                          {op}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                
-                {summaryContent.technical_details.incremental_strategy && (
-                  <div className="bg-white p-4 rounded-lg border border-gray-200">
-                    <div className="flex items-center mb-3">
-                      <ArrowUpRight className="h-5 w-5 text-green-600 mr-2" />
-                      <h5 className="font-semibold text-gray-800">Incremental Strategy</h5>
-                    </div>
-                    <span className="inline-flex items-center bg-green-100 text-green-800 px-3 py-2 rounded-full text-sm font-medium">
-                      <Clock className="h-4 w-4 mr-2" />
-                      {summaryContent.technical_details.incremental_strategy}
-                    </span>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              ) : (
+                <div className="w-full overflow-hidden">
+                  {renderSafeContent(summaryContent.technical_details)}
+                </div>
+              )}
             </EditableSection>
           )}
 
@@ -1005,7 +1014,7 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
                     <div className="flex-1 bg-white p-4 rounded-lg border border-blue-200 border-l-4 border-l-blue-500 shadow-sm">
                       <div className="flex items-start">
                         <ArrowRight className="h-4 w-4 text-blue-500 mr-2 mt-0.5 flex-shrink-0" />
-                        <p className="text-gray-700 leading-relaxed">{step}</p>
+                        <p className="text-gray-700 leading-relaxed break-words">{step}</p>
                       </div>
                     </div>
                   </div>
@@ -1033,20 +1042,23 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
               editedContent={editedContent}
               setEditedContent={setEditedContent}
             >
-              
               {/* Handle both array and object formats */}
               {Array.isArray(summaryContent.performance_considerations) ? (
                 <div className="space-y-2">
                   {summaryContent.performance_considerations.map((consideration: string, idx: number) => (
                     <div key={idx} className="flex items-start">
                       <span className="inline-block w-2 h-2 bg-orange-500 rounded-full mt-2 mr-3 flex-shrink-0"></span>
-                      <p className="text-gray-700 bg-white p-3 rounded border-l-4 border-orange-400">{consideration}</p>
+                      <p className="text-gray-700 bg-white p-3 rounded border-l-4 border-orange-400 break-words">{consideration}</p>
                     </div>
                   ))}
                 </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {summaryContent.performance_considerations.optimization_opportunities && (
+              ) : typeof summaryContent.performance_considerations === 'object' && (
+                summaryContent.performance_considerations.optimization_opportunities || 
+                summaryContent.performance_considerations.resource_usage || 
+                summaryContent.performance_considerations.scalability_notes
+              ) ? (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {summaryContent.performance_considerations.optimization_opportunities && Array.isArray(summaryContent.performance_considerations.optimization_opportunities) && (
                     <div className="bg-white p-4 rounded-lg border border-orange-200 shadow-sm">
                       <div className="flex items-center mb-3">
                         <ArrowUpRight className="h-5 w-5 text-orange-600 mr-2" />
@@ -1056,14 +1068,14 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
                         {summaryContent.performance_considerations.optimization_opportunities.map((opt: string, idx: number) => (
                           <div key={idx} className="flex items-start text-sm text-gray-700">
                             <Gauge className="h-4 w-4 text-orange-500 mr-2 mt-0.5 flex-shrink-0" />
-                            <span className="leading-relaxed">{opt}</span>
+                            <span className="leading-relaxed break-words">{opt}</span>
                           </div>
                         ))}
                       </div>
                     </div>
                   )}
                   
-                  {summaryContent.performance_considerations.resource_usage && (
+                  {summaryContent.performance_considerations.resource_usage && Array.isArray(summaryContent.performance_considerations.resource_usage) && (
                     <div className="bg-white p-4 rounded-lg border border-orange-200 shadow-sm">
                       <div className="flex items-center mb-3">
                         <Cpu className="h-5 w-5 text-orange-600 mr-2" />
@@ -1073,14 +1085,14 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
                         {summaryContent.performance_considerations.resource_usage.map((usage: string, idx: number) => (
                           <div key={idx} className="flex items-start text-sm text-gray-700">
                             <Monitor className="h-4 w-4 text-orange-500 mr-2 mt-0.5 flex-shrink-0" />
-                            <span className="leading-relaxed">{usage}</span>
+                            <span className="leading-relaxed break-words">{usage}</span>
                           </div>
                         ))}
                       </div>
                     </div>
                   )}
                   
-                  {summaryContent.performance_considerations.scalability_notes && (
+                  {summaryContent.performance_considerations.scalability_notes && Array.isArray(summaryContent.performance_considerations.scalability_notes) && (
                     <div className="bg-white p-4 rounded-lg border border-orange-200 md:col-span-2 shadow-sm">
                       <div className="flex items-center mb-3">
                         <TrendingUp className="h-5 w-5 text-orange-600 mr-2" />
@@ -1090,14 +1102,18 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
                         {summaryContent.performance_considerations.scalability_notes.map((note: string, idx: number) => (
                           <div key={idx} className="flex items-start text-sm text-gray-700">
                             <ArrowUpRight className="h-4 w-4 text-orange-500 mr-2 mt-0.5 flex-shrink-0" />
-                            <span className="leading-relaxed">{note}</span>
+                            <span className="leading-relaxed break-words">{note}</span>
                           </div>
                         ))}
                       </div>
                     </div>
-                                  )}
+                  )}
                 </div>
-                )}
+              ) : (
+                <div className="w-full overflow-hidden">
+                  {renderSafeContent(summaryContent.performance_considerations)}
+                </div>
+              )}
             </EditableSection>
           )}
 
@@ -1120,20 +1136,23 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
               editedContent={editedContent}
               setEditedContent={setEditedContent}
             >
-              
               {/* Handle both array and object formats */}
               {Array.isArray(summaryContent.best_practices) ? (
                 <div className="space-y-2">
                   {summaryContent.best_practices.map((practice: string, idx: number) => (
                     <div key={idx} className="flex items-start">
                       <CheckCircle className="h-4 w-4 text-green-500 mt-1 mr-3 flex-shrink-0" />
-                      <p className="text-gray-700 bg-white p-3 rounded border-l-4 border-green-400">{practice}</p>
+                      <p className="text-gray-700 bg-white p-3 rounded border-l-4 border-green-400 break-words">{practice}</p>
                     </div>
                   ))}
                 </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {summaryContent.best_practices.followed && (
+              ) : typeof summaryContent.best_practices === 'object' && (
+                summaryContent.best_practices.followed || 
+                summaryContent.best_practices.improvements || 
+                summaryContent.best_practices.sql_server_optimizations
+              ) ? (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {summaryContent.best_practices.followed && Array.isArray(summaryContent.best_practices.followed) && (
                     <div className="bg-white p-4 rounded-lg border border-green-200 shadow-sm">
                       <div className="flex items-center mb-3">
                         <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
@@ -1143,14 +1162,14 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
                         {summaryContent.best_practices.followed.map((practice: string, idx: number) => (
                           <div key={idx} className="flex items-start text-sm text-gray-700">
                             <FileCheck className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                            <span className="leading-relaxed">{practice}</span>
+                            <span className="leading-relaxed break-words">{practice}</span>
                           </div>
                         ))}
                       </div>
                     </div>
                   )}
                   
-                  {summaryContent.best_practices.improvements && (
+                  {summaryContent.best_practices.improvements && Array.isArray(summaryContent.best_practices.improvements) && (
                     <div className="bg-white p-4 rounded-lg border border-green-200 shadow-sm">
                       <div className="flex items-center mb-3">
                         <Wrench className="h-5 w-5 text-green-600 mr-2" />
@@ -1160,31 +1179,14 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
                         {summaryContent.best_practices.improvements.map((improvement: string, idx: number) => (
                           <div key={idx} className="flex items-start text-sm text-gray-700">
                             <ArrowUpRight className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                            <span className="leading-relaxed">{improvement}</span>
+                            <span className="leading-relaxed break-words">{improvement}</span>
                           </div>
                         ))}
                       </div>
                     </div>
                   )}
                   
-                  {summaryContent.best_practices.pythonic_patterns && (
-                    <div className="bg-white p-4 rounded-lg border border-green-200 shadow-sm">
-                      <div className="flex items-center mb-3">
-                        <Code className="h-5 w-5 text-green-600 mr-2" />
-                        <h5 className="font-semibold text-green-800">Pythonic Patterns</h5>
-                      </div>
-                      <div className="space-y-3">
-                        {summaryContent.best_practices.pythonic_patterns.map((pattern: string, idx: number) => (
-                          <div key={idx} className="flex items-start text-sm text-gray-700">
-                            <GitBranch className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                            <span className="leading-relaxed">{pattern}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  
-                  {summaryContent.best_practices.sql_server_optimizations && (
+                  {summaryContent.best_practices.sql_server_optimizations && Array.isArray(summaryContent.best_practices.sql_server_optimizations) && (
                     <div className="bg-white p-4 rounded-lg border border-green-200 shadow-sm">
                       <div className="flex items-center mb-3">
                         <Database className="h-5 w-5 text-green-600 mr-2" />
@@ -1194,14 +1196,18 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
                         {summaryContent.best_practices.sql_server_optimizations.map((opt: string, idx: number) => (
                           <div key={idx} className="flex items-start text-sm text-gray-700">
                             <Zap className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                            <span className="leading-relaxed">{opt}</span>
+                            <span className="leading-relaxed break-words">{opt}</span>
                           </div>
                         ))}
                       </div>
                     </div>
-                                  )}
+                  )}
                 </div>
-                )}
+              ) : (
+                <div className="w-full overflow-hidden">
+                  {renderSafeContent(summaryContent.best_practices)}
+                </div>
+              )}
             </EditableSection>
           )}
 

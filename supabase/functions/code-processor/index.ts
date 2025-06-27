@@ -158,6 +158,41 @@ async function callLlmApi(
     }
 }
 
+// Function to fetch custom analysis settings
+async function getCustomAnalysisSettings(supabaseClient: any, repoFullName: string): Promise<{ business_overview?: string; naming_standards?: string; language?: string } | null> {
+    try {
+        // First get the repository ID from github_repositories
+        const { data: repoData, error: repoError } = await supabaseClient
+            .from('github_repositories') 
+            .select('id')
+            .eq('full_name', repoFullName)
+            .single();
+
+        if (repoError || !repoData) {
+            console.log(`Repository not found in github_repositories: ${repoFullName}`);
+            return null;
+        }
+
+        // Then get the settings using repository_id
+        const { data, error } = await supabaseClient
+            .from('repository_analysis_settings')
+            .select('business_overview, naming_standards, language')
+            .eq('repository_id', repoData.id)
+            .single();
+
+        if (error && error.code !== 'PGRST116') { // Ignore 'range not found'
+            console.error(`Error fetching custom settings for ${repoFullName}:`, error);
+            return null;
+        }
+        
+        console.log(`Custom settings found for ${repoFullName}:`, data);
+        return data;
+    } catch (error) {
+        console.error(`Error in getCustomAnalysisSettings for ${repoFullName}:`, error);
+        return null;
+    }
+}
+
 // --- OpenAI API with System Prompt ---
 async function callOpenAIWithSystemPrompt(systemPrompt: string, userMessage: string): Promise<any> {
     let apiKey: string | undefined;
@@ -788,12 +823,30 @@ const specializedPrompts: Record<string, string> = {
 
 };
 
-// Function to get system prompt based on user-selected language
-function getSystemPrompt(selectedLanguage: string): string {
-    // Use the user's selected language directly (no mapping needed)
-    // since job.analysis_language already contains their choice from the dropdown
-    const languageKey = selectedLanguage?.toLowerCase();
-    return specializedPrompts[languageKey] || specializedPrompts.default;
+function getSystemPrompt(selectedLanguage: string, customSettings: { business_overview?: string; naming_standards?: string } | null): string {
+    // Use specialized prompt for the selected language, fallback to python for general code analysis
+    let basePrompt = specializedPrompts[selectedLanguage] || specializedPrompts.python;
+
+    if (customSettings && (customSettings.business_overview || customSettings.naming_standards)) {
+        let customInstructions = "--- CUSTOM INSTRUCTIONS ---\n";
+        customInstructions += "The user has provided specific context for this project. Adhere to these instructions closely.\n\n";
+
+        if (customSettings.business_overview) {
+            customInstructions += "## Business Overview & Context\n";
+            customInstructions += `${customSettings.business_overview}\n\n`;
+        }
+
+        if (customSettings.naming_standards) {
+            customInstructions += "## Naming Standards & Conventions\n";
+            customInstructions += `${customSettings.naming_standards}\n\n`;
+        }
+        
+        customInstructions += "--- END CUSTOM INSTRUCTIONS ---\n\n";
+        
+        basePrompt = customInstructions + basePrompt;
+    }
+
+    return basePrompt;
 }
 
 // --- Main Handler ---
@@ -860,28 +913,35 @@ serve(async (req) => {
             fileRecord.file_path
         );
 
-        // 4. Get System Prompt based on file language
-        console.log(`Getting system prompt for language: ${fileRecord.language}`);
-        const systemPrompt = getSystemPrompt(fileRecord.language);
+        // 4. Fetch custom analysis settings for this repository
+        console.log(`Fetching custom analysis settings for repository: ${fileRecord.repository_full_name}`);
+        const customSettings = await getCustomAnalysisSettings(supabaseAdmin, fileRecord.repository_full_name);
         
-        // 5. Construct user message with file details
+        // Use custom language if available, otherwise use file language
+        const analysisLanguage = customSettings?.language || fileRecord.language;
+        
+        // 5. Get System Prompt based on language and custom settings
+        console.log(`Getting system prompt for language: ${analysisLanguage} with custom settings:`, customSettings);
+        const systemPrompt = getSystemPrompt(analysisLanguage, customSettings);
+        
+        // 6. Construct user message with file details
         const userMessage = `Please analyze the following code file:
 
 File Path: ${fileRecord.file_path}
-Language: ${fileRecord.language}
+Language: ${analysisLanguage}
 
-\`\`\`${fileRecord.language}
+\`\`\`${analysisLanguage}
 ${fileContent}
 \`\`\`
 
 Provide a comprehensive analysis in the requested JSON format.`;
 
-        // 6. Call OpenAI with system and user messages
+        // 7. Call OpenAI with system and user messages
         console.log(`Sending request to OpenAI GPT-4.1-mini`);
         const llmResponse = await callOpenAIWithSystemPrompt(systemPrompt, userMessage);
         console.log("OpenAI API call successful.");
 
-        // 7. Store Results
+        // 8. Store Results
         console.log(`Storing LLM summary for file_id: ${job.file_id}`);
         const { data: summaryData, error: summaryError } = await supabaseAdmin
             .from('code_summaries') // Will use 'code_insights.code_summaries'
@@ -901,7 +961,7 @@ Provide a comprehensive analysis in the requested JSON format.`;
         }
         console.log('LLM summary stored:', summaryData);
 
-        // 8. Update Job and File Status to 'completed'
+        // 9. Update Job and File Status to 'completed'
         console.log(`Updating job ${job.id} and file ${job.file_id} status to completed.`);
         const { error: updateJobError } = await supabaseAdmin
             .from('processing_jobs') // Will use 'code_insights.processing_jobs'

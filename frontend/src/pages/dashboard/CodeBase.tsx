@@ -22,12 +22,21 @@ import { EnhancedCodeViewer } from '../../components/EnhancedCodeViewer';
 import { DocumentationViewer } from '../../components/DocumentationViewer';
 import { RepositoryGrid } from '../../components/RepositoryGrid';
 
+import { useProcessingStatus } from '../../context/ProcessingStatusContext';
+
 const GITHUB_APP_NAME = 'DuckCode-Observability';
 const brandColor = "#2AB7A9";
 
 export function CodeBase() {
   const navigate = useNavigate();
   const { session, isLoading: isAuthLoading } = useAuth();
+  const { processingStatuses, clearStatus } = useProcessingStatus();
+
+  // Debug logging
+  React.useEffect(() => {
+    console.log('CodeBase - Processing statuses:', processingStatuses);
+    console.log('CodeBase - Number of processing statuses:', Object.keys(processingStatuses).length);
+  }, [processingStatuses]);
   
   // Use custom hooks for GitHub repository management and clipboard functionality
   const {
@@ -59,10 +68,7 @@ export function CodeBase() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'code' | 'documentation' | 'lineage' | 'visual' | 'alerts'>('code');
   
-  // Language selection state
-  const [selectedLanguages, setSelectedLanguages] = useState<{[repoId: string]: string}>({});
-  const [processingRepos, setProcessingRepos] = useState<string[]>([]);
-  const [generatingSummaries, setGeneratingSummaries] = useState<string[]>([]);
+  // State has been moved to AnalysisSetup.tsx or is no longer needed here
   const [repoSummaryStatus, setRepoSummaryStatus] = useState<Record<string, { hasSummaries: boolean; summaryCount: number; lastSummaryDate?: string }>>({});
   const [summaryGenerationError, setSummaryGenerationError] = useState<string | null>(null);
   
@@ -88,14 +94,6 @@ export function CodeBase() {
   const handleGitHubRepoClick = (repo: any) => {
     handleRepositorySelect(repo);
     setView('browser');
-  };
-
-  // Handle language selection for repository analysis
-  const handleLanguageSelect = (repoId: string, language: string) => {
-    setSelectedLanguages(prev => ({
-      ...prev,
-      [repoId]: language
-    }));
   };
 
   // Start polling for repository processing progress
@@ -205,49 +203,10 @@ export function CodeBase() {
     }));
   };
 
-  // Handle repository analysis
-  const handleAnalyzeRepository = async (repoFullName: string) => {
-    // Find the repository data first to get the ID for language selection
-    const repo = gitHubConnectionStatus?.details?.accessibleRepos?.find((r: any) => r.full_name === repoFullName);
-    if (!repo) {
-      console.error('Repository not found with full_name:', repoFullName);
-      console.error('Available repositories:', gitHubConnectionStatus?.details?.accessibleRepos?.map(r => r.full_name));
-      throw new Error(`Repository not found: ${repoFullName}`);
-    }
-
-    const repoId = repo.id.toString();
-    const selectedLanguage = selectedLanguages[repoId] || 'default';
-    
-    try {
-      setProcessingRepos(prev => [...prev, repoId]);
-      setGeneratingSummaries(prev => [...prev, repoId]);
-      setSummaryGenerationError(null);
-
-      console.log(`Starting analysis for repository: ${repo.full_name} with language: ${selectedLanguage}`);
-      console.log('Full repository object:', repo);
-      console.log('Request payload:', { repositoryFullName: repo.full_name, selectedLanguage });
-
-      // Use the existing processRepositoryForInsights function
-      const result = await processRepositoryForInsights(repo.full_name, selectedLanguage);
-      
-      console.log('Repository analysis initiated:', result);
-      
-      // Start polling for progress updates
-      startProgressPolling(repoId, repo.full_name);
-
-      console.log('Repository analysis request completed successfully:', result);
-      
-    } catch (error) {
-      console.error('Error analyzing repository:', error);
-      setSummaryGenerationError(error instanceof Error ? error.message : 'Failed to analyze repository');
-      setRepoSummaryStatus(prev => ({
-        ...prev,
-        [repoId]: { hasSummaries: false, summaryCount: 0 }
-      }));
-    } finally {
-      setProcessingRepos(prev => prev.filter(id => id !== repoId));
-      setGeneratingSummaries(prev => prev.filter(id => id !== repoId));
-    }
+  // Handle repository analysis - navigate to setup page
+  const handleAnalyzeRepository = (repoFullName: string) => {
+    const [owner, repo] = repoFullName.split('/');
+    navigate(`/dashboard/code/analyze/${owner}/${repo}`);
   };
 
   // Handle status modal
@@ -411,28 +370,37 @@ export function CodeBase() {
   // Basic loading state
   if (isLoadingConnection) {
     return (
-      <div className="flex items-center justify-center h-screen p-6">
-        <Loader2 className="h-12 w-12 animate-spin text-gray-500" />
-        <p className="ml-4 text-xl text-gray-600">Loading GitHub Connection...</p>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 flex items-center justify-center">
+        <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8 max-w-md w-full mx-4">
+          <div className="flex flex-col items-center text-center">
+            <Loader2 className="h-12 w-12 animate-spin text-[#2AB7A9] mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Loading GitHub Connection</h3>
+            <p className="text-gray-600">Checking your repository access...</p>
+          </div>
+        </div>
       </div>
     );
   }
 
   if (connectionError && (!gitHubConnectionStatus || !gitHubConnectionStatus.isConnected)) {
     return (
-      <div className="p-6 max-w-2xl mx-auto mt-10 font-sans">
-        <div className="bg-red-50 border-l-4 border-red-500 p-6 rounded-md shadow-md">
-          <div className="flex items-start">
-            <AlertTriangle className="h-8 w-8 text-red-500 mr-3" />
-            <div>
-              <h3 className="text-xl font-bold text-red-900">GitHub Connection Error</h3>
-              <p className="text-red-700 mt-1">{connectionError}</p>
-              <p className="text-red-600 mt-3 text-sm">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 flex items-center justify-center p-6">
+        <div className="bg-white rounded-xl shadow-lg border border-red-200 p-8 max-w-2xl w-full">
+          <div className="flex items-start space-x-4">
+            <div className="flex-shrink-0">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                <AlertTriangle className="h-6 w-6 text-red-600" />
+              </div>
+            </div>
+            <div className="flex-1">
+              <h3 className="text-xl font-bold text-gray-900 mb-2">GitHub Connection Error</h3>
+              <p className="text-gray-700 mb-4">{connectionError}</p>
+              <p className="text-gray-600 text-sm mb-6">
                 Please ensure your GitHub account is connected via the <strong>{GITHUB_APP_NAME}</strong> GitHub App and that it has the necessary permissions to access your repositories.
               </p>
               <button
                 onClick={() => navigate('/dashboard/settings?tab=github')}
-                className="mt-6 inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+                className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors shadow-sm"
               >
                 <Settings className="h-4 w-4 mr-2" />
                 Go to GitHub Settings
@@ -446,18 +414,22 @@ export function CodeBase() {
   
   if (!gitHubConnectionStatus?.isConnected) {
      return (
-      <div className="p-6 max-w-2xl mx-auto mt-10 font-sans">
-        <div className="bg-yellow-50 border-l-4 border-yellow-500 p-6 rounded-md shadow-md">
-          <div className="flex items-start">
-            <AlertTriangle className="h-8 w-8 text-yellow-700 mr-4 flex-shrink-0 mt-1" />
-            <div>
-              <h3 className="text-xl font-bold text-yellow-800">GitHub Not Connected</h3>
-              <p className="text-yellow-700 mt-2 text-base">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 flex items-center justify-center p-6">
+        <div className="bg-white rounded-xl shadow-lg border border-yellow-200 p-8 max-w-2xl w-full">
+          <div className="flex items-start space-x-4">
+            <div className="flex-shrink-0">
+              <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
+                <Github className="h-6 w-6 text-yellow-600" />
+              </div>
+            </div>
+            <div className="flex-1">
+              <h3 className="text-xl font-bold text-gray-900 mb-2">GitHub Not Connected</h3>
+              <p className="text-gray-700 mb-6">
                 To browse your repositories and their code, please connect your GitHub account.
               </p>
               <button
                 onClick={() => navigate('/dashboard/settings?tab=integrations')}
-                className="mt-6 inline-flex items-center px-5 py-2.5 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition-colors"
+                className="inline-flex items-center px-5 py-2.5 bg-[#2AB7A9] text-white rounded-lg hover:bg-[#24a497] transition-colors shadow-sm"
               >
                 <Github className="h-4 w-4 mr-2" />
                 Connect to GitHub
@@ -471,24 +443,29 @@ export function CodeBase() {
 
   // Connected State
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Header Bar */}
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
+      {/* Header */}
       <div className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <Database className="h-6 w-6 text-[#2AB7A9]" />
-                <h1 className="text-xl font-bold text-gray-900">Code Repository</h1>
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-gradient-to-r from-[#2AB7A9] to-[#24a497] rounded-lg flex items-center justify-center">
+                  <Database className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-xl font-bold text-gray-900">Code Repository</h1>
+                  <p className="text-xs text-gray-500">Explore and analyze your codebase</p>
+                </div>
               </div>
               
               {/* Breadcrumb Navigation */}
               {selectedGitHubRepo && (
-                <div className="flex items-center space-x-2 text-sm text-gray-500">
+                <div className="flex items-center space-x-2 text-sm text-gray-500 ml-4">
                   <ChevronRight className="h-4 w-4" />
                   <button 
                     onClick={() => setView('repos')}
-                    className="hover:underline font-medium text-gray-700 whitespace-nowrap truncate"
+                    className="hover:text-[#2AB7A9] font-medium transition-colors"
                   >
                     Repositories
                   </button>
@@ -502,7 +479,7 @@ export function CodeBase() {
               )}
             </div>
             
-            {/* Search and Actions */}
+            {/* Search */}
             <div className="flex items-center space-x-4">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -511,7 +488,7 @@ export function CodeBase() {
                   placeholder="Search repositories, files..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 pr-4 py-2 w-80 border border-gray-300 rounded-lg focus:ring-2 focus:ring-offset-1 focus:ring-[#2AB7A9] focus:border-transparent"
+                  className="pl-10 pr-4 py-2 w-80 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2AB7A9] focus:border-transparent bg-white shadow-sm"
                 />
               </div>
             </div>
@@ -521,162 +498,220 @@ export function CodeBase() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {isAuthLoading ? (
-          <div className="flex items-center justify-center h-64">
-            <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
-            <span className="ml-3 text-gray-600">Loading...</span>
+          <div className="flex items-center justify-center h-96">
+            <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8">
+              <div className="flex flex-col items-center text-center">
+                <Loader2 className="h-8 w-8 animate-spin text-[#2AB7A9] mb-4" />
+                <span className="text-gray-600 font-medium">Loading...</span>
+              </div>
+            </div>
           </div>
         ) : !session ? (
-          <div className="text-center py-12">
-            <AlertTriangle className="h-12 w-12 mx-auto text-orange-500 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900">Authentication Required</h3>
-            <p className="text-gray-600 mt-2">Please log in to access your repositories.</p>
-            <button
-              onClick={() => navigate('/auth/signin')}
-              className="mt-4 inline-flex items-center px-4 py-2 bg-[#2AB7A9] text-white rounded-lg hover:bg-[#24a497] transition-colors"
-            >
-              Sign In
-            </button>
+          <div className="flex items-center justify-center h-96">
+            <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8 text-center max-w-md">
+              <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <AlertTriangle className="h-6 w-6 text-orange-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Authentication Required</h3>
+              <p className="text-gray-600 mb-6">Please log in to access your repositories.</p>
+              <button
+                onClick={() => navigate('/auth/signin')}
+                className="inline-flex items-center px-6 py-2.5 bg-[#2AB7A9] text-white rounded-lg hover:bg-[#24a497] transition-colors shadow-sm"
+              >
+                Sign In
+              </button>
+            </div>
           </div>
         ) : (
           <>
-            {/* Repository Grid View */}
+            {/* Repository List View */}
             {view === 'repos' && (
-              <RepositoryGrid 
+              <div className="space-y-6">
+                {/* Header Section */}
+                <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+                  <div className="bg-gradient-to-r from-[#2AB7A9] to-[#24a497] px-6 py-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                          <Database className="h-6 w-6 text-white" />
+                        </div>
+                        <div>
+                          <h2 className="text-xl font-bold text-white">Your Repositories</h2>
+                          <p className="text-[#a8f0e6] text-sm">Connected GitHub repositories</p>
+                        </div>
+                      </div>
+                      {gitHubConnectionStatus?.isConnected && (
+                        <div className="flex items-center space-x-2 text-sm text-white bg-white/10 rounded-full px-3 py-1">
+                          <div className="h-2 w-2 bg-white rounded-full animate-pulse"></div>
+                          <span>{gitHubConnectionStatus.details?.account?.login}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="p-6">
+                    <RepositoryGrid 
                 gitHubConnectionStatus={gitHubConnectionStatus}
                 summaryGenerationError={summaryGenerationError}
                 isLoadingConnection={isLoadingConnection}
                 connectionError={connectionError}
                 repoSummaryStatus={repoSummaryStatus}
                 reposStatus={repoProgressStatus}
-                selectedLanguages={selectedLanguages}
-                processingRepos={processingRepos}
+                processingRepos={[]}
                 queuedRepos={[]}
-                generatingSummaries={generatingSummaries}
-                availableLanguages={[
-                  { value: 'default', label: 'General Analysis' },
-                  { value: 'postgres', label: 'PostgreSQL' },
-                  { value: 'mysql', label: 'MySQL' },
-                  { value: 'dbt', label: 'dbt' },
-                  { value: 'tsql', label: 'T-SQL (SQL Server)' },
-                  { value: 'plsql', label: 'PL/SQL (Oracle)' },
-                  { value: 'pyspark', label: 'PySpark' },
-                  { value: 'python', label: 'Python' },
-                ]}
+                generatingSummaries={[]}
                 brandColor={brandColor}
                 onConnectGitHub={handleConnectGitHub}
                 onRepoClick={handleGitHubRepoClick}
-                onLanguageSelect={handleLanguageSelect}
                 onAnalyzeRepository={handleAnalyzeRepository}
                 onStatusModalOpen={handleStatusModalOpen}
                 onClearSummaryError={handleClearSummaryError}
-                fetchGitHubConnectionStatus={async () => {
-                  try {
-                    const connectionStatus = await getGitHubConnectionStatus();
-                    // This will trigger the useEffect to reload summary statuses
-                    console.log('Refreshed GitHub connection status:', connectionStatus);
-                  } catch (error) {
-                    console.error('Error refreshing GitHub connection status:', error);
-                  }
-                }}
-              />
+                      fetchGitHubConnectionStatus={async () => {
+                        try {
+                          const connectionStatus = await getGitHubConnectionStatus();
+                          // This will trigger the useEffect to reload summary statuses
+                          console.log('Refreshed GitHub connection status:', connectionStatus);
+                        } catch (error) {
+                          console.error('Error refreshing GitHub connection status:', error);
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
             )}
 
             {/* Browser View */}
             {view === 'browser' && (
-              <div className="flex h-full">
-                {/* Left Sidebar - File Tree */}
-                <FileTree 
-                  fileTree={fileTree}
-                  isLoadingTree={isLoadingTree}
-                  treeError={treeError}
-                  selectedFile={selectedFile}
-                  searchQuery={searchQuery}
-                  activeBranch={activeBranch}
-                  selectedGitHubRepo={selectedGitHubRepo}
-                  brandColor={brandColor}
-                  onTreeItemClick={handleTreeItemClick}
-                  onSearchChange={setSearchQuery}
-                  onFolderToggle={toggleFolderExpansion}
-                />
-                
-                {/* Right Content Area */}
-                <div className="flex-1 bg-white overflow-hidden">
-                  {selectedFile ? (
-                    <div className="flex flex-col h-full">
-                      {/* File Content Tabs */}
-                      <div className="border-b border-gray-200 bg-gray-50 sticky top-0 z-10">
-                        <nav className="-mb-px flex space-x-px px-4" aria-label="Tabs">
-                          {['code', 'documentation', 'lineage', 'visual', 'alerts'].map((tabName) => (
-                            <button
-                              key={tabName}
-                              onClick={() => {
-                                setActiveTab(tabName as any);
-                                // Fetch documentation when documentation tab is clicked
-                                if (tabName === 'documentation' && selectedFile && selectedGitHubRepo) {
-                                  const [owner, repo] = selectedGitHubRepo.full_name.split('/');
-                                  fetchFileSummary(owner, repo, selectedFile.path);
-                                }
-                              }}
-                              className={`whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm 
-                                          ${activeTab === tabName
-                                            ? 'border-current text-current'
-                                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
-                              style={{borderColor: activeTab === tabName ? brandColor : 'transparent', color: activeTab === tabName ? brandColor : undefined}}
-                            >
-                              {tabName.charAt(0).toUpperCase() + tabName.slice(1)}
-                            </button>
-                          ))}
-                        </nav>
+              <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden" style={{ height: 'calc(100vh - 8rem)' }}>
+                <div className="flex h-full w-full">
+                  {/* Left Sidebar - File Tree */}
+                  <div className="w-60 min-w-60 max-w-72 border-r border-gray-200 bg-gray-50 flex-shrink-0">
+                    <FileTree 
+                      fileTree={fileTree}
+                      isLoadingTree={isLoadingTree}
+                      treeError={treeError}
+                      selectedFile={selectedFile}
+                      searchQuery={searchQuery}
+                      activeBranch={activeBranch}
+                      selectedGitHubRepo={selectedGitHubRepo}
+                      brandColor={brandColor}
+                      onTreeItemClick={handleTreeItemClick}
+                      onSearchChange={setSearchQuery}
+                      onFolderToggle={toggleFolderExpansion}
+                    />
+                  </div>
+                  
+                  {/* Right Content Area */}
+                  <div className="flex-1 flex flex-col bg-white min-w-0">
+                    {selectedFile ? (
+                      <>
+                        {/* File Content Tabs */}
+                        <div className="border-b border-gray-200 bg-white flex-shrink-0 px-6 py-2">
+                          <nav className="flex space-x-6" aria-label="Tabs">
+                            {['code', 'documentation', 'lineage', 'visual', 'alerts'].map((tabName) => (
+                              <button
+                                key={tabName}
+                                onClick={() => {
+                                  setActiveTab(tabName as any);
+                                  // Fetch documentation when documentation tab is clicked
+                                  if (tabName === 'documentation' && selectedFile && selectedGitHubRepo) {
+                                    const [owner, repo] = selectedGitHubRepo.full_name.split('/');
+                                    fetchFileSummary(owner, repo, selectedFile.path);
+                                  }
+                                }}
+                                className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors
+                                            ${activeTab === tabName
+                                              ? 'border-[#2AB7A9] text-[#2AB7A9]'
+                                              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+                              >
+                                {tabName.charAt(0).toUpperCase() + tabName.slice(1)}
+                              </button>
+                            ))}
+                          </nav>
+                        </div>
+                        
+                        {/* File Content */}
+                        <div className="flex-1 overflow-auto bg-gray-50 min-h-0">
+                          <div className="h-full w-full">
+                            {activeTab === 'code' && selectedFile && (
+                              <div className="h-full w-full p-6">
+                                <EnhancedCodeViewer 
+                                  selectedFile={selectedFile}
+                                  selectedFileContent={selectedFileContent || ''}
+                                  isLoadingFileContent={isLoadingFileContent}
+                                  fileContentError={fileContentError}
+                                  brandColor={brandColor}
+                                  copyToClipboard={copyToClipboard}
+                                  isTextCopied={isTextCopied}
+                                />
+                              </div>
+                            )}
+                            {activeTab === 'documentation' && (
+                              <div className="h-full w-full p-6">
+                                <DocumentationViewer 
+                                  isLoadingFileSummary={isLoadingFileSummary}
+                                  fileSummaryError={fileSummaryError}
+                                  selectedFileSummary={selectedFileSummary}
+                                  selectedFileName={selectedFile?.name}
+                                  selectedFilePath={selectedFile?.path}
+                                  brandColor={brandColor}
+                                  copyToClipboard={copyToClipboard}
+                                  isTextCopied={isTextCopied}
+                                  onUpdateDocumentation={handleUpdateDocumentation}
+                                />
+                              </div>
+                            )}
+                            {activeTab === 'lineage' && (
+                              <div className="h-full w-full p-6 flex items-center justify-center">
+                                <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
+                                  <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+                                    <File className="h-6 w-6 text-gray-400" />
+                                  </div>
+                                  <h3 className="text-lg font-medium text-gray-900 mb-2">Lineage View</h3>
+                                  <p className="text-gray-500">Lineage view for {selectedFile?.path} - Coming soon!</p>
+                                </div>
+                              </div>
+                            )}
+                            {activeTab === 'visual' && (
+                              <div className="h-full w-full p-6 flex items-center justify-center">
+                                <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
+                                  <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+                                    <File className="h-6 w-6 text-gray-400" />
+                                  </div>
+                                  <h3 className="text-lg font-medium text-gray-900 mb-2">Visual Analysis</h3>
+                                  <p className="text-gray-500">Visual tab content not yet implemented.</p>
+                                </div>
+                              </div>
+                            )}
+                            {activeTab === 'alerts' && (
+                              <div className="h-full w-full p-6 flex items-center justify-center">
+                                <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
+                                  <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+                                    <AlertTriangle className="h-6 w-6 text-gray-400" />
+                                  </div>
+                                  <h3 className="text-lg font-medium text-gray-900 mb-2">Code Alerts</h3>
+                                  <p className="text-gray-500">Alerts tab content not yet implemented.</p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex-1 flex items-center justify-center">
+                        <div className="text-center max-w-md">
+                          <div className="w-16 h-16 bg-gray-100 rounded-xl flex items-center justify-center mx-auto mb-6">
+                            <File className="h-8 w-8 text-gray-400" />
+                          </div>
+                          <h3 className="text-xl font-semibold text-gray-900 mb-3">Select a file to view</h3>
+                          <p className="text-gray-500 leading-relaxed">
+                            Choose a file from the tree on the left to view its content, documentation, and analysis.
+                          </p>
+                        </div>
                       </div>
-                      
-                      {/* File Content */}
-                      <div className="flex-grow overflow-auto p-4 bg-gray-50 relative">
-                        {activeTab === 'code' && selectedFile && (
-                          <EnhancedCodeViewer 
-                            selectedFile={selectedFile}
-                            selectedFileContent={selectedFileContent || ''}
-                            isLoadingFileContent={isLoadingFileContent}
-                            fileContentError={fileContentError}
-                            brandColor={brandColor}
-                            copyToClipboard={copyToClipboard}
-                            isTextCopied={isTextCopied}
-                          />
-                        )}
-                        {activeTab === 'documentation' && (
-                          <DocumentationViewer 
-                            isLoadingFileSummary={isLoadingFileSummary}
-                            fileSummaryError={fileSummaryError}
-                            selectedFileSummary={selectedFileSummary}
-                            selectedFileName={selectedFile?.name}
-                            selectedFilePath={selectedFile?.path}
-                            brandColor={brandColor}
-                            copyToClipboard={copyToClipboard}
-                            isTextCopied={isTextCopied}
-                            onUpdateDocumentation={handleUpdateDocumentation}
-                          />
-                        )}
-                        {activeTab === 'lineage' && (
-                          <div className="p-4 text-gray-500">Lineage view for {selectedFile?.path} - Coming soon!</div>
-                        )}
-                        {activeTab === 'visual' && (
-                          <div className="p-4 text-gray-500">Visual tab content not yet implemented.</div>
-                        )}
-                        {activeTab === 'alerts' && (
-                          <div className="p-4 text-gray-500">Alerts tab content not yet implemented.</div>
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="h-full flex items-center justify-center">
-                      <div className="text-center">
-                        <File className="h-16 w-16 mx-auto text-gray-300 mb-4" />
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">Select a file to view</h3>
-                        <p className="text-gray-500 max-w-sm mx-auto">
-                          Choose a file from the tree on the left to view its content, documentation, and analysis.
-                        </p>
-                      </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
             )}

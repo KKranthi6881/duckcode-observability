@@ -22,8 +22,11 @@ import { AnomalyPattern } from './pages/dashboard/anomalies/AnomalyPattern';
 import { AnomalySchema } from './pages/dashboard/anomalies/AnomalySchema';
 import { IncidentManager } from './pages/dashboard/IncidentManager';
 import { CodeBase } from './pages/dashboard/CodeBase';
+import { AnalysisSetup } from './pages/dashboard/AnalysisSetup';
+import { FileProcessingStatus } from './components/FileProcessingStatus';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider, useAuth } from './features/auth/contexts/AuthContext'; // Added useAuth import
+import { ProcessingStatusProvider } from './context/ProcessingStatusContext';
 import LoginPage from './features/auth/components/LoginPage';
 import RegisterPage from './features/auth/components/RegisterPage';
 import ProtectedRoute from './features/auth/components/ProtectedRoute';
@@ -102,6 +105,8 @@ const AppContent = () => {
             <Route path="anomalies/schema" element={<AnomalySchema />} />
             <Route path="incidents" element={<IncidentManager />} />
             <Route path="code" element={<CodeBase />} />
+            <Route path="code/analyze/:owner/:repo" element={<AnalysisSetup />} />
+            <Route path="code/status/:owner/:repo" element={<FileProcessingStatus />} />
             <Route path="governance" element={<DataGovernance />} />
             <Route path="settings" element={<Settings />} />
           </Route>
@@ -135,9 +140,11 @@ export function App() {
   return (
     <AuthProvider>
       <ThemeProvider>
-        <Router>
-          <AppContent /> {/* Use the new AppContent component here */}
-        </Router>
+        <ProcessingStatusProvider>
+          <Router>
+            <AppContent /> {/* Use the new AppContent component here */}
+          </Router>
+        </ProcessingStatusProvider>
       </ThemeProvider>
     </AuthProvider>
   );
