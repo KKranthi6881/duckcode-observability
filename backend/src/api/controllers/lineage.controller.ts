@@ -1,6 +1,14 @@
 import { Request, Response } from 'express';
-import { supabase } from '@/config/supabase';
-import { AuthenticatedRequest } from '@/types/auth';
+import { supabase } from '../../config/supabase';
+import { CrossFileResolutionService } from '../../services/cross-file-resolution.service';
+
+// Define AuthenticatedRequest interface locally
+interface AuthenticatedRequest extends Request {
+  user: {
+    id: string;
+    email: string;
+  };
+}
 
 /**
  * Initiates lineage processing for a repository that already has documentation
@@ -121,22 +129,6 @@ export async function getLineageStatus(req: AuthenticatedRequest, res: Response)
 
     const statistics = stats[0];
 
-    // Get detailed progress information
-    const { data: progress, error: progressError } = await supabase
-      .from('code_insights.processing_jobs')
-      .select('status, lineage_status')
-      .eq('file_id', supabase
-        .from('code_insights.files')
-        .select('id')
-        .eq('repository_full_name', repositoryFullName)
-        .eq('user_id', userId)
-      );
-
-    if (progressError) {
-      console.error('Error fetching progress:', progressError);
-      return res.status(500).json({ error: 'Failed to fetch progress information' });
-    }
-
     // Calculate progress metrics
     const totalFiles = statistics.total_files || 0;
     const filesWithLineage = statistics.files_with_lineage || 0;
@@ -198,8 +190,7 @@ export async function getDataAssets(req: AuthenticatedRequest, res: Response) {
         files!inner(file_path, language)
       `)
       .eq('files.repository_full_name', repositoryFullName)
-      .eq('files.user_id', userId)
-      .order('created_at', { ascending: false });
+      .eq('files.user_id', userId);
 
     // Apply filters
     if (assetType) {
@@ -211,12 +202,14 @@ export async function getDataAssets(req: AuthenticatedRequest, res: Response) {
     }
 
     // Get total count for pagination
-    const { count } = await query.select('*', { count: 'exact', head: true });
+    const { count } = await supabase
+      .from('code_insights.data_assets')
+      .select('id', { count: 'exact', head: true })
+      .eq('files.repository_full_name', repositoryFullName)
+      .eq('files.user_id', userId);
 
-    // Apply pagination
-    query = query.range(Number(offset), Number(offset) + Number(limit) - 1);
-
-    const { data: assets, error } = await query;
+    // Apply pagination and get data
+    const { data: assets, error } = await query.range(Number(offset), Number(offset) + Number(limit) - 1);
 
     if (error) {
       console.error('Error fetching data assets:', error);
@@ -224,7 +217,7 @@ export async function getDataAssets(req: AuthenticatedRequest, res: Response) {
     }
 
     res.json({
-      assets: assets?.map(asset => ({
+      assets: (assets as any[])?.map((asset: any) => ({
         id: asset.id,
         assetName: asset.asset_name,
         assetType: asset.asset_type,
@@ -293,8 +286,6 @@ export async function getLineageRelationships(req: AuthenticatedRequest, res: Re
           language
         )
       `)
-      .eq('source_asset.files.repository_full_name', repositoryFullName)
-      .eq('source_asset.files.user_id', userId)
       .gte('confidence_score', Number(minConfidence))
       .order('confidence_score', { ascending: false })
       .limit(Number(limit));
@@ -316,7 +307,7 @@ export async function getLineageRelationships(req: AuthenticatedRequest, res: Re
     }
 
     res.json({
-      relationships: relationships?.map(rel => ({
+      relationships: (relationships as any[])?.map((rel: any) => ({
         id: rel.id,
         sourceAsset: {
           id: rel.source_asset?.id,
@@ -396,7 +387,7 @@ export async function getLineageGraph(req: AuthenticatedRequest, res: Response) 
         transformation_logic,
         business_context
       `)
-      .in('source_asset_id', assets?.map(a => a.id) || [])
+      .in('source_asset_id', (assets as any[])?.map(a => a.id) || [])
       .gte('confidence_score', 0.5);
 
     const { data: relationships, error: relationshipsError } = await relationshipsQuery;
@@ -406,37 +397,38 @@ export async function getLineageGraph(req: AuthenticatedRequest, res: Response) 
       return res.status(500).json({ error: 'Failed to fetch relationships' });
     }
 
-    // If focusing on a specific asset, filter the graph
-    let filteredAssets = assets || [];
-    let filteredRelationships = relationships || [];
+    // Filter assets and relationships based on focus and depth
+    let filteredAssets = assets as any[] || [];
+    let filteredRelationships = relationships as any[] || [];
 
     if (focusAsset) {
-      // Implement graph traversal to get assets within specified depth
+      // Filter to show only assets connected to the focus asset within specified depth
       const connectedAssetIds = new Set([focusAsset]);
-      const maxDepth = Number(depth);
-
-      for (let currentDepth = 0; currentDepth < maxDepth; currentDepth++) {
-        const currentAssets = Array.from(connectedAssetIds);
-        const newConnections = relationships?.filter(rel => 
-          currentAssets.includes(rel.source_asset_id) || 
-          currentAssets.includes(rel.target_asset_id)
-        ) || [];
-
-        newConnections.forEach(rel => {
-          connectedAssetIds.add(rel.source_asset_id);
-          connectedAssetIds.add(rel.target_asset_id);
+      
+      // Iteratively expand the set of connected assets up to the specified depth
+      for (let i = 0; i < Number(depth); i++) {
+        const newConnections = new Set();
+        filteredRelationships.forEach(rel => {
+          if (connectedAssetIds.has(rel.source_asset_id)) {
+            newConnections.add(rel.target_asset_id);
+          }
+          if (connectedAssetIds.has(rel.target_asset_id)) {
+            newConnections.add(rel.source_asset_id);
+          }
         });
+        
+        newConnections.forEach(id => connectedAssetIds.add(String(id)));
       }
-
-      filteredAssets = assets?.filter(asset => connectedAssetIds.has(asset.id)) || [];
-      filteredRelationships = relationships?.filter(rel => 
+      
+      filteredAssets = filteredAssets.filter(asset => connectedAssetIds.has(asset.id));
+      filteredRelationships = filteredRelationships.filter(rel => 
         connectedAssetIds.has(rel.source_asset_id) && 
         connectedAssetIds.has(rel.target_asset_id)
       ) || [];
     }
 
     // Format for graph visualization
-    const nodes = filteredAssets.map(asset => ({
+    const nodes = filteredAssets.map((asset: any) => ({
       id: asset.id,
       name: asset.asset_name,
       type: asset.asset_type,
@@ -450,7 +442,7 @@ export async function getLineageGraph(req: AuthenticatedRequest, res: Response) 
       }
     }));
 
-    const edges = filteredRelationships.map(rel => ({
+    const edges = filteredRelationships.map((rel: any) => ({
       id: rel.id,
       source: rel.source_asset_id,
       target: rel.target_asset_id,
@@ -510,7 +502,7 @@ export async function getImpactAnalysis(req: AuthenticatedRequest, res: Response
     }
 
     // Perform impact analysis by traversing downstream dependencies
-    const impactedAssets = [];
+    const impactedAssets: any[] = [];
     const visitedAssets = new Set();
     const assetsToAnalyze = [{ assetId, depth: 0 }];
 
@@ -548,7 +540,7 @@ export async function getImpactAnalysis(req: AuthenticatedRequest, res: Response
         continue;
       }
 
-      dependencies?.forEach(dep => {
+      (dependencies as any[])?.forEach((dep: any) => {
         if (!visitedAssets.has(dep.target_asset_id)) {
           // Determine impact severity based on relationship type and business criticality
           let severity = 'medium';
@@ -609,12 +601,12 @@ export async function getImpactAnalysis(req: AuthenticatedRequest, res: Response
 
     res.json({
       changedAsset: {
-        id: changedAsset.id,
-        name: changedAsset.asset_name,
-        type: changedAsset.asset_type,
-        fullQualifiedName: changedAsset.full_qualified_name,
-        filePath: changedAsset.files?.file_path,
-        businessCriticality: changedAsset.files?.business_criticality
+        id: (changedAsset as any).id,
+        name: (changedAsset as any).asset_name,
+        type: (changedAsset as any).asset_type,
+        fullQualifiedName: (changedAsset as any).full_qualified_name,
+        filePath: (changedAsset as any).files?.file_path,
+        businessCriticality: (changedAsset as any).files?.business_criticality
       },
       impactedAssets,
       summary,
@@ -627,6 +619,319 @@ export async function getImpactAnalysis(req: AuthenticatedRequest, res: Response
 
   } catch (error) {
     console.error('Error in getImpactAnalysis:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+// Initialize cross-file resolution service
+const crossFileResolutionService = new CrossFileResolutionService();
+
+/**
+ * Perform cross-file relationship resolution for a repository
+ */
+export async function resolveCrossFileRelationships(req: AuthenticatedRequest, res: Response) {
+  try {
+    const { repositoryFullName } = req.params;
+    const userId = req.user.id;
+
+    // Get repository ID
+    const { data: files, error: filesError } = await supabase
+      .from('code_insights.files')
+      .select('repository_id')
+      .eq('repository_full_name', repositoryFullName)
+      .eq('user_id', userId)
+      .limit(1);
+
+    if (filesError || !files || files.length === 0) {
+      return res.status(404).json({ error: 'Repository not found' });
+    }
+
+    const repositoryId = files[0].repository_id;
+
+    // Perform cross-file resolution
+    const result = await crossFileResolutionService.resolveRepositoryRelationships(repositoryId);
+
+    res.json({
+      message: 'Cross-file relationship resolution completed',
+      result
+    });
+
+  } catch (error) {
+    console.error('Error in resolveCrossFileRelationships:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+/**
+ * Get execution order for files in repository
+ */
+export async function getExecutionOrder(req: AuthenticatedRequest, res: Response) {
+  try {
+    const { repositoryFullName } = req.params;
+    const userId = req.user.id;
+
+    // Get repository ID
+    const { data: files, error: filesError } = await supabase
+      .from('code_insights.files')
+      .select('repository_id')
+      .eq('repository_full_name', repositoryFullName)
+      .eq('user_id', userId)
+      .limit(1);
+
+    if (filesError || !files || files.length === 0) {
+      return res.status(404).json({ error: 'Repository not found' });
+    }
+
+    const repositoryId = files[0].repository_id;
+
+    // Get execution order and dependency stats
+    const [executionOrder, dependencyStats] = await Promise.all([
+      crossFileResolutionService.calculateExecutionOrder(repositoryId),
+      crossFileResolutionService.getRepositoryDependencyStats(repositoryId)
+    ]);
+
+    res.json({
+      executionOrder,
+      statistics: dependencyStats
+    });
+
+  } catch (error) {
+    console.error('Error in getExecutionOrder:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+/**
+ * Get circular dependencies for repository
+ */
+export async function getCircularDependencies(req: AuthenticatedRequest, res: Response) {
+  try {
+    const { repositoryFullName } = req.params;
+    const userId = req.user.id;
+
+    // Get repository ID
+    const { data: files, error: filesError } = await supabase
+      .from('code_insights.files')
+      .select('repository_id')
+      .eq('repository_full_name', repositoryFullName)
+      .eq('user_id', userId)
+      .limit(1);
+
+    if (filesError || !files || files.length === 0) {
+      return res.status(404).json({ error: 'Repository not found' });
+    }
+
+    const repositoryId = files[0].repository_id;
+
+    // Get circular dependencies
+    const circularDependencies = await crossFileResolutionService.detectCircularDependencies(repositoryId);
+
+    res.json({
+      circularDependencies,
+      summary: {
+        totalCycles: circularDependencies.length,
+        severityBreakdown: {
+          high: circularDependencies.filter(cd => cd.severity === 'high').length,
+          medium: circularDependencies.filter(cd => cd.severity === 'medium').length,
+          low: circularDependencies.filter(cd => cd.severity === 'low').length
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error in getCircularDependencies:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+/**
+ * Get data flow patterns for repository
+ */
+export async function getDataFlowPatterns(req: AuthenticatedRequest, res: Response) {
+  try {
+    const { repositoryFullName } = req.params;
+    const userId = req.user.id;
+
+    // Get repository ID
+    const { data: files, error: filesError } = await supabase
+      .from('code_insights.files')
+      .select('repository_id')
+      .eq('repository_full_name', repositoryFullName)
+      .eq('user_id', userId)
+      .limit(1);
+
+    if (filesError || !files || files.length === 0) {
+      return res.status(404).json({ error: 'Repository not found' });
+    }
+
+    const repositoryId = files[0].repository_id;
+
+    // Get data flow patterns
+    const dataFlowPatterns = await crossFileResolutionService.analyzeDataFlowPatterns(repositoryId);
+
+    res.json({
+      patterns: dataFlowPatterns,
+      summary: {
+        totalPatterns: dataFlowPatterns.length,
+        patternTypes: {
+          etl_pipeline: dataFlowPatterns.filter(p => p.patternType === 'etl_pipeline').length,
+          fan_out: dataFlowPatterns.filter(p => p.patternType === 'fan_out').length,
+          fan_in: dataFlowPatterns.filter(p => p.patternType === 'fan_in').length
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error in getDataFlowPatterns:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+/**
+ * Generate impact analysis for file changes
+ */
+export async function generateFileImpactAnalysis(req: AuthenticatedRequest, res: Response) {
+  try {
+    const { repositoryFullName, fileId } = req.params;
+    const { changeType = 'modification' } = req.query;
+    const userId = req.user.id;
+
+    // Verify file belongs to user and repository
+    const { data: file, error: fileError } = await supabase
+      .from('code_insights.files')
+      .select('id, file_path')
+      .eq('id', fileId)
+      .eq('repository_full_name', repositoryFullName)
+      .eq('user_id', userId)
+      .single();
+
+    if (fileError || !file) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    // Generate impact analysis
+    const impactAnalysis = await crossFileResolutionService.generateImpactAnalysis(
+      fileId, 
+      String(changeType)
+    );
+
+    res.json({
+      changedFile: {
+        id: file.id,
+        path: file.file_path
+      },
+      changeType,
+      impactAnalysis,
+      summary: {
+        totalImpacted: impactAnalysis.length,
+        severityBreakdown: {
+          high: impactAnalysis.filter(ia => ia.impactSeverity === 'high').length,
+          medium: impactAnalysis.filter(ia => ia.impactSeverity === 'medium').length,
+          low: impactAnalysis.filter(ia => ia.impactSeverity === 'low').length
+        },
+        totalEstimatedEffort: impactAnalysis.reduce((sum, ia) => sum + ia.estimatedEffortHours, 0)
+      }
+    });
+
+  } catch (error) {
+    console.error('Error in generateFileImpactAnalysis:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+/**
+ * Get optimization suggestions for repository
+ */
+export async function getOptimizationSuggestions(req: AuthenticatedRequest, res: Response) {
+  try {
+    const { repositoryFullName } = req.params;
+    const userId = req.user.id;
+
+    // Get repository ID
+    const { data: files, error: filesError } = await supabase
+      .from('code_insights.files')
+      .select('repository_id')
+      .eq('repository_full_name', repositoryFullName)
+      .eq('user_id', userId)
+      .limit(1);
+
+    if (filesError || !files || files.length === 0) {
+      return res.status(404).json({ error: 'Repository not found' });
+    }
+
+    const repositoryId = files[0].repository_id;
+
+    // Get optimization suggestions
+    const optimizations = await crossFileResolutionService.suggestOptimizations(repositoryId);
+
+    res.json({
+      optimizations,
+      summary: {
+        totalSuggestions: optimizations.length,
+        priorityBreakdown: {
+          high: optimizations.filter(o => o.priority === 'high').length,
+          medium: optimizations.filter(o => o.priority === 'medium').length,
+          low: optimizations.filter(o => o.priority === 'low').length
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error in getOptimizationSuggestions:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+/**
+ * Get cross-file asset references
+ */
+export async function getCrossFileAssetReferences(req: AuthenticatedRequest, res: Response) {
+  try {
+    const { repositoryFullName } = req.params;
+    const { confidenceThreshold = 0.5 } = req.query;
+    const userId = req.user.id;
+
+    // Get repository ID
+    const { data: files, error: filesError } = await supabase
+      .from('code_insights.files')
+      .select('repository_id')
+      .eq('repository_full_name', repositoryFullName)
+      .eq('user_id', userId)
+      .limit(1);
+
+    if (filesError || !files || files.length === 0) {
+      return res.status(404).json({ error: 'Repository not found' });
+    }
+
+    const repositoryId = files[0].repository_id;
+
+    // Get cross-file asset references
+    const references = await crossFileResolutionService.getCrossFileAssetReferences(repositoryId);
+
+    // Filter by confidence threshold
+    const filteredReferences = references.filter(ref => 
+      ref.confidenceScore >= Number(confidenceThreshold)
+    );
+
+    res.json({
+      references: filteredReferences,
+      summary: {
+        totalReferences: filteredReferences.length,
+        resolutionMethods: {
+          import_reference: filteredReferences.filter(r => r.resolutionMethod === 'import_reference').length,
+          name_matching: filteredReferences.filter(r => r.resolutionMethod === 'name_matching').length,
+          qualified_name_matching: filteredReferences.filter(r => r.resolutionMethod === 'qualified_name_matching').length
+        },
+        relationshipTypes: {
+          imports: filteredReferences.filter(r => r.relationshipType === 'imports').length,
+          references: filteredReferences.filter(r => r.relationshipType === 'references').length,
+          qualified_reference: filteredReferences.filter(r => r.relationshipType === 'qualified_reference').length
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error in getCrossFileAssetReferences:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 } 

@@ -132,7 +132,7 @@ export class LineageService {
       
       // Call OpenAI API
       const response = await openai.chat.completions.create({
-        model: 'gpt-4-turbo-preview',
+        model: 'gpt-4.1-mini-2025-04-14',
         messages: [
           {
             role: 'system',

@@ -161,16 +161,31 @@ export const processRepository = async (req: Request, res: Response, next: NextF
     // --- START: New logic to create processing jobs ---
     if (data && data.length > 0) {
       // 1. Prepare job records for each successfully upserted file.
-      const jobRecords = data.map(file => ({
-        file_id: file.id,
-        status: 'pending',
-        retry_count: 0,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        analysis_language: selectedLanguage || 'default', // Store the selected language for AI analysis
-      }));
+      const jobRecords = data.map(file => {
+        // Determine if this file should have lineage processing enabled
+        const isLineageEligible = file.language?.toLowerCase().includes('sql') || 
+                                  file.language?.toLowerCase().includes('postgres') ||
+                                  file.language?.toLowerCase().includes('mysql') ||
+                                  file.language?.toLowerCase().includes('snowflake') ||
+                                  file.language?.toLowerCase().includes('bigquery') ||
+                                  file.language?.toLowerCase().includes('redshift') ||
+                                  file.file_path?.toLowerCase().endsWith('.sql');
+
+        return {
+          file_id: file.id,
+          status: 'pending',
+          vector_status: 'pending',
+          lineage_status: isLineageEligible ? 'pending' : null, // Enable lineage processing for SQL files
+          retry_count: 0,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          analysis_language: selectedLanguage || 'default', // Store the selected language for AI analysis
+        };
+      });
 
       console.log(`Attempting to create ${jobRecords.length} processing jobs.`);
+      const lineageEnabledCount = jobRecords.filter(job => job.lineage_status === 'pending').length;
+      console.log(`${lineageEnabledCount} jobs will have lineage processing enabled (SQL files)`);
 
       // 3. Insert the jobs.
       const { error: jobError } = await supabase
@@ -182,7 +197,7 @@ export const processRepository = async (req: Request, res: Response, next: NextF
         throw new Error(`Failed to create processing jobs: ${jobError.message}`);
       }
 
-      console.log(`Successfully created ${jobRecords.length} processing jobs.`);
+      console.log(`Successfully created ${jobRecords.length} processing jobs with ${lineageEnabledCount} lineage-enabled jobs.`);
     }
     // --- END: New logic ---
 

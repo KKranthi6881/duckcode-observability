@@ -1906,17 +1906,218 @@ function validateAndEnhanceLineageResult(
 }
 
 async function storeLineageData(fileId: string, lineageResult: LineageExtractionResult): Promise<void> {
-    // Note: This is a simplified version. In a real implementation, you would:
-    // 1. Store discovered assets in data_assets table
-    // 2. Store columns in data_columns table
-    // 3. Store functions in code_functions table
-    // 4. Store file dependencies in file_dependencies table
-    // 5. Store relationships in data_lineage table
-    
     console.log(`Storing lineage data: ${lineageResult.assets.length} assets, ${lineageResult.relationships.length} relationships`);
     
-    // For now, just log the results
-    // In a full implementation, you would make database calls here
+    const supabaseLineage = createClient(
+        Deno.env.get('EDGE_FUNCTION_SUPABASE_URL') ?? '',
+        Deno.env.get('EDGE_FUNCTION_SERVICE_ROLE_KEY') ?? '',
+        {
+            db: { schema: 'lineage' },
+            auth: {
+                persistSession: false,
+                autoRefreshToken: false,
+            }
+        }
+    );
+
+    try {
+        // 1. Store discovered data assets
+        if (lineageResult.assets && lineageResult.assets.length > 0) {
+            const assetsToInsert = lineageResult.assets.map(asset => ({
+                file_id: fileId,
+                asset_name: asset.name,
+                asset_type: asset.type,
+                schema_name: asset.schema,
+                database_name: asset.database,
+                full_qualified_name: `${asset.database || 'default'}.${asset.schema || 'public'}.${asset.name}`,
+                asset_metadata: {
+                    description: asset.description,
+                    sourceFile: asset.metadata?.sourceFile,
+                    sourceLanguage: asset.metadata?.sourceLanguage,
+                    extractedAt: asset.metadata?.extractedAt,
+                    ...asset.metadata
+                }
+            }));
+
+            const { data: insertedAssets, error: assetsError } = await supabaseLineage
+                .from('data_assets')
+                .upsert(assetsToInsert, {
+                    onConflict: 'file_id, asset_name, asset_type',
+                    ignoreDuplicates: false
+                })
+                .select('id, asset_name');
+
+            if (assetsError) {
+                console.error('Error storing data assets:', assetsError);
+                throw new Error(`Failed to store data assets: ${assetsError.message}`);
+            }
+
+            console.log(`Stored ${insertedAssets?.length || 0} data assets`);
+
+            // 2. Store columns for each asset
+            const assetMap = new Map(insertedAssets?.map(a => [a.asset_name, a.id]) || []);
+            
+            for (const asset of lineageResult.assets) {
+                if (asset.columns && asset.columns.length > 0) {
+                    const assetId = assetMap.get(asset.name);
+                    if (!assetId) continue;
+
+                    const columnsToInsert = asset.columns.map(column => ({
+                        asset_id: assetId,
+                        column_name: column.name,
+                        data_type: column.type,
+                        column_metadata: {
+                            description: column.description,
+                            extractedAt: new Date().toISOString()
+                        }
+                    }));
+
+                    const { error: columnsError } = await supabaseLineage
+                        .from('data_columns')
+                        .upsert(columnsToInsert, {
+                            onConflict: 'asset_id, column_name',
+                            ignoreDuplicates: false
+                        });
+
+                    if (columnsError) {
+                        console.error(`Error storing columns for asset ${asset.name}:`, columnsError);
+                        // Don't fail the entire operation for column storage issues
+                    }
+                }
+            }
+        }
+
+        // 3. Store code functions
+        if (lineageResult.functions && lineageResult.functions.length > 0) {
+            const functionsToInsert = lineageResult.functions.map(func => ({
+                file_id: fileId,
+                function_name: func.name,
+                function_type: func.type,
+                function_signature: func.signature,
+                return_type: func.returnType,
+                parameters: func.parameters || [],
+                function_metadata: {
+                    description: func.description,
+                    businessLogic: func.businessLogic,
+                    lineStart: func.lineStart,
+                    lineEnd: func.lineEnd,
+                    complexityScore: func.complexityScore,
+                    extractedAt: new Date().toISOString()
+                }
+            }));
+
+            const { error: functionsError } = await supabaseLineage
+                .from('code_functions')
+                .upsert(functionsToInsert, {
+                    onConflict: 'file_id, function_name',
+                    ignoreDuplicates: false
+                });
+
+            if (functionsError) {
+                console.error('Error storing code functions:', functionsError);
+                // Don't fail for function storage issues
+            } else {
+                console.log(`Stored ${functionsToInsert.length} code functions`);
+            }
+        }
+
+        // 4. Store file dependencies
+        if (lineageResult.fileDependencies && lineageResult.fileDependencies.length > 0) {
+            const dependenciesToInsert = lineageResult.fileDependencies.map(dep => ({
+                file_id: fileId,
+                import_path: dep.importPath,
+                import_type: dep.importType,
+                import_statement: dep.importStatement,
+                alias_used: dep.aliasUsed,
+                specific_items: dep.specificItems || [],
+                confidence_score: dep.confidenceScore,
+                dependency_metadata: {
+                    extractedAt: new Date().toISOString()
+                }
+            }));
+
+            const { error: dependenciesError } = await supabaseLineage
+                .from('file_dependencies')
+                .upsert(dependenciesToInsert, {
+                    onConflict: 'file_id, import_path',
+                    ignoreDuplicates: false
+                });
+
+            if (dependenciesError) {
+                console.error('Error storing file dependencies:', dependenciesError);
+                // Don't fail for dependencies storage issues
+            } else {
+                console.log(`Stored ${dependenciesToInsert.length} file dependencies`);
+            }
+        }
+
+        // 5. Store data lineage relationships
+        if (lineageResult.relationships && lineageResult.relationships.length > 0) {
+            const relationshipsToInsert = lineageResult.relationships.map(rel => ({
+                file_id: fileId,
+                source_asset: rel.sourceAsset,
+                target_asset: rel.targetAsset,
+                relationship_type: rel.relationshipType,
+                operation_type: rel.operationType,
+                transformation_logic: rel.transformationLogic,
+                business_context: rel.businessContext,
+                confidence_score: rel.confidenceScore,
+                discovered_at_line: rel.discoveredAtLine,
+                lineage_metadata: {
+                    extractedAt: new Date().toISOString()
+                }
+            }));
+
+            const { error: relationshipsError } = await supabaseLineage
+                .from('data_lineage')
+                .upsert(relationshipsToInsert, {
+                    onConflict: 'file_id, source_asset, target_asset, relationship_type',
+                    ignoreDuplicates: false
+                });
+
+            if (relationshipsError) {
+                console.error('Error storing data lineage relationships:', relationshipsError);
+                // Don't fail for relationships storage issues
+            } else {
+                console.log(`Stored ${relationshipsToInsert.length} data lineage relationships`);
+            }
+        }
+
+        // 6. Store business context
+        if (lineageResult.businessContext) {
+            const { error: businessContextError } = await supabaseLineage
+                .from('business_contexts')
+                .upsert({
+                    file_id: fileId,
+                    main_purpose: lineageResult.businessContext.mainPurpose,
+                    business_impact: lineageResult.businessContext.businessImpact,
+                    stakeholders: lineageResult.businessContext.stakeholders || [],
+                    data_domain: lineageResult.businessContext.dataDomain,
+                    business_criticality: lineageResult.businessContext.businessCriticality,
+                    data_freshness: lineageResult.businessContext.dataFreshness,
+                    execution_frequency: lineageResult.businessContext.executionFrequency,
+                    context_metadata: {
+                        extractedAt: new Date().toISOString()
+                    }
+                }, {
+                    onConflict: 'file_id',
+                    ignoreDuplicates: false
+                });
+
+            if (businessContextError) {
+                console.error('Error storing business context:', businessContextError);
+                // Don't fail for business context storage issues
+            } else {
+                console.log('Stored business context');
+            }
+        }
+
+        console.log('Successfully stored all lineage data');
+
+    } catch (error) {
+        console.error('Error in storeLineageData:', error);
+        throw error;
+    }
 }
 
 function calculateOverallConfidence(lineageResult: LineageExtractionResult): number {

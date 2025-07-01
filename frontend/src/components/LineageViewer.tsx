@@ -76,12 +76,20 @@ export const LineageViewer: React.FC<LineageViewerProps> = ({
   repositoryFullName,
   onProcessLineage
 }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'assets' | 'relationships' | 'graph'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'assets' | 'relationships' | 'dependencies' | 'graph'>('overview');
   const [lineageStatus, setLineageStatus] = useState<LineageStatus | null>(null);
   const [dataAssets, setDataAssets] = useState<DataAsset[]>([]);
   const [relationships, setRelationships] = useState<LineageRelationship[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Cross-file resolution state
+  const [executionOrder, setExecutionOrder] = useState<any[]>([]);
+  const [circularDependencies, setCircularDependencies] = useState<any[]>([]);
+  const [dataFlowPatterns, setDataFlowPatterns] = useState<any[]>([]);
+  const [optimizationSuggestions, setOptimizationSuggestions] = useState<any[]>([]);
+  const [crossFileReferences, setCrossFileReferences] = useState<any[]>([]);
+  const [resolutionLoading, setResolutionLoading] = useState(false);
   
   // Filters
   const [assetTypeFilter, setAssetTypeFilter] = useState<string>('');
@@ -207,6 +215,134 @@ export const LineageViewer: React.FC<LineageViewerProps> = ({
     }
   };
 
+  // Cross-file resolution functions
+  const resolveCrossFileRelationships = async () => {
+    try {
+      setResolutionLoading(true);
+      setError(null);
+      
+      const response = await fetch(`/api/lineage/resolve-cross-file/${repositoryFullName}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to resolve cross-file relationships');
+      }
+      
+      const data = await response.json();
+      alert(`Cross-file resolution completed: ${data.result.resolvedRelationships} relationships resolved`);
+      
+      // Refresh all data
+      fetchExecutionOrder();
+      fetchCircularDependencies();
+      fetchDataFlowPatterns();
+      fetchOptimizationSuggestions();
+      
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setResolutionLoading(false);
+    }
+  };
+
+  const fetchExecutionOrder = async () => {
+    try {
+      const response = await fetch(`/api/lineage/execution-order/${repositoryFullName}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch execution order');
+      }
+      
+      const data = await response.json();
+      setExecutionOrder(data.executionOrder || []);
+    } catch (err) {
+      console.error('Error fetching execution order:', err);
+    }
+  };
+
+  const fetchCircularDependencies = async () => {
+    try {
+      const response = await fetch(`/api/lineage/circular-dependencies/${repositoryFullName}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch circular dependencies');
+      }
+      
+      const data = await response.json();
+      setCircularDependencies(data.circularDependencies || []);
+    } catch (err) {
+      console.error('Error fetching circular dependencies:', err);
+    }
+  };
+
+  const fetchDataFlowPatterns = async () => {
+    try {
+      const response = await fetch(`/api/lineage/data-flow-patterns/${repositoryFullName}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch data flow patterns');
+      }
+      
+      const data = await response.json();
+      setDataFlowPatterns(data.patterns || []);
+    } catch (err) {
+      console.error('Error fetching data flow patterns:', err);
+    }
+  };
+
+  const fetchOptimizationSuggestions = async () => {
+    try {
+      const response = await fetch(`/api/lineage/optimization-suggestions/${repositoryFullName}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch optimization suggestions');
+      }
+      
+      const data = await response.json();
+      setOptimizationSuggestions(data.optimizations || []);
+    } catch (err) {
+      console.error('Error fetching optimization suggestions:', err);
+    }
+  };
+
+  const fetchCrossFileReferences = async () => {
+    try {
+      const response = await fetch(`/api/lineage/cross-file-references/${repositoryFullName}?confidenceThreshold=${confidenceFilter}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch cross-file references');
+      }
+      
+      const data = await response.json();
+      setCrossFileReferences(data.references || []);
+    } catch (err) {
+      console.error('Error fetching cross-file references:', err);
+    }
+  };
+
   // Load data based on active tab
   useEffect(() => {
     if (activeTab === 'overview') {
@@ -215,6 +351,12 @@ export const LineageViewer: React.FC<LineageViewerProps> = ({
       fetchDataAssets();
     } else if (activeTab === 'relationships') {
       fetchRelationships();
+    } else if (activeTab === 'dependencies') {
+      fetchExecutionOrder();
+      fetchCircularDependencies();
+      fetchDataFlowPatterns();
+      fetchOptimizationSuggestions();
+      fetchCrossFileReferences();
     }
   }, [activeTab, repositoryFullName, assetTypeFilter, searchTerm, confidenceFilter]);
 
@@ -302,6 +444,7 @@ export const LineageViewer: React.FC<LineageViewerProps> = ({
               { id: 'overview', label: 'Overview', icon: BarChart3 },
               { id: 'assets', label: 'Data Assets', icon: Database },
               { id: 'relationships', label: 'Relationships', icon: GitBranch },
+              { id: 'dependencies', label: 'Dependencies', icon: Network },
               { id: 'graph', label: 'Graph View', icon: Network }
             ].map((tab) => (
               <button
@@ -546,6 +689,212 @@ export const LineageViewer: React.FC<LineageViewerProps> = ({
                   <div className="text-center py-8 text-gray-500">
                     <GitBranch className="h-12 w-12 mx-auto text-gray-400 mb-4" />
                     <p>No relationships found. Try lowering the confidence threshold.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Dependencies Tab */}
+          {activeTab === 'dependencies' && (
+            <div className="space-y-6">
+              {/* Cross-File Resolution Action */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-medium text-blue-900 mb-1">Cross-File Relationship Resolution</h3>
+                    <p className="text-sm text-blue-700">
+                      Analyze dependencies and relationships across all files in your repository
+                    </p>
+                  </div>
+                  <button
+                    onClick={resolveCrossFileRelationships}
+                    disabled={resolutionLoading}
+                    className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {resolutionLoading ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Network className="h-4 w-4 mr-2" />
+                    )}
+                    Resolve Dependencies
+                  </button>
+                </div>
+              </div>
+
+              {/* Execution Order */}
+              <div className="bg-white border border-gray-200 rounded-lg p-6">
+                <div className="flex items-center mb-4">
+                  <ArrowRight className="h-5 w-5 text-green-600 mr-2" />
+                  <h3 className="text-lg font-semibold text-gray-900">File Execution Order</h3>
+                </div>
+                
+                {executionOrder.length > 0 ? (
+                  <div className="space-y-3">
+                    {executionOrder.slice(0, 10).map((file, index) => (
+                      <div key={file.fileId} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          <span className="flex items-center justify-center w-8 h-8 bg-green-100 text-green-800 rounded-full text-sm font-semibold">
+                            {file.executionLevel}
+                          </span>
+                          <div>
+                            <p className="font-medium text-gray-900">{file.filePath.split('/').pop()}</p>
+                            <p className="text-sm text-gray-600">{file.filePath}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-4 text-sm text-gray-600">
+                          <span>↑ {file.dependenciesCount} deps</span>
+                          <span>↓ {file.dependentsCount} dependents</span>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            file.criticalityScore > 0.8 ? 'bg-red-100 text-red-800' :
+                            file.criticalityScore > 0.6 ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-green-100 text-green-800'
+                          }`}>
+                            {Math.round(file.criticalityScore * 100)}% critical
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                    {executionOrder.length > 10 && (
+                      <p className="text-sm text-gray-500 text-center">
+                        ... and {executionOrder.length - 10} more files
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <ArrowRight className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                    <p>No execution order data. Run cross-file resolution first.</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Circular Dependencies */}
+              <div className="bg-white border border-gray-200 rounded-lg p-6">
+                <div className="flex items-center mb-4">
+                  <AlertTriangle className="h-5 w-5 text-red-600 mr-2" />
+                  <h3 className="text-lg font-semibold text-gray-900">Circular Dependencies</h3>
+                  {circularDependencies.length > 0 && (
+                    <span className="ml-2 px-2 py-1 bg-red-100 text-red-800 text-xs font-medium rounded-full">
+                      {circularDependencies.length} cycles found
+                    </span>
+                  )}
+                </div>
+                
+                {circularDependencies.length > 0 ? (
+                  <div className="space-y-3">
+                    {circularDependencies.map((cycle, index) => (
+                      <div key={cycle.cycleId} className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                            cycle.severity === 'high' ? 'bg-red-100 text-red-800' :
+                            cycle.severity === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-green-100 text-green-800'
+                          }`}>
+                            {cycle.severity} severity
+                          </span>
+                          <span className="text-sm text-gray-600">
+                            {cycle.cycleLength} files in cycle
+                          </span>
+                        </div>
+                        <div className="text-sm">
+                          <p className="font-medium text-gray-900 mb-1">Dependency Path:</p>
+                          <div className="flex items-center space-x-2 text-gray-700 overflow-x-auto">
+                            {cycle.dependencyPath.map((path: string, idx: number) => (
+                              <React.Fragment key={idx}>
+                                <span className="whitespace-nowrap bg-white px-2 py-1 rounded border">
+                                  {path.split('/').pop()}
+                                </span>
+                                {idx < cycle.dependencyPath.length - 1 && (
+                                  <ArrowRight className="h-3 w-3 text-gray-400 flex-shrink-0" />
+                                )}
+                              </React.Fragment>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <CheckCircle className="h-12 w-12 mx-auto text-green-400 mb-4" />
+                    <p className="text-green-600">No circular dependencies found! 🎉</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Data Flow Patterns */}
+              <div className="bg-white border border-gray-200 rounded-lg p-6">
+                <div className="flex items-center mb-4">
+                  <GitBranch className="h-5 w-5 text-blue-600 mr-2" />
+                  <h3 className="text-lg font-semibold text-gray-900">Data Flow Patterns</h3>
+                </div>
+                
+                {dataFlowPatterns.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {dataFlowPatterns.map((pattern, index) => (
+                      <div key={index} className="p-4 border border-gray-200 rounded-lg">
+                        <div className="flex items-center mb-2">
+                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                            pattern.patternType === 'etl_pipeline' ? 'bg-blue-100 text-blue-800' :
+                            pattern.patternType === 'fan_out' ? 'bg-green-100 text-green-800' :
+                            'bg-purple-100 text-purple-800'
+                          }`}>
+                            {pattern.patternType.replace('_', ' ')}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-900 font-medium mb-1">{pattern.businessImpact}</p>
+                        <p className="text-xs text-gray-600 mb-2">
+                          {pattern.sourceFiles.length} sources → {pattern.targetFiles.length} targets
+                        </p>
+                        <div className="text-xs text-gray-500">
+                          <p>Complexity: {Math.round(pattern.transformationComplexity * 100)}%</p>
+                          <p>Volume: {pattern.dataVolumeEstimate} operations</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <GitBranch className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                    <p>No data flow patterns detected. Run cross-file resolution first.</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Optimization Suggestions */}
+              <div className="bg-white border border-gray-200 rounded-lg p-6">
+                <div className="flex items-center mb-4">
+                  <Zap className="h-5 w-5 text-yellow-600 mr-2" />
+                  <h3 className="text-lg font-semibold text-gray-900">Optimization Suggestions</h3>
+                </div>
+                
+                {optimizationSuggestions.length > 0 ? (
+                  <div className="space-y-4">
+                    {optimizationSuggestions.map((suggestion, index) => (
+                      <div key={index} className="p-4 border border-gray-200 rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-medium text-gray-900">{suggestion.description}</h4>
+                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                            suggestion.priority === 'high' ? 'bg-red-100 text-red-800' :
+                            suggestion.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-green-100 text-green-800'
+                          }`}>
+                            {suggestion.priority} priority
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-2">{suggestion.estimatedImpact}</p>
+                        <p className="text-xs text-gray-500 mb-2">{suggestion.implementationEffort}</p>
+                        <div className="text-xs text-gray-500">
+                          <span className="font-medium">Affected files:</span> {suggestion.affectedFiles.length}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <Zap className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                    <p>No optimization suggestions available. Run cross-file resolution first.</p>
                   </div>
                 )}
               </div>

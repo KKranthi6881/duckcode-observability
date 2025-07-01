@@ -1,6 +1,14 @@
-import { Router } from 'express';
-import * as lineageController from '@/api/controllers/lineage.controller';
-import { requireAuth } from '@/api/middlewares/auth.middleware';
+import { Router, Request, Response, NextFunction } from 'express';
+import * as lineageController from '../controllers/lineage.controller';
+import { requireAuth } from '../middlewares/auth.middleware';
+
+// Define AuthenticatedRequest interface locally
+interface AuthenticatedRequest extends Request {
+  user: {
+    id: string;
+    email: string;
+  };
+}
 
 const router = Router();
 
@@ -52,11 +60,11 @@ const router = Router();
 router.post(
   '/process-repository/:owner/:repo',
   requireAuth,
-  (req, res, next) => {
+  (req: Request, res: Response, next: NextFunction) => {
     req.params.repositoryFullName = `${req.params.owner}/${req.params.repo}`;
     next();
   },
-  lineageController.processRepositoryLineage
+  lineageController.processRepositoryLineage as any
 );
 
 /**
@@ -121,11 +129,11 @@ router.post(
 router.get(
   '/status/:owner/:repo',
   requireAuth,
-  (req, res, next) => {
+  (req: Request, res: Response, next: NextFunction) => {
     req.params.repositoryFullName = `${req.params.owner}/${req.params.repo}`;
     next();
   },
-  lineageController.getLineageStatus
+  lineageController.getLineageStatus as any
 );
 
 /**
@@ -215,11 +223,11 @@ router.get(
 router.get(
   '/assets/:owner/:repo',
   requireAuth,
-  (req, res, next) => {
+  (req: Request, res: Response, next: NextFunction) => {
     req.params.repositoryFullName = `${req.params.owner}/${req.params.repo}`;
     next();
   },
-  lineageController.getDataAssets
+  lineageController.getDataAssets as any
 );
 
 /**
@@ -252,7 +260,7 @@ router.get(
  *         name: relationshipType
  *         schema:
  *           type: string
- *         description: Filter by relationship type (reads_from, writes_to, etc.)
+ *         description: Filter by relationship type
  *       - in: query
  *         name: minConfidence
  *         schema:
@@ -288,10 +296,6 @@ router.get(
  *                         type: string
  *                       confidenceScore:
  *                         type: number
- *                       transformationLogic:
- *                         type: string
- *                       businessContext:
- *                         type: string
  *                 total:
  *                   type: integer
  *       401:
@@ -302,11 +306,11 @@ router.get(
 router.get(
   '/relationships/:owner/:repo',
   requireAuth,
-  (req, res, next) => {
+  (req: Request, res: Response, next: NextFunction) => {
     req.params.repositoryFullName = `${req.params.owner}/${req.params.repo}`;
     next();
   },
-  lineageController.getLineageRelationships
+  lineageController.getLineageRelationships as any
 );
 
 /**
@@ -340,7 +344,7 @@ router.get(
  *         schema:
  *           type: integer
  *           default: 2
- *         description: Maximum depth of relationships to include
+ *         description: Maximum depth for graph traversal
  *       - in: query
  *         name: includeColumns
  *         schema:
@@ -359,32 +363,12 @@ router.get(
  *                   type: array
  *                   items:
  *                     type: object
- *                     properties:
- *                       id:
- *                         type: string
- *                       name:
- *                         type: string
- *                       type:
- *                         type: string
- *                       metadata:
- *                         type: object
  *                 edges:
  *                   type: array
  *                   items:
  *                     type: object
- *                     properties:
- *                       id:
- *                         type: string
- *                       source:
- *                         type: string
- *                       target:
- *                         type: string
- *                       type:
- *                         type: string
- *                       confidence:
- *                         type: number
- *                       metadata:
- *                         type: object
+ *                 metadata:
+ *                   type: object
  *       401:
  *         description: Unauthorized. Authentication required.
  *       404:
@@ -393,11 +377,11 @@ router.get(
 router.get(
   '/graph/:owner/:repo',
   requireAuth,
-  (req, res, next) => {
+  (req: Request, res: Response, next: NextFunction) => {
     req.params.repositoryFullName = `${req.params.owner}/${req.params.repo}`;
     next();
   },
-  lineageController.getLineageGraph
+  lineageController.getLineageGraph as any
 );
 
 /**
@@ -426,19 +410,19 @@ router.get(
  *         required: true
  *         schema:
  *           type: string
- *         description: The ID of the asset to analyze.
+ *         description: The ID of the asset being changed.
  *       - in: query
  *         name: changeType
  *         schema:
  *           type: string
- *           enum: [column_added, column_removed, column_renamed, type_changed, table_dropped]
- *         description: Type of change to analyze
+ *           enum: [table_dropped, column_removed, type_changed, column_added, data_modified]
+ *         description: Type of change being made
  *       - in: query
  *         name: maxDepth
  *         schema:
  *           type: integer
  *           default: 5
- *         description: Maximum depth of impact propagation
+ *         description: Maximum depth for impact analysis
  *     responses:
  *       200:
  *         description: OK. Returns impact analysis results.
@@ -453,30 +437,10 @@ router.get(
  *                   type: array
  *                   items:
  *                     type: object
- *                     properties:
- *                       asset:
- *                         type: object
- *                       impactType:
- *                         type: string
- *                       severity:
- *                         type: string
- *                       propagationDepth:
- *                         type: integer
- *                       description:
- *                         type: string
  *                 summary:
  *                   type: object
- *                   properties:
- *                     totalImpacted:
- *                       type: integer
- *                     criticalCount:
- *                       type: integer
- *                     highCount:
- *                       type: integer
- *                     mediumCount:
- *                       type: integer
- *                     lowCount:
- *                       type: integer
+ *                 metadata:
+ *                   type: object
  *       401:
  *         description: Unauthorized. Authentication required.
  *       404:
@@ -485,11 +449,304 @@ router.get(
 router.get(
   '/impact-analysis/:owner/:repo/:assetId',
   requireAuth,
-  (req, res, next) => {
+  (req: Request, res: Response, next: NextFunction) => {
     req.params.repositoryFullName = `${req.params.owner}/${req.params.repo}`;
     next();
   },
-  lineageController.getImpactAnalysis
+  lineageController.getImpactAnalysis as any
+);
+
+// Cross-file resolution endpoints
+
+/**
+ * @swagger
+ * /api/lineage/resolve-cross-file/{owner}/{repo}:
+ *   post:
+ *     summary: Perform cross-file relationship resolution for a repository
+ *     tags: [Lineage]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: owner
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The owner of the repository.
+ *       - in: path
+ *         name: repo
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The name of the repository.
+ *     responses:
+ *       200:
+ *         description: OK. Cross-file resolution completed.
+ *       401:
+ *         description: Unauthorized. Authentication required.
+ *       404:
+ *         description: Not Found. Repository not found.
+ */
+router.post(
+  '/resolve-cross-file/:owner/:repo',
+  requireAuth,
+  (req: Request, res: Response, next: NextFunction) => {
+    req.params.repositoryFullName = `${req.params.owner}/${req.params.repo}`;
+    next();
+  },
+  lineageController.resolveCrossFileRelationships as any
+);
+
+/**
+ * @swagger
+ * /api/lineage/execution-order/{owner}/{repo}:
+ *   get:
+ *     summary: Get execution order for files in repository
+ *     tags: [Lineage]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: owner
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The owner of the repository.
+ *       - in: path
+ *         name: repo
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The name of the repository.
+ *     responses:
+ *       200:
+ *         description: OK. Returns execution order and dependency statistics.
+ *       401:
+ *         description: Unauthorized. Authentication required.
+ *       404:
+ *         description: Not Found. Repository not found.
+ */
+router.get(
+  '/execution-order/:owner/:repo',
+  requireAuth,
+  (req: Request, res: Response, next: NextFunction) => {
+    req.params.repositoryFullName = `${req.params.owner}/${req.params.repo}`;
+    next();
+  },
+  lineageController.getExecutionOrder as any
+);
+
+/**
+ * @swagger
+ * /api/lineage/circular-dependencies/{owner}/{repo}:
+ *   get:
+ *     summary: Get circular dependencies for repository
+ *     tags: [Lineage]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: owner
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The owner of the repository.
+ *       - in: path
+ *         name: repo
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The name of the repository.
+ *     responses:
+ *       200:
+ *         description: OK. Returns circular dependencies.
+ *       401:
+ *         description: Unauthorized. Authentication required.
+ *       404:
+ *         description: Not Found. Repository not found.
+ */
+router.get(
+  '/circular-dependencies/:owner/:repo',
+  requireAuth,
+  (req: Request, res: Response, next: NextFunction) => {
+    req.params.repositoryFullName = `${req.params.owner}/${req.params.repo}`;
+    next();
+  },
+  lineageController.getCircularDependencies as any
+);
+
+/**
+ * @swagger
+ * /api/lineage/data-flow-patterns/{owner}/{repo}:
+ *   get:
+ *     summary: Get data flow patterns for repository
+ *     tags: [Lineage]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: owner
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The owner of the repository.
+ *       - in: path
+ *         name: repo
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The name of the repository.
+ *     responses:
+ *       200:
+ *         description: OK. Returns data flow patterns.
+ *       401:
+ *         description: Unauthorized. Authentication required.
+ *       404:
+ *         description: Not Found. Repository not found.
+ */
+router.get(
+  '/data-flow-patterns/:owner/:repo',
+  requireAuth,
+  (req: Request, res: Response, next: NextFunction) => {
+    req.params.repositoryFullName = `${req.params.owner}/${req.params.repo}`;
+    next();
+  },
+  lineageController.getDataFlowPatterns as any
+);
+
+/**
+ * @swagger
+ * /api/lineage/file-impact-analysis/{owner}/{repo}/{fileId}:
+ *   get:
+ *     summary: Generate impact analysis for file changes
+ *     tags: [Lineage]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: owner
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The owner of the repository.
+ *       - in: path
+ *         name: repo
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The name of the repository.
+ *       - in: path
+ *         name: fileId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the file being changed.
+ *       - in: query
+ *         name: changeType
+ *         schema:
+ *           type: string
+ *           default: modification
+ *         description: Type of change being made
+ *     responses:
+ *       200:
+ *         description: OK. Returns file impact analysis.
+ *       401:
+ *         description: Unauthorized. Authentication required.
+ *       404:
+ *         description: Not Found. File not found.
+ */
+router.get(
+  '/file-impact-analysis/:owner/:repo/:fileId',
+  requireAuth,
+  (req: Request, res: Response, next: NextFunction) => {
+    req.params.repositoryFullName = `${req.params.owner}/${req.params.repo}`;
+    next();
+  },
+  lineageController.generateFileImpactAnalysis as any
+);
+
+/**
+ * @swagger
+ * /api/lineage/optimization-suggestions/{owner}/{repo}:
+ *   get:
+ *     summary: Get optimization suggestions for repository
+ *     tags: [Lineage]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: owner
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The owner of the repository.
+ *       - in: path
+ *         name: repo
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The name of the repository.
+ *     responses:
+ *       200:
+ *         description: OK. Returns optimization suggestions.
+ *       401:
+ *         description: Unauthorized. Authentication required.
+ *       404:
+ *         description: Not Found. Repository not found.
+ */
+router.get(
+  '/optimization-suggestions/:owner/:repo',
+  requireAuth,
+  (req: Request, res: Response, next: NextFunction) => {
+    req.params.repositoryFullName = `${req.params.owner}/${req.params.repo}`;
+    next();
+  },
+  lineageController.getOptimizationSuggestions as any
+);
+
+/**
+ * @swagger
+ * /api/lineage/cross-file-references/{owner}/{repo}:
+ *   get:
+ *     summary: Get cross-file asset references
+ *     tags: [Lineage]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: owner
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The owner of the repository.
+ *       - in: path
+ *         name: repo
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The name of the repository.
+ *       - in: query
+ *         name: confidenceThreshold
+ *         schema:
+ *           type: number
+ *           default: 0.5
+ *         description: Minimum confidence threshold for references
+ *     responses:
+ *       200:
+ *         description: OK. Returns cross-file asset references.
+ *       401:
+ *         description: Unauthorized. Authentication required.
+ *       404:
+ *         description: Not Found. Repository not found.
+ */
+router.get(
+  '/cross-file-references/:owner/:repo',
+  requireAuth,
+  (req: Request, res: Response, next: NextFunction) => {
+    req.params.repositoryFullName = `${req.params.owner}/${req.params.repo}`;
+    next();
+  },
+  lineageController.getCrossFileAssetReferences as any
 );
 
 export default router; 
