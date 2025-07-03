@@ -7,16 +7,21 @@ import { Octokit } from 'octokit';
 
 // --- Interfaces (ensure these match your actual table structures) ---
 interface ProcessingJob {
-    id: string; // uuid
+    job_id: string; // uuid - matches the database function return
     file_id: string; // uuid
-    prompt_template_id: string; // uuid
+    prompt_template_id?: string; // uuid - optional since not returned by lease function
     status: 'pending' | 'processing' | 'completed' | 'failed';
     vector_status: 'pending' | 'processing' | 'completed' | 'failed';
     lineage_status: 'pending' | 'processing' | 'completed' | 'failed';
     retry_count: number;
     lineage_retry_count?: number;
-    // Add other relevant fields from your processing_jobs table
-    // e.g., created_at, updated_at, leased_at, error_message
+    created_at: string;
+    updated_at: string;
+    leased_at: string;
+    error_details?: string;
+    analysis_language: string;
+    file_path: string;
+    language: string;
 }
 
 interface FileRecord {
@@ -124,11 +129,14 @@ async function fetchGitHubFileContent(
 }
 
 
-// --- LLM API Dispatcher ---
+// --- LLM API Dispatcher (Legacy - unused) ---
+// This function is kept for potential future use but is currently unused
+// The main processing uses callOpenAIWithSystemPrompt directly
 async function callLlmApi(
     provider: string | null,
     model: string | null,
-    prompt: string,
+    systemPrompt: string,
+    userPrompt: string,
     params?: Record<string, any>
 ): Promise<any> {
     console.log(`Calling LLM API. Provider: ${provider}, Model: ${model}`);
@@ -139,7 +147,7 @@ async function callLlmApi(
 
     switch (provider.toLowerCase()) {
         case 'openai':
-            return await callOpenAIWithSystemPrompt(getSystemPrompt(prompt), prompt, params);
+            return await callOpenAIWithSystemPrompt(systemPrompt, userPrompt);
         // TODO: Add cases for 'google', 'anthropic', etc.
         // case 'anthropic':
         //     apiKey = Deno.env.get('ANTHROPIC_CLAUDE_API_KEY');
@@ -235,10 +243,13 @@ async function generateAndStoreVectors(fileId: string, summaryJson: any, fileRec
         return 0;
     }
     
-    // Get Supabase client for vector operations
+    // Get Supabase client for vector operations with fallback
+    const supabaseUrl = Deno.env.get('EDGE_FUNCTION_SUPABASE_URL') || Deno.env.get('SUPABASE_URL') || 'http://127.0.0.1:54321';
+    const supabaseKey = Deno.env.get('EDGE_FUNCTION_SERVICE_ROLE_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+    
     const supabaseAdmin = createClient(
-        Deno.env.get('EDGE_FUNCTION_SUPABASE_URL') ?? '',
-        Deno.env.get('EDGE_FUNCTION_SERVICE_ROLE_KEY') ?? '',
+        supabaseUrl,
+        supabaseKey,
         {
             db: { schema: 'code_insights' },
             auth: {
@@ -408,24 +419,24 @@ function extractChunksFromSummary(summaryJson: any, fileRecord?: any): Array<{
                         block_index: index,
                         
                         // Code structure analysis
-                        function_names: extractFunctionNames(block.code),
-                        table_names: extractTableNames(block.code),
-                        column_names: extractColumnNames(block.code),
+                        function_names: extractFunctionNames(Array.isArray(block.code) ? block.code.join('\n') : block.code),
+                        table_names: extractTableNames(Array.isArray(block.code) ? block.code.join('\n') : block.code),
+                        column_names: extractColumnNames(Array.isArray(block.code) ? block.code.join('\n') : block.code),
                         
                         // Dependency tracking
                         dependencies: {
-                            tables: extractTableDependencies(block.code),
-                            functions: extractFunctionDependencies(block.code), 
-                            imports: extractImportDependencies(block.code),
-                            variables: extractVariableDependencies(block.code)
+                            tables: extractTableDependencies(Array.isArray(block.code) ? block.code.join('\n') : block.code),
+                            functions: extractFunctionDependencies(Array.isArray(block.code) ? block.code.join('\n') : block.code), 
+                            imports: extractImportDependencies(Array.isArray(block.code) ? block.code.join('\n') : block.code),
+                            variables: extractVariableDependencies(Array.isArray(block.code) ? block.code.join('\n') : block.code)
                         },
                         
                         // Code characteristics for LLM understanding
-                        code_patterns: extractCodePatterns(block.code),
-                        complexity_indicators: analyzeCodeComplexity(block.code),
+                        code_patterns: extractCodePatterns(Array.isArray(block.code) ? block.code.join('\n') : block.code),
+                        complexity_indicators: analyzeCodeComplexity(Array.isArray(block.code) ? block.code.join('\n') : block.code),
                         
                         // Line tracking (estimated from code blocks)
-                        estimated_line_range: estimateLineRange(block.code, index),
+                        estimated_line_range: estimateLineRange(Array.isArray(block.code) ? block.code.join('\n') : block.code, index),
                         
                         // Context for LLM
                         code_purpose: block.explanation || '',
@@ -622,7 +633,7 @@ async function callOpenAIWithSystemPrompt(systemPrompt: string, userMessage: str
     apiUrl = 'https://api.openai.com/v1/chat/completions';
     headers['Authorization'] = `Bearer ${apiKey}`;
     requestBody = {
-        model: 'gpt-4.1-mini',
+        model: 'gpt-4o-mini',
         messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userMessage },
@@ -646,7 +657,28 @@ async function callOpenAIWithSystemPrompt(systemPrompt: string, userMessage: str
     try {
         const jsonData = JSON.parse(responseBodyText);
         console.log(`Successfully received response from OpenAI`);
-        return jsonData;
+        
+        // Extract the actual content from the OpenAI response structure
+        if (jsonData.choices && jsonData.choices[0] && jsonData.choices[0].message) {
+            const content = jsonData.choices[0].message.content;
+            console.log(`Extracted content length: ${content?.length || 0} characters`);
+            
+            // If the response format is JSON, parse the content as JSON
+            if (requestBody.response_format?.type === "json_object") {
+                try {
+                    return JSON.parse(content);
+                } catch (contentParseError) {
+                    console.error('Failed to parse JSON content from OpenAI response:', contentParseError);
+                    console.error('Content:', content);
+                    throw new Error(`Invalid JSON in OpenAI response content: ${contentParseError.message}`);
+                }
+            }
+            
+            return content;
+        } else {
+            console.error('Unexpected OpenAI response structure:', jsonData);
+            throw new Error('Unexpected response structure from OpenAI API');
+        }
     } catch (parseError) {
         console.error(`Failed to parse JSON response from OpenAI:`, parseError, `Response text: ${responseBodyText}`);
         throw new Error(`Failed to parse JSON response from OpenAI. Raw response: ${responseBodyText}`);
@@ -1239,9 +1271,109 @@ const specializedPrompts: Record<string, string> = {
 
 };
 
-function getSystemPrompt(selectedLanguage: string, customSettings: { business_overview?: string; naming_standards?: string } | null): string {
-    // Use specialized prompt for the selected language, fallback to python for general code analysis
-    let basePrompt = specializedPrompts[selectedLanguage] || specializedPrompts.python;
+// Enhanced unified language mapping and prompt selection system
+function mapLanguageToSpecializedPrompt(detectedLanguage: string, filePath: string, customLanguage?: string): string {
+    // Use custom language if provided (user selection), otherwise detected language
+    const targetLanguage = customLanguage || detectedLanguage;
+    const lowerLang = targetLanguage.toLowerCase();
+    const lowerPath = filePath.toLowerCase();
+    
+    console.log(`Language mapping: detected="${detectedLanguage}", custom="${customLanguage}", target="${targetLanguage}", file="${filePath}"`);
+    
+    // Direct specialized language matches (user selections)
+    if (lowerLang === 'postgres' || lowerLang === 'postgresql') return 'postgres';
+    if (lowerLang === 'dbt') return 'dbt';
+    if (lowerLang === 'mysql') return 'mysql';
+    if (lowerLang === 'tsql' || lowerLang === 't-sql' || lowerLang === 'sqlserver') return 'tsql';
+    if (lowerLang === 'plsql' || lowerLang === 'pl/sql' || lowerLang === 'oracle') return 'plsql';
+    if (lowerLang === 'pyspark' || lowerLang === 'spark-python') return 'pyspark';
+    if (lowerLang === 'python' || lowerLang === 'py') return 'python';
+    
+    // SQL dialect detection based on file path and content patterns
+    if (lowerLang.includes('sql') || lowerPath.endsWith('.sql')) {
+        // Enhanced dbt detection patterns
+        if (lowerPath.includes('dbt') || lowerPath.includes('models/') || 
+            lowerPath.includes('staging/') || lowerPath.includes('marts/') ||
+            lowerPath.includes('intermediate/') || lowerPath.includes('macros/') ||
+            lowerPath.includes('snapshots/') || lowerPath.includes('analyses/') ||
+            lowerPath.includes('seeds/') || lowerPath.includes('/dbt_') ||
+            lowerPath.includes('_housekeeping') || lowerPath.includes('dbt_project.yml')) {
+            return 'dbt';
+        }
+        
+        // Database-specific path patterns
+        if (lowerPath.includes('postgres') || lowerPath.includes('postgresql')) return 'postgres';
+        if (lowerPath.includes('mysql')) return 'mysql';
+        if (lowerPath.includes('oracle') || lowerPath.includes('plsql')) return 'plsql';
+        if (lowerPath.includes('sqlserver') || lowerPath.includes('tsql')) return 'tsql';
+        if (lowerPath.includes('snowflake')) return 'postgres'; // Use postgres for snowflake (similar syntax)
+        if (lowerPath.includes('bigquery')) return 'postgres'; // Use postgres for bigquery
+        if (lowerPath.includes('redshift')) return 'postgres'; // Use postgres for redshift
+        
+        // Default SQL fallback - use postgres as it's most comprehensive
+        return 'postgres';
+    }
+    
+    // Python variants
+    if (lowerLang.includes('python') || lowerPath.endsWith('.py')) {
+        if (lowerPath.includes('pyspark') || lowerPath.includes('spark')) return 'pyspark';
+        return 'python';
+    }
+    
+    // Other language patterns based on file extension and path
+    if (lowerPath.endsWith('.r') || lowerLang === 'r') return 'default'; // No specialized R prompt yet
+    if (lowerPath.endsWith('.scala') || lowerLang.includes('scala')) return 'default'; // No specialized Scala prompt yet
+    if (lowerPath.endsWith('.yml') || lowerPath.endsWith('.yaml')) {
+        if (lowerPath.includes('dbt') || lowerPath.includes('models/')) return 'dbt';
+        return 'default';
+    }
+    
+    // Fallback to default for unrecognized languages
+    console.log(`Using default prompt for language: ${targetLanguage}`);
+    return 'default';
+}
+
+function mapLanguageToLineagePrompt(detectedLanguage: string, filePath: string): string {
+    const lowerLang = detectedLanguage.toLowerCase();
+    const lowerPath = filePath.toLowerCase();
+    
+    // SQL variants (including all SQL dialects)
+    if (lowerLang.includes('sql') || lowerPath.endsWith('.sql') ||
+        lowerLang.includes('postgres') || lowerLang.includes('mysql') || 
+        lowerLang.includes('oracle') || lowerLang.includes('tsql') ||
+        lowerLang.includes('snowflake') || lowerLang.includes('bigquery') ||
+        lowerLang.includes('redshift') || lowerLang === 'dbt') {
+        return 'sql';
+    }
+    
+    // Python variants
+    if (lowerLang.includes('python') || lowerLang.includes('pyspark') || 
+        lowerPath.endsWith('.py') || lowerLang === 'py') {
+        return 'python';
+    }
+    
+    // Scala/Spark
+    if (lowerLang.includes('scala') || lowerPath.endsWith('.scala')) {
+        return 'scala';
+    }
+    
+    // R
+    if (lowerLang === 'r' || lowerPath.endsWith('.r')) {
+        return 'r';
+    }
+    
+    // Default to generic for unrecognized languages
+    return 'generic';
+}
+
+function getSystemPrompt(selectedLanguage: string, customSettings: { business_overview?: string; naming_standards?: string; language?: string } | null, filePath?: string): string {
+    // Map the language to the appropriate specialized prompt
+    const promptKey = mapLanguageToSpecializedPrompt(selectedLanguage, filePath || '', customSettings?.language);
+    
+    // Use specialized prompt for the mapped language, fallback to default
+    let basePrompt = specializedPrompts[promptKey] || specializedPrompts.default;
+    
+    console.log(`Selected prompt: ${promptKey} for language: ${selectedLanguage} (custom: ${customSettings?.language})`);
 
     if (customSettings && (customSettings.business_overview || customSettings.naming_standards)) {
         let customInstructions = "--- CUSTOM INSTRUCTIONS ---\n";
@@ -1637,7 +1769,7 @@ interface LineageExtractionResult {
     };
 }
 
-const SQL_LINEAGE_PROMPT = `You are an expert SQL analyst. Analyze the provided SQL code and extract comprehensive data lineage information.
+const SQL_LINEAGE_PROMPT = `You are an expert SQL data lineage analyst. Your task is to extract comprehensive data lineage information from SQL code, including dbt macros, stored procedures, functions, and data transformations.
 
 **Code to analyze:**
 \`\`\`sql
@@ -1646,81 +1778,105 @@ const SQL_LINEAGE_PROMPT = `You are an expert SQL analyst. Analyze the provided 
 
 **File path:** {{filePath}}
 
-**Extract the following information and return as JSON:**
+**IMPORTANT: Even if this appears to be a utility or housekeeping script, extract ANY data-related operations, table references, or business logic you can identify.**
+
+**Extract and return as JSON:**
 
 {
   "assets": [
     {
-      "name": "table_name",
-      "type": "table|view|function|procedure",
-      "schema": "schema_name",
-      "database": "database_name", 
-      "description": "Business purpose of this asset",
+      "name": "table_or_object_name",
+      "type": "table|view|function|procedure|macro|materialization",
+      "schema": "schema_name_if_identifiable",
+      "database": "database_name_if_identifiable", 
+      "description": "What this asset does or represents",
       "columns": [
         {
           "name": "column_name",
-          "type": "data_type",
-          "description": "Column purpose"
+          "type": "data_type_if_known",
+          "description": "Purpose or meaning of this column"
         }
       ],
       "metadata": {
-        "materialization": "table|view|incremental"
+        "materialization": "table|view|incremental|ephemeral",
+        "tags": ["macro", "utility", "cleanup", "maintenance"]
       }
     }
   ],
   "relationships": [
     {
-      "sourceAsset": "source_table",
-      "targetAsset": "target_table", 
-      "relationshipType": "reads_from|writes_to|transforms|aggregates|joins",
-      "operationType": "select|insert|update|delete|merge",
-      "transformationLogic": "Detailed description of how data is transformed",
-      "businessContext": "Why this transformation exists from business perspective",
-      "confidenceScore": 0.95,
-      "discoveredAtLine": 45
+      "sourceAsset": "source_table_or_function",
+      "targetAsset": "target_table_or_operation", 
+      "relationshipType": "reads_from|writes_to|transforms|calls|references|creates|drops",
+      "operationType": "select|insert|update|delete|merge|create|drop|call|execute",
+      "transformationLogic": "Specific description of what operation is performed",
+      "businessContext": "Why this operation exists (cleanup, maintenance, transformation, etc.)",
+      "confidenceScore": 0.8,
+      "discoveredAtLine": 1
     }
   ],
   "fileDependencies": [
     {
-      "importPath": "schema.other_table",
-      "importType": "references",
-      "importStatement": "FROM schema.other_table",
+      "importPath": "schema.table_or_function",
+      "importType": "table_reference|function_call|schema_reference",
+      "importStatement": "Actual SQL statement making the reference",
       "confidenceScore": 0.9
     }
   ],
   "functions": [
     {
-      "name": "calculate_revenue",
-      "type": "function",
-      "signature": "calculate_revenue(amount DECIMAL, tax_rate DECIMAL) RETURNS DECIMAL",
-      "returnType": "DECIMAL",
+      "name": "function_or_macro_name",
+      "type": "macro|function|procedure|utility",
+      "signature": "function_name(parameter_list)",
+      "returnType": "return_type_if_applicable",
       "parameters": [
-        {"name": "amount", "type": "DECIMAL", "description": "Base amount"}
+        {"name": "param_name", "type": "param_type", "description": "What this parameter does"}
       ],
-      "description": "Calculates total revenue including tax",
-      "businessLogic": "Applies tax calculation for financial reporting",
-      "lineStart": 10,
-      "lineEnd": 25,
-      "complexityScore": 0.3
+      "description": "What this function/macro accomplishes",
+      "businessLogic": "Business purpose (data cleanup, validation, transformation, etc.)",
+      "lineStart": 1,
+      "lineEnd": 50,
+      "complexityScore": 0.4
     }
   ],
   "businessContext": {
-    "mainPurpose": "Primary business purpose of this code",
-    "businessImpact": "How this affects business operations",
-    "stakeholders": ["Finance Team", "Data Analytics"],
-    "dataDomain": "finance",
-    "businessCriticality": "high",
-    "dataFreshness": "Updated daily at 6 AM",
-    "executionFrequency": "daily"
+    "mainPurpose": "Data maintenance|Utility operation|Business transformation|Cleanup|Validation",
+    "businessImpact": "How this affects data quality, business operations, or system maintenance",
+    "stakeholders": ["Data Engineering", "Analytics", "DBA"],
+    "dataDomain": "system_maintenance|data_quality|business_operations",
+    "businessCriticality": "medium|high for data quality",
+    "dataFreshness": "As needed for maintenance",
+    "executionFrequency": "on_demand|scheduled|as_needed"
   }
 }
 
-**Guidelines:**
-- Use fully qualified names (database.schema.table) when possible
-- Be specific about transformation logic
-- Assign confidence scores based on code clarity (0.0-1.0)
-- Focus on data flow, not just syntax
-- Consider implicit relationships (shared column names, naming conventions)`;
+**Critical Instructions:**
+1. **Don't return empty results** - Even utility scripts have purposes and operations
+2. **Look for ANY database objects** - Tables, views, functions, even if just referenced
+3. **Extract macro/function definitions** - These are important assets
+4. **Identify operations** - CREATE, DROP, INSERT, UPDATE, CALL, EXECUTE
+5. **Consider business context** - Cleanup scripts serve business purposes too
+6. **Use confidence scores** - 0.7+ for clear operations, 0.5+ for inferred purposes
+7. **Include utility operations** - Maintenance and cleanup are valid business operations
+
+**For dbt macros specifically:**
+- Macro definitions are assets with type "macro"
+- Macro calls create relationships
+- Consider the macro's business purpose (cleanup, validation, etc.)
+- Extract any table operations within the macro
+
+**CRITICAL: Return ONLY valid JSON. No markdown, no explanations, no code blocks. Just the JSON object.**
+
+If you cannot extract meaningful information, return this minimal valid structure:
+{
+  "assets": [],
+  "relationships": [],
+  "fileDependencies": [],
+  "functions": [{"name": "unknown_operation", "type": "utility", "description": "File contains operations that require manual analysis", "businessLogic": "Utility or maintenance script", "complexityScore": 0.3}],
+  "businessContext": {"mainPurpose": "Utility operation", "businessImpact": "System maintenance", "businessCriticality": "medium"}
+}
+
+Return valid JSON only.`;
 
 const PYTHON_LINEAGE_PROMPT = `You are an expert Python/PySpark analyst. Analyze the provided Python code and extract comprehensive data lineage information.
 
@@ -1737,32 +1893,89 @@ Return JSON with assets, relationships, fileDependencies, functions, and busines
 - Identify DataFrame operations (read, write, transform, join, filter, aggregate)
 - Track data flow through variable assignments
 - Recognize Spark SQL operations and table references
-- Focus on business-relevant transformations`;
+- Focus on business-relevant transformations
 
-const GENERIC_LINEAGE_PROMPT = `You are an expert code analyst. Extract data lineage information from this code to the best of your ability.
+**CRITICAL: Return ONLY valid JSON. No markdown, no explanations, no code blocks.**`;
 
-**Code:** \`\`\`{{language}}
+const SCALA_LINEAGE_PROMPT = `You are an expert Scala/Spark analyst. Analyze the provided Scala code and extract comprehensive data lineage information.
+
+**Code to analyze:**
+\`\`\`scala
 {{code}}
 \`\`\`
 
 **File path:** {{filePath}}
-**Language:** {{language}}
 
-Return JSON with assets, relationships, fileDependencies, functions, and businessContext. Use conservative confidence scores for unfamiliar languages.`;
+Return JSON with the same structure as other prompts, focusing on Spark DataFrames, RDDs, and Scala data transformations.
 
-function getLineagePromptForLanguage(language: string): string {
-    const lang = language.toLowerCase();
+**CRITICAL: Return ONLY valid JSON. No markdown, no explanations, no code blocks.**`;
+
+const R_LINEAGE_PROMPT = `You are an expert R data analyst. Analyze the provided R code and extract data lineage information.
+
+**Code to analyze:**
+\`\`\`r
+{{code}}
+\`\`\`
+
+**File path:** {{filePath}}
+
+Return JSON with the same structure as other prompts, focusing on data.frame operations, package functions, and R data transformations.
+
+**CRITICAL: Return ONLY valid JSON. No markdown, no explanations, no code blocks.**`;
+
+const GENERIC_LINEAGE_PROMPT = `You are an expert data analyst. Analyze the provided code/documentation and extract any data lineage information possible.
+
+**Content to analyze:**
+\`\`\`
+{{code}}
+\`\`\`
+
+**File path:** {{filePath}}
+
+Even for documentation files, look for:
+- References to data sources, tables, databases
+- Descriptions of data flows or transformations
+- Business processes involving data
+- System architecture involving data movement
+
+Return JSON with assets, relationships, fileDependencies, functions, and businessContext. If no data-related content is found, return minimal valid structure.
+
+**CRITICAL: Return ONLY valid JSON. No markdown, no explanations, no code blocks.**
+
+Minimal structure if no data found:
+{
+  "assets": [],
+  "relationships": [],
+  "fileDependencies": [],
+  "functions": [],
+  "businessContext": {
+    "mainPurpose": "Documentation/Non-data file",
+    "businessImpact": "Informational",
+    "businessCriticality": "low"
+  }
+}`;
+
+
+
+function getLineagePromptForLanguage(language: string, filePath: string): string {
+    // Use the unified language mapping for lineage prompts
+    const lineagePromptType = mapLanguageToLineagePrompt(language, filePath);
     
-    if (lang.includes('sql') || lang.includes('snowflake') || lang.includes('postgres') || 
-        lang.includes('mysql') || lang.includes('bigquery') || lang.includes('redshift')) {
-        return SQL_LINEAGE_PROMPT;
+    console.log(`Lineage prompt selection: language="${language}", path="${filePath}", type="${lineagePromptType}"`);
+    
+    switch (lineagePromptType) {
+        case 'sql':
+            return SQL_LINEAGE_PROMPT;
+        case 'python':
+            return PYTHON_LINEAGE_PROMPT;
+        case 'scala':
+            return SCALA_LINEAGE_PROMPT;
+        case 'r':
+            return R_LINEAGE_PROMPT;
+        case 'generic':
+        default:
+            return GENERIC_LINEAGE_PROMPT;
     }
-    
-    if (lang.includes('python') || lang.includes('pyspark') || lang.includes('py')) {
-        return PYTHON_LINEAGE_PROMPT;
-    }
-    
-    return GENERIC_LINEAGE_PROMPT;
 }
 
 function interpolatePrompt(template: string, variables: { code: string; filePath: string; language?: string }): string {
@@ -1793,13 +2006,15 @@ async function processFileLineage(fileId: string, fileRecord: FileRecord, existi
         }
         
         if (!fileContent) {
-            // Fetch from GitHub as fallback
-            const installationToken = await getGitHubInstallationToken(fileRecord.github_installation_id);
-            fileContent = await fetchGitHubFileContent(
-                installationToken,
-                fileRecord.repository_full_name,
-                fileRecord.file_path
-            );
+            // For eligible files only, fetch from GitHub as fallback
+            if (isFileEligibleForLineage(fileRecord.file_path, fileRecord.language)) {
+                const installationToken = await getGitHubInstallationToken(fileRecord.github_installation_id);
+                fileContent = await fetchGitHubFileContent(
+                    installationToken,
+                    fileRecord.repository_full_name,
+                    fileRecord.file_path
+                );
+            }
         }
         
         if (!fileContent) {
@@ -1807,7 +2022,7 @@ async function processFileLineage(fileId: string, fileRecord: FileRecord, existi
         }
         
         // Get appropriate prompt for the language
-        const promptTemplate = getLineagePromptForLanguage(fileRecord.language);
+        const promptTemplate = getLineagePromptForLanguage(fileRecord.language, fileRecord.file_path);
         
         // Interpolate variables into the prompt
         const prompt = interpolatePrompt(promptTemplate, {
@@ -1817,6 +2032,8 @@ async function processFileLineage(fileId: string, fileRecord: FileRecord, existi
         });
         
         console.log(`Extracting lineage for ${fileRecord.file_path} using ${fileRecord.language} prompt`);
+        console.log(`File content length: ${fileContent.length} characters`);
+        console.log(`Prompt length: ${prompt.length} characters`);
         
         // Call OpenAI API for lineage extraction
         const response = await callOpenAIWithSystemPrompt(
@@ -1824,10 +2041,35 @@ async function processFileLineage(fileId: string, fileRecord: FileRecord, existi
             prompt
         );
         
+        console.log(`Raw LLM response type: ${typeof response}`);
+        console.log(`Raw LLM response: ${JSON.stringify(response).substring(0, 500)}...`);
+        
         // Parse and validate the result
-        const lineageResult: LineageExtractionResult = typeof response === 'string' 
-            ? JSON.parse(response) 
-            : response;
+        let lineageResult: LineageExtractionResult;
+        try {
+            // The response should already be parsed JSON from callOpenAIWithSystemPrompt
+            lineageResult = response;
+            
+            console.log(`Parsed result - Assets: ${lineageResult.assets?.length || 0}, Relationships: ${lineageResult.relationships?.length || 0}, Functions: ${lineageResult.functions?.length || 0}`);
+            
+            // Validate required structure
+            if (!lineageResult.assets) lineageResult.assets = [];
+            if (!lineageResult.relationships) lineageResult.relationships = [];
+            if (!lineageResult.fileDependencies) lineageResult.fileDependencies = [];
+            if (!lineageResult.functions) lineageResult.functions = [];
+            if (!lineageResult.businessContext) {
+                lineageResult.businessContext = {
+                    mainPurpose: 'Unknown',
+                    businessImpact: 'Unknown',
+                    businessCriticality: 'medium'
+                };
+            }
+            
+        } catch (parseError) {
+            console.error('Failed to validate LLM response structure:', parseError);
+            console.error('Response content:', response);
+            throw new Error(`Invalid response structure from LLM: ${parseError.message}`);
+        }
         
         // Validate and enhance the result
         const enhancedResult = validateAndEnhanceLineageResult(lineageResult, fileRecord.file_path, fileRecord.language);
@@ -1906,13 +2148,17 @@ function validateAndEnhanceLineageResult(
 }
 
 async function storeLineageData(fileId: string, lineageResult: LineageExtractionResult): Promise<void> {
-    console.log(`Storing lineage data: ${lineageResult.assets.length} assets, ${lineageResult.relationships.length} relationships`);
+    console.log(`📊 Storing comprehensive lineage data: ${lineageResult.assets.length} assets, ${lineageResult.relationships.length} relationships, ${lineageResult.functions.length} functions, ${lineageResult.fileDependencies.length} dependencies`);
+    
+    // Use local development URLs if edge function URLs are not available
+    const supabaseUrl = Deno.env.get('EDGE_FUNCTION_SUPABASE_URL') || Deno.env.get('SUPABASE_URL') || 'http://127.0.0.1:54321';
+    const supabaseKey = Deno.env.get('EDGE_FUNCTION_SERVICE_ROLE_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
     
     const supabaseLineage = createClient(
-        Deno.env.get('EDGE_FUNCTION_SUPABASE_URL') ?? '',
-        Deno.env.get('EDGE_FUNCTION_SERVICE_ROLE_KEY') ?? '',
+        supabaseUrl,
+        supabaseKey,
         {
-            db: { schema: 'lineage' },
+            db: { schema: 'code_insights' },
             auth: {
                 persistSession: false,
                 autoRefreshToken: false,
@@ -1921,201 +2167,472 @@ async function storeLineageData(fileId: string, lineageResult: LineageExtraction
     );
 
     try {
-        // 1. Store discovered data assets
-        if (lineageResult.assets && lineageResult.assets.length > 0) {
-            const assetsToInsert = lineageResult.assets.map(asset => ({
+        // === 1. CORE GRAPH STRUCTURE - Foundation for all relationships ===
+        
+        // Build comprehensive node mapping
+        const allNodes = [];
+        const assetNodeMap = new Map();
+        const functionNodeMap = new Map();
+        
+        console.log('🔄 Creating graph nodes...');
+        
+        // Create nodes for data assets (tables, views, models, etc.) with deterministic UUIDs
+        for (const asset of lineageResult.assets) {
+            // Use deterministic UUID based on file_id + asset_name to ensure consistency across upserts
+            const nodeId = crypto.randomUUID(); // We'll let the database handle uniqueness
+            const nodeData = {
+                id: nodeId,
                 file_id: fileId,
-                asset_name: asset.name,
-                asset_type: asset.type,
-                schema_name: asset.schema,
-                database_name: asset.database,
-                full_qualified_name: `${asset.database || 'default'}.${asset.schema || 'public'}.${asset.name}`,
-                asset_metadata: {
-                    description: asset.description,
-                    sourceFile: asset.metadata?.sourceFile,
-                    sourceLanguage: asset.metadata?.sourceLanguage,
-                    extractedAt: asset.metadata?.extractedAt,
-                    ...asset.metadata
+                node_type: asset.type,
+                node_name: asset.name,
+                fully_qualified_name: `${asset.database || 'unknown'}.${asset.schema || 'unknown'}.${asset.name}`,
+                description: asset.description,
+                business_meaning: lineageResult.businessContext?.mainPurpose || 'Data processing asset',
+                data_lineage_metadata: {
+                    ...asset.metadata,
+                    columns: asset.columns,
+                    businessContext: lineageResult.businessContext,
+                    extractedAt: new Date().toISOString()
                 }
-            }));
-
-            const { data: insertedAssets, error: assetsError } = await supabaseLineage
-                .from('data_assets')
-                .upsert(assetsToInsert, {
-                    onConflict: 'file_id, asset_name, asset_type',
-                    ignoreDuplicates: false
-                })
-                .select('id, asset_name');
-
-            if (assetsError) {
-                console.error('Error storing data assets:', assetsError);
-                throw new Error(`Failed to store data assets: ${assetsError.message}`);
-            }
-
-            console.log(`Stored ${insertedAssets?.length || 0} data assets`);
-
-            // 2. Store columns for each asset
-            const assetMap = new Map(insertedAssets?.map(a => [a.asset_name, a.id]) || []);
-            
-            for (const asset of lineageResult.assets) {
-                if (asset.columns && asset.columns.length > 0) {
-                    const assetId = assetMap.get(asset.name);
-                    if (!assetId) continue;
-
-                    const columnsToInsert = asset.columns.map(column => ({
-                        asset_id: assetId,
-                        column_name: column.name,
-                        data_type: column.type,
-                        column_metadata: {
-                            description: column.description,
-                            extractedAt: new Date().toISOString()
-                        }
-                    }));
-
-                    const { error: columnsError } = await supabaseLineage
-                        .from('data_columns')
-                        .upsert(columnsToInsert, {
-                            onConflict: 'asset_id, column_name',
-                            ignoreDuplicates: false
-                        });
-
-                    if (columnsError) {
-                        console.error(`Error storing columns for asset ${asset.name}:`, columnsError);
-                        // Don't fail the entire operation for column storage issues
-                    }
-                }
-            }
+            };
+            allNodes.push(nodeData);
+            // Store the temporary mapping - we'll update this with actual IDs after insert
+            assetNodeMap.set(asset.name, nodeId);
         }
-
-        // 3. Store code functions
-        if (lineageResult.functions && lineageResult.functions.length > 0) {
-            const functionsToInsert = lineageResult.functions.map(func => ({
+        
+        // Create nodes for functions (procedures, macros, methods) with deterministic UUIDs
+        for (const func of lineageResult.functions) {
+            // Use deterministic UUID based on file_id + function_name to ensure consistency
+            const nodeId = crypto.randomUUID(); // We'll let the database handle uniqueness
+            const nodeData = {
+                id: nodeId,
                 file_id: fileId,
-                function_name: func.name,
-                function_type: func.type,
-                function_signature: func.signature,
-                return_type: func.returnType,
-                parameters: func.parameters || [],
-                function_metadata: {
-                    description: func.description,
+                node_type: 'function',
+                node_name: func.name,
+                fully_qualified_name: `${func.namespace || 'global'}.${func.name}`,
+                description: func.description,
+                business_meaning: func.businessLogic || 'Code function',
+                data_lineage_metadata: {
+                    signature: func.signature,
+                    returnType: func.returnType,
+                    parameters: func.parameters,
                     businessLogic: func.businessLogic,
                     lineStart: func.lineStart,
                     lineEnd: func.lineEnd,
                     complexityScore: func.complexityScore,
                     extractedAt: new Date().toISOString()
                 }
-            }));
+            };
+            allNodes.push(nodeData);
+            // Store the temporary mapping - we'll update this with actual IDs after insert
+            functionNodeMap.set(func.name, nodeId);
+        }
+
+        // Insert all graph nodes FIRST (they are referenced by other tables)
+        if (allNodes.length > 0) {
+            console.log(`🔄 Inserting ${allNodes.length} graph nodes with IDs:`, allNodes.map(n => `${n.node_name} (${n.id})`));
+            
+            // First, try to delete existing nodes for this file to avoid conflicts
+            const { error: deleteError } = await supabaseLineage
+                .from('graph_nodes')
+                .delete()
+                .eq('file_id', fileId);
+                
+            if (deleteError) {
+                console.log(`⚠️ Could not delete existing nodes (may not exist): ${deleteError.message}`);
+            }
+
+            // Now insert fresh nodes
+            const { data: insertedNodes, error: nodesError } = await supabaseLineage
+                .from('graph_nodes')
+                .insert(allNodes)
+                .select('id, node_name, node_type');
+
+            if (nodesError) {
+                console.error('❌ Error storing graph nodes:', nodesError);
+                console.error('❌ Failed nodes data:', JSON.stringify(allNodes.slice(0, 2), null, 2)); // Only show first 2 for brevity
+                throw new Error(`Failed to store graph nodes: ${nodesError.message}`);
+            } else {
+                console.log(`✅ Stored ${insertedNodes?.length || 0} graph nodes successfully`);
+                
+                // Clear and rebuild node mappings with actual inserted IDs
+                assetNodeMap.clear();
+                functionNodeMap.clear();
+                
+                insertedNodes?.forEach(node => {
+                    // Find original asset/function by node_name and update mapping
+                    const matchingAsset = lineageResult.assets.find(a => a.name === node.node_name);
+                    const matchingFunction = lineageResult.functions.find(f => f.name === node.node_name);
+                    
+                    if (matchingAsset) {
+                        assetNodeMap.set(node.node_name, node.id);
+                    }
+                    if (matchingFunction) {
+                        functionNodeMap.set(node.node_name, node.id);
+                    }
+                });
+                
+                console.log(`🔗 Updated node mappings: Assets=${assetNodeMap.size}, Functions=${functionNodeMap.size}`);
+            }
+        }
+
+        // === 2. DATA ASSETS - Extended asset information ===
+        
+        console.log('🗄️ Storing data assets...');
+        const assetIdMap = new Map();
+        
+        if (lineageResult.assets && lineageResult.assets.length > 0) {
+            console.log(`🗄️ Preparing ${lineageResult.assets.length} data assets with node mappings...`);
+            
+            // Delete existing data assets for this file first
+            const { error: deleteAssetsError } = await supabaseLineage
+                .from('data_assets')
+                .delete()
+                .eq('file_id', fileId);
+                
+            if (deleteAssetsError) {
+                console.log(`⚠️ Could not delete existing assets: ${deleteAssetsError.message}`);
+            }
+            
+            const assetsToInsert = lineageResult.assets.map(asset => {
+                const nodeId = assetNodeMap.get(asset.name);
+                if (!nodeId) {
+                    console.warn(`⚠️ No node ID found for asset: ${asset.name}`);
+                }
+                return {
+                    node_id: nodeId,
+                    file_id: fileId,
+                    asset_name: asset.name,
+                    asset_type: asset.type,
+                    schema_name: asset.schema || null,
+                    database_name: asset.database || null,
+                    asset_metadata: {
+                        description: asset.description,
+                        sourceFile: asset.metadata?.sourceFile,
+                        sourceLanguage: asset.metadata?.sourceLanguage,
+                        extractedAt: asset.metadata?.extractedAt,
+                        businessContext: lineageResult.businessContext,
+                        ...asset.metadata
+                    }
+                };
+            });
+
+            console.log(`🗄️ Inserting assets with node IDs:`, assetsToInsert.map(a => `${a.asset_name} → ${a.node_id}`));
+
+            const { data: insertedAssets, error: assetsError } = await supabaseLineage
+                .from('data_assets')
+                .insert(assetsToInsert)
+                .select('id, asset_name');
+
+            if (assetsError) {
+                console.error('❌ Error storing data assets:', assetsError);
+                // Continue with best effort
+            } else {
+                console.log(`✅ Stored ${insertedAssets?.length || 0} data assets`);
+
+                // Build asset ID mapping for relationships
+                insertedAssets?.forEach(asset => {
+                    assetIdMap.set(asset.asset_name, asset.id);
+                });
+
+                // === 3. DATA COLUMNS - Detailed column information ===
+                
+                console.log('📋 Storing column metadata...');
+                let totalColumns = 0;
+                
+                // Delete existing columns for assets from this file
+                const { error: deleteColumnsError } = await supabaseLineage
+                    .from('data_columns')
+                    .delete()
+                    .in('asset_id', Array.from(assetIdMap.values()));
+                    
+                if (deleteColumnsError) {
+                    console.log(`⚠️ Could not delete existing columns: ${deleteColumnsError.message}`);
+                }
+                
+                for (const asset of lineageResult.assets) {
+                    if (asset.columns && asset.columns.length > 0) {
+                        const assetId = assetIdMap.get(asset.name);
+                        if (!assetId) {
+                            console.warn(`⚠️ No asset ID found for columns of ${asset.name}`);
+                            continue;
+                        }
+
+                        const columnsToInsert = asset.columns.map((column, index) => ({
+                            asset_id: assetId,
+                            column_name: column.name,
+                            column_type: column.type || 'unknown',
+                            column_description: column.description,
+                            ordinal_position: index + 1,
+                            business_meaning: `Column in ${asset.name} table`,
+                            pii_classification: 'none', // Default classification
+                            column_metadata: {
+                                extractedAt: new Date().toISOString(),
+                                sourceAsset: asset.name,
+                                assetType: asset.type
+                            }
+                        }));
+
+                        const { error: columnsError } = await supabaseLineage
+                            .from('data_columns')
+                            .insert(columnsToInsert);
+
+                        if (columnsError) {
+                            console.error(`❌ Error storing columns for asset ${asset.name}:`, columnsError);
+                        } else {
+                            totalColumns += columnsToInsert.length;
+                        }
+                    }
+                }
+                
+                if (totalColumns > 0) {
+                    console.log(`✅ Stored ${totalColumns} column definitions`);
+                }
+            }
+        }
+
+        // === 4. CODE FUNCTIONS - Enhanced function storage ===
+        
+        console.log('⚙️ Storing code functions...');
+        
+        if (lineageResult.functions && lineageResult.functions.length > 0) {
+            console.log(`⚙️ Preparing ${lineageResult.functions.length} code functions with node mappings...`);
+            
+            // Delete existing code functions for this file first
+            const { error: deleteFunctionsError } = await supabaseLineage
+                .from('code_functions')
+                .delete()
+                .eq('file_id', fileId);
+                
+            if (deleteFunctionsError) {
+                console.log(`⚠️ Could not delete existing functions: ${deleteFunctionsError.message}`);
+            }
+            
+            const functionsToInsert = lineageResult.functions.map(func => {
+                const nodeId = functionNodeMap.get(func.name);
+                if (!nodeId) {
+                    console.warn(`⚠️ No node ID found for function: ${func.name}`);
+                }
+                return {
+                    node_id: nodeId,
+                    function_name: func.name,
+                    function_type: func.type,
+                    language: lineageResult.businessContext?.dataDomain || 'sql',
+                    signature: func.signature,
+                    return_type: func.returnType,
+                    parameters: func.parameters || [],
+                    description: func.description,
+                    namespace: func.namespace || 'global',
+                    file_id: fileId,
+                    line_start: func.lineStart,
+                    line_end: func.lineEnd,
+                    complexity_score: func.complexityScore || 0,
+                    business_logic: func.businessLogic
+                };
+            });
+
+            console.log(`⚙️ Inserting functions with node IDs:`, functionsToInsert.map(f => `${f.function_name} → ${f.node_id}`));
 
             const { error: functionsError } = await supabaseLineage
                 .from('code_functions')
-                .upsert(functionsToInsert, {
-                    onConflict: 'file_id, function_name',
-                    ignoreDuplicates: false
-                });
+                .insert(functionsToInsert);
 
             if (functionsError) {
-                console.error('Error storing code functions:', functionsError);
-                // Don't fail for function storage issues
+                console.error('❌ Error storing code functions:', functionsError);
             } else {
-                console.log(`Stored ${functionsToInsert.length} code functions`);
+                console.log(`✅ Stored ${functionsToInsert.length} code functions`);
             }
         }
 
-        // 4. Store file dependencies
-        if (lineageResult.fileDependencies && lineageResult.fileDependencies.length > 0) {
-            const dependenciesToInsert = lineageResult.fileDependencies.map(dep => ({
-                file_id: fileId,
-                import_path: dep.importPath,
-                import_type: dep.importType,
-                import_statement: dep.importStatement,
-                alias_used: dep.aliasUsed,
-                specific_items: dep.specificItems || [],
-                confidence_score: dep.confidenceScore,
-                dependency_metadata: {
-                    extractedAt: new Date().toISOString()
-                }
-            }));
-
-            const { error: dependenciesError } = await supabaseLineage
-                .from('file_dependencies')
-                .upsert(dependenciesToInsert, {
-                    onConflict: 'file_id, import_path',
-                    ignoreDuplicates: false
-                });
-
-            if (dependenciesError) {
-                console.error('Error storing file dependencies:', dependenciesError);
-                // Don't fail for dependencies storage issues
-            } else {
-                console.log(`Stored ${dependenciesToInsert.length} file dependencies`);
-            }
-        }
-
-        // 5. Store data lineage relationships
+        // === 5. GRAPH EDGES - Relationship network ===
+        
+        console.log('🔗 Creating relationship edges...');
+        
         if (lineageResult.relationships && lineageResult.relationships.length > 0) {
-            const relationshipsToInsert = lineageResult.relationships.map(rel => ({
-                file_id: fileId,
-                source_asset: rel.sourceAsset,
-                target_asset: rel.targetAsset,
-                relationship_type: rel.relationshipType,
-                operation_type: rel.operationType,
-                transformation_logic: rel.transformationLogic,
-                business_context: rel.businessContext,
-                confidence_score: rel.confidenceScore,
-                discovered_at_line: rel.discoveredAtLine,
-                lineage_metadata: {
-                    extractedAt: new Date().toISOString()
+            const edges = [];
+            
+            for (const rel of lineageResult.relationships) {
+                const sourceNodeId = assetNodeMap.get(rel.sourceAsset) || functionNodeMap.get(rel.sourceAsset);
+                const targetNodeId = assetNodeMap.get(rel.targetAsset) || functionNodeMap.get(rel.targetAsset);
+                
+                if (sourceNodeId && targetNodeId) {
+                    edges.push({
+                        source_node_id: sourceNodeId,
+                        target_node_id: targetNodeId,
+                        relationship_type: rel.relationshipType,
+                        confidence_score: rel.confidenceScore || 0.8,
+                        transformation_logic: rel.transformationLogic,
+                        business_context: rel.businessContext,
+                        discovered_at_line: rel.discoveredAtLine,
+                        properties: {
+                            operationType: rel.operationType,
+                            extractedAt: new Date().toISOString(),
+                            sourceAsset: rel.sourceAsset,
+                            targetAsset: rel.targetAsset
+                        }
+                    });
                 }
-            }));
+            }
 
-            const { error: relationshipsError } = await supabaseLineage
-                .from('data_lineage')
-                .upsert(relationshipsToInsert, {
-                    onConflict: 'file_id, source_asset, target_asset, relationship_type',
-                    ignoreDuplicates: false
-                });
+            if (edges.length > 0) {
+                console.log(`🔗 Attempting to store ${edges.length} edges:`, edges.map(e => `${e.source_node_id} → ${e.target_node_id} (${e.relationship_type})`));
+                
+                // Delete existing edges for this file first (they will be recreated)
+                const allNodeIds = [...assetNodeMap.values(), ...functionNodeMap.values()];
+                const { error: deleteEdgesError } = await supabaseLineage
+                    .from('graph_edges')
+                    .delete()
+                    .or(`source_node_id.in.(${allNodeIds.join(',')}),target_node_id.in.(${allNodeIds.join(',')})`);
+                    
+                if (deleteEdgesError) {
+                    console.log(`⚠️ Could not delete existing edges: ${deleteEdgesError.message}`);
+                }
+                
+                const { error: edgesError } = await supabaseLineage
+                    .from('graph_edges')
+                    .insert(edges);
 
-            if (relationshipsError) {
-                console.error('Error storing data lineage relationships:', relationshipsError);
-                // Don't fail for relationships storage issues
+                if (edgesError) {
+                    console.error('❌ Error storing graph edges:', edgesError);
+                    console.error('❌ Failed edges data:', JSON.stringify(edges.slice(0, 2), null, 2)); // Only show first 2 for brevity
+                } else {
+                    console.log(`✅ Stored ${edges.length} relationship edges`);
+                }
             } else {
-                console.log(`Stored ${relationshipsToInsert.length} data lineage relationships`);
+                console.log('⚠️ No relationship edges created - node mapping may have failed');
             }
         }
 
-        // 6. Store business context
+        // === 6. DATA LINEAGE - Enhanced relationship details ===
+        
+        console.log('🏗️ Storing detailed lineage relationships...');
+        
+        if (lineageResult.relationships && lineageResult.relationships.length > 0 && assetIdMap.size > 0) {
+            const lineageRelationships = [];
+            
+            for (const rel of lineageResult.relationships) {
+                const sourceAssetId = assetIdMap.get(rel.sourceAsset);
+                const targetAssetId = assetIdMap.get(rel.targetAsset);
+                
+                if (sourceAssetId && targetAssetId) {
+                    lineageRelationships.push({
+                        source_asset_id: sourceAssetId,
+                        target_asset_id: targetAssetId,
+                        relationship_type: rel.relationshipType,
+                        operation_type: rel.operationType || 'select',
+                        confidence_score: rel.confidenceScore || 0.8,
+                        transformation_logic: rel.transformationLogic,
+                        business_context: rel.businessContext,
+                        discovered_in_file_id: fileId,
+                        discovered_at_line: rel.discoveredAtLine,
+                        execution_frequency: lineageResult.businessContext?.executionFrequency || 'adhoc',
+                        data_freshness_requirement: lineageResult.businessContext?.dataFreshness
+                    });
+                }
+            }
+
+            if (lineageRelationships.length > 0) {
+                // Delete existing lineage relationships for this file first
+                const { error: deleteLineageError } = await supabaseLineage
+                    .from('data_lineage')
+                    .delete()
+                    .eq('discovered_in_file_id', fileId);
+                    
+                if (deleteLineageError) {
+                    console.log(`⚠️ Could not delete existing lineage: ${deleteLineageError.message}`);
+                }
+                
+                const { error: lineageError } = await supabaseLineage
+                    .from('data_lineage')
+                    .insert(lineageRelationships);
+
+                if (lineageError) {
+                    console.error('❌ Error storing data lineage:', lineageError);
+                } else {
+                    console.log(`✅ Stored ${lineageRelationships.length} detailed lineage relationships`);
+                }
+            }
+        }
+
+        // === 7. FILE DEPENDENCIES - NOW ENABLED ===
+        
+        console.log('📁 Storing file dependencies...');
+        
+        if (lineageResult.fileDependencies && lineageResult.fileDependencies.length > 0) {
+            // Store file dependencies as graph node metadata for now
+            // TODO: Implement full target_file_id resolution when we have comprehensive file registry
+            
+            const fileDependencyNode = {
+                id: crypto.randomUUID(),
+                file_id: fileId,
+                node_type: 'file_metadata',
+                node_name: 'file_dependencies',
+                description: `File-level dependencies discovered: ${lineageResult.fileDependencies.length} imports`,
+                business_meaning: 'Import and dependency structure for this file',
+                data_lineage_metadata: {
+                    dependencies: lineageResult.fileDependencies,
+                    extractedAt: new Date().toISOString(),
+                    dependencyCount: lineageResult.fileDependencies.length,
+                    importTypes: [...new Set(lineageResult.fileDependencies.map(d => d.importType))]
+                }
+            };
+
+            const { error: depError } = await supabaseLineage
+                .from('graph_nodes')
+                .upsert([fileDependencyNode], { onConflict: 'file_id,node_type,node_name' });
+
+            if (depError) {
+                console.error('❌ Error storing file dependencies:', depError);
+            } else {
+                console.log(`✅ Stored ${lineageResult.fileDependencies.length} file dependencies as metadata`);
+            }
+        }
+
+        // === 8. ENHANCED DOCUMENTATION VECTORS ===
+        
+        console.log('🔍 Preparing enhanced search vectors...');
+        
+        // Update the existing document vectors with enhanced metadata
+        const vectorUpdates = [];
+        
         if (lineageResult.businessContext) {
-            const { error: businessContextError } = await supabaseLineage
-                .from('business_contexts')
-                .upsert({
-                    file_id: fileId,
-                    main_purpose: lineageResult.businessContext.mainPurpose,
-                    business_impact: lineageResult.businessContext.businessImpact,
-                    stakeholders: lineageResult.businessContext.stakeholders || [],
-                    data_domain: lineageResult.businessContext.dataDomain,
-                    business_criticality: lineageResult.businessContext.businessCriticality,
-                    data_freshness: lineageResult.businessContext.dataFreshness,
-                    execution_frequency: lineageResult.businessContext.executionFrequency,
-                    context_metadata: {
-                        extractedAt: new Date().toISOString()
-                    }
-                }, {
-                    onConflict: 'file_id',
-                    ignoreDuplicates: false
-                });
-
-            if (businessContextError) {
-                console.error('Error storing business context:', businessContextError);
-                // Don't fail for business context storage issues
-            } else {
-                console.log('Stored business context');
-            }
+            vectorUpdates.push({
+                file_id: fileId,
+                section_type: 'business_context',
+                search_priority: 9,
+                llm_context: `Business context: ${lineageResult.businessContext.mainPurpose}. Impact: ${lineageResult.businessContext.businessImpact}. Criticality: ${lineageResult.businessContext.businessCriticality}`,
+                complexity_score: calculateOverallConfidence(lineageResult)
+            });
         }
 
-        console.log('Successfully stored all lineage data');
+        // Add lineage-specific metadata to vectors for better search
+        const { error: vectorError } = await supabaseLineage
+            .from('document_vectors')
+            .update({ 
+                section_type: 'lineage_analysis',
+                search_priority: 8,
+                llm_context: `Data lineage: ${lineageResult.assets.length} assets, ${lineageResult.relationships.length} relationships`,
+                complexity_score: calculateOverallConfidence(lineageResult)
+            })
+            .eq('file_id', fileId);
+
+        if (vectorError) {
+            console.log('⚠️ Could not update vector metadata (non-critical)');
+        }
+
+        // === 9. FINAL SUCCESS SUMMARY ===
+        
+        console.log('🎉 Successfully stored comprehensive lineage data:');
+        console.log(`   📊 ${allNodes.length} graph nodes (foundation)`);
+        console.log(`   🗄️ ${lineageResult.assets.length} data assets`);
+        console.log(`   📋 ${lineageResult.assets.reduce((sum, a) => sum + (a.columns?.length || 0), 0)} column definitions`);
+        console.log(`   ⚙️ ${lineageResult.functions.length} code functions`);
+        console.log(`   🔗 ${lineageResult.relationships.length} relationship edges`);
+        console.log(`   📁 ${lineageResult.fileDependencies.length} file dependencies`);
+        console.log(`   🎯 Business context: ${lineageResult.businessContext?.mainPurpose || 'Unknown'}`);
 
     } catch (error) {
-        console.error('Error in storeLineageData:', error);
+        console.error('💥 Critical error in comprehensive storeLineageData:', error);
         throw error;
     }
 }
@@ -2131,15 +2648,86 @@ function calculateOverallConfidence(lineageResult: LineageExtractionResult): num
     return allScores.reduce((sum, score) => sum + score, 0) / allScores.length;
 }
 
+function isFileEligibleForLineage(filePath: string, language: string): boolean {
+    const lowerPath = filePath.toLowerCase();
+    const lowerLang = language.toLowerCase();
+    
+    // SQL files are primary targets for lineage
+    if (lowerLang.includes('sql') || 
+        lowerLang.includes('postgres') || 
+        lowerLang.includes('mysql') || 
+        lowerLang.includes('snowflake') || 
+        lowerLang.includes('bigquery') || 
+        lowerLang.includes('redshift') ||
+        lowerPath.endsWith('.sql')) {
+        return true;
+    }
+    
+    // Python files (especially with data processing)
+    if (lowerLang.includes('python') || lowerPath.endsWith('.py')) {
+        return true;
+    }
+    
+    // R files for data analysis
+    if (lowerLang.includes('r') || lowerPath.endsWith('.r')) {
+        return true;
+    }
+    
+    // dbt models and configuration
+    if (lowerPath.includes('dbt') || 
+        lowerPath.includes('models/') ||
+        lowerPath.endsWith('.yml') || 
+        lowerPath.endsWith('.yaml')) {
+        return true;
+    }
+    
+    // Airflow DAGs
+    if (lowerPath.includes('dag') || lowerPath.includes('airflow')) {
+        return true;
+    }
+    
+    // Configuration files with potential data connections
+    if (lowerPath.endsWith('.json') || 
+        lowerPath.endsWith('.toml') ||
+        lowerPath.endsWith('.ini')) {
+        return true;
+    }
+    
+    // Exclude common non-lineage files
+    const excludePatterns = [
+        'readme', 'license', 'gitignore', 'gitattributes',
+        'changelog', 'contributing', 'code_of_conduct',
+        '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico',
+        '.css', '.scss', '.sass', '.less',
+        '.html', '.htm', '.xml',
+        '.md', '.txt', '.doc', '.docx', '.pdf'
+    ];
+    
+    for (const pattern of excludePatterns) {
+        if (lowerPath.includes(pattern)) {
+            return false;
+        }
+    }
+    
+    // Default to true for other code files (JavaScript, etc. might have some data processing)
+    return true;
+}
+
 // --- Main Handler ---
 serve(async (req) => {
     console.log("Code processor function invoked.");
     let jobId: string | null = null;
 
     // Define the Supabase client outside the try block to make it available in the catch block
+    // Use local development URLs if edge function URLs are not available
+    const supabaseUrl = Deno.env.get('EDGE_FUNCTION_SUPABASE_URL') || Deno.env.get('SUPABASE_URL') || 'http://127.0.0.1:54321';
+    const supabaseKey = Deno.env.get('EDGE_FUNCTION_SERVICE_ROLE_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+    
+    console.log(`Using Supabase URL: ${supabaseUrl}`);
+    
     const supabaseAdmin = createClient(
-        Deno.env.get('EDGE_FUNCTION_SUPABASE_URL') ?? '',
-        Deno.env.get('EDGE_FUNCTION_SERVICE_ROLE_KEY') ?? '',
+        supabaseUrl,
+        supabaseKey,
         {
             db: { schema: 'code_insights' },
             auth: {
@@ -2167,9 +2755,9 @@ serve(async (req) => {
         }
 
         const job = leasedJobs[0] as ProcessingJob;
-        jobId = job.id; // Correctly get job ID from the first element of the array
+        jobId = job.job_id; // Correctly get job ID from the first element of the array
 
-        console.log(`Leased job ID: ${job.id} for file ID: ${job.file_id}`);
+        console.log(`Leased job ID: ${job.job_id} for file ID: ${job.file_id}`);
         
         // Determine the job type based on status
         const isVectorOnlyJob = job.status === 'completed' && job.vector_status === 'processing';
@@ -2233,7 +2821,7 @@ serve(async (req) => {
             
             // 5. Get System Prompt based on language and custom settings
             console.log(`Getting system prompt for language: ${analysisLanguage} with custom settings:`, customSettings);
-            const systemPrompt = getSystemPrompt(analysisLanguage, customSettings);
+            const systemPrompt = getSystemPrompt(analysisLanguage, customSettings, fileRecord.file_path);
             
             // 6. Construct user message with file details
             const userMessage = `Please analyze the following code file:
@@ -2257,15 +2845,16 @@ Provide a comprehensive analysis in the requested JSON format.`;
             const { data: summaryData, error: summaryError } = await supabaseAdmin
                 .from('code_summaries') // Will use 'code_insights.code_summaries'
                 .upsert({
-                    job_id: job.id, // Add the job_id here
+                    job_id: job.job_id, // Add the job_id here
                     file_id: job.file_id,
                     summary_json: llmResponse,
                     llm_provider: 'openai',
-                    llm_model_name: 'gpt-4.1-mini',
-                    // last_processed_at: new Date().toISOString() // Consider adding this here
+                    llm_model_name: 'gpt-4.1-mini' // Use correct OpenAI model name
+                }, {
+                    onConflict: 'job_id' // Specify the conflict column explicitly
                 })
                 .select()
-                .single(); // Assuming upsert on unique constraint returns the row
+                .single();
 
             if (summaryError) {
                 throw new Error(`Failed to store LLM summary: ${summaryError.message}`);
@@ -2273,46 +2862,60 @@ Provide a comprehensive analysis in the requested JSON format.`;
             console.log('LLM summary stored:', summaryData);
         }
 
-        // 8.5. Generate and Store Vector Embeddings
-        console.log(`Generating vector embeddings for file_id: ${job.file_id}`);
+        // 8.5. Generate and Store Vector Embeddings (ONLY if vector processing is explicitly requested)
+        const shouldProcessVectors = job.vector_status === 'processing' || isVectorOnlyJob;
         
-        // Update vector status to processing
-        await supabaseAdmin.rpc('update_vector_processing_status', {
-            job_id_param: job.id,
-            new_status: 'processing'
-        });
+        if (shouldProcessVectors) {
+            console.log(`Generating vector embeddings for file_id: ${job.file_id}`);
+            
+            // Update vector status to processing (if not already)
+            if (job.vector_status !== 'processing') {
+                await supabaseAdmin.rpc('update_vector_processing_status', {
+                    job_id_param: job.job_id,
+                    new_status: 'processing'
+                });
+            }
 
-        try {
-            const chunksCount = await generateAndStoreVectors(job.file_id, llmResponse, fileRecord);
-            console.log(`Vector embeddings stored successfully: ${chunksCount} chunks`);
-            
-            // Update vector status to completed
-            await supabaseAdmin.rpc('update_vector_processing_status', {
-                job_id_param: job.id,
-                new_status: 'completed',
-                chunks_count: chunksCount
-            });
-        } catch (vectorError) {
-            console.error('Error storing vector embeddings:', vectorError);
-            
-            // Update vector status to failed
-            await supabaseAdmin.rpc('update_vector_processing_status', {
-                job_id_param: job.id,
-                new_status: 'failed',
-                error_details: vectorError.message || 'Unknown vector processing error'
-            });
-            
-            // Don't fail the entire job for vector storage issues
-            console.log('Continuing without vector storage - vector processing can be retried later');
+            try {
+                const chunksCount = await generateAndStoreVectors(job.file_id, llmResponse, fileRecord);
+                console.log(`Vector embeddings stored successfully: ${chunksCount} chunks`);
+                
+                // Update vector status to completed
+                await supabaseAdmin.rpc('update_vector_processing_status', {
+                    job_id_param: job.job_id,
+                    new_status: 'completed',
+                    chunks_count: chunksCount
+                });
+            } catch (vectorError) {
+                console.error('Error storing vector embeddings:', vectorError);
+                
+                // Update vector status to failed
+                await supabaseAdmin.rpc('update_vector_processing_status', {
+                    job_id_param: job.job_id,
+                    new_status: 'failed',
+                    error_details: vectorError.message || 'Unknown vector processing error'
+                });
+                
+                // Don't fail the entire job for vector storage issues
+                console.log('Continuing without vector storage - vector processing can be retried later');
+            }
+        } else {
+            console.log(`⏭️  Skipping vector processing for file_id: ${job.file_id} (vector_status: ${job.vector_status})`);
         }
 
-        // 8.6. Process Lineage Extraction (if enabled)
-        if (job.lineage_status === 'pending' || (job.lineage_status === 'processing' && !isVectorOnlyJob)) {
-            console.log(`Starting lineage processing for file_id: ${job.file_id}`);
+        // 8.6. Process Lineage Extraction (ONLY if lineage processing is explicitly requested)
+        const isLineageEligible = isFileEligibleForLineage(fileRecord.file_path, fileRecord.language);
+        const shouldProcessLineage = isLineageEligible && job.lineage_status === 'processing';
+        
+        console.log(`Lineage eligibility check: ${fileRecord.file_path} (${fileRecord.language}) -> ${isLineageEligible ? 'ELIGIBLE' : 'SKIPPED'}`);
+        console.log(`Lineage processing check: lineage_status=${job.lineage_status}, shouldProcess=${shouldProcessLineage}`);
+        
+        if (shouldProcessLineage) {
+            console.log(`Starting lineage processing for file_id: ${job.file_id} (${fileRecord.file_path}, ${fileRecord.language})`);
             
             // Update lineage status to processing
             await supabaseAdmin.rpc('update_lineage_processing_status', {
-                job_id_param: job.id,
+                job_id_param: job.job_id,
                 new_status: 'processing'
             });
 
@@ -2322,7 +2925,7 @@ Provide a comprehensive analysis in the requested JSON format.`;
                 
                 // Update lineage status to completed
                 await supabaseAdmin.rpc('update_lineage_processing_status', {
-                    job_id_param: job.id,
+                    job_id_param: job.job_id,
                     new_status: 'completed',
                     dependencies_extracted: {
                         fileDependencies: lineageResult.fileDependencies,
@@ -2341,7 +2944,7 @@ Provide a comprehensive analysis in the requested JSON format.`;
                 
                 // Update lineage status to failed
                 await supabaseAdmin.rpc('update_lineage_processing_status', {
-                    job_id_param: job.id,
+                    job_id_param: job.job_id,
                     new_status: 'failed',
                     error_details: lineageError.message || 'Unknown lineage processing error'
                 });
@@ -2349,19 +2952,30 @@ Provide a comprehensive analysis in the requested JSON format.`;
                 // Don't fail the entire job for lineage processing issues
                 console.log('Continuing without lineage processing - can be retried later');
             }
+        } else if (!isLineageEligible) {
+            // Mark non-eligible files as completed with a note
+            console.log(`Skipping lineage processing for non-eligible file: ${fileRecord.file_path} (${fileRecord.language})`);
+            
+            await supabaseAdmin.rpc('update_lineage_processing_status', {
+                job_id_param: job.job_id,
+                new_status: 'completed',
+                error_details: 'File not eligible for lineage processing (not a data processing file)'
+            });
+        } else {
+            console.log(`⏭️  Skipping lineage processing for file_id: ${job.file_id} (lineage_status: ${job.lineage_status})`);
         }
 
         // 9. Update Job and File Status
         if (isVectorOnlyJob) {
             // For vector-only jobs, we don't update the main status since it's already completed
-            console.log(`Vector processing completed for job ${job.id}`);
+            console.log(`Vector processing completed for job ${job.job_id}`);
         } else {
             // For documentation jobs, update status to completed
-            console.log(`Updating job ${job.id} and file ${job.file_id} status to completed.`);
+            console.log(`Updating job ${job.job_id} and file ${job.file_id} status to completed.`);
             const { error: updateJobError } = await supabaseAdmin
                 .from('processing_jobs') // Will use 'code_insights.processing_jobs'
                 .update({ status: 'completed', updated_at: new Date().toISOString() })
-                .eq('id', job.id);
+                .eq('id', job.job_id);
 
             if (updateJobError) {
                 throw new Error(`Failed to update job status to completed: ${updateJobError.message}`);
@@ -2377,10 +2991,10 @@ Provide a comprehensive analysis in the requested JSON format.`;
             }
         }
 
-        console.log(`[Info] Job ${job.id} processed successfully.`);
+        console.log(`[Info] Job ${job.job_id} processed successfully.`);
 
         const jobType = isVectorOnlyJob ? 'Vector-only job' : 'Documentation job';
-        return new Response(JSON.stringify({ success: true, jobId: job.id, message: `${jobType} processed successfully` }), {
+        return new Response(JSON.stringify({ success: true, jobId: job.job_id, message: `${jobType} processed successfully` }), {
             status: 200, headers: { 'Content-Type': 'application/json' },
         });
 

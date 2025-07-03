@@ -17,6 +17,7 @@ import { useAuth } from '../../features/auth/contexts/AuthContext';
 import { useGitHubRepository } from '../../hooks/useGitHubRepository';
 import { useCopyToClipboard } from '../../hooks/useCopyToClipboard';
 import { processRepositoryForInsights, getRepositorySummaryStatus, getGitHubConnectionStatus, getProcessingStatus } from '../../services/githubService';
+import { sequentialProcessingService } from '../../services/sequential-processing.service';
 import { FileTree } from '../../components/FileTree';
 import { EnhancedCodeViewer } from '../../components/EnhancedCodeViewer';
 import { DocumentationViewer } from '../../components/DocumentationViewer';
@@ -80,10 +81,24 @@ export function CodeBase() {
     failed: number;
     pending: number;
     isPolling: boolean;
+    // Sequential processing fields
+    sequentialJobId?: string;
+    sequentialStatus?: 'pending' | 'processing' | 'completed' | 'error';
+    sequentialCurrentPhase?: string;
+    sequentialPhases?: {
+      documentation?: { status: string; progress: number };
+      vectors?: { status: string; progress: number };
+      lineage?: { status: string; progress: number };
+      dependencies?: { status: string; progress: number };
+      analysis?: { status: string; progress: number };
+    };
   }>>({});
   
   // Polling intervals for tracking progress
   const [pollingIntervals, setPollingIntervals] = useState<Record<string, NodeJS.Timeout>>({});
+  
+  // Sequential processing intervals
+  const [sequentialPollingIntervals, setSequentialPollingIntervals] = useState<Record<string, NodeJS.Timeout>>({});
 
   // Handle GitHub Connection
   const handleConnectGitHub = () => {
@@ -244,10 +259,149 @@ export function CodeBase() {
     }));
   };
 
-  // Handle repository analysis - navigate to setup page
-  const handleAnalyzeRepository = (repoFullName: string) => {
+  // Handle repository analysis - navigate to setup page for language selection
+  const handleAnalyzeRepository = async (repoFullName: string, useSequential: boolean = true) => {
+    console.log(`🎯 handleAnalyzeRepository called for: ${repoFullName}, useSequential: ${useSequential}`);
+    
+    // Always navigate to setup page for language and prompt configuration
     const [owner, repo] = repoFullName.split('/');
     navigate(`/dashboard/code/analyze/${owner}/${repo}`);
+  };
+
+  // Handle sequential processing
+  const handleSequentialProcessing = async (repoFullName: string) => {
+    try {
+      console.log(`🚀 Starting sequential processing for ${repoFullName}`);
+      console.log('Session access token exists:', !!session?.access_token);
+      
+      if (!session?.access_token) {
+        console.error('❌ No authentication token available');
+        alert('Authentication required. Please log in again.');
+        return;
+      }
+
+      console.log('📡 Calling sequential processing service...');
+      console.log('🔍 DEBUG: About to call startSequentialProcessing with:', {
+        repoFullName,
+        hasToken: !!session.access_token,
+        tokenLength: session.access_token?.length
+      });
+      
+      // Start sequential processing
+      const response = await sequentialProcessingService.startSequentialProcessing(
+        repoFullName, 
+        session.access_token
+      );
+      
+      console.log('🔍 DEBUG: Sequential processing response received:', response);
+
+      console.log('✅ Sequential processing started successfully:', response);
+
+      // Find repo ID for status tracking
+      const repo = gitHubConnectionStatus?.details?.accessibleRepos?.find(
+        (r: any) => r.full_name === repoFullName
+      );
+      
+      if (!repo) {
+        throw new Error('Repository not found');
+      }
+
+      const repoId = repo.id.toString();
+
+      // Update status with sequential processing info
+      setRepoProgressStatus(prev => ({
+        ...prev,
+        [repoId]: {
+          ...prev[repoId],
+          sequentialJobId: response.jobId,
+          sequentialStatus: 'processing',
+          sequentialCurrentPhase: response.currentPhase,
+          sequentialPhases: {
+            documentation: { status: 'processing', progress: 0 },
+            vectors: { status: 'pending', progress: 0 },
+            lineage: { status: 'pending', progress: 0 },
+            dependencies: { status: 'pending', progress: 0 },
+            analysis: { status: 'pending', progress: 0 }
+          },
+          isPolling: true
+        }
+      }));
+
+      // Start polling for sequential status
+      startSequentialPolling(repoId, repoFullName);
+
+    } catch (error) {
+      console.error('❌ Error starting sequential processing:', error);
+      
+      // Show user-friendly error message
+      if (error instanceof Error) {
+        alert(`Failed to start processing: ${error.message}`);
+      } else {
+        alert('Failed to start processing. Please check the console for details.');
+      }
+    }
+  };
+
+  // Start sequential processing polling
+  const startSequentialPolling = (repoId: string, repoFullName: string) => {
+    console.log(`Starting sequential polling for ${repoFullName}`);
+    
+    const pollSequentialStatus = async () => {
+      try {
+        if (!session?.access_token) return;
+
+        const status = await sequentialProcessingService.getSequentialStatus(
+          repoFullName, 
+          session.access_token
+        );
+
+        console.log(`Sequential status update for ${repoFullName}:`, status);
+        
+        setRepoProgressStatus(prev => ({
+          ...prev,
+          [repoId]: {
+            ...prev[repoId],
+            sequentialJobId: status.jobId,
+            sequentialStatus: status.status,
+            sequentialCurrentPhase: status.currentPhase,
+            sequentialPhases: status.phases,
+            isPolling: status.status === 'processing'
+          }
+        }));
+
+        // Stop polling if completed or error
+        if (status.status === 'completed' || status.status === 'error') {
+          console.log(`Sequential processing ${status.status} for ${repoFullName}, stopping polling`);
+          stopSequentialPolling(repoId);
+        }
+
+      } catch (error) {
+        console.error('Error polling sequential status:', error);
+        stopSequentialPolling(repoId);
+      }
+    };
+
+    // Start polling
+    pollSequentialStatus();
+    const interval = setInterval(pollSequentialStatus, 5000);
+    
+    setSequentialPollingIntervals(prev => ({
+      ...prev,
+      [repoId]: interval
+    }));
+  };
+
+  // Stop sequential processing polling
+  const stopSequentialPolling = (repoId: string) => {
+    const interval = sequentialPollingIntervals[repoId];
+    if (interval) {
+      clearInterval(interval);
+      setSequentialPollingIntervals(prev => {
+        const newIntervals = { ...prev };
+        delete newIntervals[repoId];
+        return newIntervals;
+      });
+    }
   };
 
   // Handle status modal
@@ -366,23 +520,24 @@ export function CodeBase() {
           
           // Handle both legacy and new comprehensive status formats
           let formattedStatus;
-          if (processingStatus.overallProgress !== undefined) {
-            // New comprehensive format
+          if (processingStatus.overallProgress !== undefined || processingStatus.documentation) {
+            // New comprehensive format with lineage support
             formattedStatus = {
               ...processingStatus,
               isPolling: false,
-              // Legacy compatibility
-              progress: processingStatus.overallProgress,
-              completed: processingStatus.overallCompleted,
-              totalFiles: processingStatus.totalFiles,
-              failed: (processingStatus.documentation?.failed || 0) + (processingStatus.vectors?.failed || 0),
-              pending: (processingStatus.documentation?.pending || 0) + (processingStatus.vectors?.pending || 0)
+              // Legacy compatibility fields
+              progress: processingStatus.overallProgress || 0,
+              completed: processingStatus.overallCompleted || 0,
+              totalFiles: processingStatus.totalFiles || 0,
+              failed: (processingStatus.documentation?.failed || 0) + (processingStatus.vectors?.failed || 0) + (processingStatus.lineage?.failed || 0),
+              pending: (processingStatus.documentation?.pending || 0) + (processingStatus.vectors?.pending || 0) + (processingStatus.lineage?.pending || 0)
             };
           } else {
-            // Legacy format
+            // Legacy format - add empty lineage data for consistency
             formattedStatus = {
               ...processingStatus,
-              isPolling: false
+              isPolling: false,
+              lineage: null  // Explicitly set to null for legacy repos
             };
           }
           
@@ -426,8 +581,11 @@ export function CodeBase() {
       Object.values(pollingIntervals).forEach(interval => {
         clearInterval(interval);
       });
+      Object.values(sequentialPollingIntervals).forEach(interval => {
+        clearInterval(interval);
+      });
     };
-  }, [pollingIntervals]);
+  }, [pollingIntervals, sequentialPollingIntervals]);
 
   // Basic loading state
   if (isLoadingConnection) {

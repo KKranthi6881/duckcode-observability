@@ -79,7 +79,7 @@ BEGIN
             COALESCE(pj.status, 'pending') as doc_status,
             COALESCE(pj.vector_status, 'pending') as vector_status,
             pj.lineage_status,
-            pj.error_message as doc_error,
+            pj.error_details as doc_error,
             pj.vector_error_details as vector_error,
             pj.lineage_error_details as lineage_error,
             pj.vector_chunks_count,

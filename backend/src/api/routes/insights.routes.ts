@@ -207,4 +207,175 @@ router.post(
   insightsController.retryVectorProcessing
 );
 
+/**
+ * @swagger
+ * /api/insights/process-documentation-only:
+ *   post:
+ *     summary: Initiates ONLY documentation processing for sequential pipeline.
+ *     tags: [Insights]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - repositoryFullName
+ *             properties:
+ *               repositoryFullName:
+ *                 type: string
+ *                 description: The full name of the repository (e.g., 'owner/repo').
+ *                 example: 'my-org/my-awesome-project'
+ *               selectedLanguage:
+ *                 type: string
+ *                 description: Selected language for analysis prompts.
+ *                 example: 'postgres'
+ *     responses:
+ *       202:
+ *         description: Accepted. Documentation processing has been successfully queued.
+ *       400:
+ *         description: Bad Request. Missing or invalid repositoryFullName.
+ *       401:
+ *         description: Unauthorized. Authentication required.
+ */
+router.post(
+  '/process-documentation-only',
+  requireAuth,
+  insightsController.processDocumentationOnly
+);
+
+/**
+ * @swagger
+ * /api/insights/process-vectors-only:
+ *   post:
+ *     summary: Initiates ONLY vector processing for files with completed documentation.
+ *     tags: [Insights]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - repositoryFullName
+ *             properties:
+ *               repositoryFullName:
+ *                 type: string
+ *                 description: The full name of the repository (e.g., 'owner/repo').
+ *                 example: 'my-org/my-awesome-project'
+ *     responses:
+ *       202:
+ *         description: Accepted. Vector processing has been successfully queued.
+ *       400:
+ *         description: Bad Request. Missing or invalid repositoryFullName.
+ *       401:
+ *         description: Unauthorized. Authentication required.
+ */
+router.post(
+  '/process-vectors-only',
+  requireAuth,
+  insightsController.processVectorsOnly
+);
+
+/**
+ * @swagger
+ * /api/insights/process-lineage-only:
+ *   post:
+ *     summary: Initiates ONLY lineage processing for SQL files with completed vectors.
+ *     tags: [Insights]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - repositoryFullName
+ *             properties:
+ *               repositoryFullName:
+ *                 type: string
+ *                 description: The full name of the repository (e.g., 'owner/repo').
+ *                 example: 'my-org/my-awesome-project'
+ *     responses:
+ *       202:
+ *         description: Accepted. Lineage processing has been successfully queued.
+ *       400:
+ *         description: Bad Request. Missing or invalid repositoryFullName.
+ *       401:
+ *         description: Unauthorized. Authentication required.
+ */
+router.post(
+  '/process-lineage-only',
+  requireAuth,
+  insightsController.processLineageOnly
+);
+
+/**
+ * @swagger
+ * /api/insights/process-dependencies-only:
+ *   post:
+ *     summary: Initiates ONLY dependencies processing (Phase 4) for sequential pipeline.
+ *     tags: [Insights]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - repositoryFullName
+ *             properties:
+ *               repositoryFullName:
+ *                 type: string
+ *                 description: The full name of the repository (e.g., 'owner/repo').
+ *                 example: 'my-org/my-awesome-project'
+ *     responses:
+ *       202:
+ *         description: Accepted. Dependencies processing has been successfully queued.
+ */
+router.post(
+  '/process-dependencies-only',
+  requireAuth,
+  insightsController.processDependenciesOnly
+);
+
+/**
+ * @swagger
+ * /api/insights/process-analysis-only:
+ *   post:
+ *     summary: Initiates ONLY analysis processing (Phase 5) for sequential pipeline.
+ *     tags: [Insights]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - repositoryFullName
+ *             properties:
+ *               repositoryFullName:
+ *                 type: string
+ *                 description: The full name of the repository (e.g., 'owner/repo').
+ *                 example: 'my-org/my-awesome-project'
+ *     responses:
+ *       202:
+ *         description: Accepted. Analysis processing has been successfully queued.
+ */
+router.post(
+  '/process-analysis-only',
+  requireAuth,
+  insightsController.processAnalysisOnly
+);
+
 export default router;

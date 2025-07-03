@@ -50,6 +50,38 @@ interface RepositoryCardProps {
       pending: number;
       progress: number;
     };
+    // NEW: Advanced phases
+    dependencies?: {
+      completed: number;
+      failed: number;
+      pending: number;
+      progress: number;
+      totalDependencies?: number;
+      resolvedDependencies?: number;
+    };
+    analysis?: {
+      completed: number;
+      failed: number;
+      pending: number;
+      progress: number;
+      healthScore?: string;
+      criticalIssues?: number;
+    };
+    // Enhanced processing job info
+    processingJobId?: string;
+    processingJobStatus?: 'pending' | 'processing' | 'completed' | 'error';
+    currentPhase?: string;
+    // Sequential processing info
+    sequentialJobId?: string;
+    sequentialStatus?: 'pending' | 'processing' | 'completed' | 'error';
+    sequentialCurrentPhase?: string;
+    sequentialPhases?: {
+      documentation?: { status: string; progress: number; completed?: number; pending?: number; failed?: number; total?: number };
+      vectors?: { status: string; progress: number; completed?: number; pending?: number; failed?: number; total?: number };
+      lineage?: { status: string; progress: number; completed?: number; pending?: number; failed?: number; total?: number };
+      dependencies?: { status: string; progress: number; completed?: number; pending?: number; failed?: number; total?: number };
+      analysis?: { status: string; progress: number; completed?: number; pending?: number; failed?: number; total?: number };
+    };
     detailedStatus?: Array<{
       filePath: string;
       documentationStatus: string;
@@ -123,11 +155,84 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
 
   // Get processing info with separate tracking
   const getProcessingInfo = () => {
+    // Simplified debug log
+    console.log('🔍 getProcessingInfo Debug - repoStatus:', {
+      hasRepoStatus: !!repoStatus,
+      hasSequentialPhases: !!repoStatus?.sequentialPhases,
+      hasDocumentation: !!repoStatus?.documentation,
+      hasVectors: !!repoStatus?.vectors
+    });
+    
+    // Check if we have sequential processing status
+    if (repoStatus?.sequentialPhases && repoStatus?.sequentialStatus) {
+      console.log('🔍 Taking sequential processing path');
+      const phases = repoStatus.sequentialPhases;
+      const currentPhase = repoStatus.sequentialCurrentPhase || 'documentation';
+      const totalFiles = repoStatus.totalFiles || 1;
+      
+      return {
+        hasData: true,
+        isSequential: true,
+        currentPhase,
+        documentation: {
+          completed: phases.documentation?.completed || 0,
+          pending: phases.documentation?.pending || 0,
+          failed: phases.documentation?.failed || 0,
+          progress: phases.documentation?.progress || 0,
+          isActive: phases.documentation?.status === 'processing',
+          isCompleted: phases.documentation?.status === 'completed'
+        },
+        vectors: {
+          completed: phases.vectors?.completed || 0,
+          pending: phases.vectors?.pending || 0,
+          failed: phases.vectors?.failed || 0,
+          progress: phases.vectors?.progress || 0,
+          isActive: phases.vectors?.status === 'processing',
+          isCompleted: phases.vectors?.status === 'completed',
+          totalChunks: 0
+        },
+        lineage: {
+          completed: phases.lineage?.completed || 0,
+          pending: phases.lineage?.pending || 0,
+          failed: phases.lineage?.failed || 0,
+          progress: phases.lineage?.progress || 0,
+          isActive: phases.lineage?.status === 'processing',
+          isCompleted: phases.lineage?.status === 'completed',
+          totalAssets: 0,
+          totalRelationships: 0
+        },
+        dependencies: {
+          completed: phases.dependencies?.completed || 0,
+          pending: phases.dependencies?.pending || 0,
+          failed: phases.dependencies?.failed || 0,
+          progress: phases.dependencies?.progress || 0,
+          isActive: phases.dependencies?.status === 'processing',
+          isCompleted: phases.dependencies?.status === 'completed'
+        },
+        analysis: {
+          completed: phases.analysis?.completed || 0,
+          pending: phases.analysis?.pending || 0,
+          failed: phases.analysis?.failed || 0,
+          progress: phases.analysis?.progress || 0,
+          isActive: phases.analysis?.status === 'processing',
+          isCompleted: phases.analysis?.status === 'completed'
+        },
+        overall: {
+          totalFiles: totalFiles,
+          fullyCompleted: repoStatus.sequentialStatus === 'completed' ? totalFiles : 0,
+          isPolling: repoStatus.sequentialStatus === 'processing'
+        }
+      };
+    }
+    
     // Check if we have the new comprehensive status format
-    if (repoStatus?.documentation && repoStatus?.vectors) {
+    else if (repoStatus?.documentation && repoStatus?.vectors) {
+      console.log('🔍 Taking comprehensive status path');
       const docStats = repoStatus.documentation;
       const vectorStats = repoStatus.vectors;
       const lineageStats = repoStatus.lineage;
+      const dependencyStats = repoStatus.dependencies;
+      const analysisStats = repoStatus.analysis;
       
       return {
         hasData: true,
@@ -157,17 +262,72 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
           isCompleted: lineageStats.progress >= 100 && lineageStats.pending === 0,
           totalAssets: repoStatus.detailedStatus?.reduce((sum, file) => sum + (file.lineageAssets || 0), 0) || 0,
           totalRelationships: repoStatus.detailedStatus?.reduce((sum, file) => sum + (file.lineageRelationships || 0), 0) || 0
-        } : null,
+        } : {
+          // Default lineage phase if no data
+          completed: 0,
+          pending: 0,
+          failed: 0,
+          progress: 0,
+          isActive: false,
+          isCompleted: false,
+          totalAssets: 0,
+          totalRelationships: 0
+        },
+        // NEW: Advanced phases - ALWAYS show these
+        dependencies: dependencyStats ? {
+          completed: dependencyStats.completed || 0,
+          pending: dependencyStats.pending || 0,
+          failed: dependencyStats.failed || 0,
+          progress: dependencyStats.progress || 0,
+          isActive: dependencyStats.pending > 0 || (dependencyStats.progress < 100 && dependencyStats.progress > 0),
+          isCompleted: dependencyStats.progress >= 100 && dependencyStats.pending === 0,
+          totalDependencies: dependencyStats.totalDependencies || 0,
+          resolvedDependencies: dependencyStats.resolvedDependencies || 0
+        } : {
+          // Default dependencies phase
+          completed: 0,
+          pending: 0,
+          failed: 0,
+          progress: 0,
+          isActive: false,
+          isCompleted: false,
+          totalDependencies: 0,
+          resolvedDependencies: 0
+        },
+        analysis: analysisStats ? {
+          completed: analysisStats.completed || 0,
+          pending: analysisStats.pending || 0,
+          failed: analysisStats.failed || 0,
+          progress: analysisStats.progress || 0,
+          isActive: analysisStats.pending > 0 || (analysisStats.progress < 100 && analysisStats.progress > 0),
+          isCompleted: analysisStats.progress >= 100 && analysisStats.pending === 0,
+          healthScore: analysisStats.healthScore || 'N/A',
+          criticalIssues: analysisStats.criticalIssues || 0
+        } : {
+          // Default analysis phase
+          completed: 0,
+          pending: 0,
+          failed: 0,
+          progress: 0,
+          isActive: false,
+          isCompleted: false,
+          healthScore: 'N/A',
+          criticalIssues: 0
+        },
         overall: {
           totalFiles: repoStatus.totalFiles || 0,
           fullyCompleted: repoStatus.overallCompleted || 0,
-          isPolling: repoStatus.isPolling || false
+          isPolling: repoStatus.isPolling || false,
+          processingJobId: repoStatus.processingJobId,
+          processingJobStatus: repoStatus.processingJobStatus,
+          currentPhase: repoStatus.currentPhase
         }
       };
     }
     
     // Fallback to legacy format support
     if (processingStatus?.isPolling) {
+      console.log('🔍 Taking legacy polling path');
       return {
         hasData: true,
         legacy: true,
@@ -249,10 +409,86 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
         }
       };
     }
-    return null;
+    
+    // Default: Show all 5 phases as pending (NEW BEHAVIOR)
+    console.log('🔍 Taking DEFAULT 5-phase path');
+    return {
+      hasData: true,
+      isSequential: false, // This will show the new 5-phase system by default
+      documentation: {
+        completed: 0,
+        pending: 0,
+        failed: 0,
+        progress: 0,
+        isActive: false,
+        isCompleted: false
+      },
+      vectors: {
+        completed: 0,
+        pending: 0,
+        failed: 0,
+        progress: 0,
+        isActive: false,
+        isCompleted: false,
+        totalChunks: 0
+      },
+      lineage: {
+        completed: 0,
+        pending: 0,
+        failed: 0,
+        progress: 0,
+        isActive: false,
+        isCompleted: false,
+        totalAssets: 0,
+        totalRelationships: 0
+      },
+      dependencies: {
+        completed: 0,
+        pending: 0,
+        failed: 0,
+        progress: 0,
+        isActive: false,
+        isCompleted: false
+      },
+      analysis: {
+        completed: 0,
+        pending: 0,
+        failed: 0,
+        progress: 0,
+        isActive: false,
+        isCompleted: false
+      },
+      overall: {
+        totalFiles: 0,
+        fullyCompleted: 0,
+        isPolling: false
+      }
+    };
   };
 
   const processingInfo = getProcessingInfo();
+  
+  // DEBUG: Log processing info to console
+  console.log('🔍 RepositoryCard Debug - Processing Info for', repo.full_name, {
+    hasData: processingInfo?.hasData,
+    hasDocumentation: !!processingInfo?.documentation,
+    hasVectors: !!processingInfo?.vectors,
+    hasLineage: !!processingInfo?.lineage,
+    hasDependencies: !!processingInfo?.dependencies,
+    hasAnalysis: !!processingInfo?.analysis,
+    isSequential: processingInfo?.isSequential,
+    returnedNull: processingInfo === null,
+    returnedUndefined: processingInfo === undefined,
+    fullObject: processingInfo
+  });
+  
+  // DEBUG: Also log the render condition checks
+  console.log('🔍 Render Conditions:', {
+    willShowProcessingInfo: !!processingInfo?.hasData,
+    hasLineage: !!processingInfo?.lineage,
+    hasDependencies: !!processingInfo?.dependencies,
+    hasAnalysis: !!processingInfo?.analysis
+  });
 
   return (
     <div
@@ -484,7 +720,7 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
                 </div>
               </div>
 
-              {/* Lineage Tracker */}
+              {/* Lineage Tracker - Always show */}
               {processingInfo.lineage && (
                 <div className="flex items-center space-x-2">
                   {processingInfo.lineage.isActive ? (
@@ -526,14 +762,107 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
                 </div>
               )}
 
-              {/* Overall Status */}
-              {processingInfo.documentation.isCompleted && processingInfo.vectors.isCompleted && (!processingInfo.lineage || processingInfo.lineage.isCompleted) && (
-                <div className="flex items-center justify-center space-x-1 text-xs text-green-700 bg-green-50 rounded px-2 py-1">
-                  <CheckCircle className="h-3 w-3" />
-                  <span className="font-medium">
-                    {processingInfo.lineage ? 'Fully Processed, Vectorized & Mapped' : 'Fully Processed & Vectorized'}
-                  </span>
+              {/* Dependencies Tracker - Always show */}
+              {processingInfo.dependencies && (
+                <div className="flex items-center space-x-2">
+                  {processingInfo.dependencies.isActive ? (
+                    <Loader2 className="h-3 w-3 animate-spin text-orange-500 flex-shrink-0" />
+                  ) : processingInfo.dependencies.isCompleted ? (
+                    <CheckCircle className="h-3 w-3 text-green-500 flex-shrink-0" />
+                  ) : (processingInfo.lineage?.isCompleted || processingInfo.vectors.isCompleted) ? (
+                    <Clock className="h-3 w-3 text-orange-400 flex-shrink-0" />
+                  ) : (
+                    <div className="h-3 w-3 border border-gray-300 rounded-full flex-shrink-0" />
+                  )}
+                  
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center space-x-1 text-xs">
+                      <span className="text-orange-700 font-medium">🌐 Dependencies</span>
+                      <span className="text-gray-500">
+                        {processingInfo.dependencies.completed}/{processingInfo.overall.totalFiles}
+                      </span>
+                      {processingInfo.dependencies.failed > 0 && (
+                        <span className="text-red-500">({processingInfo.dependencies.failed} failed)</span>
+                      )}
+                    </div>
+                    
+                    {processingInfo.dependencies.isActive && (
+                      <div className="w-16 bg-gray-200 rounded-full h-1 mt-1">
+                        <div 
+                          className="bg-gradient-to-r from-orange-500 to-orange-600 h-1 rounded-full transition-all duration-300"
+                          style={{ width: `${processingInfo.dependencies.progress}%` }}
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
+              )}
+
+              {/* Analysis Tracker - Always show */}
+              {processingInfo.analysis && (
+                <div className="flex items-center space-x-2">
+                  {processingInfo.analysis.isActive ? (
+                    <Loader2 className="h-3 w-3 animate-spin text-indigo-500 flex-shrink-0" />
+                  ) : processingInfo.analysis.isCompleted ? (
+                    <CheckCircle className="h-3 w-3 text-green-500 flex-shrink-0" />
+                  ) : processingInfo.dependencies?.isCompleted ? (
+                    <Clock className="h-3 w-3 text-orange-400 flex-shrink-0" />
+                  ) : (
+                    <div className="h-3 w-3 border border-gray-300 rounded-full flex-shrink-0" />
+                  )}
+                  
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center space-x-1 text-xs">
+                      <span className="text-indigo-700 font-medium">📊 Impact Analysis</span>
+                      <span className="text-gray-500">
+                        {processingInfo.analysis.completed}/{processingInfo.overall.totalFiles}
+                      </span>
+                      {processingInfo.analysis.failed > 0 && (
+                        <span className="text-red-500">({processingInfo.analysis.failed} failed)</span>
+                      )}
+                    </div>
+                    
+                    {processingInfo.analysis.isActive && (
+                      <div className="w-16 bg-gray-200 rounded-full h-1 mt-1">
+                        <div 
+                          className="bg-gradient-to-r from-indigo-500 to-indigo-600 h-1 rounded-full transition-all duration-300"
+                          style={{ width: `${processingInfo.analysis.progress}%` }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Overall Status */}
+              {processingInfo.isSequential ? (
+                // Sequential processing status
+                processingInfo.analysis?.isCompleted ? (
+                  <div className="flex items-center justify-center space-x-1 text-xs text-green-700 bg-green-50 rounded px-2 py-1">
+                    <CheckCircle className="h-3 w-3" />
+                    <span className="font-medium">🎉 Complete Pipeline Finished</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center space-x-1 text-xs text-blue-700 bg-blue-50 rounded px-2 py-1">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    <span className="font-medium">
+                      Phase {processingInfo.currentPhase === 'documentation' ? '1' : 
+                             processingInfo.currentPhase === 'vectors' ? '2' :
+                             processingInfo.currentPhase === 'lineage' ? '3' :
+                             processingInfo.currentPhase === 'dependencies' ? '4' : '5'}/5 Running
+                    </span>
+                  </div>
+                )
+              ) : (
+                // Legacy parallel processing status
+                processingInfo.documentation.isCompleted && processingInfo.vectors.isCompleted && (!processingInfo.lineage || processingInfo.lineage.isCompleted) && (
+                  <div className="flex items-center justify-center space-x-1 text-xs text-green-700 bg-green-50 rounded px-2 py-1">
+                    <CheckCircle className="h-3 w-3" />
+                    <span className="font-medium">
+                      {processingInfo.lineage ? 'Fully Processed, Vectorized & Mapped' : 'Fully Processed & Vectorized'}
+                    </span>
+                  </div>
+                )
               )}
             </button>
           )}
