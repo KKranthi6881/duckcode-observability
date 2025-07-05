@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { processRepositoryForInsights } from '../../services/githubService';
 import { sequentialProcessingService } from '../../services/sequential-processing.service';
 import { supabase } from '../../config/supabaseClient';
 import { useProcessingStatus } from '../../context/ProcessingStatusContext';
+import { SequentialProcessingCard } from '../../components/SequentialProcessingCard';
 import { 
   ArrowLeft, 
   Settings, 
@@ -19,7 +21,10 @@ import {
   Clock,
   CheckCircle2,
   XCircle,
-  PlayCircle
+  PlayCircle,
+  Brain,
+  Zap,
+  Sparkles
 } from 'lucide-react';
 
 interface AnalysisSetupProps {}
@@ -38,6 +43,11 @@ export const AnalysisSetup: React.FC<AnalysisSetupProps> = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  
+  // Sequential processing state
+  const [sequentialStatus, setSequentialStatus] = useState<any>(null);
+  const [isProcessingStarted, setIsProcessingStarted] = useState(false);
+  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
   
   // Get processing status from context
   const repoFullName = `${owner}/${repo}`;
@@ -189,16 +199,17 @@ export const AnalysisSetup: React.FC<AnalysisSetupProps> = () => {
 
   const startRepositoryProcessing = async () => {
     try {
-      console.log('Starting sequential processing for:', repoFullName);
+      console.log('🚀 Starting sequential processing for repository:', `${owner}/${repo}`);
       
       // Get the current session for authentication
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
         throw new Error('No active session found. Please log in again.');
       }
+
+      console.log('📡 Calling sequential processing service...');
       
       // Start sequential processing with selected language
-      console.log('📡 Calling sequential processing service with language:', selectedLanguage);
       const response = await sequentialProcessingService.startSequentialProcessing(
         `${owner}/${repo}`, 
         session.access_token,
@@ -206,16 +217,63 @@ export const AnalysisSetup: React.FC<AnalysisSetupProps> = () => {
       );
       
       console.log('✅ Sequential processing started successfully:', response);
+      setIsProcessingStarted(true);
+      setSuccess('Sequential processing started successfully! Monitoring progress...');
       
-      // Note: We don't use the legacy context polling for sequential processing
-      // The sequential processing has its own status tracking
-      console.log('Sequential processing initiated - user will see progress in the main dashboard');
+      // Start polling for status updates
+      startStatusPolling(session.access_token);
       
     } catch (error) {
-      console.error('Error starting sequential processing:', error);
-      setError('Failed to start repository processing');
+      console.error('❌ Error starting sequential processing:', error);
+      setError(error instanceof Error ? error.message : 'Failed to start sequential processing');
     }
   };
+
+  const startStatusPolling = (token: string) => {
+    // Clear any existing polling
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+    }
+
+    const pollStatus = async () => {
+      try {
+        const status = await sequentialProcessingService.getSequentialStatus(repoFullName, token);
+        setSequentialStatus(status);
+        
+        // Stop polling if completed or failed
+        if (status.status === 'completed' || status.status === 'error') {
+          if (pollingInterval) {
+            clearInterval(pollingInterval);
+            setPollingInterval(null);
+          }
+          
+          if (status.status === 'completed') {
+            setSuccess('🎉 Sequential processing completed successfully! You can now view your repository insights.');
+            // Auto-navigate after a delay
+            setTimeout(() => {
+              navigate('/dashboard/code');
+            }, 3000);
+          }
+        }
+      } catch (error) {
+        console.error('Error polling status:', error);
+      }
+    };
+
+    // Poll immediately and then every 5 seconds
+    pollStatus();
+    const interval = setInterval(pollStatus, 5000);
+    setPollingInterval(interval);
+  };
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+      }
+    };
+  }, [pollingInterval]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
@@ -414,101 +472,65 @@ export const AnalysisSetup: React.FC<AnalysisSetupProps> = () => {
           </div>
         </div>
 
-        {/* Processing Status Section */}
-        {showProgress && processingStatus && (
-          <div className="mt-6 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-            <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-bold text-white">Processing Status</h3>
-                  <p className="text-blue-100 text-sm">
-                    {processingStatus.isPolling ? 'Analyzing repository files...' : 'Analysis complete'}
-                  </p>
-                </div>
-                <div className="bg-white bg-opacity-20 rounded-lg p-3">
-                  {processingStatus.isPolling ? (
-                    <Loader2 className="h-6 w-6 text-white animate-spin" />
-                  ) : (
-                    <CheckCircle className="h-6 w-6 text-white" />
-                  )}
-                </div>
-              </div>
-            </div>
+        {/* Sequential Processing Status */}
+        <AnimatePresence>
+          {isProcessingStarted && sequentialStatus && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="mt-8"
+            >
+              <SequentialProcessingCard
+                repositoryName={repoFullName}
+                currentPhase={sequentialStatus.currentPhase || 'documentation'}
+                overallProgress={sequentialStatus.progress || 0}
+                status={sequentialStatus.status || 'processing'}
+                phases={sequentialStatus.phases || {}}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-            <div className="p-6">
-              {/* Progress Bar */}
-              <div className="mb-6">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-700">Overall Progress</span>
-                  <span className="text-sm font-medium text-gray-900">{Math.round(processingStatus.progress)}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-3">
-                  <div 
-                    className="bg-gradient-to-r from-[#2AB7A9] to-[#20a39e] h-3 rounded-full transition-all duration-500 ease-out"
-                    style={{ width: `${processingStatus.progress}%` }}
-                  ></div>
-                </div>
+        {/* Success Message with Animation */}
+        <AnimatePresence>
+          {sequentialStatus?.status === 'completed' && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="mt-8 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-6"
+            >
+              <div className="flex items-center justify-center mb-4">
+                <motion.div
+                  animate={{ scale: [1, 1.2, 1], rotate: [0, 10, -10, 0] }}
+                  transition={{ repeat: Infinity, duration: 2 }}
+                  className="bg-green-500 rounded-full p-3"
+                >
+                  <CheckCircle className="w-8 h-8 text-white" />
+                </motion.div>
               </div>
-
-              {/* Statistics Grid */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div className="bg-blue-50 rounded-lg p-4 text-center">
-                  <div className="text-2xl font-bold text-blue-600">{processingStatus.totalFiles}</div>
-                  <div className="text-sm text-blue-700">Total Files</div>
-                </div>
-                <div className="bg-green-50 rounded-lg p-4 text-center">
-                  <div className="text-2xl font-bold text-green-600">{processingStatus.completed}</div>
-                  <div className="text-sm text-green-700">Completed</div>
-                </div>
-                <div className="bg-yellow-50 rounded-lg p-4 text-center">
-                  <div className="text-2xl font-bold text-yellow-600">{processingStatus.pending}</div>
-                  <div className="text-sm text-yellow-700">Pending</div>
-                </div>
-                <div className="bg-red-50 rounded-lg p-4 text-center">
-                  <div className="text-2xl font-bold text-red-600">{processingStatus.failed}</div>
-                  <div className="text-sm text-red-700">Failed</div>
-                </div>
+              <div className="text-center">
+                <h3 className="text-xl font-bold text-green-800 mb-2">
+                  🎉 Analysis Complete!
+                </h3>
+                <p className="text-green-700 mb-4">
+                  Your repository has been successfully analyzed through all 5 phases. 
+                  You'll be redirected to view the results shortly.
+                </p>
+                <motion.div
+                  animate={{ opacity: [0.5, 1, 0.5] }}
+                  transition={{ repeat: Infinity, duration: 1.5 }}
+                  className="flex items-center justify-center gap-2 text-green-600"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span className="text-sm">Redirecting to dashboard...</span>
+                  <Sparkles className="w-4 h-4" />
+                </motion.div>
               </div>
-
-              {/* Detailed Status List */}
-              {processingStatus.detailedStatus && processingStatus.detailedStatus.length > 0 && (
-                <div>
-                  <h4 className="text-lg font-semibold text-gray-900 mb-4">File Processing Details</h4>
-                  <div className="max-h-64 overflow-y-auto space-y-2">
-                    {processingStatus.detailedStatus.map((file: any, index: number) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div className="flex items-center space-x-3">
-                          <div className="flex-shrink-0">
-                            {file.status === 'completed' && <CheckCircle2 className="h-5 w-5 text-green-500" />}
-                            {file.status === 'processing' && <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />}
-                            {file.status === 'pending' && <Clock className="h-5 w-5 text-yellow-500" />}
-                            {file.status === 'failed' && <XCircle className="h-5 w-5 text-red-500" />}
-                          </div>
-                          <div>
-                            <div className="font-medium text-gray-900">{file.filePath}</div>
-                            {file.error && (
-                              <div className="text-sm text-red-600">{file.error}</div>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                            file.status === 'completed' ? 'bg-green-100 text-green-800' :
-                            file.status === 'processing' ? 'bg-blue-100 text-blue-800' :
-                            file.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-red-100 text-red-800'
-                          }`}>
-                            {file.status}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

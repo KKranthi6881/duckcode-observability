@@ -888,7 +888,7 @@ const specializedPrompts: Record<string, string> = {
           "data_filtering": "For complex WHERE clauses: break down each filter condition, explain AND/OR logic combinations, NULL handling, date range filtering, pattern matching (LIKE, REGEXP), and data selection criteria. Include index usage with EXPLAIN",
           "data_transformations": "For data manipulation: explain column calculations, data type conversions (CAST/CONVERT), string functions (SUBSTRING, CONCAT, REPLACE), date/time functions (DATE_FORMAT, TIMESTAMPDIFF), mathematical operations, and JSON processing",
           "mysql_specific": "MySQL-specific features: JSON functions, full-text search (MATCH AGAINST), partitioning, generated columns, common table expressions (MySQL 8.0+), window functions, and storage engine optimizations",
-          "performance_notes": "Explain indexes utilized, query execution plan from EXPLAIN, query cache considerations, buffer pool usage, and scalability considerations for large datasets. Include MySQL-specific optimization hints"
+          "performance_notes": "Explain indexes utilized, execution plan analysis, query hints (NOLOCK, FORCESEEK, etc.), parameter sniffing considerations, and scalability considerations for large datasets. Include SET STATISTICS IO/TIME insights"
         },
         "column_details": [
           {
@@ -931,9 +931,9 @@ const specializedPrompts: Record<string, string> = {
     },
     "business_logic": {
       "main_objectives": ["List of primary business goals"],
-      "data_transformation": "Description of how data is transformed or processed",
+      "data_processing": "Description of how data is processed or manipulated",
       "business_rules": ["Key business rules implemented"],
-      "stakeholder_impact": "Who uses this code and how"
+      "stakeholder_impact": "Who benefits from this code"
     },
     "technical_details": {
       "tsql_features": ["T-SQL specific features used (CTEs, window functions, cursors, etc.)"],
@@ -1286,11 +1286,18 @@ function mapLanguageToSpecializedPrompt(detectedLanguage: string, filePath: stri
     if (lowerLang === 'mysql') return 'mysql';
     if (lowerLang === 'tsql' || lowerLang === 't-sql' || lowerLang === 'sqlserver') return 'tsql';
     if (lowerLang === 'plsql' || lowerLang === 'pl/sql' || lowerLang === 'oracle') return 'plsql';
+    if (lowerLang === 'sparksql' || lowerLang === 'spark-sql' || lowerLang === 'spark_sql') return 'sparksql';
     if (lowerLang === 'pyspark' || lowerLang === 'spark-python') return 'pyspark';
     if (lowerLang === 'python' || lowerLang === 'py') return 'python';
     
     // SQL dialect detection based on file path and content patterns
     if (lowerLang.includes('sql') || lowerPath.endsWith('.sql')) {
+        // SparkSQL detection patterns
+        if (lowerPath.includes('spark') || lowerPath.includes('databricks') || 
+            lowerPath.includes('delta') || lowerPath.includes('lakehouse')) {
+            return 'sparksql';
+        }
+        
         // Enhanced dbt detection patterns
         if (lowerPath.includes('dbt') || lowerPath.includes('models/') || 
             lowerPath.includes('staging/') || lowerPath.includes('marts/') ||
@@ -1336,6 +1343,13 @@ function mapLanguageToSpecializedPrompt(detectedLanguage: string, filePath: stri
 function mapLanguageToLineagePrompt(detectedLanguage: string, filePath: string): string {
     const lowerLang = detectedLanguage.toLowerCase();
     const lowerPath = filePath.toLowerCase();
+    
+    // SparkSQL specific detection
+    if (lowerLang.includes('sparksql') || lowerLang.includes('spark-sql') || lowerLang.includes('spark_sql') ||
+        (lowerLang.includes('sql') && (lowerPath.includes('spark') || lowerPath.includes('databricks') || 
+         lowerPath.includes('delta') || lowerPath.includes('lakehouse')))) {
+        return 'sparksql';
+    }
     
     // SQL variants (including all SQL dialects)
     if (lowerLang.includes('sql') || lowerPath.endsWith('.sql') ||
@@ -1846,7 +1860,7 @@ const SQL_LINEAGE_PROMPT = `You are an expert SQL data lineage analyst. Your tas
     "dataDomain": "system_maintenance|data_quality|business_operations",
     "businessCriticality": "medium|high for data quality",
     "dataFreshness": "As needed for maintenance",
-    "executionFrequency": "on_demand|scheduled|as_needed"
+            "executionFrequency": "realtime|hourly|daily|weekly|monthly|adhoc|on_demand"
   }
 }
 
@@ -1988,33 +2002,182 @@ function interpolatePrompt(template: string, variables: { code: string; filePath
     return prompt;
 }
 
+/**
+ * Create a lineage-specific prompt from existing documentation analysis
+ * This avoids duplicate LLM calls by reusing the code summary
+ */
+function createLineagePromptFromDocumentation(documentation: any, fileRecord: FileRecord): string {
+    // Extract key information from the existing documentation
+    const summary = documentation.summary || {};
+    const businessLogic = documentation.business_logic || {};
+    const technicalDetails = documentation.technical_details || {};
+    
+    // Get code content from code blocks if available
+    let codeSnippets = '';
+    if (documentation.code_blocks && Array.isArray(documentation.code_blocks)) {
+        codeSnippets = documentation.code_blocks
+            .map((block: any) => `### ${block.section || 'Code'}\n${block.code}`)
+            .join('\n\n');
+    }
+    
+    return `Based on the following code analysis, extract ONLY the data lineage information in the specified JSON format.
+
+**File**: ${fileRecord.file_path}
+**Language**: ${fileRecord.language}
+
+**Code Summary**:
+- **Purpose**: ${summary.purpose || 'Unknown'}
+- **Model Type**: ${summary.model_type || 'Unknown'}
+- **Complexity**: ${summary.complexity || 'Unknown'}
+
+**Business Context**:
+- **Main Objectives**: ${JSON.stringify(businessLogic.main_objectives || [])}
+- **Stakeholder Impact**: ${businessLogic.stakeholder_impact || 'Unknown'}
+- **Business Rules**: ${JSON.stringify(businessLogic.business_rules || [])}
+
+**Technical Details**:
+- **Source Tables**: ${JSON.stringify(technicalDetails.source_tables || [])}
+- **Dependencies**: ${JSON.stringify(technicalDetails.dependencies || [])}
+- **SQL Operations**: ${JSON.stringify(technicalDetails.sql_operations || [])}
+- **Materialization**: ${technicalDetails.materialization || 'Unknown'}
+
+**Code Blocks**:
+${codeSnippets}
+
+**TASK**: Extract ONLY lineage information from this analysis. Return a JSON object with this exact structure:
+
+\`\`\`json
+{
+  "assets": [
+    {
+      "name": "asset_name",
+      "type": "table|view|model|function",
+      "schema": "schema_name",
+      "database": "database_name", 
+      "description": "description",
+      "columns": [
+        {"name": "column_name", "type": "data_type", "description": "description"}
+      ],
+      "metadata": {"materialization": "table|view", "tags": []}
+    }
+  ],
+  "relationships": [
+    {
+      "sourceAsset": "source_asset_name",
+      "targetAsset": "target_asset_name", 
+      "relationshipType": "reads_from|writes_to|transforms",
+      "operationType": "SELECT|INSERT|UPDATE|DELETE",
+      "transformationLogic": "SQL logic",
+      "businessContext": "business explanation",
+      "confidenceScore": 0.95,
+      "discoveredAtLine": 1
+    }
+  ],
+  "fileDependencies": [
+    {
+      "importPath": "path/to/file",
+      "importType": "ref|source|import",
+      "importStatement": "{{ ref('model') }}",
+      "confidenceScore": 0.95
+    }
+  ],
+  "functions": [
+    {
+      "name": "function_name",
+      "type": "macro|function|procedure", 
+      "signature": "function signature",
+      "description": "description",
+      "complexityScore": 0.5
+    }
+  ],
+  "businessContext": {
+    "mainPurpose": "${businessLogic.main_objectives?.[0] || 'Data processing'}",
+    "businessImpact": "${businessLogic.stakeholder_impact || 'Unknown'}",
+    "businessCriticality": "high|medium|low"
+  }
+}
+\`\`\`
+
+Focus on extracting:
+1. **Data assets** (tables, views, models) mentioned in the code
+2. **Relationships** between assets (reads from, writes to, transforms)
+3. **File dependencies** (imports, references to other files/models)
+4. **Functions** defined in the file
+5. **Business context** for the lineage
+
+Return ONLY the JSON object, no additional text.`;
+}
+
 async function processFileLineage(fileId: string, fileRecord: FileRecord, existingDocumentation: any): Promise<LineageExtractionResult> {
     try {
         console.log(`Starting lineage extraction for ${fileRecord.file_path}`);
         
-        // Get file content (either from existing documentation or fetch from GitHub)
-        let fileContent = '';
-        
-        if (existingDocumentation?.code_content) {
-            fileContent = existingDocumentation.code_content;
-        } else if (existingDocumentation?.summary) {
-            // Try to extract code from code_blocks in the summary
-            const codeBlocks = existingDocumentation.summary.code_blocks;
-            if (codeBlocks && Array.isArray(codeBlocks)) {
-                fileContent = codeBlocks.map((block: any) => block.code).filter(Boolean).join('\n\n');
+        // Use existing documentation if available (EFFICIENCY IMPROVEMENT)
+        if (existingDocumentation && typeof existingDocumentation === 'object') {
+            console.log(`✅ Using existing documentation for lineage extraction - no duplicate LLM call needed`);
+            
+            // Create lineage-specific prompt that uses the existing analysis
+            const lineagePrompt = createLineagePromptFromDocumentation(existingDocumentation, fileRecord);
+            
+            console.log(`Extracting lineage from existing analysis for ${fileRecord.file_path}`);
+            console.log(`Lineage prompt length: ${lineagePrompt.length} characters`);
+            
+            // Call OpenAI API for targeted lineage extraction (much smaller prompt)
+            const response = await callOpenAIWithSystemPrompt(
+                'You are an expert data lineage analyst. Extract ONLY lineage information from the provided analysis. Always return valid JSON that matches the requested schema exactly.',
+                lineagePrompt
+            );
+            
+            console.log(`Lineage extraction response type: ${typeof response}`);
+            console.log(`Lineage extraction response: ${JSON.stringify(response).substring(0, 500)}...`);
+            
+            // Parse and validate the result
+            let lineageResult: LineageExtractionResult;
+            try {
+                lineageResult = response;
+                
+                console.log(`Parsed result - Assets: ${lineageResult.assets?.length || 0}, Relationships: ${lineageResult.relationships?.length || 0}, Functions: ${lineageResult.functions?.length || 0}`);
+                
+                // Validate required structure
+                if (!lineageResult.assets) lineageResult.assets = [];
+                if (!lineageResult.relationships) lineageResult.relationships = [];
+                if (!lineageResult.fileDependencies) lineageResult.fileDependencies = [];
+                if (!lineageResult.functions) lineageResult.functions = [];
+                if (!lineageResult.businessContext) {
+                    lineageResult.businessContext = {
+                        mainPurpose: existingDocumentation.business_logic?.main_objectives?.[0] || 'Data processing',
+                        businessImpact: existingDocumentation.business_logic?.stakeholder_impact || 'Unknown',
+                        businessCriticality: 'medium'
+                    };
+                }
+                
+            } catch (parseError) {
+                console.error('Failed to validate lineage extraction response:', parseError);
+                throw new Error(`Invalid lineage response structure: ${parseError.message}`);
             }
+            
+            // Validate and enhance the result
+            const enhancedResult = validateAndEnhanceLineageResult(lineageResult, fileRecord.file_path, fileRecord.language);
+            
+            // Store lineage data in database
+            await storeLineageData(fileId, enhancedResult);
+            
+            return enhancedResult;
         }
         
-        if (!fileContent) {
-            // For eligible files only, fetch from GitHub as fallback
-            if (isFileEligibleForLineage(fileRecord.file_path, fileRecord.language)) {
-                const installationToken = await getGitHubInstallationToken(fileRecord.github_installation_id);
-                fileContent = await fetchGitHubFileContent(
-                    installationToken,
-                    fileRecord.repository_full_name,
-                    fileRecord.file_path
-                );
-            }
+        // FALLBACK: If no existing documentation, use the old method (fetch from GitHub)
+        console.log(`⚠️ No existing documentation found, falling back to GitHub fetch (less efficient)`);
+        
+        let fileContent = '';
+        
+        // For eligible files only, fetch from GitHub as fallback
+        if (isFileEligibleForLineage(fileRecord.file_path, fileRecord.language)) {
+            const installationToken = await getGitHubInstallationToken(fileRecord.github_installation_id);
+            fileContent = await fetchGitHubFileContent(
+                installationToken,
+                fileRecord.repository_full_name,
+                fileRecord.file_path
+            );
         }
         
         if (!fileContent) {
@@ -2031,7 +2194,7 @@ async function processFileLineage(fileId: string, fileRecord: FileRecord, existi
             language: fileRecord.language
         });
         
-        console.log(`Extracting lineage for ${fileRecord.file_path} using ${fileRecord.language} prompt`);
+        console.log(`Extracting lineage for ${fileRecord.file_path} using ${fileRecord.language} prompt (FALLBACK)`);
         console.log(`File content length: ${fileContent.length} characters`);
         console.log(`Prompt length: ${prompt.length} characters`);
         
@@ -2519,13 +2682,13 @@ async function storeLineageData(fileId: string, lineageResult: LineageExtraction
                         source_asset_id: sourceAssetId,
                         target_asset_id: targetAssetId,
                         relationship_type: rel.relationshipType,
-                        operation_type: rel.operationType || 'select',
+                        operation_type: (rel.operationType || 'select').toLowerCase(),
                         confidence_score: rel.confidenceScore || 0.8,
                         transformation_logic: rel.transformationLogic,
                         business_context: rel.businessContext,
                         discovered_in_file_id: fileId,
                         discovered_at_line: rel.discoveredAtLine,
-                        execution_frequency: lineageResult.businessContext?.executionFrequency || 'adhoc',
+                        execution_frequency: validateExecutionFrequency(lineageResult.businessContext?.executionFrequency) || 'adhoc',
                         data_freshness_requirement: lineageResult.businessContext?.dataFreshness
                     });
                 }
@@ -2713,6 +2876,46 @@ function isFileEligibleForLineage(filePath: string, language: string): boolean {
     return true;
 }
 
+/**
+ * Validate and map execution frequency to allowed database values
+ */
+function validateExecutionFrequency(frequency: string | undefined): string {
+    if (!frequency) return 'adhoc';
+    
+    // Valid values: 'realtime', 'hourly', 'daily', 'weekly', 'monthly', 'adhoc', 'on_demand'
+    const validValues = ['realtime', 'hourly', 'daily', 'weekly', 'monthly', 'adhoc', 'on_demand'];
+    
+    // If already valid, return as-is
+    if (validValues.includes(frequency.toLowerCase())) {
+        return frequency.toLowerCase();
+    }
+    
+    // Map common variations to valid values
+    const mappings: { [key: string]: string } = {
+        'as_needed': 'on_demand',
+        'as-needed': 'on_demand',
+        'on-demand': 'on_demand',
+        'real-time': 'realtime',
+        'real_time': 'realtime',
+        'ad-hoc': 'adhoc',
+        'ad_hoc': 'adhoc',
+        'batch': 'daily',
+        'scheduled': 'daily',
+        'manual': 'on_demand',
+        'triggered': 'on_demand'
+    };
+    
+    const mapped = mappings[frequency.toLowerCase()];
+    if (mapped) {
+        console.log(`📝 Mapped execution_frequency: "${frequency}" → "${mapped}"`);
+        return mapped;
+    }
+    
+    // Default fallback
+    console.log(`⚠️ Unknown execution_frequency "${frequency}", using "adhoc" as fallback`);
+    return 'adhoc';
+}
+
 // --- Main Handler ---
 serve(async (req) => {
     console.log("Code processor function invoked.");
@@ -2739,7 +2942,10 @@ serve(async (req) => {
 
     try {
         console.log("Attempting to lease a job...");
-        const { data: leasedJobs, error: leaseError } = await supabaseAdmin.rpc('lease_processing_job');
+        const { data: leasedJobs, error: leaseError } = await supabaseAdmin.rpc('lease_processing_job', {
+            job_types: ['documentation', 'vector', 'lineage'],
+            lease_duration_minutes: 30
+        });
 
         if (leaseError) {
             throw new Error(`Error leasing job: ${leaseError.message}`);
@@ -2863,7 +3069,7 @@ Provide a comprehensive analysis in the requested JSON format.`;
         }
 
         // 8.5. Generate and Store Vector Embeddings (ONLY if vector processing is explicitly requested)
-        const shouldProcessVectors = job.vector_status === 'processing' || isVectorOnlyJob;
+        const shouldProcessVectors = (job.vector_status === 'processing' || job.vector_status === 'pending') || isVectorOnlyJob;
         
         if (shouldProcessVectors) {
             console.log(`Generating vector embeddings for file_id: ${job.file_id}`);
@@ -2905,7 +3111,7 @@ Provide a comprehensive analysis in the requested JSON format.`;
 
         // 8.6. Process Lineage Extraction (ONLY if lineage processing is explicitly requested)
         const isLineageEligible = isFileEligibleForLineage(fileRecord.file_path, fileRecord.language);
-        const shouldProcessLineage = isLineageEligible && job.lineage_status === 'processing';
+        const shouldProcessLineage = isLineageEligible && (job.lineage_status === 'processing' || job.lineage_status === 'pending');
         
         console.log(`Lineage eligibility check: ${fileRecord.file_path} (${fileRecord.language}) -> ${isLineageEligible ? 'ELIGIBLE' : 'SKIPPED'}`);
         console.log(`Lineage processing check: lineage_status=${job.lineage_status}, shouldProcess=${shouldProcessLineage}`);
@@ -2972,9 +3178,21 @@ Provide a comprehensive analysis in the requested JSON format.`;
         } else {
             // For documentation jobs, update status to completed
             console.log(`Updating job ${job.job_id} and file ${job.file_id} status to completed.`);
+            
+            const updatePayload: { status: string; lineage_status?: string; updated_at: string } = {
+                status: 'completed',
+                updated_at: new Date().toISOString(),
+            };
+
+            // If lineage was eligible and processed, ensure its status is marked as completed here.
+            const wasLineageProcessed = shouldProcessLineage && isLineageEligible;
+            if (wasLineageProcessed) {
+                updatePayload.lineage_status = 'completed';
+            }
+
             const { error: updateJobError } = await supabaseAdmin
-                .from('processing_jobs') // Will use 'code_insights.processing_jobs'
-                .update({ status: 'completed', updated_at: new Date().toISOString() })
+                .from('processing_jobs')
+                .update(updatePayload)
                 .eq('id', job.job_id);
 
             if (updateJobError) {

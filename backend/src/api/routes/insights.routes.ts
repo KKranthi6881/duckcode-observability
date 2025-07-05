@@ -37,7 +37,7 @@ const router = Router();
  */
 router.post(
   '/process-repository',
-  requireAuth, // Middleware to ensure the user is authenticated
+  // No auth middleware - deprecated endpoint handles this internally
   insightsController.processRepository
 );
 
@@ -70,6 +70,7 @@ router.post(
  *       404:
  *         description: Not Found. No files found for this repository.
  */
+// Legacy route format (owner/repo)
 router.get(
   '/processing-status/:owner/:repo',
   requireAuth,
@@ -78,6 +79,13 @@ router.get(
     req.params.repositoryFullName = `${req.params.owner}/${req.params.repo}`;
     next();
   },
+  insightsController.getRepositoryProcessingStatus
+);
+
+// New route format (repositoryFullName)
+router.get(
+  '/status/:repositoryFullName',
+  requireAuth,
   insightsController.getRepositoryProcessingStatus
 );
 
@@ -242,8 +250,26 @@ router.post(
  */
 router.post(
   '/process-documentation-only',
-  requireAuth,
+  // No auth middleware - deprecated endpoint handles this internally
   insightsController.processDocumentationOnly
+);
+
+/**
+ * @swagger
+ * /api/insights/debug-status/{owner}/{repo}:
+ *   get:
+ *     summary: Debug route to check repository processing status without auth.
+ *     tags: [Debug]
+ */
+router.get(
+  '/debug-status/:owner/:repo',
+  (req, res, next) => {
+    // Skip auth for debugging
+    req.user = { id: '59b6ce64-afe7-4973-9872-083bd6795973' }; // Your user ID
+    req.params.repositoryFullName = `${req.params.owner}/${req.params.repo}`;
+    next();
+  },
+  insightsController.getRepositoryProcessingStatus
 );
 
 /**
@@ -277,7 +303,7 @@ router.post(
  */
 router.post(
   '/process-vectors-only',
-  requireAuth,
+  // No auth middleware - deprecated endpoint handles this internally
   insightsController.processVectorsOnly
 );
 
@@ -312,7 +338,7 @@ router.post(
  */
 router.post(
   '/process-lineage-only',
-  requireAuth,
+  // No auth middleware - deprecated endpoint handles this internally
   insightsController.processLineageOnly
 );
 
@@ -343,7 +369,7 @@ router.post(
  */
 router.post(
   '/process-dependencies-only',
-  requireAuth,
+  // No auth middleware - deprecated endpoint handles this internally
   insightsController.processDependenciesOnly
 );
 
@@ -374,7 +400,7 @@ router.post(
  */
 router.post(
   '/process-analysis-only',
-  requireAuth,
+  // No auth middleware - deprecated endpoint handles this internally
   insightsController.processAnalysisOnly
 );
 

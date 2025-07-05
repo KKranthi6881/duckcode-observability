@@ -1,5 +1,5 @@
--- Migration: Fix sequential processing - don't process vectors when vector_status is NULL
--- Description: Modify lease_processing_job to only process vectors when explicitly set to 'pending'
+-- Migration: Fix parallel processing in lease function
+-- Description: Ensure only one status (vector OR lineage) is processed at a time, not both
 
 CREATE OR REPLACE FUNCTION code_insights.lease_processing_job(
     job_types TEXT[] DEFAULT ARRAY['documentation', 'lineage'],
@@ -122,4 +122,4 @@ $$;
 GRANT EXECUTE ON FUNCTION code_insights.lease_processing_job TO service_role;
 
 -- Add comment
-COMMENT ON FUNCTION code_insights.lease_processing_job IS 'Fixed lease function for TRUE sequential processing - only updates the specific status being processed'; 
+COMMENT ON FUNCTION code_insights.lease_processing_job IS 'Fixed lease function for TRUE sequential processing - only updates the specific status being processed, preventing parallel processing'; 

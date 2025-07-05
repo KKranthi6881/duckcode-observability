@@ -6,6 +6,7 @@ import searchRoutes from './search.routes';
 import lineageRoutes from './lineage.routes';
 import metadataProcessingRoutes from './metadata-processing.routes'; // NEW: Comprehensive processing
 import sequentialProcessingRoutes from './sequential-processing.routes'; // NEW: Sequential processing
+import processingPhasesRoutes from './processing-phases.routes'; // NEW: Individual phase processing
 
 const router = Router();
 
@@ -26,5 +27,8 @@ router.use('/metadata', metadataProcessingRoutes);
 
 // NEW: Mount sequential processing routes  
 router.use('/sequential', sequentialProcessingRoutes);
+
+// NEW: Mount individual phase processing routes
+router.use('/phases', processingPhasesRoutes);
 
 export default router;

@@ -73,7 +73,9 @@ const getLanguageFromFilePath = (filePath: string): string => {
 };
 
 /**
- * @description OLD PARALLEL PROCESSING - DEPRECATED
+ * @description Initiates the processing of a GitHub repository.
+ * It fetches all files from the repo, filters them, and adds them to the
+ * `code_insights.files` table to be picked up by processing workers.
  * @route POST /api/insights/process-repository
  */
 export const processRepository = async (req: Request, res: Response, next: NextFunction) => {
@@ -246,6 +248,9 @@ export const retryVectorProcessing = async (req: Request, res: Response, next: N
     }
 
     console.log(`[InsightsController] Reset vector processing status for ${jobIds.length} jobs`);
+
+    // Note: The actual vector processing will be picked up by the next run of the code processor
+    // You might want to trigger the code processor function here if you have a way to do so
 
     res.status(200).json({
       message: `Successfully reset vector processing for ${jobIds.length} files. Processing will resume automatically.`,
@@ -547,9 +552,11 @@ export const generateRepositorySummaries = async (req: Request, res: Response, n
 };
 
 /**
- * @description OLD PARALLEL PROCESSING - DEPRECATED
+ * @description Initiates ONLY documentation processing for sequential pipeline
+ * @route POST /api/insights/process-documentation-only
  */
 export const processDocumentationOnly = async (req: Request, res: Response, next: NextFunction) => {
+  // ⚠️ DEPRECATED - Use /api/phases/documentation instead
   return res.status(410).json({
     error: 'This endpoint has been deprecated',
     message: 'Please use the new phase-specific endpoint: /api/phases/documentation',
@@ -559,9 +566,11 @@ export const processDocumentationOnly = async (req: Request, res: Response, next
 };
 
 /**
- * @description OLD PARALLEL PROCESSING - DEPRECATED
+ * @description Initiates ONLY vector processing for sequential pipeline
+ * @route POST /api/insights/process-vectors-only
  */
 export const processVectorsOnly = async (req: Request, res: Response, next: NextFunction) => {
+  // ⚠️ DEPRECATED - Use /api/phases/vectors instead
   return res.status(410).json({
     error: 'This endpoint has been deprecated',
     message: 'Please use the new phase-specific endpoint: /api/phases/vectors',
@@ -571,9 +580,11 @@ export const processVectorsOnly = async (req: Request, res: Response, next: Next
 };
 
 /**
- * @description OLD PARALLEL PROCESSING - DEPRECATED
+ * @description Initiates ONLY lineage processing for sequential pipeline
+ * @route POST /api/insights/process-lineage-only
  */
 export const processLineageOnly = async (req: Request, res: Response, next: NextFunction) => {
+  // ⚠️ DEPRECATED - Use /api/phases/lineage instead
   return res.status(410).json({
     error: 'This endpoint has been deprecated',
     message: 'Please use the new phase-specific endpoint: /api/phases/lineage',
@@ -581,27 +592,396 @@ export const processLineageOnly = async (req: Request, res: Response, next: Next
     documentation: 'The new processing phases provide cleaner separation and better error handling.'
   });
 };
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
 
-/**
- * @description OLD PARALLEL PROCESSING - DEPRECATED
- */
-export const processDependenciesOnly = async (req: Request, res: Response, next: NextFunction) => {
-  return res.status(410).json({
-    error: 'This endpoint has been deprecated',
-    message: 'Please use the new phase-specific endpoint: /api/phases/dependencies',
-    newEndpoint: '/api/phases/dependencies',
-    documentation: 'The new processing phases provide cleaner separation and better error handling.'
-  });
+    const { repositoryFullName } = req.body;
+    if (!repositoryFullName || !repositoryFullName.includes('/')) {
+      return res.status(400).json({ message: 'A valid repositoryFullName (e.g., "owner/repo") is required.' });
+    }
+
+    console.log(`[InsightsController] Starting LINEAGE-ONLY processing for repository: ${repositoryFullName}`);
+
+    // Find SQL files with completed vector processing but no lineage processing
+    const { data: completedVectors, error: findError } = await supabaseCodeInsights
+      .from('processing_jobs')
+      .select(`
+        id,
+        file_id,
+        status,
+        vector_status,
+        lineage_status,
+        files!inner(repository_full_name, file_path, language, user_id)
+      `)
+      .eq('files.repository_full_name', repositoryFullName)
+      .eq('files.user_id', userId)
+      .eq('status', 'completed') // Documentation must be completed
+      .eq('vector_status', 'completed') // Vectors must be completed
+      .is('lineage_status', null); // No lineage processing yet
+
+    if (findError) {
+      console.error('Error finding files ready for lineage processing:', findError);
+      throw new Error(`Failed to find files ready for lineage processing: ${findError.message}`);
+    }
+
+    if (!completedVectors || completedVectors.length === 0) {
+      return res.status(200).json({
+        message: 'No files found with completed vectors ready for lineage processing',
+        filesQueued: 0,
+        phase: 'lineage'
+      });
+    }
+
+    // Filter for SQL-eligible files and update them for lineage processing
+    const sqlFiles = completedVectors.filter(job => {
+      const language = (job as any).files.language?.toLowerCase() || '';
+      const filePath = (job as any).files.file_path?.toLowerCase() || '';
+      return language.includes('sql') || 
+             language.includes('postgres') ||
+             language.includes('mysql') ||
+             language.includes('snowflake') ||
+             language.includes('bigquery') ||
+             language.includes('redshift') ||
+             language.includes('dbt') ||
+             filePath.endsWith('.sql');
+    });
+
+    if (sqlFiles.length === 0) {
+      return res.status(200).json({
+        message: 'No SQL files found ready for lineage processing',
+        filesQueued: 0,
+        phase: 'lineage'
+      });
+    }
+
+    // Update jobs to enable lineage processing
+    const jobIds = sqlFiles.map(job => job.id);
+    
+    const { error: updateError } = await supabaseCodeInsights
+      .from('processing_jobs')
+      .update({
+        lineage_status: 'pending',
+        updated_at: new Date().toISOString()
+      })
+      .in('id', jobIds);
+
+    if (updateError) {
+      console.error('Error updating jobs for lineage processing:', updateError);
+      throw new Error(`Failed to enable lineage processing: ${updateError.message}`);
+    }
+
+    console.log(`Successfully enabled lineage processing for ${sqlFiles.length} SQL files.`);
+
+    res.status(202).json({
+      message: `Lineage processing initiated for ${sqlFiles.length} SQL files with completed vectors.`,
+      filesQueued: sqlFiles.length,
+      totalFilesChecked: completedVectors.length,
+      phase: 'lineage'
+    });
+
+  } catch (error: any) {
+    console.error(`[InsightsController] Error in processLineageOnly:`, error);
+    next(error);
+  }
 };
 
 /**
- * @description OLD PARALLEL PROCESSING - DEPRECATED
+ * @description Initiates ONLY dependencies processing for sequential pipeline (Phase 4)
+ * @route POST /api/insights/process-dependencies-only
+ */
+export const processDependenciesOnly = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const { repositoryFullName } = req.body;
+    if (!repositoryFullName || !repositoryFullName.includes('/')) {
+      return res.status(400).json({ message: 'A valid repositoryFullName (e.g., "owner/repo") is required.' });
+    }
+
+    console.log(`[InsightsController] Starting DEPENDENCIES-ONLY processing for repository: ${repositoryFullName}`);
+
+    // Find files with completed lineage processing ready for dependency analysis
+    const { data: completedLineage, error: findError } = await supabaseCodeInsights
+      .from('processing_jobs')
+      .select(`
+        id,
+        file_id,
+        status,
+        vector_status,
+        lineage_status,
+        files!inner(repository_full_name, file_path, language, user_id)
+      `)
+      .eq('files.repository_full_name', repositoryFullName)
+      .eq('files.user_id', userId)
+      .eq('status', 'completed') // Documentation must be completed
+      .eq('vector_status', 'completed') // Vectors must be completed
+      .in('lineage_status', ['completed', 'null']) // Lineage completed or not applicable
+      .order('created_at', { ascending: true });
+
+    if (findError) {
+      console.error('Error finding files ready for dependency processing:', findError);
+      throw new Error(`Failed to find files ready for dependency processing: ${findError.message}`);
+    }
+
+    if (!completedLineage || completedLineage.length === 0) {
+      return res.status(200).json({
+        message: 'No files found ready for dependency processing',
+        filesQueued: 0,
+        phase: 'dependencies'
+      });
+    }
+
+    // Process cross-file dependencies using existing lineage data
+    console.log(`Processing dependencies for ${completedLineage.length} files`);
+
+    try {
+      // Get all asset relationships from lineage data
+      const { data: assetRelationships, error: assetsError } = await supabaseCodeInsights
+        .from('asset_relationships')
+        .select(`
+          id,
+          source_asset_id,
+          target_asset_id,
+          relationship_type,
+          transformation_logic,
+          confidence_score,
+          source_assets!source_asset_id(name, type, schema_name, database_name),
+          target_assets!target_asset_id(name, type, schema_name, database_name)
+        `)
+        .eq('repository_full_name', repositoryFullName);
+
+      // Get all file dependencies from lineage data  
+      const { data: fileDependencies, error: depsError } = await supabaseCodeInsights
+        .from('file_dependencies')
+        .select('*')
+        .eq('repository_full_name', repositoryFullName);
+
+      if (!assetsError && !depsError) {
+        // Build comprehensive dependency graph
+        const dependencyGraph = {
+          nodes: [] as any[],
+          edges: [] as any[],
+          crossFileConnections: [] as any[],
+          columnLineage: [] as any[],
+          businessImpactMap: [] as any[]
+        };
+
+        // Process asset relationships into dependency graph
+        if (assetRelationships) {
+          for (const relationship of assetRelationships) {
+            const sourceAsset = (relationship as any).source_assets;
+            const targetAsset = (relationship as any).target_assets;
+            
+            if (sourceAsset && targetAsset) {
+              dependencyGraph.crossFileConnections.push({
+                source: `${sourceAsset.database_name || 'default'}.${sourceAsset.schema_name || 'default'}.${sourceAsset.name}`,
+                target: `${targetAsset.database_name || 'default'}.${targetAsset.schema_name || 'default'}.${targetAsset.name}`,
+                type: relationship.relationship_type,
+                confidence: relationship.confidence_score,
+                transformationLogic: relationship.transformation_logic
+              });
+            }
+          }
+        }
+
+        // Process file dependencies
+        if (fileDependencies) {
+          for (const fileDep of fileDependencies) {
+            dependencyGraph.nodes.push({
+              id: fileDep.file_id,
+              name: fileDep.import_path,
+              type: fileDep.import_type,
+              confidence: fileDep.confidence_score
+            });
+          }
+        }
+
+        // Store enhanced dependency analysis
+        const { error: storeError } = await supabaseCodeInsights
+          .from('repository_dependency_analysis')
+          .upsert({
+            repository_full_name: repositoryFullName,
+            user_id: userId,
+            dependency_graph: dependencyGraph,
+            analysis_type: 'cross_file_dependencies',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'repository_full_name,user_id,analysis_type'
+          });
+
+        if (storeError) {
+          console.error('Error storing dependency analysis:', storeError);
+        } else {
+          console.log(`✅ Dependencies analysis completed for ${repositoryFullName}`);
+        }
+      }
+
+    } catch (processingError) {
+      console.error('Error processing dependencies:', processingError);
+    }
+
+    res.status(202).json({
+      message: `Dependencies processing completed for ${completedLineage.length} files.`,
+      filesQueued: completedLineage.length,
+      phase: 'dependencies'
+    });
+
+  } catch (error: any) {
+    console.error(`[InsightsController] Error in processDependenciesOnly:`, error);
+    next(error);
+  }
+};
+
+/**
+ * @description Initiates ONLY analysis processing for sequential pipeline (Phase 5)
+ * @route POST /api/insights/process-analysis-only
  */
 export const processAnalysisOnly = async (req: Request, res: Response, next: NextFunction) => {
-  return res.status(410).json({
-    error: 'This endpoint has been deprecated',
-    message: 'Please use the new phase-specific endpoint: /api/phases/analysis',
-    newEndpoint: '/api/phases/analysis',
-    documentation: 'The new processing phases provide cleaner separation and better error handling.'
-  });
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const { repositoryFullName } = req.body;
+    if (!repositoryFullName || !repositoryFullName.includes('/')) {
+      return res.status(400).json({ message: 'A valid repositoryFullName (e.g., "owner/repo") is required.' });
+    }
+
+    console.log(`[InsightsController] Starting ANALYSIS-ONLY processing for repository: ${repositoryFullName}`);
+
+    // Get comprehensive data for impact analysis
+    const { data: summaries, error: summariesError } = await supabaseCodeInsights
+      .from('code_summaries')
+      .select(`
+        id,
+        file_id,
+        summary_json,
+        files!inner(repository_full_name, file_path, language, user_id)
+      `)
+      .eq('files.repository_full_name', repositoryFullName)
+      .eq('files.user_id', userId);
+
+    if (summariesError || !summaries || summaries.length === 0) {
+      return res.status(400).json({
+        message: 'No file summaries found for impact analysis',
+        phase: 'analysis'
+      });
+    }
+
+    try {
+      // Analyze business impact and technical complexity
+      let totalComplexity = 0;
+      let businessCriticalFiles = 0;
+      const kpiMetrics = new Set();
+      const businessDomains = new Set();
+      const riskFactors = [];
+
+      for (const summary of summaries) {
+        const summaryData = summary.summary_json;
+        
+        // Extract business metrics
+        if (summaryData?.business_logic?.kpis_metrics) {
+          summaryData.business_logic.kpis_metrics.forEach((kpi: string) => kpiMetrics.add(kpi));
+        }
+        
+        // Extract business domains
+        if (summaryData?.business_logic?.data_domain) {
+          businessDomains.add(summaryData.business_logic.data_domain);
+        }
+        
+        // Assess criticality
+        if (summaryData?.business_logic?.business_criticality === 'high' || 
+            summaryData?.summary?.complexity === 'Complex') {
+          businessCriticalFiles++;
+        }
+        
+        // Calculate complexity score
+        if (summaryData?.summary?.complexity) {
+          const complexityScore = summaryData.summary.complexity === 'Complex' ? 3 : 
+                                 summaryData.summary.complexity === 'Moderate' ? 2 : 1;
+          totalComplexity += complexityScore;
+        }
+        
+        // Identify risk factors
+        if (summaryData?.performance_considerations?.resource_usage) {
+          riskFactors.push({
+            file: (summary as any).files.file_path,
+            risks: summaryData.performance_considerations.resource_usage
+          });
+        }
+      }
+
+      // Create comprehensive impact analysis
+      const impactAnalysis = {
+        repository_summary: {
+          total_files: summaries.length,
+          business_critical_files: businessCriticalFiles,
+          average_complexity: totalComplexity / summaries.length,
+          business_domains: Array.from(businessDomains),
+          key_metrics: Array.from(kpiMetrics)
+        },
+        risk_assessment: {
+          high_risk_files: riskFactors.filter(r => r.risks.length > 2).length,
+          performance_concerns: riskFactors.length,
+          complexity_distribution: {
+            high: summaries.filter(s => s.summary_json?.summary?.complexity === 'Complex').length,
+            medium: summaries.filter(s => s.summary_json?.summary?.complexity === 'Moderate').length,
+            low: summaries.filter(s => s.summary_json?.summary?.complexity === 'Simple').length
+          }
+        },
+        recommendations: [
+          businessCriticalFiles > summaries.length * 0.5 ? 
+            'High proportion of business-critical files detected. Consider enhanced monitoring.' : 
+            'Business criticality distribution appears balanced.',
+          totalComplexity / summaries.length > 2.5 ? 
+            'High average complexity detected. Consider refactoring opportunities.' : 
+            'Complexity levels appear manageable.',
+          riskFactors.length > summaries.length * 0.3 ? 
+            'Performance concerns identified in multiple files. Review resource usage.' : 
+            'Performance risk appears low.'
+        ]
+      };
+
+      // Store impact analysis
+      const { error: storeError } = await supabaseCodeInsights
+        .from('repository_dependency_analysis')
+        .upsert({
+          repository_full_name: repositoryFullName,
+          user_id: userId,
+          dependency_graph: impactAnalysis,
+          analysis_type: 'impact_analysis',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'repository_full_name,user_id,analysis_type'
+        });
+
+      if (storeError) {
+        console.error('Error storing impact analysis:', storeError);
+      } else {
+        console.log(`✅ Impact analysis completed for ${repositoryFullName}`);
+      }
+
+    } catch (analysisError) {
+      console.error('Error processing impact analysis:', analysisError);
+    }
+
+    res.status(202).json({
+      message: `Impact analysis completed for ${summaries.length} files.`,
+      filesQueued: summaries.length,
+      phase: 'analysis'
+    });
+
+  } catch (error: any) {
+    console.error(`[InsightsController] Error in processAnalysisOnly:`, error);
+    next(error);
+  }
 };

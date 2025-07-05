@@ -23,6 +23,7 @@ import { AnomalySchema } from './pages/dashboard/anomalies/AnomalySchema';
 import { IncidentManager } from './pages/dashboard/IncidentManager';
 import { CodeBase } from './pages/dashboard/CodeBase';
 import { AnalysisSetup } from './pages/dashboard/AnalysisSetup';
+import { RepositoryResults } from './pages/dashboard/RepositoryResults';
 import { FileProcessingStatus } from './components/FileProcessingStatus';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider, useAuth } from './features/auth/contexts/AuthContext'; // Added useAuth import
@@ -106,6 +107,7 @@ const AppContent = () => {
             <Route path="incidents" element={<IncidentManager />} />
             <Route path="code" element={<CodeBase />} />
             <Route path="code/analyze/:owner/:repo" element={<AnalysisSetup />} />
+            <Route path="code/results/:owner/:repo" element={<RepositoryResults />} />
             <Route path="code/status/:owner/:repo" element={<FileProcessingStatus />} />
             <Route path="governance" element={<DataGovernance />} />
             <Route path="settings" element={<Settings />} />

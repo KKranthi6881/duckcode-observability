@@ -11,7 +11,8 @@ import {
   Settings,
   Database,
   AlertTriangle,
-  File
+  File,
+  RefreshCw
 } from 'lucide-react';
 import { useAuth } from '../../features/auth/contexts/AuthContext';
 import { useGitHubRepository } from '../../hooks/useGitHubRepository';
@@ -68,6 +69,8 @@ export function CodeBase() {
   const [view, setView] = useState<'repos' | 'browser'>('repos');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'code' | 'documentation' | 'lineage' | 'visual' | 'alerts'>('code');
+  const [isBackgroundRefreshing, setIsBackgroundRefreshing] = useState(false);
+  const [autoPollingStarted, setAutoPollingStarted] = useState<string[]>([]);
   
   // State has been moved to AnalysisSetup.tsx or is no longer needed here
   const [repoSummaryStatus, setRepoSummaryStatus] = useState<Record<string, { hasSummaries: boolean; summaryCount: number; lastSummaryDate?: string }>>({});
@@ -567,13 +570,94 @@ export function CodeBase() {
     }
   };
 
+  // Auto-start polling for repositories that are currently processing
+  const autoStartPollingForActiveProcessing = async () => {
+    if (!gitHubConnectionStatus?.details?.accessibleRepos) return;
+
+    for (const repo of gitHubConnectionStatus.details.accessibleRepos) {
+      const repoId = repo.id.toString();
+      const currentStatus = repoProgressStatus[repoId];
+      
+      // Check if this repo is currently processing but not being polled
+      if (currentStatus && !currentStatus.isPolling) {
+                 // Check for legacy processing (more comprehensive)
+         const hasActiveProcessing = currentStatus.pending > 0 || 
+           (currentStatus.progress > 0 && currentStatus.progress < 100) ||
+           ((currentStatus as any).documentation?.pending > 0) ||
+           ((currentStatus as any).vectors?.pending > 0) ||
+           ((currentStatus as any).lineage?.pending > 0);
+         
+         // Check for sequential processing
+         const hasActiveSequential = currentStatus.sequentialStatus === 'processing' ||
+           currentStatus.sequentialJobId;
+        
+                 if (hasActiveProcessing) {
+           console.log(`🔄 Auto-starting legacy polling for ${repo.full_name}`);
+           startProgressPolling(repoId, repo.full_name);
+           setAutoPollingStarted(prev => [...prev, `${repo.full_name}-legacy`]);
+         }
+         
+         if (hasActiveSequential) {
+           console.log(`🔄 Auto-starting sequential polling for ${repo.full_name}`);
+           startSequentialPolling(repoId, repo.full_name);
+           setAutoPollingStarted(prev => [...prev, `${repo.full_name}-sequential`]);
+         }
+      }
+    }
+  };
+
   // Load repository summary status when GitHub connection status changes
   React.useEffect(() => {
     if (gitHubConnectionStatus?.isConnected && gitHubConnectionStatus?.details?.accessibleRepos) {
+      console.log('🔄 Loading repository statuses on mount/connection change...');
       loadRepositorySummaryStatus();
       loadRepositoryProcessingStatus();
     }
   }, [gitHubConnectionStatus]);
+
+     // Auto-start polling after loading processing status
+   React.useEffect(() => {
+     if (gitHubConnectionStatus?.isConnected && Object.keys(repoProgressStatus).length > 0) {
+       // Start polling immediately for active processes
+       autoStartPollingForActiveProcessing();
+     }
+   }, [gitHubConnectionStatus, repoProgressStatus]);
+
+     // Background refresh to detect processing started from other tabs/windows
+   React.useEffect(() => {
+     if (!gitHubConnectionStatus?.isConnected) return;
+
+     // Initial quick refresh after 5 seconds, then every 30 seconds
+     const initialTimer = setTimeout(async () => {
+       console.log('🔄 Initial background refresh of processing status...');
+       setIsBackgroundRefreshing(true);
+       try {
+         await loadRepositoryProcessingStatus();
+       } catch (error) {
+         console.error('Initial background refresh error:', error);
+       } finally {
+         setIsBackgroundRefreshing(false);
+       }
+     }, 5000);
+
+     // Regular background refresh every 30 seconds
+     const backgroundRefresh = setInterval(async () => {
+       console.log('🔄 Regular background refresh of processing status...');
+       setIsBackgroundRefreshing(true);
+       try {
+         await loadRepositoryProcessingStatus();
+       } catch (error) {
+         console.error('Background refresh error:', error);
+       } finally {
+         setIsBackgroundRefreshing(false);
+       }
+     }, 30000);
+
+     return () => {
+       clearTimeout(initialTimer);
+       clearInterval(backgroundRefresh);
+     };
+   }, [gitHubConnectionStatus]);
 
   // Cleanup polling intervals on unmount
   React.useEffect(() => {
@@ -699,8 +783,36 @@ export function CodeBase() {
               )}
             </div>
             
-            {/* Search */}
+            {/* Search and Actions */}
             <div className="flex items-center space-x-4">
+              {/* Auto-refresh indicator */}
+              {isBackgroundRefreshing && (
+                <div className="flex items-center space-x-2 text-sm text-gray-500">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Refreshing...</span>
+                </div>
+              )}
+              
+              {/* Manual refresh button */}
+              <button
+                onClick={async () => {
+                  setIsBackgroundRefreshing(true);
+                  try {
+                    await loadRepositoryProcessingStatus();
+                    await loadRepositorySummaryStatus();
+                  } catch (error) {
+                    console.error('Manual refresh error:', error);
+                  } finally {
+                    setIsBackgroundRefreshing(false);
+                  }
+                }}
+                disabled={isBackgroundRefreshing}
+                className="p-2 text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
+                title="Refresh status"
+              >
+                <RefreshCw className={`h-4 w-4 ${isBackgroundRefreshing ? 'animate-spin' : ''}`} />
+              </button>
+              
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <input
@@ -761,9 +873,19 @@ export function CodeBase() {
                         </div>
                       </div>
                       {gitHubConnectionStatus?.isConnected && (
-                        <div className="flex items-center space-x-2 text-sm text-white bg-white/10 rounded-full px-3 py-1">
-                          <div className="h-2 w-2 bg-white rounded-full animate-pulse"></div>
-                          <span>{gitHubConnectionStatus.details?.account?.login}</span>
+                        <div className="flex items-center space-x-4">
+                          {/* Active polling indicator */}
+                          {Object.values(repoProgressStatus).some(status => status?.isPolling) && (
+                            <div className="flex items-center space-x-2 text-sm text-white bg-white/10 rounded-full px-3 py-1">
+                              <div className="h-2 w-2 bg-white rounded-full animate-pulse"></div>
+                              <span>Auto-refreshing</span>
+                            </div>
+                          )}
+                          
+                          <div className="flex items-center space-x-2 text-sm text-white bg-white/10 rounded-full px-3 py-1">
+                            <div className="h-2 w-2 bg-white rounded-full"></div>
+                            <span>{gitHubConnectionStatus.details?.account?.login}</span>
+                          </div>
                         </div>
                       )}
                     </div>

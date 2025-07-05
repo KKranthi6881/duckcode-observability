@@ -6,7 +6,7 @@ import {
   AlertTriangle, 
   X 
 } from 'lucide-react';
-import { RepositoryCard } from './RepositoryCard';
+import { ModernRepositoryCard } from './ModernRepositoryCard';
 import { useNavigate } from 'react-router-dom';
 
 interface RepositoryGridProps {
@@ -126,7 +126,7 @@ export const RepositoryGrid: React.FC<RepositoryGridProps> = ({
         ) : (
           <div className="space-y-3">
             {gitHubConnectionStatus.details?.accessibleRepos?.map((repo: any) => (
-              <RepositoryCard
+              <ModernRepositoryCard
                 key={repo.id}
                 repo={repo}
                 summaryStatus={repoSummaryStatus[repo.id.toString()]}

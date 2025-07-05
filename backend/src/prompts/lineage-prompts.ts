@@ -306,8 +306,8 @@ export const SCALA_LINEAGE_PROMPT = `
 You are an expert Scala/Spark analyst. Analyze the provided Scala code and extract comprehensive data lineage information.
 
 **Your task:**
-1. Identify all data assets (DataFrames, Datasets, tables, RDDs)
-2. Map data flow relationships and transformations  
+1. Identify all data assets (DataFrames, Datasets, RDDs, tables, files)
+2. Map data flow relationships and transformations
 3. Extract business logic and dependencies
 4. Provide confidence scores for each relationship
 
@@ -326,109 +326,206 @@ You are an expert Scala/Spark analyst. Analyze the provided Scala code and extra
   "assets": [
     {
       "name": "dataset_name",
-      "type": "dataset|table|view|model",
-      "schema": "schema_name", 
-      "database": "database_name",
-      "description": "Purpose of this dataset",
+      "type": "dataframe|dataset|rdd|table|file",
+      "description": "Business purpose of this data asset",
+      "schema": "database_or_namespace",
       "columns": [
         {
           "name": "column_name",
-          "type": "String|Int|Double|Timestamp",
+          "type": "data_type",
           "description": "Column purpose"
         }
       ],
       "metadata": {
-        "source": "file|database|stream",
-        "format": "parquet|delta|json|avro",
-        "location": "/path/to/data",
-        "partitions": ["date", "region"]
+        "format": "parquet|json|csv|delta|hive",
+        "partitionBy": ["partition_columns"],
+        "location": "file_path_or_table_location"
       }
     }
   ],
   "relationships": [
     {
-      "sourceAsset": "inputDF",
-      "targetAsset": "outputDF", 
-      "relationshipType": "transforms|aggregates|joins|filters",
-      "transformationLogic": "Detailed transformation description",
-      "businessContext": "Business reason for transformation",
+      "sourceAsset": "source_dataset",
+      "targetAsset": "target_dataset",
+      "relationshipType": "reads_from|writes_to|transforms|joins|aggregates|unions|filters",
+      "transformationLogic": "Detailed description of Spark transformation",
+      "businessContext": "Why this transformation exists from business perspective",
+      "sparkOperations": ["select", "filter", "groupBy", "join", "agg"],
       "joinConditions": {
-        "joinType": "inner|left|right|outer|cross",
-        "onColumns": ["df1.id === df2.foreignId"],
-        "joinLogic": "Business relationship"
-      },
-      "filterConditions": {
-        "condition": "col(\"status\") === \"active\"",
-        "businessReason": "Active records only"
-      },
-      "aggregationLogic": {
-        "groupBy": ["region", "date"],
-        "aggregations": ["sum(\"revenue\")", "count()"],
-        "businessPurpose": "Revenue by region and date"
+        "joinType": "inner|left|right|full|cross",
+        "onColumns": ["left.id === right.foreign_id"],
+        "joinLogic": "Business reason for this join"
       },
       "confidenceScore": 0.9,
-      "discoveredAtLine": 30
+      "discoveredAtLine": 25
     }
   ],
   "fileDependencies": [
     {
-      "importPath": "org.apache.spark.sql.SparkSession",
+      "importPath": "org.apache.spark.sql.Dataset",
       "importType": "imports",
-      "importStatement": "import org.apache.spark.sql.SparkSession",
+      "importStatement": "import org.apache.spark.sql.Dataset",
       "confidenceScore": 1.0
-    },
-    {
-      "importPath": "com.company.utils.DataProcessor",
-      "importType": "imports",
-      "importStatement": "import com.company.utils.DataProcessor._",
-      "specificItems": ["cleanData", "validateSchema"],
-      "confidenceScore": 0.95
     }
   ],
   "functions": [
     {
-      "name": "processRevenue",
+      "name": "transformData",
       "type": "function",
-      "signature": "def processRevenue(df: DataFrame): DataFrame",
-      "returnType": "DataFrame",
-      "parameters": [
-        {"name": "df", "type": "DataFrame", "description": "Input revenue data"}
-      ],
-      "description": "Processes revenue data with business rules",
-      "businessLogic": "Applies revenue recognition rules",
-      "lineStart": 20,
-      "lineEnd": 50,
-      "complexityScore": 0.7
+      "signature": "def transformData(df: DataFrame): DataFrame",
+      "description": "Data transformation function",
+      "businessLogic": "Applies business rules to clean and transform data",
+      "complexityScore": 0.6
     }
   ],
   "businessContext": {
-    "mainPurpose": "Primary business purpose",
-    "businessImpact": "Business impact description",
-    "stakeholders": ["Engineering Team", "Data Platform"],
-    "dataDomain": "product", 
+    "mainPurpose": "Primary business purpose of this Spark job",
+    "businessImpact": "How this affects business operations",
+    "stakeholders": ["Data Engineering Team", "Analytics Team"],
+    "dataDomain": "customer",
     "businessCriticality": "high",
-    "dataFreshness": "Near real-time",
-    "executionFrequency": "realtime"
+    "dataFreshness": "Real-time processing",
+    "executionFrequency": "hourly"
   }
 }
 \`\`\`
 
 **Guidelines:**
-- Track DataFrame/Dataset transformations (select, filter, join, groupBy, agg)
-- Identify Spark SQL table references and catalog operations
-- Map case class definitions and schema evolution
-- Recognize streaming operations and window functions
-- Include object-oriented relationships (inheritance, composition)
-- Consider implicit conversions and type transformations
-- Focus on functional programming patterns and data pipelines
-- Assign confidence based on type safety and explicit operations
+- Focus on Spark DataFrame/Dataset operations
+- Identify data sources (files, tables, streams)
+- Map transformations (select, filter, join, groupBy, agg)
+- Track data sinks (write operations)
+- Consider Spark SQL embedded in Scala code
+- Include partition strategies and optimization hints
+- Assign confidence scores based on code clarity (0.0-1.0)
+- Focus on distributed data processing patterns
+`;
+
+export const SPARKSQL_LINEAGE_PROMPT = `
+You are an expert Spark SQL analyst. Analyze the provided Spark SQL code and extract comprehensive data lineage information.
+
+**Your task:**
+1. Identify all data assets (tables, views, files, temporary views)
+2. Map data flow relationships and transformations
+3. Extract business logic and SQL operations
+4. Provide confidence scores for each relationship
+
+**Code to analyze:**
+\`\`\`sql
+{{code}}
+\`\`\`
+
+**File path:** {{filePath}}
+**Context:** {{context}}
+
+**Extract the following information and return as JSON:**
+
+\`\`\`json
+{
+  "assets": [
+    {
+      "name": "table_or_view_name",
+      "type": "table|view|temp_view|file|stream",
+      "description": "Business purpose of this data asset",
+      "schema": "database_or_namespace",
+      "database": "catalog_name",
+      "columns": [
+        {
+          "name": "column_name",
+          "type": "data_type",
+          "description": "Column purpose",
+          "isPrimaryKey": false,
+          "isForeignKey": false
+        }
+      ],
+      "metadata": {
+        "format": "delta|parquet|json|csv|hive",
+        "partitionBy": ["partition_columns"],
+        "location": "file_path_or_table_location",
+        "streaming": false
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "sourceAsset": "source_table",
+      "targetAsset": "target_table",
+      "relationshipType": "reads_from|writes_to|transforms|joins|aggregates|unions|filters",
+      "operationType": "select|insert|merge|create_table_as|create_view_as",
+      "transformationLogic": "Detailed description of SQL transformation",
+      "businessContext": "Why this transformation exists from business perspective",
+      "sparkSqlFeatures": ["window_functions", "complex_types", "lateral_view"],
+      "joinConditions": {
+        "joinType": "inner|left|right|full|cross|semi|anti",
+        "onColumns": ["a.id = b.foreign_id"],
+        "joinLogic": "Business reason for this join"
+      },
+      "filterConditions": {
+        "whereClause": "status = 'active' AND created_date >= '2023-01-01'",
+        "businessReason": "Only include active records from current year"
+      },
+      "aggregationLogic": {
+        "groupBy": ["region", "product_category"],
+        "aggregations": ["sum(revenue)", "count(distinct customer_id)"],
+        "businessPurpose": "Revenue and customer metrics by region and category"
+      },
+      "windowFunctions": {
+        "functions": ["row_number()", "rank()", "lead()", "lag()"],
+        "partitionBy": ["customer_id"],
+        "orderBy": ["transaction_date"],
+        "businessLogic": "Customer transaction sequencing"
+      },
+      "confidenceScore": 0.95,
+      "discoveredAtLine": 15
+    }
+  ],
+  "fileDependencies": [
+    {
+      "importPath": "s3://data-lake/raw/customers/",
+      "importType": "references",
+      "importStatement": "FROM delta.`s3://data-lake/raw/customers/`",
+      "confidenceScore": 0.9
+    }
+  ],
+  "functions": [
+    {
+      "name": "calculate_customer_ltv",
+      "type": "udf",
+      "signature": "calculate_customer_ltv(revenue DOUBLE, months INT) RETURNS DOUBLE",
+      "description": "Calculates customer lifetime value",
+      "businessLogic": "Applies business formula for LTV calculation",
+      "complexityScore": 0.4
+    }
+  ],
+  "businessContext": {
+    "mainPurpose": "Primary business purpose of this Spark SQL query",
+    "businessImpact": "How this affects business operations and decisions",
+    "stakeholders": ["Data Analytics Team", "Business Intelligence"],
+    "dataDomain": "customer",
+    "businessCriticality": "high",
+    "dataFreshness": "Updated daily via batch processing",
+    "executionFrequency": "daily"
+  }
+}
+\`\`\`
+
+**Guidelines:**
+- Focus on Spark SQL specific features (Delta operations, complex types, etc.)
+- Identify data sources (tables, files, streams, temporary views)
+- Map SQL transformations (joins, aggregations, window functions)
+- Track data sinks (INSERT, MERGE, CREATE TABLE AS)
+- Consider Spark SQL optimizations (predicate pushdown, etc.)
+- Include partition strategies and bucketing
+- Assign confidence scores based on SQL clarity (0.0-1.0)
+- Focus on distributed SQL processing patterns
+- Consider lakehouse architecture patterns (Delta Lake, Iceberg)
 `;
 
 export const R_LINEAGE_PROMPT = `
-You are an expert R analyst. Analyze the provided R code and extract comprehensive data lineage information.
+You are an expert R data analyst. Analyze the provided R code and extract comprehensive data lineage information.
 
 **Your task:**
-1. Identify all data assets (data.frames, tibbles, datasets, models)
+1. Identify all data assets (data.frames, tibbles, files, databases)
 2. Map data flow relationships and transformations
 3. Extract statistical operations and business logic
 4. Provide confidence scores for each relationship
@@ -448,20 +545,19 @@ You are an expert R analyst. Analyze the provided R code and extract comprehensi
   "assets": [
     {
       "name": "dataset_name",
-      "type": "dataset|model|table|view",
-      "description": "Purpose of this dataset or model",
+      "type": "data.frame|tibble|matrix|list|database_table",
+      "description": "Business purpose of this data asset",
       "columns": [
         {
           "name": "column_name",
-          "type": "numeric|character|logical|factor|Date",
-          "description": "Column purpose"
+          "type": "numeric|character|factor|logical|date",
+          "description": "Column purpose and statistical meaning"
         }
       ],
       "metadata": {
         "source": "csv|rds|database|api",
-        "location": "/path/to/file.csv",
-        "dimensions": "rows x cols",
-        "statisticalType": "continuous|categorical|ordinal"
+        "rows": "estimated_row_count",
+        "statistical_type": "continuous|categorical|ordinal|binary"
       }
     }
   ],
@@ -472,6 +568,7 @@ You are an expert R analyst. Analyze the provided R code and extract comprehensi
       "relationshipType": "transforms|aggregates|joins|filters",
       "transformationLogic": "Detailed transformation description",
       "businessContext": "Statistical or business reason",
+      "rOperations": ["dplyr::mutate", "dplyr::filter", "dplyr::group_by", "dplyr::summarise"],
       "joinConditions": {
         "joinType": "inner_join|left_join|right_join|full_join",
         "byColumns": ["id", "customer_id"],
@@ -626,8 +723,13 @@ export function getLineagePromptForLanguage(language: string): string {
   const lang = language.toLowerCase();
   
   if (lang.includes('sql') || lang.includes('snowflake') || lang.includes('postgres') || 
-      lang.includes('mysql') || lang.includes('bigquery') || lang.includes('redshift')) {
+      lang.includes('mysql') || lang.includes('bigquery') || lang.includes('redshift') ||
+      lang.includes('tsql') || lang.includes('plsql') || lang.includes('oracle')) {
     return SQL_LINEAGE_PROMPT;
+  }
+  
+  if (lang.includes('sparksql') || lang.includes('spark-sql') || lang.includes('spark_sql')) {
+    return SPARKSQL_LINEAGE_PROMPT;
   }
   
   if (lang.includes('python') || lang.includes('pyspark') || lang.includes('py')) {
