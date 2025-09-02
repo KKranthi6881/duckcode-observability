@@ -4,22 +4,27 @@ import insightsRoutes from './insights.routes';
 import documentationRoutes from './documentation.routes';
 import searchRoutes from './search.routes';
 import lineageRoutes from './lineage.routes';
+import metadataProcessingRoutes from './metadata-processing.routes'; // NEW: Comprehensive processing
+import sequentialProcessingRoutes from './sequential-processing.routes'; // NEW: Sequential processing
 
 const router = Router();
 
-// Mount the GitHub routes
+// Health check
+router.get('/health', (req, res) => {
+  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
+// Mount existing routes (PRESERVING ORIGINAL STRUCTURE)
 router.use('/github', githubRoutes);
-
-// Mount the Insights routes
 router.use('/insights', insightsRoutes);
-
-// Mount the Documentation routes
 router.use('/documentation', documentationRoutes);
-
-// Mount the Search routes
 router.use('/search', searchRoutes);
-
-// Mount the Lineage routes
 router.use('/lineage', lineageRoutes);
+
+// NEW: Mount comprehensive metadata processing routes
+router.use('/metadata', metadataProcessingRoutes);
+
+// NEW: Mount sequential processing routes  
+router.use('/sequential', sequentialProcessingRoutes);
 
 export default router;

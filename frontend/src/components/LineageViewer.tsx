@@ -76,7 +76,7 @@ export const LineageViewer: React.FC<LineageViewerProps> = ({
   repositoryFullName,
   onProcessLineage
 }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'assets' | 'relationships' | 'dependencies' | 'graph'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'assets' | 'relationships' | 'dependencies' | 'graph' | 'lineage'>('overview');
   const [lineageStatus, setLineageStatus] = useState<LineageStatus | null>(null);
   const [dataAssets, setDataAssets] = useState<DataAsset[]>([]);
   const [relationships, setRelationships] = useState<LineageRelationship[]>([]);
@@ -95,6 +95,11 @@ export const LineageViewer: React.FC<LineageViewerProps> = ({
   const [assetTypeFilter, setAssetTypeFilter] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [confidenceFilter, setConfidenceFilter] = useState<number>(0.5);
+
+  // Lineage processing state
+  const [lineageProcessingStatus, setLineageProcessingStatus] = useState<any>(null);
+  const [processingHistory, setProcessingHistory] = useState<any[]>([]);
+  const [lineageProcessing, setLineageProcessing] = useState(false);
 
   // Fetch lineage status
   const fetchLineageStatus = async () => {
@@ -178,21 +183,62 @@ export const LineageViewer: React.FC<LineageViewerProps> = ({
     }
   };
 
-  // Process lineage for repository
-  const processLineage = async () => {
+  // Lineage processing functions
+  const fetchLineageProcessingStatus = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      const response = await fetch(`/api/lineage/process-repository/${repositoryFullName}`, {
+      const response = await fetch(`/api/lineage/phase2c/status/${repositoryFullName}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch lineage processing status');
+      }
+      
+      const data = await response.json();
+      setLineageProcessingStatus(data.data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchProcessingHistory = async () => {
+    try {
+      const response = await fetch(`/api/lineage/phase2c/processing-history/${repositoryFullName}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch processing history');
+      }
+      
+      const data = await response.json();
+      setProcessingHistory(data.data || []);
+    } catch (err) {
+      console.error('Error fetching processing history:', err);
+    }
+  };
+
+  // Process lineage for repository
+  const processLineage = async () => {
+    try {
+      setLineageProcessing(true);
+      setError(null);
+      
+      const response = await fetch(`/api/lineage/phase2c/process-repository/${repositoryFullName}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
           'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          forceReprocess: false
-        })
+        }
       });
       
       if (!response.ok) {
@@ -200,18 +246,22 @@ export const LineageViewer: React.FC<LineageViewerProps> = ({
       }
       
       const data = await response.json();
-      alert(`Lineage processing started for ${data.filesQueued} files`);
+      alert(`Lineage processing started: ${data.data?.message || 'Processing initiated'}`);
+      
+      // Refresh lineage status after starting processing
+      setTimeout(() => {
+        fetchLineageProcessingStatus();
+        fetchProcessingHistory();
+      }, 1000);
       
       // Refresh status
-      setTimeout(() => fetchLineageStatus(), 2000);
-      
       if (onProcessLineage) {
         onProcessLineage();
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
-      setLoading(false);
+      setLineageProcessing(false);
     }
   };
 
@@ -351,14 +401,13 @@ export const LineageViewer: React.FC<LineageViewerProps> = ({
       fetchDataAssets();
     } else if (activeTab === 'relationships') {
       fetchRelationships();
+    } else if (activeTab === 'lineage') {
+      fetchLineageProcessingStatus();
+      fetchProcessingHistory();
     } else if (activeTab === 'dependencies') {
       fetchExecutionOrder();
-      fetchCircularDependencies();
-      fetchDataFlowPatterns();
-      fetchOptimizationSuggestions();
-      fetchCrossFileReferences();
     }
-  }, [activeTab, repositoryFullName, assetTypeFilter, searchTerm, confidenceFilter]);
+  }, [activeTab, repositoryFullName]);
 
   // Helper functions
   const getAssetTypeIcon = (type: string) => {
@@ -445,7 +494,8 @@ export const LineageViewer: React.FC<LineageViewerProps> = ({
               { id: 'assets', label: 'Data Assets', icon: Database },
               { id: 'relationships', label: 'Relationships', icon: GitBranch },
               { id: 'dependencies', label: 'Dependencies', icon: Network },
-              { id: 'graph', label: 'Graph View', icon: Network }
+              { id: 'graph', label: 'Graph View', icon: Network },
+              { id: 'lineage', label: 'Lineage Processing', icon: Network }
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -912,6 +962,208 @@ export const LineageViewer: React.FC<LineageViewerProps> = ({
               <p className="text-sm text-gray-500">
                 This will show nodes and edges representing your data assets and their relationships.
               </p>
+            </div>
+          )}
+
+          {/* Lineage Processing Tab */}
+          {activeTab === 'lineage' && (
+            <div className="space-y-6">
+              {/* Processing Status Overview */}
+              {lineageProcessingStatus && (
+                <div className="bg-white border border-gray-200 rounded-lg p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center">
+                      <Zap className="h-6 w-6 text-blue-600 mr-3" />
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900">Lineage Processing Status</h3>
+                        <p className="text-gray-600">Complete data lineage extraction and analysis</p>
+                      </div>
+                    </div>
+                    
+                    <button
+                      onClick={processLineage}
+                      disabled={lineageProcessing}
+                      className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {lineageProcessing ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Zap className="h-4 w-4 mr-2" />
+                      )}
+                      {lineageProcessing ? 'Processing...' : 'Start Processing'}
+                    </button>
+                  </div>
+
+                  {/* Processing Metrics */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-blue-800">Files Processed</p>
+                          <p className="text-2xl font-bold text-blue-900">
+                            {lineageProcessingStatus.processing?.lineage?.completed || 0}
+                          </p>
+                          <p className="text-xs text-blue-600">
+                            of {lineageProcessingStatus.processing?.lineage?.eligible || 0} eligible
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-bold text-blue-900">
+                            {lineageProcessingStatus.processing?.lineage?.progress || 0}%
+                          </p>
+                          <div className="w-16 bg-blue-200 rounded-full h-2 mt-1">
+                            <div 
+                              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                              style={{ width: `${lineageProcessingStatus.processing?.lineage?.progress || 0}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-green-800">Assets Discovered</p>
+                          <p className="text-2xl font-bold text-green-900">
+                            {lineageProcessingStatus.assets?.total || 0}
+                          </p>
+                          <p className="text-xs text-green-600">
+                            {lineageProcessingStatus.assets?.criticalAssets || 0} critical
+                          </p>
+                        </div>
+                        <Database className="h-8 w-8 text-green-600" />
+                      </div>
+                    </div>
+
+                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-purple-800">Relationships</p>
+                          <p className="text-2xl font-bold text-purple-900">
+                            {lineageProcessingStatus.relationships?.total || 0}
+                          </p>
+                          <p className="text-xs text-purple-600">
+                            {Math.round((lineageProcessingStatus.relationships?.avgConfidence || 0) * 100)}% avg confidence
+                          </p>
+                        </div>
+                        <GitBranch className="h-8 w-8 text-purple-600" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Latest Processing Run */}
+                  {lineageProcessingStatus.lastProcessingRun && (
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                      <h4 className="font-medium text-gray-900 mb-3">Latest Processing Run</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div>
+                          <p className="text-gray-600">Status</p>
+                          <p className={`font-medium capitalize ${
+                            lineageProcessingStatus.lastProcessingRun.status === 'completed' ? 'text-green-600' :
+                            lineageProcessingStatus.lastProcessingRun.status === 'processing' ? 'text-yellow-600' :
+                            lineageProcessingStatus.lastProcessingRun.status === 'failed' ? 'text-red-600' :
+                            'text-gray-600'
+                          }`}>
+                            {lineageProcessingStatus.lastProcessingRun.status}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-gray-600">Files Processed</p>
+                          <p className="font-medium text-gray-900">
+                            {lineageProcessingStatus.lastProcessingRun.filesProcessed}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-gray-600">Cross-File Links</p>
+                          <p className="font-medium text-gray-900">
+                            {lineageProcessingStatus.lastProcessingRun.crossFileRelationships}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-gray-600">Duration</p>
+                          <p className="font-medium text-gray-900">
+                            {lineageProcessingStatus.lastProcessingRun.durationMs 
+                              ? `${Math.round(lineageProcessingStatus.lastProcessingRun.durationMs / 1000)}s`
+                              : 'N/A'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Processing History */}
+              <div className="bg-white border border-gray-200 rounded-lg p-6">
+                <div className="flex items-center mb-4">
+                  <BarChart3 className="h-5 w-5 text-gray-600 mr-2" />
+                  <h3 className="text-lg font-semibold text-gray-900">Processing History</h3>
+                </div>
+                
+                {processingHistory.length > 0 ? (
+                  <div className="space-y-3">
+                    {processingHistory.slice(0, 5).map((run) => (
+                      <div key={run.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          <div className={`w-3 h-3 rounded-full ${
+                            run.status === 'completed' ? 'bg-green-500' :
+                            run.status === 'processing' ? 'bg-yellow-500' :
+                            run.status === 'failed' ? 'bg-red-500' :
+                            'bg-gray-500'
+                          }`}></div>
+                          <div>
+                            <p className="font-medium text-gray-900">
+                              {new Date(run.processingStartTime).toLocaleDateString()} at{' '}
+                              {new Date(run.processingStartTime).toLocaleTimeString()}
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              {run.totalFilesProcessed} files • {run.assetsDiscovered} assets • {run.relationshipsDiscovered} relationships
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right text-sm text-gray-600">
+                          <p className="font-medium">
+                            {run.processingDurationMs 
+                              ? `${Math.round(run.processingDurationMs / 1000)}s`
+                              : 'In progress'}
+                          </p>
+                          <p className="capitalize">{run.status}</p>
+                        </div>
+                      </div>
+                    ))}
+                    {processingHistory.length > 5 && (
+                      <p className="text-sm text-gray-500 text-center">
+                        ... and {processingHistory.length - 5} more runs
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <BarChart3 className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                    <p>No processing history available. Start your first lineage processing run.</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Data Domains Overview */}
+              {lineageProcessingStatus?.assets?.dataDomains && lineageProcessingStatus.assets.dataDomains.length > 0 && (
+                <div className="bg-white border border-gray-200 rounded-lg p-6">
+                  <div className="flex items-center mb-4">
+                    <Network className="h-5 w-5 text-gray-600 mr-2" />
+                    <h3 className="text-lg font-semibold text-gray-900">Data Domains Identified</h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {lineageProcessingStatus.assets.dataDomains.map((domain: string, index: number) => (
+                      <div key={domain} className="flex items-center p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
+                        <span className="text-sm font-medium text-blue-900 capitalize">{domain}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

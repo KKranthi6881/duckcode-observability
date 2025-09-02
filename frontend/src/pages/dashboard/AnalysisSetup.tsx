@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { processRepositoryForInsights } from '../../services/githubService';
+import { sequentialProcessingService } from '../../services/sequential-processing.service';
 import { supabase } from '../../config/supabaseClient';
 import { useProcessingStatus } from '../../context/ProcessingStatusContext';
 import { 
@@ -188,19 +189,30 @@ export const AnalysisSetup: React.FC<AnalysisSetupProps> = () => {
 
   const startRepositoryProcessing = async () => {
     try {
-      console.log('Starting repository processing for:', repoFullName);
+      console.log('Starting sequential processing for:', repoFullName);
       
-      // Start the repository processing
-      await processRepositoryForInsights(`${owner}/${repo}`, selectedLanguage);
-      console.log('Repository processing API call completed');
+      // Get the current session for authentication
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('No active session found. Please log in again.');
+      }
       
-      // Start polling for progress using context
-      console.log('Starting processing status polling via context');
-      startProcessing(repoFullName);
-      console.log('Context startProcessing called');
+      // Start sequential processing with selected language
+      console.log('📡 Calling sequential processing service with language:', selectedLanguage);
+      const response = await sequentialProcessingService.startSequentialProcessing(
+        `${owner}/${repo}`, 
+        session.access_token,
+        selectedLanguage
+      );
+      
+      console.log('✅ Sequential processing started successfully:', response);
+      
+      // Note: We don't use the legacy context polling for sequential processing
+      // The sequential processing has its own status tracking
+      console.log('Sequential processing initiated - user will see progress in the main dashboard');
       
     } catch (error) {
-      console.error('Error starting repository processing:', error);
+      console.error('Error starting sequential processing:', error);
       setError('Failed to start repository processing');
     }
   };

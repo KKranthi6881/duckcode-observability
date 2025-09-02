@@ -12,6 +12,28 @@ interface ProcessingStatus {
   lastUpdated: string;
   startedAt: string;
   completedAt?: string;
+  // New comprehensive status fields
+  overallProgress?: number;
+  overallCompleted?: number;
+  documentation?: {
+    completed: number;
+    failed: number;
+    pending: number;
+    progress: number;
+  };
+  vectors?: {
+    completed: number;
+    failed: number;
+    pending: number;
+    progress: number;
+  };
+  lineage?: {
+    completed: number;
+    failed: number;
+    pending: number;
+    progress: number;
+    eligible?: number;
+  } | null;
 }
 
 interface ProcessingStatusContextType {
@@ -93,12 +115,20 @@ export const ProcessingStatusProvider: React.FC<{ children: React.ReactNode }> =
             ...prev,
             [repoFullName]: {
               ...prev[repoFullName],
-              progress: status.progress || 0,
+              // Legacy fields for backward compatibility
+              progress: status.progress || status.overallProgress || 0,
               totalFiles: status.totalFiles || 0,
-              completed: status.completed || 0,
+              completed: status.completed || status.overallCompleted || 0,
               failed: status.failed || 0,
               pending: status.pending || 0,
               detailedStatus: status.detailedStatus || [],
+              // New comprehensive fields
+              overallProgress: status.overallProgress,
+              overallCompleted: status.overallCompleted,
+              documentation: status.documentation,
+              vectors: status.vectors,
+              lineage: status.lineage,
+              // Metadata
               lastUpdated: new Date().toISOString(),
               isPolling: true
             }

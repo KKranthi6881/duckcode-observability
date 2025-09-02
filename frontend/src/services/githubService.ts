@@ -348,16 +348,65 @@ export const processRepositoryForInsights = async (repositoryFullName: string, s
 };
 
 export const getProcessingStatus = async (repositoryFullName: string): Promise<any> => {
-  console.log(`[GitHubService] Getting processing status for: ${repositoryFullName}`);
+  console.log(`[GitHubService] Getting SEQUENTIAL processing status for: ${repositoryFullName}`);
   
-  // Split the repository full name into owner and repo
+  // First try the NEW sequential status endpoint
+  const sequentialUrl = `${API_BASE_URL}/api/sequential/status/${encodeURIComponent(repositoryFullName)}`;
+  console.log(`[GitHubService] Sequential API URL: ${sequentialUrl}`);
+  
+  try {
+    const headers = await getAuthHeaders();
+    console.log(`[GitHubService] Request headers:`, Object.keys(headers));
+    
+    const response = await fetchWithTimeout(sequentialUrl, {
+      method: 'GET',
+      headers,
+    });
+
+    console.log(`[GitHubService] Sequential status response: ${response.status} ${response.statusText}`);
+
+    if (response.ok) {
+      const data = await response.json();
+      console.log(`[GitHubService] Sequential processing status success:`, data);
+      
+      // Map sequential status to RepositoryCard expected format
+      const mappedData = {
+        sequentialJobId: data.jobId,
+        sequentialStatus: data.status,
+        sequentialCurrentPhase: data.currentPhase,
+        sequentialPhases: data.phases,
+        isPolling: data.status === 'processing',
+        overallProgress: data.progress || 0,
+        
+        // Enhanced file counts from backend
+        totalFiles: data.totalFiles || 0,
+        fileCounts: data.fileCounts,
+        
+        // For backwards compatibility, still provide basic status
+        progress: data.progress || 0,
+        completed: data.status === 'completed' ? data.totalFiles || 1 : 0,
+        pending: data.status === 'processing' ? data.totalFiles || 1 : 0,
+        failed: data.status === 'error' ? data.totalFiles || 1 : 0
+      };
+      
+      console.log(`[GitHubService] Mapped sequential status:`, mappedData);
+      return mappedData;
+    }
+    
+    // If sequential endpoint doesn't exist or fails, fall back to old endpoint
+    console.log(`[GitHubService] Sequential endpoint failed, falling back to old comprehensive endpoint`);
+  } catch (error) {
+    console.error(`[GitHubService] Error with sequential endpoint, falling back:`, error);
+  }
+  
+  // FALLBACK: Use the old comprehensive lineage endpoint
   const [owner, repo] = repositoryFullName.split('/');
   if (!owner || !repo) {
     throw new Error(`Invalid repository full name: ${repositoryFullName}`);
   }
   
-  const url = `${API_BASE_URL}/api/insights/processing-status/${owner}/${repo}`;
-  console.log(`[GitHubService] API URL: ${url}`);
+  const url = `${API_BASE_URL}/api/lineage/phase2c/status/${owner}/${repo}`;
+  console.log(`[GitHubService] Fallback API URL: ${url}`);
   
   try {
     const headers = await getAuthHeaders();
@@ -371,6 +420,12 @@ export const getProcessingStatus = async (repositoryFullName: string): Promise<a
     console.log(`[GitHubService] Processing status response: ${response.status} ${response.statusText}`);
 
     if (!response.ok) {
+      // If 404, try the legacy endpoint for backward compatibility
+      if (response.status === 404) {
+        console.log(`[GitHubService] Repository not found in lineage endpoint, trying legacy endpoint`);
+        return await getLegacyProcessingStatus(repositoryFullName);
+      }
+      
       const errorText = await response.text();
       console.error(`[GitHubService] Processing status error response:`, errorText);
       let errorData;
@@ -383,10 +438,105 @@ export const getProcessingStatus = async (repositoryFullName: string): Promise<a
     }
 
     const result = await response.json();
-    console.log(`[GitHubService] Processing status success:`, result);
+    console.log(`[GitHubService] Comprehensive processing status success:`, result);
+    
+    // Transform the response to match the expected format for the frontend
+    if (result.success && result.data) {
+      const data = result.data;
+      return {
+        // Overall status fields
+        totalFiles: data.repository.totalFiles,
+        overallCompleted: data.processing.documentation.completed + data.processing.vector.completed + data.processing.lineage.completed,
+        overallProgress: Math.round((data.processing.documentation.progress + data.processing.vector.progress + data.processing.lineage.progress) / 3),
+        isPolling: false, // Set based on any active processing
+        
+        // Documentation status
+        documentation: {
+          completed: data.processing.documentation.completed,
+          failed: data.processing.documentation.failed,
+          pending: data.processing.documentation.pending,
+          progress: data.processing.documentation.progress
+        },
+        
+        // Vector status
+        vectors: {
+          completed: data.processing.vector.completed,
+          failed: data.processing.vector.failed,
+          pending: data.processing.vector.pending,
+          progress: data.processing.vector.progress
+        },
+        
+        // Lineage status - This is the key addition!
+        lineage: {
+          completed: data.processing.lineage.completed,
+          failed: data.processing.lineage.failed,
+          pending: data.processing.lineage.pending,
+          progress: data.processing.lineage.progress,
+          eligible: data.processing.lineage.eligible
+        },
+        
+        // Additional metadata for detailed status view
+        detailedStatus: [], // This would need to be populated from file_details if needed
+        
+        // Raw data for other uses
+        _rawData: data
+      };
+    }
+    
     return result;
   } catch (error) {
     console.error(`[GitHubService] Error getting processing status for ${repositoryFullName}:`, error);
+    throw error;
+  }
+};
+
+// Legacy fallback function for repositories not yet in the new system
+const getLegacyProcessingStatus = async (repositoryFullName: string): Promise<any> => {
+  const [owner, repo] = repositoryFullName.split('/');
+  const url = `${API_BASE_URL}/api/insights/processing-status/${owner}/${repo}`;
+  
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetchWithTimeout(url, {
+      method: 'GET',
+      headers,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Legacy endpoint failed: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    console.log(`[GitHubService] Legacy processing status:`, result);
+    
+    // Transform legacy format to new format (no lineage data)
+    return {
+      totalFiles: result.totalFiles || 0,
+      overallCompleted: result.completed || 0,
+      overallProgress: result.progress || 0,
+      isPolling: result.isPolling || false,
+      
+      documentation: {
+        completed: result.completed || 0,
+        failed: result.failed || 0,
+        pending: result.pending || 0,
+        progress: result.progress || 0
+      },
+      
+      vectors: {
+        completed: 0,
+        failed: 0,
+        pending: 0,
+        progress: 0
+      },
+      
+      // No lineage data for legacy repositories
+      lineage: null,
+      
+      _legacy: true
+    };
+  } catch (error) {
+    console.error(`[GitHubService] Legacy endpoint also failed:`, error);
     throw error;
   }
 };
