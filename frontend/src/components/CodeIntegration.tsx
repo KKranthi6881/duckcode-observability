@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Code, Bot, Zap, Search, Network } from 'lucide-react';
 // Sample SQL code snippets showing AI assistance
 const codeSnippets = [{
@@ -70,73 +70,103 @@ export function CodeIntegration() {
     }, 7000);
     return () => clearInterval(timer);
   }, []);
-  return <div id="integration" className="relative py-20 bg-slate-900 overflow-hidden sm:py-28">
+  return (
+    <div id="integration" className="relative py-24 bg-gradient-to-br from-gray-50 to-white overflow-hidden sm:py-32">
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiMyMTI1MjkiIGZpbGwtb3BhY2l0eT0iMC4zIj48cGF0aCBkPSJNMzYgMzRoLTJ2LTRoMnY0em0wLTZoLTJ2LTRoMnY0em0wLTZoLTJ2LTRoMnY0em0wLTZoLTJWNmgydjR6bTAgMjRoLTJ2LTRoMnY0em0wIDZoLTJ2LTRoMnY0em0wIDZoLTJ2LTRoMnY0em0wIDZoLTJ2LTRoMnY0em0tNi0yNGgtNHYtMmg0djJ6bS02IDBoLTR2LTJoNHYyem0tNiAwSDE0di0yaDR2MnptLTYgMEg4di0yaDR2MnptMjQgMGgtNHYtMmg0djJ6bTYgMGgtNHYtMmg0djJ6bTYgMGgtNHYtMmg0djJ6bTYgMGgtNHYtMmg0djJ6Ii8+PC9nPjwvZz48L3N2Zz4=')] opacity-10" />
+        {/* Subtle grid pattern */}
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cGF0dGVybiBpZD0iZ3JpZCIgd2lkdGg9IjYwIiBoZWlnaHQ9IjYwIiBwYXR0ZXJuVW5pdHM9InVzZXJTcGFjZU9uVXNlIj48cGF0aCBkPSJNIDYwIDAgTCAwIDAgMCA2MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZTJlOGYwIiBzdHJva2Utd2lkdGg9IjEiIG9wYWNpdHk9IjAuNCIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNncmlkKSIvPjwvc3ZnPg==')] opacity-30" />
+        
+        {/* Floating gradient orbs */}
+        <div className="absolute top-1/4 -left-20 w-80 h-80 bg-gradient-to-r from-blue-400/15 to-cyan-400/15 rounded-full filter blur-3xl animate-blob" />
+        <div className="absolute -bottom-20 -right-20 w-96 h-96 bg-gradient-to-r from-purple-400/15 to-pink-400/15 rounded-full filter blur-3xl animate-blob animation-delay-2000" />
+        <div className="absolute top-1/2 left-1/3 w-72 h-72 bg-gradient-to-r from-[#2AB7A9]/10 to-emerald-400/10 rounded-full filter blur-3xl animate-blob animation-delay-4000" />
       </div>
       <div className="container relative mx-auto px-4 sm:px-6 lg:px-8">
         <div className="lg:grid lg:grid-cols-12 lg:gap-16">
           <div className="lg:col-span-5">
             <div className="animate-fade-in">
-              <div className="flex items-center space-x-2">
-                <Bot className="h-6 w-6 text-[#2AB7A9] animate-bounce" />
-                <h2 className="text-base font-semibold text-[#2AB7A9] uppercase tracking-wide">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg">
+                  <Bot className="h-6 w-6 text-white animate-bounce" />
+                </div>
+                <h2 className="text-lg font-bold text-gray-700 uppercase tracking-wide">
                   AI-Powered IDE
                 </h2>
               </div>
-              <p className="mt-2 text-3xl font-extrabold text-white sm:text-4xl">
-                Develop data solutions{' '}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#F5B72F] to-[#2AB7A9]">
-                  10x faster
-                </span>
-              </p>
-              <p className="mt-4 text-lg text-slate-300">
+              <div className="mt-6 space-y-2">
+                <h1 className="text-4xl font-extrabold text-gray-900 sm:text-5xl leading-tight">
+                  Build
+                </h1>
+                <h1 className="text-4xl font-extrabold text-gray-900 sm:text-5xl leading-tight">
+                  The Data Solutions
+                </h1>
+                <p className="text-4xl font-extrabold sm:text-5xl leading-tight">
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-purple-600 to-[#2AB7A9]">
+                    10x faster
+                  </span>
+                </p>
+              </div>
+              <p className="mt-6 text-xl text-gray-600 leading-relaxed">
                 Our intelligent VS Code extension brings AI assistance, data
                 understanding, and validation directly into your development
-                workflow.
+                workflow with enterprise-grade security.
               </p>
-              <div className="mt-8 space-y-6">
-                {[{
-                icon: Bot,
-                title: 'AI SQL Generation',
-                description: 'Transform natural language requests into optimized SQL queries with context-aware AI assistance.'
-              }, {
-                icon: Search,
-                title: 'Data Lineage In-Editor',
-                description: 'See where your data comes from and where it goes without leaving your code editor.'
-              }, {
-                icon: Zap,
-                title: 'Real-Time Validation',
-                description: 'Catch schema issues, semantic errors, and quality problems before they reach production.'
-              }].map((feature, index) => <div key={feature.title} className="flex p-4 rounded-lg hover:bg-slate-800/50 transition-colors duration-200 animate-fade-in" style={{
-                animationDelay: `${(index + 1) * 200}ms`
-              }}>
+              <div className="mt-12 space-y-6">
+                {[
+                  {
+                    icon: Bot,
+                    title: 'AI SQL Generation',
+                    description: 'Transform natural language requests into optimized SQL queries with context-aware AI assistance.',
+                    color: 'from-blue-500 to-purple-600'
+                  },
+                  {
+                    icon: Search,
+                    title: 'Data Lineage In-Editor',
+                    description: 'See where your data comes from and where it goes without leaving your code editor.',
+                    color: 'from-[#2AB7A9] to-emerald-600'
+                  },
+                  {
+                    icon: Zap,
+                    title: 'Real-Time Validation',
+                    description: 'Catch schema issues, semantic errors, and quality problems before they reach production.',
+                    color: 'from-[#F5B72F] to-orange-500'
+                  }
+                ].map((feature, index) => (
+                  <div 
+                    key={feature.title} 
+                    className="group flex p-6 rounded-2xl bg-white border border-gray-200 hover:border-gray-300 hover:shadow-xl transition-all duration-300 animate-fade-in hover:scale-105" 
+                    style={{
+                      animationDelay: `${(index + 1) * 200}ms`
+                    }}
+                  >
                     <div className="flex-shrink-0">
-                      <div className="flex items-center justify-center h-12 w-12 rounded-md bg-gradient-to-r from-[#F5B72F] to-[#F5B72F]/80 text-slate-900 shadow-lg">
-                        <feature.icon className="h-6 w-6" />
+                      <div className={`flex items-center justify-center h-16 w-16 rounded-2xl bg-gradient-to-br ${feature.color} text-white shadow-lg group-hover:scale-110 transition-transform duration-300`}>
+                        <feature.icon className="h-8 w-8" />
                       </div>
                     </div>
-                    <div className="ml-4">
-                      <h3 className="text-lg font-medium text-white">
+                    <div className="ml-6">
+                      <h3 className="text-xl font-bold text-gray-900 group-hover:text-gray-700 transition-colors">
                         {feature.title}
                       </h3>
-                      <p className="mt-2 text-sm text-slate-400">
+                      <p className="mt-3 text-base text-gray-600 group-hover:text-gray-700 transition-colors leading-relaxed">
                         {feature.description}
                       </p>
                     </div>
-                  </div>)}
+                  </div>
+                ))}
               </div>
-              <div className="mt-10 animate-fade-in animation-delay-700">
-                <a href="#" className="group inline-flex items-center px-6 py-4 border border-transparent text-base font-medium rounded-lg shadow-lg text-slate-900 bg-gradient-to-r from-[#F5B72F] to-[#F5B72F]/80 hover:shadow-xl transition-all duration-200 hover:scale-105">
-                  <Code className="mr-2 h-5 w-5 group-hover:rotate-12 transition-transform" />
-                  Install VS Code Extension
+              <div className="mt-12 animate-fade-in animation-delay-700">
+                <a href="https://marketplace.visualstudio.com/items?itemName=Duckcode.duck-code" className="group relative inline-flex items-center px-10 py-5 text-lg font-bold rounded-2xl text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-110">
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl blur opacity-75 group-hover:opacity-100 transition-opacity"></div>
+                  <Code className="relative mr-3 h-6 w-6 group-hover:rotate-12 transition-transform" />
+                  <span className="relative">Install VS Code Extension</span>
                 </a>
               </div>
             </div>
           </div>
           <div className="mt-12 lg:mt-0 lg:col-span-7">
             <div className="relative animate-fade-in animation-delay-300">
-              <div className="aspect-w-5 aspect-h-3 rounded-xl shadow-2xl overflow-hidden bg-[#1E1E1E] ring-1 ring-slate-700">
+              <div className="aspect-w-5 aspect-h-3 rounded-3xl shadow-2xl overflow-hidden bg-gradient-to-br from-gray-900 to-gray-800 ring-1 ring-gray-700/50">
                 <div className="p-4 h-full">
                   {/* Editor header */}
                   <div className="flex items-center justify-between mb-4">
@@ -230,5 +260,6 @@ export function CodeIntegration() {
           </div>
         </div>
       </div>
-    </div>;
+    </div>
+  );
 }

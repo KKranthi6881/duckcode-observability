@@ -1,10 +1,7 @@
-import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { Header } from './components/Header';
 import { Hero } from './components/Hero';
-import { Features } from './components/Features';
-import { CodeIntegration } from './components/CodeIntegration';
-import { Benefits } from './components/Benefits';
 // import { CTA } from './components/CTA'; // CTA and Footer removed from landing if user is redirected
 // import { Footer } from './components/Footer';
 import { DashboardLayout } from './pages/dashboard/DashboardLayout';
@@ -122,9 +119,6 @@ const AppContent = () => {
             <Header />
             <main>
               <Hero />
-              <CodeIntegration />
-              <Features />
-              <Benefits />
             </main>
             {/* CTA and Footer are part of the main landing page layout, 
                 they will only show if the user is not authenticated and not redirected. 
