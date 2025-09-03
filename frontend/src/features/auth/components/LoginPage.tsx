@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthForm } from '../hooks/useAuthForm';
 import { useAuth } from '../contexts/AuthContext';
 import { signInWithEmailPassword, signInWithGitHub } from '../services/authService';
@@ -12,7 +12,12 @@ const LoginPage: React.FC = () => {
     isLoading, setIsLoading,
   } = useAuthForm();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { session } = useAuth();
+  
+  // Check if this is an IDE authentication request
+  const isIdeAuth = searchParams.get('source') === 'ide';
+  const redirectUrl = searchParams.get('redirect');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,8 +36,27 @@ const LoginPage: React.FC = () => {
   };
 
   useEffect(() => {
-    if (session) navigate('/dashboard');
-  }, [session, navigate]);
+    if (session) {
+      console.log('LoginPage: Session detected', { session, isIdeAuth, redirectUrl });
+      
+      if (isIdeAuth && redirectUrl) {
+        // For IDE authentication, redirect back to the IDE with token
+        const token = session.access_token;
+        const user = session.user;
+        const callbackUrl = `${redirectUrl}?token=${encodeURIComponent(token)}&user=${encodeURIComponent(JSON.stringify(user))}`;
+        
+        console.log('LoginPage: Redirecting to IDE', { callbackUrl });
+        
+        // Use a small delay to ensure the page has fully loaded
+        setTimeout(() => {
+          window.location.href = callbackUrl;
+        }, 100);
+      } else {
+        // Regular web authentication, go to dashboard
+        navigate('/dashboard');
+      }
+    }
+  }, [session, navigate, isIdeAuth, redirectUrl]);
 
   const handleGitHubSignIn = async () => {
     setError(null);

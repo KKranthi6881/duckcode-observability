@@ -1,8 +1,10 @@
 import { NextFunction, Response, Request } from 'express';
 import { SupabaseClient } from '@supabase/supabase-js';
-import supabaseInstance, { supabaseCodeInsights } from '@/config/supabaseClient';
-import * as githubService from '@/services/github.service';
-import * as aiService from '@/services/ai.service';
+import supabaseInstance, { supabaseCodeInsights } from '../../config/supabaseClient';
+import * as insightsService from '../../services/insights.service';
+import * as githubService from '../../services/github.service';
+import * as metadataService from '../../services/metadata.service';
+import * as aiService from '../../services/ai.service';
 
 console.log('[InsightsController] supabaseInstance imported:', typeof supabaseInstance, supabaseInstance !== null, supabaseInstance ? Object.keys(supabaseInstance) : 'null or undefined');
 

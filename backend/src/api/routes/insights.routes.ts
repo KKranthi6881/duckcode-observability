@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import * as insightsController from '@/api/controllers/insights.controller';
-import { requireAuth } from '@/api/middlewares/auth.middleware';
+import * as insightsController from '../controllers/insights.controller';
+import { requireAuth } from '../middlewares/auth.middleware';
 
 const router = Router();
 

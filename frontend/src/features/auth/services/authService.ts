@@ -100,7 +100,7 @@ export const getProfile = async (): Promise<{ profile: Profile | null; error: Er
 
   console.log(`[authService getProfile] User found (ID: ${user.id}). Attempting to fetch profile from DB.`); // ADDED
   const { data, error } = await supabase
-    .from('profiles')
+    .from('user_profiles')
     .select('*')
     .eq('id', user.id)
     .single();
@@ -136,7 +136,7 @@ export const upsertProfile = async (profileData: Partial<Profile>): Promise<{ pr
   };
 
   const { data, error } = await supabase
-    .from('profiles')
+    .from('user_profiles')
     .upsert(dataToUpsert)
     .select()
     .single();

@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import supabaseAdmin from '@/config/supabaseClient';
+import supabaseAdmin from '../../config/supabaseClient';
 
 // Extend the Express Request type to include our custom 'user' property
 declare global {

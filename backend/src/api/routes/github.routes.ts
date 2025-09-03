@@ -1,6 +1,6 @@
 import { Router, RequestHandler } from 'express';
-import * as githubController from '@/api/controllers/github.controller';
-import { requireAuth } from '@/api/middlewares/auth.middleware'; 
+import * as githubController from '../controllers/github.controller';
+import { requireAuth } from '../middlewares/auth.middleware'; 
 
 const router = Router();
 

@@ -1,4 +1,4 @@
-import supabaseAdmin from '@/config/supabaseClient';
+import supabaseAdmin from '../config/supabaseClient';
 import {
   GitHubAppInstallation,
   GitHubAccessibleRepository,
