@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthForm } from '../hooks/useAuthForm';
 import { signUpWithEmailPassword, signInWithGitHub } from '../services/authService';
 import { useAuth } from '../contexts/AuthContext';
@@ -14,12 +14,46 @@ const RegisterPage: React.FC = () => {
   } = useAuthForm();
   const navigate = useNavigate();
   const { session, isLoading: authLoading } = useAuth();
+  const [searchParams] = useSearchParams();
+
+  // Check if this is an IDE OAuth flow (JWT-based)
+  const oauthToken = searchParams.get('oauth_token');
+  const [oauthData, setOauthData] = React.useState<{state: string, redirect_uri: string} | null>(null);
+  const isIdeFlow = !!oauthToken || !!oauthData;
+
+  // Decode OAuth token on component mount
+  React.useEffect(() => {
+    if (oauthToken) {
+      fetch('/api/auth/ide/decode-oauth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ oauth_token: oauthToken })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.state && data.redirect_uri) {
+          setOauthData({ state: data.state, redirect_uri: data.redirect_uri });
+          console.log('Decoded OAuth data:', data);
+        }
+      })
+      .catch(err => {
+        console.error('Failed to decode OAuth token:', err);
+        setError('Invalid authentication request. Please try again from the IDE.');
+      });
+    }
+  }, [oauthToken, setError]);
 
   useEffect(() => {
     if (!authLoading && session) {
-      navigate('/dashboard', { replace: true });
+      if (isIdeFlow && oauthToken) {
+        // For IDE flow, redirect to authorization endpoint with JWT token and session
+        const authUrl = `/api/auth/ide/authorize?oauth_token=${encodeURIComponent(oauthToken)}&session_token=${encodeURIComponent(session.access_token)}`;
+        window.location.href = authUrl;
+      } else {
+        navigate('/dashboard', { replace: true });
+      }
     }
-  }, [session, authLoading, navigate]);
+  }, [session, authLoading, navigate, isIdeFlow, oauthToken]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,10 +67,17 @@ const RegisterPage: React.FC = () => {
       const { data, error: signUpError } = await signUpWithEmailPassword({ email, password });
       if (signUpError) throw signUpError;
       console.log('Registration successful', data.user);
-      alert('Registration successful! Please check your email to confirm your account if required, then login.');
-      navigate('/login');
-    } catch (err: any) {
-      setError(err.message || 'Failed to register. Please try again.');
+      
+      if (isIdeFlow) {
+        // For IDE flow, the useEffect will handle the redirect after session is established
+        alert('Registration successful! Redirecting back to IDE...');
+      } else {
+        alert('Registration successful! Please check your email to confirm your account if required, then login.');
+        navigate('/login');
+      }
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to register. Please try again.';
+      setError(errorMessage);
       console.error('Registration error:', err);
     } finally {
       setIsLoading(false);
@@ -47,10 +88,11 @@ const RegisterPage: React.FC = () => {
     setError(null);
     setIsLoading(true);
     try {
-      const { error: githubError } = await signInWithGitHub();
-      if (githubError) throw githubError;
-    } catch (err: any) {
-      setError(err.message || 'Failed to sign up with GitHub. Please try again.');
+      await signInWithGitHub();
+      // Success will be handled by useEffect when session updates
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to sign up with GitHub. Please try again.';
+      setError(errorMessage);
       console.error('GitHub sign up error:', err);
       setIsLoading(false);
     }

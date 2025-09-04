@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5175';
 const GITHUB_APP_NAME = process.env.GITHUB_APP_NAME;
 
 export const startGitHubInstallation = async (req: Request, res: Response, next: NextFunction) => {

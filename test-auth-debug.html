@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>OAuth Auth Debug Test</title>
+</head>
+<body>
+    <h1>OAuth Authentication Debug</h1>
+    <div id="output"></div>
+    
+    <script>
+        const output = document.getElementById('output');
+        
+        function log(message) {
+            output.innerHTML += '<p>' + message + '</p>';
+            console.log(message);
+        }
+        
+        // Parse URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const state = urlParams.get('state');
+        const redirectUri = urlParams.get('redirect_uri');
+        
+        log('URL Parameters:');
+        log('State: ' + state);
+        log('Redirect URI: ' + redirectUri);
+        
+        if (state && redirectUri) {
+            log('IDE OAuth parameters detected!');
+            
+            // Test direct authorization endpoint call
+            const authUrl = `/api/auth/ide/authorize?state=${encodeURIComponent(state)}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+            log('Testing authorization endpoint: ' + authUrl);
+            
+            fetch(authUrl, {
+                method: 'GET',
+                credentials: 'include'
+            })
+            .then(response => {
+                log('Response status: ' + response.status);
+                log('Response headers: ' + JSON.stringify([...response.headers.entries()]));
+                
+                if (response.status === 302) {
+                    const location = response.headers.get('Location');
+                    log('Redirect location: ' + location);
+                    if (location) {
+                        log('Redirecting to IDE...');
+                        window.location.href = location;
+                    }
+                } else {
+                    return response.text();
+                }
+            })
+            .then(text => {
+                if (text) {
+                    log('Response body: ' + text);
+                }
+            })
+            .catch(error => {
+                log('Error: ' + error.message);
+            });
+        } else {
+            log('No IDE OAuth parameters found in URL');
+        }
+    </script>
+</body>
+</html>

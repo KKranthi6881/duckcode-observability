@@ -15,9 +15,32 @@ const LoginPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const { session } = useAuth();
   
-  // Check if this is an IDE authentication request
-  const isIdeAuth = searchParams.get('source') === 'ide';
-  const redirectUrl = searchParams.get('redirect');
+  // Check if this is an IDE OAuth authorization request (JWT-based)
+  const oauthToken = searchParams.get('oauth_token');
+  const [oauthData, setOauthData] = React.useState<{state: string, redirect_uri: string} | null>(null);
+  const isIdeAuth = !!oauthToken || !!oauthData;
+  
+  // Decode OAuth token on component mount
+  React.useEffect(() => {
+    if (oauthToken) {
+      fetch('/api/auth/ide/decode-oauth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ oauth_token: oauthToken })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.state && data.redirect_uri) {
+          setOauthData({ state: data.state, redirect_uri: data.redirect_uri });
+          console.log('Decoded OAuth data:', data);
+        }
+      })
+      .catch(err => {
+        console.error('Failed to decode OAuth token:', err);
+        setError('Invalid authentication request. Please try again from the IDE.');
+      });
+    }
+  }, [oauthToken, setError]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,8 +50,9 @@ const LoginPage: React.FC = () => {
       const { data, error: signInError } = await signInWithEmailPassword({ email, password });
       if (signInError) throw signInError;
       console.log('Login successful', data.session);
-    } catch (err: any) {
-      setError(err.message || 'Failed to login. Please check your credentials.');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to login. Please check your credentials.';
+      setError(errorMessage);
       console.error('Login error:', err);
     } finally {
       setIsLoading(false);
@@ -36,35 +60,65 @@ const LoginPage: React.FC = () => {
   };
 
   useEffect(() => {
-    if (session) {
-      console.log('LoginPage: Session detected', { session, isIdeAuth, redirectUrl });
+    const handleAuth = async () => {
+      console.log('LoginPage: useEffect triggered', { 
+        hasSession: !!session, 
+        session, 
+        isIdeAuth, 
+        oauthData 
+      });
       
-      if (isIdeAuth && redirectUrl) {
-        // For IDE authentication, redirect back to the IDE with token
-        const token = session.access_token;
-        const user = session.user;
-        const callbackUrl = `${redirectUrl}?token=${encodeURIComponent(token)}&user=${encodeURIComponent(JSON.stringify(user))}`;
+      // Prevent infinite redirects by checking if we already processed this session
+      const processedSessionId = sessionStorage.getItem('processedSessionId');
+      const currentSessionId = session?.access_token?.slice(-10); // Use last 10 chars as ID
+      
+      if (session && processedSessionId !== currentSessionId) {
+        console.log('LoginPage: Session detected', { 
+          session, 
+          isIdeAuth, 
+          oauthData,
+          sessionKeys: Object.keys(session),
+          accessToken: session.access_token,
+          user: session.user
+        });
         
-        console.log('LoginPage: Redirecting to IDE', { callbackUrl });
-        
-        // Use a small delay to ensure the page has fully loaded
-        setTimeout(() => {
-          window.location.href = callbackUrl;
-        }, 100);
+        if (isIdeAuth && oauthData) {
+          // OAuth-style IDE authentication - redirect to backend authorization endpoint
+          console.log('LoginPage: OAuth IDE auth detected, redirecting to authorization endpoint');
+          sessionStorage.setItem('processedSessionId', currentSessionId || '');
+          
+          // For IDE flows, redirect directly to authorization endpoint
+          const authUrl = `/api/auth/ide/authorize?oauth_token=${encodeURIComponent(oauthToken || '')}`;
+          console.log('LoginPage: Redirecting to authorization endpoint:', authUrl);
+          
+          // Add session token as query parameter for authentication
+          const authUrlWithToken = `${authUrl}&session_token=${encodeURIComponent(session.access_token)}`;
+          
+          // Direct redirect - backend will handle the IDE callback
+          window.location.href = authUrlWithToken;
+        } else {
+          console.log('LoginPage: Regular web auth, going to dashboard');
+          // Regular web authentication, go to dashboard
+          navigate('/dashboard');
+        }
       } else {
-        // Regular web authentication, go to dashboard
-        navigate('/dashboard');
+        console.log('LoginPage: No session detected yet');
       }
-    }
-  }, [session, navigate, isIdeAuth, redirectUrl]);
+    };
+
+    handleAuth();
+  }, [session, navigate, isIdeAuth, oauthData, oauthToken, setError]);
 
   const handleGitHubSignIn = async () => {
     setError(null);
     setIsLoading(true);
     try {
-      await signInWithGitHub();
-    } catch (err: any) {
-      setError(err.message || 'Failed to sign in with GitHub.');
+      // Preserve IDE parameters in GitHub OAuth redirect
+      const currentUrl = window.location.href;
+      await signInWithGitHub(currentUrl);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to sign in with GitHub.';
+      setError(errorMessage);
       console.error('GitHub Sign-in error:', err);
     } finally {
       setIsLoading(false);

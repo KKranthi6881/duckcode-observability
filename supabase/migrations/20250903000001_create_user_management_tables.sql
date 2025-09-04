@@ -105,6 +105,12 @@ GRANT ALL ON ALL FUNCTIONS IN SCHEMA duckcode TO service_role;
 -- Grant select permissions to authenticated users on subscription tiers
 GRANT SELECT ON duckcode.subscription_tiers TO authenticated;
 
+-- Grant permissions to authenticated users
+GRANT USAGE ON SCHEMA duckcode TO authenticated;
+GRANT SELECT, INSERT, UPDATE ON duckcode.user_profiles TO authenticated;
+GRANT SELECT, INSERT, UPDATE ON duckcode.usage_records TO authenticated;
+GRANT SELECT, INSERT, UPDATE ON duckcode.billing_info TO authenticated;
+
 -- Enable Row Level Security (RLS) Policies
 
 -- Enable RLS on user_profiles

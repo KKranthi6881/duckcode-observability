@@ -99,12 +99,14 @@ export const getProfile = async (): Promise<{ profile: Profile | null; error: Er
   }
 
   console.log(`[authService getProfile] User found (ID: ${user.id}). Attempting to fetch profile from DB.`); // ADDED
+  console.log('[authService getProfile] About to query user_profiles table in duckcode schema');
+  
   const { data, error } = await supabase
     .from('user_profiles')
     .select('*')
     .eq('id', user.id)
     .single();
-  console.log('[authService getProfile] supabase.from(\'profiles\').select() returned.', { data, error }); // ADDED
+  console.log('[authService getProfile] supabase.from(\'user_profiles\').select() returned.', { data, error }); // ADDED
 
   if (error && error.code !== 'PGRST116') { // PGRST116: 'single' row not found (expected if no profile)
     console.error('[authService getProfile] Error fetching profile from DB:', error); // MODIFIED
@@ -148,9 +150,12 @@ export const upsertProfile = async (profileData: Partial<Profile>): Promise<{ pr
   return { profile: data as Profile | null, error };
 };
 
-export async function signInWithGitHub() {
+export async function signInWithGitHub(redirectTo?: string) {
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'github',
+    options: {
+      redirectTo: redirectTo || window.location.origin + '/login'
+    }
   });
   if (error) {
     console.error('Error signing in with GitHub:', error);
