@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthForm } from '../hooks/useAuthForm';
 import { useAuth } from '../contexts/AuthContext';
 import { signInWithEmailPassword, signInWithGitHub } from '../services/authService';
+import { supabase } from '@/config/supabaseClient';
 
 const LoginPage: React.FC = () => {
   const {
@@ -20,26 +21,44 @@ const LoginPage: React.FC = () => {
   const [oauthData, setOauthData] = React.useState<{state: string, redirect_uri: string} | null>(null);
   const isIdeAuth = !!oauthToken || !!oauthData;
   
-  // Decode OAuth token on component mount
+  // Decode OAuth token and check for existing session on component mount
   React.useEffect(() => {
-    if (oauthToken) {
-      fetch('/api/auth/ide/decode-oauth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ oauth_token: oauthToken })
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data.state && data.redirect_uri) {
-          setOauthData({ state: data.state, redirect_uri: data.redirect_uri });
-          console.log('Decoded OAuth data:', data);
+    const handleOAuthAndSession = async () => {
+      if (oauthToken) {
+        try {
+          // Decode OAuth token
+          const response = await fetch('/api/auth/ide/decode-oauth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ oauth_token: oauthToken })
+          });
+          const data = await response.json();
+          
+          if (data.state && data.redirect_uri) {
+            setOauthData({ state: data.state, redirect_uri: data.redirect_uri });
+            console.log('Decoded OAuth data:', data);
+            
+            // Immediately check for existing session
+            const { data: { session: existingSession } } = await supabase.auth.getSession();
+            if (existingSession?.access_token) {
+              console.log('LoginPage: Existing session detected during OAuth decode, redirecting immediately');
+              
+              // Redirect immediately to authorization endpoint
+              const authUrl = `/api/auth/ide/authorize?oauth_token=${encodeURIComponent(oauthToken)}`;
+              const authUrlWithToken = `${authUrl}&session_token=${encodeURIComponent(existingSession.access_token)}`;
+              
+              window.location.href = authUrlWithToken;
+              return; // Exit early to prevent further processing
+            }
+          }
+        } catch (err) {
+          console.error('Failed to decode OAuth token:', err);
+          setError('Invalid authentication request. Please try again from the IDE.');
         }
-      })
-      .catch(err => {
-        console.error('Failed to decode OAuth token:', err);
-        setError('Invalid authentication request. Please try again from the IDE.');
-      });
-    }
+      }
+    };
+
+    handleOAuthAndSession();
   }, [oauthToken, setError]);
 
   const handleSubmit = async (e: React.FormEvent) => {

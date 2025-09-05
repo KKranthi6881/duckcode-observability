@@ -348,6 +348,45 @@ router.get('/register', async (req: Request, res: Response) => {
   }
 });
 
+// @route   GET /ide/signup
+// @desc    Redirect to signup page with IDE parameters (stateless) - alias for /register
+// @access  Public
+router.get('/ide/signup', async (req: Request, res: Response) => {
+  try {
+    const { state, redirect_uri } = req.query;
+    
+    if (!state || !redirect_uri) {
+      return res.status(400).json({ 
+        error: 'missing_parameters',
+        message: 'state and redirect_uri are required' 
+      });
+    }
+
+    // Create a stateless JWT token containing the OAuth parameters
+    const oauthData = {
+      state: state as string,
+      redirect_uri: redirect_uri as string,
+      timestamp: Date.now(),
+      type: 'oauth_flow'
+    };
+
+    const jwtSecret = process.env.JWT_SECRET || 'fallback_secret';
+    const oauthToken = jwt.sign(oauthData, jwtSecret, { expiresIn: '1h' });
+
+    // Redirect to frontend signup page with the JWT token
+    const signupParams = new URLSearchParams({
+      oauth_token: oauthToken
+    });
+
+    const signupUrl = `${process.env.FRONTEND_URL || 'http://localhost:5175'}/register?${signupParams.toString()}`;
+    res.redirect(signupUrl);
+
+  } catch (err) {
+    console.error('IDE signup redirect error:', err instanceof Error ? err.message : err);
+    res.status(500).json({ error: 'server_error', message: 'Failed to redirect to signup' });
+  }
+});
+
 // @route   POST /api/auth/ide/token
 // @desc    Exchange authorization code for access token (OAuth-style)
 // @access  Public
