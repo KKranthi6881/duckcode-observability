@@ -270,6 +270,57 @@ router.get('/ide/authorize', async (req: Request, res: Response) => {
   }
 });
 
+// @route   GET /api/auth/ide/login
+// @desc    Initiate IDE OAuth login
+// @access  Public
+router.get('/ide/login', async (req: Request, res: Response) => {
+  const { state, redirect_uri } = req.query;
+  
+  if (!state || !redirect_uri) {
+    return res.status(400).json({ msg: 'Missing required parameters' });
+  }
+
+  // Redirect to frontend IDE login page with IDE-specific parameters
+  const loginUrl = `${process.env.FRONTEND_URL || 'http://localhost:5175'}/ide-login?source=ide&state=${state}&redirect_uri=${encodeURIComponent(redirect_uri as string)}`;
+  res.redirect(loginUrl);
+});
+
+// @route   GET /api/auth/ide/signup
+// @desc    Initiate IDE OAuth signup
+// @access  Public
+router.get('/ide/signup', async (req: Request, res: Response) => {
+  const { state, redirect_uri } = req.query;
+  
+  if (!state || !redirect_uri) {
+    return res.status(400).json({ msg: 'Missing required parameters' });
+  }
+
+  // Redirect to frontend IDE signup page with IDE-specific parameters
+  const signupUrl = `${process.env.FRONTEND_URL || 'http://localhost:5175'}/ide-register?source=ide&state=${state}&redirect_uri=${encodeURIComponent(redirect_uri as string)}`;
+  res.redirect(signupUrl);
+});
+
+// @route   POST /api/auth/ide/authorize
+// @desc    Generate authorization code for authenticated user
+// @access  Private
+router.post('/ide/authorize', supabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const { state, redirect_uri } = req.body;
+  
+  if (!state || !redirect_uri) {
+    return res.status(400).json({ msg: 'Missing required parameters' });
+  }
+
+  try {
+    // Store authorization code with user info and expiration
+    const authCode = await IdeAuthCode.create(req.user!.id, state, redirect_uri);
+
+    res.json({ code: authCode.code });
+  } catch (error) {
+    console.error('IDE authorize error:', error);
+    res.status(500).json({ msg: 'Server error during authorization' });
+  }
+});
+
 // @route   GET /ide/login
 // @desc    Redirect to login page with IDE parameters (stateless)
 // @access  Public

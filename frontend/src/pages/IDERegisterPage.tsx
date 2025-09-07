@@ -2,9 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuthForm } from '../features/auth/hooks/useAuthForm';
 import { useAuth } from '../features/auth/contexts/AuthContext';
-// Remove unused import
 
-const IDELoginPage: React.FC = () => {
+const IDERegisterPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const source = searchParams.get('source');
   const [authSuccess, setAuthSuccess] = useState(false);
@@ -12,6 +11,7 @@ const IDELoginPage: React.FC = () => {
   const {
     email, setEmail,
     password, setPassword,
+    confirmPassword, setConfirmPassword,
     error, setError,
     isLoading, setIsLoading,
   } = useAuthForm();
@@ -20,6 +20,12 @@ const IDELoginPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (password !== confirmPassword) {
+      setError("Passwords don't match. Please try again.");
+      return;
+    }
+    
     setError(null);
     setIsLoading(true);
     
@@ -32,22 +38,27 @@ const IDELoginPage: React.FC = () => {
         throw new Error('Missing OAuth parameters');
       }
 
-      const response = await fetch('http://localhost:3001/api/auth/login', {
+      // Register user
+      const response = await fetch('http://localhost:3001/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ 
+          email, 
+          password,
+          fullName: email.split('@')[0] // Use email prefix as default name
+        }),
       });
 
       const data = await response.json();
       
       if (!response.ok) {
-        throw new Error(data.msg || 'Login failed');
+        throw new Error(data.msg || 'Registration failed');
       }
 
       // Use OAuth authorization code flow
-      // Exchange login success for authorization code
+      // Exchange registration success for authorization code
       const authResponse = await fetch('http://localhost:3001/api/auth/ide/authorize', {
         method: 'POST',
         headers: {
@@ -71,9 +82,9 @@ const IDELoginPage: React.FC = () => {
       window.location.href = ideUrl;
       setAuthSuccess(true);
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to login. Please check your credentials.';
+      const errorMessage = err instanceof Error ? err.message : 'Failed to register. Please try again.';
       setError(errorMessage);
-      console.error('Login error:', err);
+      console.error('Registration error:', err);
     } finally {
       setIsLoading(false);
     }
@@ -122,9 +133,9 @@ const IDELoginPage: React.FC = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
                 </svg>
               </div>
-              <h2 className="mt-4 text-lg font-medium text-gray-900">Authentication Successful!</h2>
+              <h2 className="mt-4 text-lg font-medium text-gray-900">Registration Successful!</h2>
               <p className="mt-2 text-sm text-gray-600">
-                You have been successfully authenticated. You can now close this window and return to your IDE.
+                Your account has been created successfully. You can now close this window and return to your IDE.
               </p>
             </div>
           </div>
@@ -145,11 +156,11 @@ const IDELoginPage: React.FC = () => {
           </div>
         </div>
         <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-          Sign in to your account
+          Create your account
         </h2>
         {source === 'ide' && (
           <p className="mt-2 text-center text-sm text-gray-600">
-            Sign in to authenticate your IDE extension
+            Create an account to authenticate your IDE extension
           </p>
         )}
       </div>
@@ -184,10 +195,28 @@ const IDELoginPage: React.FC = () => {
                   id="password"
                   name="password"
                   type="password"
-                  autoComplete="current-password"
+                  autoComplete="new-password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+                Confirm Password
+              </label>
+              <div className="mt-1">
+                <input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
                   className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 />
               </div>
@@ -216,7 +245,7 @@ const IDELoginPage: React.FC = () => {
                 disabled={isLoading}
                 className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isLoading ? 'Signing in...' : 'Sign in'}
+                {isLoading ? 'Creating account...' : 'Create account'}
               </button>
             </div>
           </form>
@@ -227,16 +256,16 @@ const IDELoginPage: React.FC = () => {
                 <div className="w-full border-t border-gray-300" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">Need an account?</span>
+                <span className="px-2 bg-white text-gray-500">Already have an account?</span>
               </div>
             </div>
 
             <div className="mt-6 text-center">
               <a
-                href="/register"
+                href={`/login?source=ide&state=${searchParams.get('state')}&redirect_uri=${searchParams.get('redirect_uri')}`}
                 className="font-medium text-blue-600 hover:text-blue-500"
               >
-                Create a new account
+                Sign in instead
               </a>
             </div>
           </div>
@@ -246,4 +275,4 @@ const IDELoginPage: React.FC = () => {
   );
 };
 
-export default IDELoginPage;
+export default IDERegisterPage;

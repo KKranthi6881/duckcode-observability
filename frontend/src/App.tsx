@@ -33,6 +33,7 @@ import ProfilePage from './features/auth/components/ProfilePage';
 import GitHubCallbackPage from './pages/GitHubCallbackPage'; // Import the new page
 import GitHubCallbackDebugPage from './pages/GitHubCallbackDebugPage'; // Import our debug page
 import IDELoginPage from './pages/IDELoginPage';
+import IDERegisterPage from './pages/IDERegisterPage';
 
 // Debug component to test routing
 const DebugComponent = () => {
@@ -84,6 +85,7 @@ const AppContent = () => {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/ide-login" element={<IDELoginPage />} />
+        <Route path="/ide-register" element={<IDERegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/github/callback" element={<GitHubCallbackPage />} />
