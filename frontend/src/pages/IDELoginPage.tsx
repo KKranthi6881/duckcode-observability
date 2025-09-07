@@ -22,15 +22,14 @@ const IDELoginPage: React.FC = () => {
   const state = searchParams.get('state');
   const redirectUri = searchParams.get('redirect_uri');
 
-  // Handle successful authentication - redirect to IDE
+  // Handle successful authentication - redirect to IDE (only after form submission)
   useEffect(() => {
-    if (session && state && redirectUri) {
-      // For IDE flow, redirect to authorization endpoint with session token
-      const authUrl = `/api/auth/ide/authorize?state=${encodeURIComponent(state)}&redirect_uri=${encodeURIComponent(redirectUri)}&session_token=${encodeURIComponent(session.access_token)}`;
+    if (session && state && redirectUri && authSuccess) {
+      // For IDE flow, redirect to backend authorization endpoint with session token
+      const authUrl = `http://localhost:3001/api/auth/ide/authorize?state=${encodeURIComponent(state)}&redirect_uri=${encodeURIComponent(redirectUri)}&session_token=${encodeURIComponent(session.access_token)}`;
       window.location.href = authUrl;
-      setAuthSuccess(true);
     }
-  }, [session, state, redirectUri]);
+  }, [session, state, redirectUri, authSuccess]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,7 +48,8 @@ const IDELoginPage: React.FC = () => {
       if (signInError) throw signInError;
       console.log('Login successful', data.session);
       
-      // The useEffect will handle the redirect after session is established
+      // Set authSuccess to trigger the redirect in useEffect
+      setAuthSuccess(true);
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to login. Please check your credentials.';
       setError(errorMessage);

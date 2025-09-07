@@ -193,20 +193,19 @@ router.get('/ide/authorize', async (req: Request, res: Response) => {
     // Check for session token in query params (from frontend redirect)
     const sessionToken = req.query.session_token as string;
     if (sessionToken) {
-      // Verify Supabase session token
+      // Verify Supabase session token using existing configured client
       try {
-        const { createClient } = await import('@supabase/supabase-js');
-        const supabase = createClient(
-          process.env.SUPABASE_URL!,
-          process.env.SUPABASE_ANON_KEY!
-        );
-        const { data: { user: authUser }, error } = await supabase.auth.getUser(sessionToken);
+        const { supabaseDuckCode } = await import('../config/supabaseClient');
+        const { data: { user: authUser }, error } = await supabaseDuckCode.auth.getUser(sessionToken);
         if (error || !authUser) {
-          return res.status(401).json({ error: 'Invalid session token' });
+          console.error('Session token validation error:', error);
+          return res.status(401).json({ error: 'Invalid session token', details: error?.message });
         }
         user = authUser;
+        console.log('Session token validated successfully for user:', user.id);
       } catch (authError) {
-        return res.status(401).json({ error: 'Authentication failed' });
+        console.error('Authentication failed:', authError);
+        return res.status(401).json({ error: 'Authentication failed', details: authError instanceof Error ? authError.message : 'Unknown error' });
       }
     } else {
       // Fallback to middleware auth (if available)
