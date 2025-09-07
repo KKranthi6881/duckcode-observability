@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuthForm } from '../features/auth/hooks/useAuthForm';
 import { useAuth } from '../features/auth/contexts/AuthContext';
+import { signUpWithEmailPassword } from '../features/auth/services/authService';
 
 const IDERegisterPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -18,6 +19,20 @@ const IDERegisterPage: React.FC = () => {
   
   const { session, user } = useAuth();
 
+  // Get OAuth parameters from URL
+  const state = searchParams.get('state');
+  const redirectUri = searchParams.get('redirect_uri');
+
+  // Handle successful authentication - redirect to IDE
+  useEffect(() => {
+    if (session && state && redirectUri) {
+      // For IDE flow, redirect to authorization endpoint with session token
+      const authUrl = `/api/auth/ide/authorize?state=${encodeURIComponent(state)}&redirect_uri=${encodeURIComponent(redirectUri)}&session_token=${encodeURIComponent(session.access_token)}`;
+      window.location.href = authUrl;
+      setAuthSuccess(true);
+    }
+  }, [session, state, redirectUri]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -26,61 +41,21 @@ const IDERegisterPage: React.FC = () => {
       return;
     }
     
+    if (!state || !redirectUri) {
+      setError('Missing OAuth parameters');
+      return;
+    }
+    
     setError(null);
     setIsLoading(true);
     
     try {
-      // Get state and redirect_uri from URL params
-      const state = searchParams.get('state');
-      const redirectUri = searchParams.get('redirect_uri');
+      // Use the same working registration method as the main RegisterPage
+      const { data, error: signUpError } = await signUpWithEmailPassword({ email, password });
+      if (signUpError) throw signUpError;
+      console.log('Registration successful', data.user);
       
-      if (!state || !redirectUri) {
-        throw new Error('Missing OAuth parameters');
-      }
-
-      // Register user
-      const response = await fetch('http://localhost:3001/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          email, 
-          password,
-          fullName: email.split('@')[0] // Use email prefix as default name
-        }),
-      });
-
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.msg || 'Registration failed');
-      }
-
-      // Use OAuth authorization code flow
-      // Exchange registration success for authorization code
-      const authResponse = await fetch('http://localhost:3001/api/auth/ide/authorize', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${data.token}`,
-        },
-        body: JSON.stringify({ 
-          state,
-          redirect_uri: redirectUri 
-        }),
-      });
-
-      const authData = await authResponse.json();
-      
-      if (!authResponse.ok) {
-        throw new Error(authData.msg || 'Authorization failed');
-      }
-
-      // Redirect back to IDE with authorization code
-      const ideUrl = `${redirectUri}?code=${encodeURIComponent(authData.code)}&state=${encodeURIComponent(state)}`;
-      window.location.href = ideUrl;
-      setAuthSuccess(true);
+      // The useEffect will handle the redirect after session is established
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to register. Please try again.';
       setError(errorMessage);
@@ -145,130 +120,168 @@ const IDERegisterPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="flex justify-center">
-          <div className="flex items-center">
-            <svg className="h-8 w-8 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" clipRule="evenodd" />
-            </svg>
-            <span className="ml-2 text-xl font-bold text-gray-900">DuckCode</span>
+    <div style={{ maxWidth: '400px', margin: '0 auto', padding: '40px 20px' }}>
+      <div style={{ backgroundColor: 'white', borderRadius: '8px', padding: '24px', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)' }}>
+        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+          <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#333', marginBottom: '8px' }}>Create an account</h2>
+          <p style={{ fontSize: '14px', color: '#666' }}>Join us to get started</p>
+          {source === 'ide' && (
+            <p style={{ fontSize: '12px', color: '#2AB7A9', marginTop: '4px' }}>
+              IDE Authentication Flow
+            </p>
+          )}
+        </div>
+        
+        <form onSubmit={handleSubmit}>
+          <div style={{ marginBottom: '16px' }}>
+            <label htmlFor="email" style={{ fontSize: '14px', fontWeight: '500', color: '#333', display: 'block', marginBottom: '6px' }}>
+              Email address
+            </label>
+            <input
+              type="email"
+              id="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              style={{ 
+                width: '100%', 
+                padding: '8px 12px',
+                borderRadius: '4px',
+                border: '1px solid #ddd',
+                fontSize: '14px'
+              }}
+              placeholder="name@example.com"
+            />
+          </div>
+          
+          <div style={{ marginBottom: '16px' }}>
+            <label htmlFor="password" style={{ fontSize: '14px', fontWeight: '500', color: '#333', display: 'block', marginBottom: '6px' }}>
+              Password
+            </label>
+            <input
+              type="password"
+              id="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              style={{ 
+                width: '100%', 
+                padding: '8px 12px',
+                borderRadius: '4px',
+                border: '1px solid #ddd',
+                fontSize: '14px'
+              }}
+              placeholder="••••••••"
+            />
+          </div>
+          
+          <div style={{ marginBottom: '16px' }}>
+            <label htmlFor="confirmPassword" style={{ fontSize: '14px', fontWeight: '500', color: '#333', display: 'block', marginBottom: '6px' }}>
+              Confirm Password
+            </label>
+            <input
+              type="password"
+              id="confirmPassword"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              style={{ 
+                width: '100%', 
+                padding: '8px 12px',
+                borderRadius: '4px',
+                border: '1px solid #ddd',
+                fontSize: '14px'
+              }}
+              placeholder="••••••••"
+            />
+          </div>
+          
+          {error && (
+            <div style={{ padding: '10px', marginBottom: '16px', backgroundColor: '#FEE2E2', border: '1px solid #FECACA', borderRadius: '4px' }}>
+              <p style={{ color: '#DC2626', fontSize: '14px', margin: 0 }}>{error}</p>
+            </div>
+          )}
+          
+          <button
+            type="submit"
+            disabled={isLoading}
+            style={{
+              width: '100%',
+              padding: '10px',
+              backgroundColor: '#2AB7A9',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              fontSize: '14px',
+              fontWeight: '500',
+              cursor: isLoading ? 'not-allowed' : 'pointer',
+              opacity: isLoading ? 0.7 : 1,
+              marginBottom: '16px'
+            }}
+          >
+            {isLoading ? 'Creating account...' : 'Sign up'}
+          </button>
+        </form>
+        
+        <div style={{ position: 'relative', margin: '24px 0' }}>
+          <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: '1px', backgroundColor: '#e5e7eb' }}></div>
+          <div style={{ textAlign: 'center' }}>
+            <span style={{ backgroundColor: 'white', padding: '0 8px', position: 'relative', fontSize: '14px', color: '#6B7280' }}>
+              Or continue with
+            </span>
           </div>
         </div>
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-          Create your account
-        </h2>
-        {source === 'ide' && (
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Create an account to authenticate your IDE extension
+        
+        <div style={{ display: 'grid', gap: '12px' }}>
+          <button
+            disabled={true}
+            style={{
+              width: '100%',
+              padding: '10px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: 'white',
+              border: '1px solid #ddd',
+              borderRadius: '4px',
+              fontSize: '14px',
+              cursor: 'not-allowed',
+              opacity: 0.7
+            }}
+          >
+            <span>Sign up with GitHub</span>
+          </button>
+          
+          <button
+            disabled={true}
+            style={{
+              width: '100%',
+              padding: '10px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: 'white',
+              border: '1px solid #ddd',
+              borderRadius: '4px',
+              fontSize: '14px',
+              cursor: 'not-allowed',
+              opacity: 0.7
+            }}
+          >
+            <span>Sign up with SSO</span>
+          </button>
+        </div>
+        
+        <div style={{ textAlign: 'center', marginTop: '16px' }}>
+          <p style={{ fontSize: '14px', color: '#6B7280' }}>
+            Already have an account?{' '}
+            <a 
+              href={`/ide-login?source=ide&state=${searchParams.get('state')}&redirect_uri=${searchParams.get('redirect_uri')}`}
+              style={{ color: '#2AB7A9', textDecoration: 'none', fontWeight: '500' }}
+            >
+              Sign in
+            </a>
           </p>
-        )}
-      </div>
-
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-          <form className="space-y-6" onSubmit={handleSubmit}>
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                Email address
-              </label>
-              <div className="mt-1">
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                Password
-              </label>
-              <div className="mt-1">
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autoComplete="new-password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-                Confirm Password
-              </label>
-              <div className="mt-1">
-                <input
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type="password"
-                  autoComplete="new-password"
-                  required
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                />
-              </div>
-            </div>
-
-            {error && (
-              <div className="rounded-md bg-red-50 p-4">
-                <div className="flex">
-                  <div className="flex-shrink-0">
-                    <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <div className="ml-3">
-                    <h3 className="text-sm font-medium text-red-800">
-                      {error}
-                    </h3>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div>
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isLoading ? 'Creating account...' : 'Create account'}
-              </button>
-            </div>
-          </form>
-
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">Already have an account?</span>
-              </div>
-            </div>
-
-            <div className="mt-6 text-center">
-              <a
-                href={`/login?source=ide&state=${searchParams.get('state')}&redirect_uri=${searchParams.get('redirect_uri')}`}
-                className="font-medium text-blue-600 hover:text-blue-500"
-              >
-                Sign in instead
-              </a>
-            </div>
-          </div>
         </div>
       </div>
     </div>

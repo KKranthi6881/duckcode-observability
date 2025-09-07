@@ -73,7 +73,11 @@ router.post('/register', [
 
   } catch (err) {
     console.error('Registration error:', err instanceof Error ? err.message : err);
-    res.status(500).send('Server error');
+    console.error('Registration error stack:', err instanceof Error ? err.stack : undefined);
+    res.status(500).json({ 
+      msg: 'Server error during registration',
+      error: err instanceof Error ? err.message : 'Unknown error'
+    });
   }
 });
 
@@ -126,7 +130,11 @@ router.post('/login', [
 
   } catch (err) {
     console.error('Login error:', err instanceof Error ? err.message : err);
-    res.status(500).send('Server error');
+    console.error('Login error stack:', err instanceof Error ? err.stack : undefined);
+    res.status(500).json({ 
+      msg: 'Server error during login',
+      error: err instanceof Error ? err.message : 'Unknown error'
+    });
   }
 });
 
@@ -306,18 +314,40 @@ router.get('/ide/signup', async (req: Request, res: Response) => {
 router.post('/ide/authorize', supabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
   const { state, redirect_uri } = req.body;
   
+  console.log('IDE authorize request:', { 
+    state, 
+    redirect_uri, 
+    user_id: req.user?.id,
+    body: req.body 
+  });
+  
   if (!state || !redirect_uri) {
     return res.status(400).json({ msg: 'Missing required parameters' });
   }
 
+  // Validate redirect_uri format
+  if (!redirect_uri.startsWith('vscode://')) {
+    console.error('Invalid redirect_uri format:', redirect_uri);
+    return res.status(400).json({ msg: 'Invalid redirect URI format' });
+  }
+
   try {
     // Store authorization code with user info and expiration
+    console.log('Creating auth code for user:', req.user!.id);
     const authCode = await IdeAuthCode.create(req.user!.id, state, redirect_uri);
+    console.log('Auth code created successfully:', authCode.code);
 
     res.json({ code: authCode.code });
   } catch (error) {
     console.error('IDE authorize error:', error);
-    res.status(500).json({ msg: 'Server error during authorization' });
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    res.status(500).json({ 
+      msg: 'Server error during authorization',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
