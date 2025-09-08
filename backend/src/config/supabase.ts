@@ -32,5 +32,17 @@ export const supabaseCodeInsights = createClient(supabaseUrl, supabaseKey, {
   }
 });
 
+// Create client for duckcode schema (chat analytics)
+export const supabaseDuckCode = createClient(supabaseUrl, supabaseKey, {
+  db: { 
+    schema: 'duckcode' 
+  },
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+  }
+});
+
 console.log('[SupabaseClient] supabaseAdmin initialized:', typeof supabaseAdmin, !!supabaseAdmin, Object.keys(supabaseAdmin));
-console.log('[SupabaseClient] supabaseCodeInsights initialized:', typeof supabaseCodeInsights, !!supabaseCodeInsights, Object.keys(supabaseCodeInsights)); 
+console.log('[SupabaseClient] supabaseCodeInsights initialized:', typeof supabaseCodeInsights, !!supabaseCodeInsights, Object.keys(supabaseCodeInsights));
+console.log('[SupabaseClient] supabaseDuckCode initialized:', typeof supabaseDuckCode, !!supabaseDuckCode, Object.keys(supabaseDuckCode)); 

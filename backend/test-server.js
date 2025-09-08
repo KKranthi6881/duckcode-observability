@@ -1,6 +1,5 @@
 const express = require('express');
 const cors = require('cors');
-const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 
 // Load environment variables
@@ -12,24 +11,30 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Connect to MongoDB
-const connectDB = async () => {
-  try {
-    const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/duckcode-observability';
-    await mongoose.connect(mongoURI);
-    console.log('✅ MongoDB connected successfully');
-  } catch (error) {
-    console.error('❌ MongoDB connection error:', error.message);
-    // Continue without MongoDB for testing
-  }
-};
-
-connectDB();
+// Initialize Supabase connection
+console.log('🔗 Using Supabase as primary database');
+console.log('📊 Supabase URL:', process.env.SUPABASE_URL || 'Not configured');
+console.log('🔑 Service Role Key:', process.env.SUPABASE_SERVICE_ROLE_KEY ? 'Configured' : 'Not configured');
 
 // Import and use auth routes
 const authRoutes = require('./dist/routes/auth').default;
 const usageRoutes = require('./dist/routes/usage').default;
 const billingRoutes = require('./dist/routes/billing').default;
+
+// Load analytics routes with error handling
+let analyticsRoutes;
+try {
+  analyticsRoutes = require('./src/routes/analytics');
+  console.log('✅ Analytics routes loaded successfully');
+} catch (error) {
+  console.error('❌ Error loading analytics routes:', error.message);
+  // Create a fallback router
+  const express = require('express');
+  analyticsRoutes = express.Router();
+  analyticsRoutes.get('/', (req, res) => {
+    res.json({ message: 'Analytics routes not available', error: error.message });
+  });
+}
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -44,6 +49,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/usage', usageRoutes);
 app.use('/api/billing', billingRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 // Error handling
 app.use((err, req, res, next) => {
@@ -59,4 +65,5 @@ app.listen(PORT, () => {
   console.log(`🔐 Auth endpoints: http://localhost:${PORT}/api/auth`);
   console.log(`📈 Usage endpoints: http://localhost:${PORT}/api/usage`);
   console.log(`💳 Billing endpoints: http://localhost:${PORT}/api/billing`);
+  console.log(`📊 Analytics endpoints: http://localhost:${PORT}/api/analytics`);
 });

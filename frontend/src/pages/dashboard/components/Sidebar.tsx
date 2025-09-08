@@ -1,63 +1,23 @@
-import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
-  Network, Database, Bell, Shield, BarChart3, Settings as SettingsIcon, 
-  HelpCircle, Table, AlertTriangle, AlertOctagon, Code, UserCircle, LogOut 
+  Settings as SettingsIcon, Code, UserCircle, LogOut, BarChart3 
 } from 'lucide-react';
 import { useAuth } from '../../../features/auth/contexts/AuthContext';
 
 const navigation = [{
-  name: 'Overview',
-  href: '/dashboard/', 
-  icon: BarChart3
+  name: 'Code Base',
+  href: '/dashboard/code',
+  icon: Code
 }, {
-  name: 'Data Observability',
-  items: [{
-    name: 'Data Lineage',
-    href: '/dashboard/lineage',
-    icon: Network,
-    subItems: [
-      {
-        name: 'fct_order_items',
-        href: '/dashboard/fct-order-items',
-        icon: Table
-      }
-    ]
-  }, {
-    name: 'Data Catalog',
-    href: '/dashboard/catalog',
-    icon: Database
-  }, {
-    name: 'Data Alerts',
-    href: '/dashboard/alerts',
-    icon: Bell
-  }, {
-    name: 'Anomaly Detection',
-    href: '/dashboard/anomalies',
-    icon: AlertTriangle
-  }, {
-    name: 'Incident Manager',
-    href: '/dashboard/incidents',
-    icon: AlertOctagon
-  }, {
-    name: 'Code Base',
-    href: '/dashboard/code',
-    icon: Code
-  }, {
-    name: 'Data Governance',
-    href: '/dashboard/governance',
-    icon: Shield
-  }]
+  name: 'Analytics',
+  href: '/dashboard/analytics',
+  icon: BarChart3
 }];
 
 const bottomNavigation = [{
   name: 'Settings',
   href: '/dashboard/settings',
   icon: SettingsIcon
-}, {
-  name: 'Help',
-  href: '/dashboard/help',
-  icon: HelpCircle
 }];
 
 export function Sidebar() {
@@ -104,69 +64,17 @@ export function Sidebar() {
             </div>
             <nav className="mt-10 flex-1 px-2 space-y-8"> 
               {navigation.map(item => {
-                if (item.name === 'Overview') {
-                  const isActive = location.pathname === item.href || (item.href === '/dashboard/' && location.pathname === '/dashboard');
-                  return (
-                    <Link 
-                      key={item.name} 
-                      to={item.href} 
-                      className={getLinkClasses(isActive)}
-                    >
-                      <item.icon className={getIconClasses(isActive)} />
-                      {item.name}
-                    </Link>
-                  );
-                }
-                if (item.items) { 
-                  return (
-                    <div key={item.name}>
-                      <p className="px-3 mb-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                        {item.name}
-                      </p>
-                      <div className="mt-2 space-y-3">
-                        {item.items.map(subItem => {
-                          const isActive = location.pathname === subItem.href || 
-                                         (subItem.href && location.pathname.startsWith(subItem.href) && subItem.href !== '/dashboard/') || 
-                                         (subItem.subItems && subItem.subItems.some(si => location.pathname === si.href));
-                          return (
-                            <div key={subItem.name}>
-                              <Link 
-                                to={subItem.href} 
-                                className={getLinkClasses(isActive)}
-                              >
-                                <subItem.icon className={getIconClasses(isActive)} />
-                                {subItem.name}
-                              </Link>
-                              
-                              {subItem.subItems && subItem.subItems.length > 0 && (
-                                <div className="ml-6 mt-2 space-y-2">
-                                  {subItem.subItems.map(subSubItem => {
-                                    const isSubActive = location.pathname === subSubItem.href;
-                                    return (
-                                      <Link
-                                        key={subSubItem.name}
-                                        to={subSubItem.href}
-                                        className={`group flex items-center px-3 py-2.5 text-xs font-medium rounded-md transition-colors duration-150
-                                          ${isSubActive ? `text-[${logoColor}]` : `text-gray-600 hover:text-[${logoColor}]`}
-                                        `}
-                                      >
-                                        <span className={`mr-2 h-4 w-4 flex items-center justify-center ${isSubActive ? `text-[${logoColor}]` : `text-gray-400 group-hover:text-[${logoColor}]`}`}>
-                                          {subSubItem.icon ? <subSubItem.icon className="h-3 w-3" /> : <span className="h-1.5 w-1.5 rounded-full bg-current"></span>}
-                                        </span>
-                                        {subSubItem.name}
-                                      </Link>
-                                    );
-                                  })}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                }
-                return null; 
+                const isActive = location.pathname === item.href;
+                return (
+                  <Link 
+                    key={item.name} 
+                    to={item.href} 
+                    className={getLinkClasses(isActive)}
+                  >
+                    <item.icon className={getIconClasses(isActive)} />
+                    {item.name}
+                  </Link>
+                );
               })}
             </nav>
           </div>

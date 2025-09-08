@@ -5,26 +5,16 @@ import { Hero } from './components/Hero';
 // import { CTA } from './components/CTA'; // CTA and Footer removed from landing if user is redirected
 // import { Footer } from './components/Footer';
 import { DashboardLayout } from './pages/dashboard/DashboardLayout';
-import { Overview } from './pages/dashboard/Overview';
-import { DataLineage } from './pages/dashboard/DataLineage';
-import { DataCatalog } from './pages/dashboard/DataCatalog';
-import { DataAlerts } from './pages/dashboard/DataAlerts';
-import { DataGovernance } from './pages/dashboard/DataGovernance';
 import { Settings } from './pages/dashboard/Settings';
-import FctOrderItemsLineage from './pages/dashboard/FctOrderItemsLineage';
-import { AnomalyDetection } from './pages/dashboard/AnomalyDetection';
-import { AnomalyFreshness } from './pages/dashboard/anomalies/AnomalyFreshness';
-import { AnomalyVolume } from './pages/dashboard/anomalies/AnomalyVolume';
-import { AnomalyPattern } from './pages/dashboard/anomalies/AnomalyPattern';
-import { AnomalySchema } from './pages/dashboard/anomalies/AnomalySchema';
-import { IncidentManager } from './pages/dashboard/IncidentManager';
 import { CodeBase } from './pages/dashboard/CodeBase';
 import { AnalysisSetup } from './pages/dashboard/AnalysisSetup';
+import { Analytics } from './pages/dashboard/Analytics';
 import { FileProcessingStatus } from './components/FileProcessingStatus';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider, useAuth } from './features/auth/contexts/AuthContext'; // Added useAuth import
 import { ProcessingStatusProvider } from './context/ProcessingStatusContext';
 import LoginPage from './features/auth/components/LoginPage';
+import { LoginPage as SimpleLoginPage } from './pages/LoginPage';
 import RegisterPage from './features/auth/components/RegisterPage';
 import ProtectedRoute from './features/auth/components/ProtectedRoute';
 import ForgotPasswordPage from './features/auth/components/ForgotPasswordPage';
@@ -56,7 +46,7 @@ const AppContent = () => {
 
   useEffect(() => {
     if (!isLoading && session && location.pathname === '/') {
-      navigate('/dashboard', { replace: true });
+      navigate('/dashboard/code', { replace: true });
     }
   }, [session, isLoading, navigate, location.pathname]);
 
@@ -82,10 +72,11 @@ const AppContent = () => {
       </div>
       <Routes>
         {/* Auth routes */}
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
         <Route path="/ide-login" element={<IDELoginPage />} />
         <Route path="/ide-register" element={<IDERegisterPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/simple-login" element={<SimpleLoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/github/callback" element={<GitHubCallbackPage />} />
@@ -94,21 +85,11 @@ const AppContent = () => {
         {/* Protected Routes - All routes within this element will be guarded */}
         <Route element={<ProtectedRoute />}>
           <Route path="/dashboard" element={<DashboardLayout />}>
-            <Route index element={<Overview />} />
-            <Route path="lineage" element={<DataLineage />} />
-            <Route path="fct-order-items" element={<FctOrderItemsLineage />} />
-            <Route path="catalog" element={<DataCatalog />} />
-            <Route path="alerts" element={<DataAlerts />} />
-            <Route path="anomalies" element={<AnomalyDetection />} />
-            <Route path="anomalies/freshness" element={<AnomalyFreshness />} />
-            <Route path="anomalies/volume" element={<AnomalyVolume />} />
-            <Route path="anomalies/pattern" element={<AnomalyPattern />} />
-            <Route path="anomalies/schema" element={<AnomalySchema />} />
-            <Route path="incidents" element={<IncidentManager />} />
+            <Route index element={<CodeBase />} />
             <Route path="code" element={<CodeBase />} />
             <Route path="code/analyze/:owner/:repo" element={<AnalysisSetup />} />
             <Route path="code/status/:owner/:repo" element={<FileProcessingStatus />} />
-            <Route path="governance" element={<DataGovernance />} />
+            <Route path="analytics" element={<Analytics />} />
             <Route path="settings" element={<Settings />} />
           </Route>
           <Route path="/profile" element={<ProfilePage />} />

@@ -6,6 +6,7 @@ import searchRoutes from './search.routes';
 import lineageRoutes from './lineage.routes';
 import metadataProcessingRoutes from './metadata-processing.routes'; // NEW: Comprehensive processing
 import sequentialProcessingRoutes from './sequential-processing.routes'; // NEW: Sequential processing
+import chatAnalyticsRoutes from './chat-analytics.routes'; // NEW: Chat analytics
 
 const router = Router();
 
@@ -26,5 +27,8 @@ router.use('/metadata', metadataProcessingRoutes);
 
 // NEW: Mount sequential processing routes  
 router.use('/sequential', sequentialProcessingRoutes);
+
+// NEW: Mount chat analytics routes
+router.use('/chat-analytics', chatAnalyticsRoutes);
 
 export default router;
