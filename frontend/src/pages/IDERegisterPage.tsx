@@ -1,45 +1,30 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuthForm } from '../features/auth/hooks/useAuthForm';
-import { useAuth } from '../features/auth/contexts/AuthContext';
-import { signUpWithEmailPassword } from '../features/auth/services/authService';
+import { joinWaitlist, PlanChoice, AgentInterest } from '../features/auth/services/waitlistService';
 
 const IDERegisterPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const source = searchParams.get('source');
-  const [authSuccess, setAuthSuccess] = useState(false);
   
   const {
     email, setEmail,
-    password, setPassword,
-    confirmPassword, setConfirmPassword,
     error, setError,
     isLoading, setIsLoading,
   } = useAuthForm();
-  
-  const { session, user } = useAuth();
+  const [fullName, setFullName] = useState('');
+  const [planChoice, setPlanChoice] = useState<PlanChoice>('own_api_key');
+  const [agentInterests, setAgentInterests] = useState<AgentInterest[]>(['all']);
+  const [submitted, setSubmitted] = useState(false);
 
   // Get OAuth parameters from URL
   const state = searchParams.get('state');
   const redirectUri = searchParams.get('redirect_uri');
 
-  // Handle successful authentication - redirect to IDE (only after form submission)
-  useEffect(() => {
-    if (session && state && redirectUri && authSuccess) {
-      // For IDE flow, redirect to backend authorization endpoint with session token
-      const authUrl = `http://localhost:3001/api/auth/ide/authorize?state=${encodeURIComponent(state)}&redirect_uri=${encodeURIComponent(redirectUri)}&session_token=${encodeURIComponent(session.access_token)}`;
-      window.location.href = authUrl;
-    }
-  }, [session, state, redirectUri, authSuccess]);
+  // During waitlist phase, do NOT auto-redirect or attempt IDE authorization.
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (password !== confirmPassword) {
-      setError("Passwords don't match. Please try again.");
-      return;
-    }
-    
     if (!state || !redirectUri) {
       setError('Missing OAuth parameters');
       return;
@@ -49,13 +34,15 @@ const IDERegisterPage: React.FC = () => {
     setIsLoading(true);
     
     try {
-      // Use the same working registration method as the main RegisterPage
-      const { data, error: signUpError } = await signUpWithEmailPassword({ email, password });
-      if (signUpError) throw signUpError;
-      console.log('Registration successful', data.user);
-      
-      // Set authSuccess to trigger the redirect in useEffect
-      setAuthSuccess(true);
+      await joinWaitlist({
+        email,
+        full_name: fullName,
+        plan_choice: planChoice,
+        agent_interests: agentInterests,
+        source: 'ide',
+        metadata: { state, redirect_uri: redirectUri }
+      });
+      setSubmitted(true);
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to register. Please try again.';
       setError(errorMessage);
@@ -64,53 +51,33 @@ const IDERegisterPage: React.FC = () => {
       setIsLoading(false);
     }
   };
+  // Do not redirect IDE users automatically; approval email will be sent later.
 
-  // If already authenticated and this is an IDE request, redirect immediately
-  useEffect(() => {
-    if (session && user) {
-      const state = searchParams.get('state');
-      const redirectUri = searchParams.get('redirect_uri');
-      
-      if (state && redirectUri && redirectUri.startsWith('vscode://')) {
-        // Use OAuth authorization code flow for existing session
-        fetch('http://localhost:3001/api/auth/ide/authorize', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({ 
-            state,
-            redirect_uri: redirectUri 
-          }),
-        })
-        .then(response => response.json())
-        .then(authData => {
-          if (authData.code) {
-            const ideUrl = `${redirectUri}?code=${encodeURIComponent(authData.code)}&state=${encodeURIComponent(state)}`;
-            window.location.href = ideUrl;
-            setAuthSuccess(true);
-          }
-        })
-        .catch(console.error);
-      }
-    }
-  }, [session, user, searchParams]);
+  const toggleInterest = (value: AgentInterest) => {
+    setAgentInterests((prev) => {
+      if (value === 'all') return ['all'];
+      const withoutAll = prev.filter((v) => v !== 'all');
+      const has = withoutAll.includes(value);
+      const next = has ? withoutAll.filter((v) => v !== value) : [...withoutAll, value];
+      return next.length === 0 ? ['all'] as AgentInterest[] : next;
+    });
+  };
 
-  if (authSuccess) {
+  if (submitted) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
         <div className="sm:mx-auto sm:w-full sm:max-w-md">
           <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
             <div className="text-center">
-              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
-                <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100">
+                <svg className="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="10" strokeWidth="2"></circle>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01"></path>
                 </svg>
               </div>
-              <h2 className="mt-4 text-lg font-medium text-gray-900">Registration Successful!</h2>
+              <h2 className="mt-4 text-lg font-medium text-gray-900">Thanks for joining the waitlist!</h2>
               <p className="mt-2 text-sm text-gray-600">
-                Your account has been created successfully. You can now close this window and return to your IDE.
+                You're on our waiting list. We'll email you once your access is approved. You can close this window and return to your IDE.
               </p>
             </div>
           </div>
@@ -123,8 +90,8 @@ const IDERegisterPage: React.FC = () => {
     <div style={{ maxWidth: '400px', margin: '0 auto', padding: '40px 20px' }}>
       <div style={{ backgroundColor: 'white', borderRadius: '8px', padding: '24px', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)' }}>
         <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-          <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#333', marginBottom: '8px' }}>Create an account</h2>
-          <p style={{ fontSize: '14px', color: '#666' }}>Join us to get started</p>
+          <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#333', marginBottom: '8px' }}>Join the waitlist</h2>
+          <p style={{ fontSize: '14px', color: '#666' }}>IDE Early Access Request</p>
           {source === 'ide' && (
             <p style={{ fontSize: '12px', color: '#2AB7A9', marginTop: '4px' }}>
               IDE Authentication Flow
@@ -133,6 +100,25 @@ const IDERegisterPage: React.FC = () => {
         </div>
         
         <form onSubmit={handleSubmit}>
+          <div style={{ marginBottom: '16px' }}>
+            <label htmlFor="fullName" style={{ fontSize: '14px', fontWeight: '500', color: '#333', display: 'block', marginBottom: '6px' }}>
+              Full name (optional)
+            </label>
+            <input
+              type="text"
+              id="fullName"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              style={{ 
+                width: '100%', 
+                padding: '8px 12px',
+                borderRadius: '4px',
+                border: '1px solid #ddd',
+                fontSize: '14px'
+              }}
+              placeholder="Jane Doe"
+            />
+          </div>
           <div style={{ marginBottom: '16px' }}>
             <label htmlFor="email" style={{ fontSize: '14px', fontWeight: '500', color: '#333', display: 'block', marginBottom: '6px' }}>
               Email address
@@ -153,47 +139,44 @@ const IDERegisterPage: React.FC = () => {
               placeholder="name@example.com"
             />
           </div>
-          
+
           <div style={{ marginBottom: '16px' }}>
-            <label htmlFor="password" style={{ fontSize: '14px', fontWeight: '500', color: '#333', display: 'block', marginBottom: '6px' }}>
-              Password
+            <label htmlFor="plan" style={{ fontSize: '14px', fontWeight: '500', color: '#333', display: 'block', marginBottom: '6px' }}>
+              Access preference
             </label>
-            <input
-              type="password"
-              id="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              style={{ 
-                width: '100%', 
-                padding: '8px 12px',
-                borderRadius: '4px',
-                border: '1px solid #ddd',
-                fontSize: '14px'
-              }}
-              placeholder="••••••••"
-            />
+            <select
+              id="plan"
+              value={planChoice}
+              onChange={(e) => setPlanChoice(e.target.value as PlanChoice)}
+              style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ddd', fontSize: '14px' }}
+            >
+              <option value="own_api_key">I have my own API key</option>
+              <option value="free_50_pro">Give me 50 free credits (Pro)</option>
+            </select>
           </div>
-          
+
           <div style={{ marginBottom: '16px' }}>
-            <label htmlFor="confirmPassword" style={{ fontSize: '14px', fontWeight: '500', color: '#333', display: 'block', marginBottom: '6px' }}>
-              Confirm Password
-            </label>
-            <input
-              type="password"
-              id="confirmPassword"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              style={{ 
-                width: '100%', 
-                padding: '8px 12px',
-                borderRadius: '4px',
-                border: '1px solid #ddd',
-                fontSize: '14px'
-              }}
-              placeholder="••••••••"
-            />
+            <div style={{ fontSize: '14px', fontWeight: 500, color: '#333', marginBottom: '6px' }}>
+              Which agent(s) are you most interested in?
+            </div>
+            <div style={{ display: 'grid', gap: 8 }}>
+              {[
+                { key: 'all', label: 'All' },
+                { key: 'data_architect', label: 'Data Architect' },
+                { key: 'data_developer', label: 'Data Developer' },
+                { key: 'data_troubleshooter', label: 'Data Troubleshooter' },
+                { key: 'platform_dba', label: 'Platform/DBA' },
+              ].map((opt) => (
+                <label key={opt.key} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: '#333' }}>
+                  <input
+                    type="checkbox"
+                    checked={agentInterests.includes(opt.key as AgentInterest)}
+                    onChange={() => toggleInterest(opt.key as AgentInterest)}
+                  />
+                  {opt.label}
+                </label>
+              ))}
+            </div>
           </div>
           
           {error && (
@@ -219,58 +202,13 @@ const IDERegisterPage: React.FC = () => {
               marginBottom: '16px'
             }}
           >
-            {isLoading ? 'Creating account...' : 'Sign up'}
+            {isLoading ? 'Submitting...' : 'Join waitlist'}
           </button>
         </form>
         
-        <div style={{ position: 'relative', margin: '24px 0' }}>
-          <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: '1px', backgroundColor: '#e5e7eb' }}></div>
-          <div style={{ textAlign: 'center' }}>
-            <span style={{ backgroundColor: 'white', padding: '0 8px', position: 'relative', fontSize: '14px', color: '#6B7280' }}>
-              Or continue with
-            </span>
-          </div>
-        </div>
+        {/* Removed alternative signup methods for waitlist mode */}
         
-        <div style={{ display: 'grid', gap: '12px' }}>
-          <button
-            disabled={true}
-            style={{
-              width: '100%',
-              padding: '10px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: 'white',
-              border: '1px solid #ddd',
-              borderRadius: '4px',
-              fontSize: '14px',
-              cursor: 'not-allowed',
-              opacity: 0.7
-            }}
-          >
-            <span>Sign up with GitHub</span>
-          </button>
-          
-          <button
-            disabled={true}
-            style={{
-              width: '100%',
-              padding: '10px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: 'white',
-              border: '1px solid #ddd',
-              borderRadius: '4px',
-              fontSize: '14px',
-              cursor: 'not-allowed',
-              opacity: 0.7
-            }}
-          >
-            <span>Sign up with SSO</span>
-          </button>
-        </div>
+        {/* Disabled alternative methods removed */}
         
         <div style={{ textAlign: 'center', marginTop: '16px' }}>
           <p style={{ fontSize: '14px', color: '#6B7280' }}>

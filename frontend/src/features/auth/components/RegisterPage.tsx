@@ -1,20 +1,19 @@
-import React, { useEffect } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import React from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAuthForm } from '../hooks/useAuthForm';
-import { signUpWithEmailPassword, signInWithGitHub } from '../services/authService';
-import { useAuth } from '../contexts/AuthContext';
+import { joinWaitlist, PlanChoice, AgentInterest } from '../services/waitlistService';
 
 const RegisterPage: React.FC = () => {
   const {
     email, setEmail,
-    password, setPassword,
-    confirmPassword, setConfirmPassword,
     error, setError,
     isLoading, setIsLoading,
   } = useAuthForm();
-  const navigate = useNavigate();
-  const { session, isLoading: authLoading } = useAuth();
   const [searchParams] = useSearchParams();
+  const [fullName, setFullName] = React.useState('');
+  const [planChoice, setPlanChoice] = React.useState<PlanChoice>('own_api_key');
+  const [agentInterests, setAgentInterests] = React.useState<AgentInterest[]>(['all']);
+  const [submitted, setSubmitted] = React.useState(false);
 
   // Check if this is an IDE OAuth flow (JWT-based)
   const oauthToken = searchParams.get('oauth_token');
@@ -43,38 +42,22 @@ const RegisterPage: React.FC = () => {
     }
   }, [oauthToken, setError]);
 
-  useEffect(() => {
-    if (!authLoading && session) {
-      if (isIdeFlow && oauthToken) {
-        // For IDE flow, redirect to authorization endpoint with JWT token and session
-        const authUrl = `/api/auth/ide/authorize?oauth_token=${encodeURIComponent(oauthToken)}&session_token=${encodeURIComponent(session.access_token)}`;
-        window.location.href = authUrl;
-      } else {
-        navigate('/dashboard', { replace: true });
-      }
-    }
-  }, [session, authLoading, navigate, isIdeFlow, oauthToken]);
+  // Important: Do not auto-login or navigate on session during waitlist period.
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password !== confirmPassword) {
-      setError("Passwords don't match. Please try again.");
-      return;
-    }
     setError(null);
     setIsLoading(true);
     try {
-      const { data, error: signUpError } = await signUpWithEmailPassword({ email, password });
-      if (signUpError) throw signUpError;
-      console.log('Registration successful', data.user);
-      
-      if (isIdeFlow) {
-        // For IDE flow, the useEffect will handle the redirect after session is established
-        alert('Registration successful! Redirecting back to IDE...');
-      } else {
-        alert('Registration successful! Please check your email to confirm your account if required, then login.');
-        navigate('/login');
-      }
+      await joinWaitlist({
+        email,
+        full_name: fullName,
+        plan_choice: planChoice,
+        agent_interests: agentInterests,
+        source: isIdeFlow ? 'ide' : 'web',
+        metadata: { oauthTokenPresent: Boolean(oauthToken) }
+      });
+      setSubmitted(true);
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to register. Please try again.';
       setError(errorMessage);
@@ -84,29 +67,63 @@ const RegisterPage: React.FC = () => {
     }
   };
 
-  const handleGitHubSignUp = async () => {
-    setError(null);
-    setIsLoading(true);
-    try {
-      await signInWithGitHub();
-      // Success will be handled by useEffect when session updates
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to sign up with GitHub. Please try again.';
-      setError(errorMessage);
-      console.error('GitHub sign up error:', err);
-      setIsLoading(false);
-    }
+  const toggleInterest = (value: AgentInterest) => {
+    setAgentInterests((prev) => {
+      // Handle 'all' as a special case
+      if (value === 'all') return ['all'];
+      const withoutAll = prev.filter((v) => v !== 'all');
+      const has = withoutAll.includes(value);
+      const next = has ? withoutAll.filter((v) => v !== value) : [...withoutAll, value];
+      return next.length === 0 ? ['all'] as AgentInterest[] : next;
+    });
   };
+
+  if (submitted) {
+    return (
+      <div style={{ maxWidth: '520px', margin: '0 auto', padding: '40px 20px' }}>
+        <div style={{ backgroundColor: 'white', borderRadius: '8px', padding: '24px', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)' }}>
+          <div style={{ textAlign: 'center', marginBottom: '8px' }}>
+            <h2 style={{ fontSize: '22px', fontWeight: 'bold', color: '#333' }}>Thank you for signing up!</h2>
+          </div>
+          <p style={{ fontSize: '14px', color: '#444', lineHeight: 1.6 }}>
+            You are now on our waiting list. We will review your request and get back to you ASAP with activation.
+            Please keep an eye on your email. During this limited early-access period, login to the IDE and DuckCode Observability
+            will be enabled after approval.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ maxWidth: '400px', margin: '0 auto', padding: '40px 20px' }}>
       <div style={{ backgroundColor: 'white', borderRadius: '8px', padding: '24px', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)' }}>
         <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-          <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#333', marginBottom: '8px' }}>Create an account</h2>
-          <p style={{ fontSize: '14px', color: '#666' }}>Join us to get started</p>
+          <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#333', marginBottom: '8px' }}>Join the waitlist</h2>
+          <p style={{ fontSize: '14px', color: '#666' }}>Request early access while we finish building</p>
         </div>
         
         <form onSubmit={handleSubmit}>
+          <div style={{ marginBottom: '16px' }}>
+            <label htmlFor="fullName" style={{ fontSize: '14px', fontWeight: '500', color: '#333', display: 'block', marginBottom: '6px' }}>
+              Full name (optional)
+            </label>
+            <input
+              type="text"
+              id="fullName"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              style={{ 
+                width: '100%', 
+                padding: '8px 12px',
+                borderRadius: '4px',
+                border: '1px solid #ddd',
+                fontSize: '14px'
+              }}
+              placeholder="Jane Doe"
+            />
+          </div>
+
           <div style={{ marginBottom: '16px' }}>
             <label htmlFor="email" style={{ fontSize: '14px', fontWeight: '500', color: '#333', display: 'block', marginBottom: '6px' }}>
               Email address
@@ -127,47 +144,44 @@ const RegisterPage: React.FC = () => {
               placeholder="name@example.com"
             />
           </div>
-          
+
           <div style={{ marginBottom: '16px' }}>
-            <label htmlFor="password" style={{ fontSize: '14px', fontWeight: '500', color: '#333', display: 'block', marginBottom: '6px' }}>
-              Password
+            <label htmlFor="plan" style={{ fontSize: '14px', fontWeight: '500', color: '#333', display: 'block', marginBottom: '6px' }}>
+              Access preference
             </label>
-            <input
-              type="password"
-              id="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              style={{ 
-                width: '100%', 
-                padding: '8px 12px',
-                borderRadius: '4px',
-                border: '1px solid #ddd',
-                fontSize: '14px'
-              }}
-              placeholder="••••••••"
-            />
+            <select
+              id="plan"
+              value={planChoice}
+              onChange={(e) => setPlanChoice(e.target.value as PlanChoice)}
+              style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ddd', fontSize: '14px' }}
+            >
+              <option value="own_api_key">I have my own API key</option>
+              <option value="free_50_pro">Give me 50 free credits (Pro)</option>
+            </select>
           </div>
-          
+
           <div style={{ marginBottom: '16px' }}>
-            <label htmlFor="confirmPassword" style={{ fontSize: '14px', fontWeight: '500', color: '#333', display: 'block', marginBottom: '6px' }}>
-              Confirm Password
-            </label>
-            <input
-              type="password"
-              id="confirmPassword"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              style={{ 
-                width: '100%', 
-                padding: '8px 12px',
-                borderRadius: '4px',
-                border: '1px solid #ddd',
-                fontSize: '14px'
-              }}
-              placeholder="••••••••"
-            />
+            <div style={{ fontSize: '14px', fontWeight: 500, color: '#333', marginBottom: '6px' }}>
+              Which agent(s) are you most interested in?
+            </div>
+            <div style={{ display: 'grid', gap: 8 }}>
+              {[
+                { key: 'all', label: 'All' },
+                { key: 'data_architect', label: 'Data Architect' },
+                { key: 'data_developer', label: 'Data Developer' },
+                { key: 'data_troubleshooter', label: 'Data Troubleshooter' },
+                { key: 'platform_dba', label: 'Platform/DBA' },
+              ].map((opt) => (
+                <label key={opt.key} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: '#333' }}>
+                  <input
+                    type="checkbox"
+                    checked={agentInterests.includes(opt.key as AgentInterest)}
+                    onChange={() => toggleInterest(opt.key as AgentInterest)}
+                  />
+                  {opt.label}
+                </label>
+              ))}
+            </div>
           </div>
           
           {error && (
@@ -193,59 +207,9 @@ const RegisterPage: React.FC = () => {
               marginBottom: '16px'
             }}
           >
-            {isLoading ? 'Creating account...' : 'Sign up'}
+            {isLoading ? 'Submitting...' : 'Join waitlist'}
           </button>
         </form>
-        
-        <div style={{ position: 'relative', margin: '24px 0' }}>
-          <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: '1px', backgroundColor: '#e5e7eb' }}></div>
-          <div style={{ textAlign: 'center' }}>
-            <span style={{ backgroundColor: 'white', padding: '0 8px', position: 'relative', fontSize: '14px', color: '#6B7280' }}>
-              Or continue with
-            </span>
-          </div>
-        </div>
-        
-        <div style={{ display: 'grid', gap: '12px' }}>
-          <button
-            onClick={handleGitHubSignUp}
-            disabled={isLoading}
-            style={{
-              width: '100%',
-              padding: '10px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: 'white',
-              border: '1px solid #ddd',
-              borderRadius: '4px',
-              fontSize: '14px',
-              cursor: isLoading ? 'not-allowed' : 'pointer',
-              opacity: isLoading ? 0.7 : 1
-            }}
-          >
-            <span>Sign up with GitHub</span>
-          </button>
-          
-          <button
-            disabled={true}
-            style={{
-              width: '100%',
-              padding: '10px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: 'white',
-              border: '1px solid #ddd',
-              borderRadius: '4px',
-              fontSize: '14px',
-              cursor: 'not-allowed',
-              opacity: 0.7
-            }}
-          >
-            <span>Sign up with SSO</span>
-          </button>
-        </div>
         
         <div style={{ textAlign: 'center', marginTop: '16px' }}>
           <p style={{ fontSize: '14px', color: '#6B7280' }}>
@@ -258,6 +222,7 @@ const RegisterPage: React.FC = () => {
       </div>
     </div>
   );
-};
+}
+;
 
 export default RegisterPage;

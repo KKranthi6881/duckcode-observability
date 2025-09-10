@@ -19,12 +19,27 @@ This backend application requires the following environment variables to be set:
 ### Application
 - `FRONTEND_URL` - URL of your frontend application (for CORS and redirects)
 - `PORT` - Port number for the backend server (optional, defaults to 3000)
+- `JWT_SECRET` - Secret used to sign and verify short-lived OAuth tokens between IDE and SaaS
+- `ADMIN_EMAILS` - Comma-separated list of admin emails allowed to approve waitlist users (e.g. `founder@company.com,admin@company.com`)
 
 ## Setup Instructions
 
 1. Copy this file to `.env` in the backend directory
 2. Fill in all the required values
 3. Make sure `.env` is in your `.gitignore` file (it should be by default)
+
+## Waitlist Mode (Early Access)
+
+During early access, registration is handled via a waitlist:
+
+- Public endpoint to join waitlist: `POST /api/waitlist/join`
+  - Body: `{ email, full_name?, plan_choice: 'own_api_key'|'free_50_pro', agent_interests: string[], source?: 'web'|'ide' }`
+- Admin endpoints (require valid bearer token and email in `ADMIN_EMAILS`):
+  - List: `GET /api/waitlist?status=pending|approved|rejected`
+  - Approve: `PUT /api/waitlist/:id/approve` (sends Supabase invite or magic link)
+  - Reject: `PUT /api/waitlist/:id/reject`
+
+Database objects are created by the migration in `supabase/migrations/*waitlist*.sql` and use the `duckcode` schema. Ensure migrations are applied.
 
 ## AI Summary Generation
 
