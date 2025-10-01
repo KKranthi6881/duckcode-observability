@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuthForm } from '../features/auth/hooks/useAuthForm';
+import { supabase } from '../config/supabaseClient';
 
 const IDERegisterPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -53,6 +54,17 @@ const IDERegisterPage: React.FC = () => {
 
       if (!response.ok) {
         throw new Error(data.msg || data.message || 'Registration failed');
+      }
+
+      // Create Supabase session for browser (enables SaaS auto-login)
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (signInError) {
+        console.warn('Failed to create Supabase session:', signInError);
+        // Don't fail registration - user can still log in manually
       }
 
       // Automatically authorize IDE

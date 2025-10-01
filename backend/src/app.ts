@@ -7,6 +7,7 @@ import dotenv from 'dotenv';
 import apiRoutes from './api/routes'; // Imports the main router from routes/index.ts
 import authRoutes from './routes/auth';
 import billingRoutes from './routes/billing';
+import analyticsRoutes from './routes/analytics';
 
 // Load environment variables
 dotenv.config();
@@ -48,6 +49,7 @@ app.get('/api/health', (req: Request, res: Response) => {
 app.use('/api', apiRoutes); // Mounts all routes (GitHub, Insights, etc.) under /api
 app.use('/api/auth', authRoutes); // Authentication routes
 app.use('/api/billing', billingRoutes); // Billing and pricing routes
+app.use('/api/analytics', analyticsRoutes); // Analytics and profit tracking routes
 
 // --- Error Handling Middleware (example) ---
 // This should be defined after all other app.use() and routes calls

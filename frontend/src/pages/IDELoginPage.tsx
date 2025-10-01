@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuthForm } from '../features/auth/hooks/useAuthForm';
 import { useAuth } from '../features/auth/contexts/AuthContext';
-import { signInWithEmailPassword } from '../features/auth/services/authService';
+import { supabase } from '../config/supabaseClient';
 
 const IDELoginPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -43,10 +43,14 @@ const IDELoginPage: React.FC = () => {
     setIsLoading(true);
     
     try {
-      // Use the same working login method as the main LoginPage
-      const { data, error: signInError } = await signInWithEmailPassword({ email, password });
+      // Sign in with Supabase to create browser session (enables SaaS auto-login)
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      
       if (signInError) throw signInError;
-      console.log('Login successful', data.session);
+      console.log('Login successful - Supabase session created', data.session);
       
       // Set authSuccess to trigger the redirect in useEffect
       setAuthSuccess(true);

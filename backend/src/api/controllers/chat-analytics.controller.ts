@@ -109,7 +109,8 @@ export const updateConversation = async (req: AuthenticatedRequest, res: Respons
       totalTokensOut = 0,
       totalCacheWrites = 0,
       totalCacheReads = 0,
-      totalCost = 0,
+      totalCost = 0, // This is the charged cost (with 2x markup) from IDE
+      actualApiCost = 0, // This is the actual API cost (without markup) from IDE
       contextTokens = 0,
       // Optional cost breakdowns if provided by IDE
       inputCost = 0,
@@ -155,11 +156,15 @@ export const updateConversation = async (req: AuthenticatedRequest, res: Respons
       conversationExists = retryConversation;
     }
 
-    // Extract metrics from apiMetrics if provided (legacy format)
-    const metrics = req.body.apiMetrics || {};
+    // Calculate profit metrics
+    const chargedCost = totalCost; // Cost charged to user (with markup)
+    const actualCost = actualApiCost || (totalCost / 2.0); // Actual API cost (fallback to half of charged)
+    const profitAmount = chargedCost - actualCost;
+    const profitMargin = actualCost > 0 ? Number(((profitAmount / actualCost) * 100).toFixed(2)) : 100.0;
+
     // Derived metrics for convenience/UI
-    const totalTokens = (totalTokensIn || metrics.totalTokensIn || 0) + (totalTokensOut || metrics.totalTokensOut || 0);
-    const cacheTokens = (totalCacheWrites || metrics.totalCacheWrites || 0) + (totalCacheReads || metrics.totalCacheReads || 0);
+    const totalTokens = totalTokensIn + totalTokensOut;
+    const cacheTokens = totalCacheWrites + totalCacheReads;
     const cacheEfficiency = (totalTokensIn + totalCacheReads) > 0
       ? Number((totalCacheReads / (totalTokensIn + totalCacheReads)).toFixed(3))
       : 0;
@@ -175,12 +180,17 @@ export const updateConversation = async (req: AuthenticatedRequest, res: Respons
       : (mapToolCallsSum || arrayToolCallsLen);
 
     const updateData: any = {
-      total_tokens_in: totalTokensIn || metrics.totalTokensIn || 0,
-      total_tokens_out: totalTokensOut || metrics.totalTokensOut || 0,
-      total_cache_writes: totalCacheWrites || metrics.totalCacheWrites || 0,
-      total_cache_reads: totalCacheReads || metrics.totalCacheReads || 0,
-      context_tokens: contextTokens || metrics.contextTokens || 0,
-      total_cost: totalCost || metrics.totalCost || 0,
+      total_tokens_in: totalTokensIn,
+      total_tokens_out: totalTokensOut,
+      total_cache_writes: totalCacheWrites,
+      total_cache_reads: totalCacheReads,
+      context_tokens: contextTokens,
+      total_cost: chargedCost, // Legacy column - keep for backward compatibility
+      // New cost tracking columns for profit analysis
+      charged_cost: chargedCost, // Cost charged to user (with 2x markup)
+      actual_api_cost: actualCost, // Actual cost paid to API provider
+      profit_amount: profitAmount, // Profit = charged - actual
+      profit_margin: profitMargin, // Profit margin percentage
       // Persist derived and optional breakdowns
       total_tokens: totalTokens,
       cache_tokens: cacheTokens,

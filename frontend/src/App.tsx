@@ -8,7 +8,8 @@ import { DashboardLayout } from './pages/dashboard/DashboardLayout';
 import { Settings } from './pages/dashboard/Settings';
 import { CodeBase } from './pages/dashboard/CodeBase';
 import { AnalysisSetup } from './pages/dashboard/AnalysisSetup';
-import { Analytics } from './pages/dashboard/Analytics';
+import { EnhancedAnalytics } from './pages/dashboard/EnhancedAnalytics';
+import AnalyticsDashboard from './pages/AnalyticsDashboard';
 import { FileProcessingStatus } from './components/FileProcessingStatus';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider, useAuth } from './features/auth/contexts/AuthContext'; // Added useAuth import
@@ -82,6 +83,9 @@ const AppContent = () => {
         <Route path="/github/callback" element={<GitHubCallbackPage />} />
         <Route path="/github/debug-callback" element={<GitHubCallbackDebugPage />} /> {/* Add debug route */}
 
+        {/* IDE Analytics - No auth required (backend handles auth) */}
+        <Route path="/dashboard/ide-analytics" element={<AnalyticsDashboard />} />
+
         {/* Protected Routes - All routes within this element will be guarded */}
         <Route element={<ProtectedRoute />}>
           <Route path="/dashboard" element={<DashboardLayout />}>
@@ -89,7 +93,7 @@ const AppContent = () => {
             <Route path="code" element={<CodeBase />} />
             <Route path="code/analyze/:owner/:repo" element={<AnalysisSetup />} />
             <Route path="code/status/:owner/:repo" element={<FileProcessingStatus />} />
-            <Route path="analytics" element={<Analytics />} />
+            <Route path="analytics" element={<EnhancedAnalytics />} />
             <Route path="settings" element={<Settings />} />
           </Route>
           <Route path="/profile" element={<ProfilePage />} />
