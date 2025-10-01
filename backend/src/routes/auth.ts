@@ -310,7 +310,7 @@ router.get('/ide/signup', async (req: Request, res: Response) => {
 // @route   POST /api/auth/ide/authorize
 // @desc    Generate authorization code for authenticated user
 // @access  Private
-router.post('/ide/authorize', supabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+router.post('/ide/authorize', auth, async (req: AuthenticatedRequest, res: Response) => {
   const { state, redirect_uri } = req.body;
   
   console.log('IDE authorize request:', { 
