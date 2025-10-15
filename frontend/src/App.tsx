@@ -25,9 +25,16 @@ import GitHubCallbackPage from './pages/GitHubCallbackPage'; // Import the new p
 import GitHubCallbackDebugPage from './pages/GitHubCallbackDebugPage'; // Import our debug page
 import IDELoginPage from './pages/IDELoginPage';
 import IDERegisterPage from './pages/IDERegisterPage';
-import { AdminLayout } from './pages/admin/AdminLayout';
-import { Dashboard as AdminDashboard } from './pages/admin/Dashboard';
-import { Teams as AdminTeams } from './pages/admin/Teams';
+import {
+  AdminLayout,
+  Dashboard as AdminDashboard,
+  Teams as AdminTeams,
+  Members as AdminMembers,
+  Roles as AdminRoles,
+  ApiKeys as AdminApiKeys,
+  Invitations as AdminInvitations,
+  SettingsPage as AdminSettings,
+} from './pages/admin';
 
 // Debug component to test routing
 const DebugComponent = () => {
@@ -105,11 +112,11 @@ const AppContent = () => {
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<AdminDashboard />} />
             <Route path="teams" element={<AdminTeams />} />
-            <Route path="members" element={<div className="p-8">Members page coming soon</div>} />
-            <Route path="roles" element={<div className="p-8">Roles page coming soon</div>} />
-            <Route path="api-keys" element={<div className="p-8">API Keys page coming soon</div>} />
-            <Route path="invitations" element={<div className="p-8">Invitations page coming soon</div>} />
-            <Route path="settings" element={<div className="p-8">Settings page coming soon</div>} />
+            <Route path="members" element={<AdminMembers />} />
+            <Route path="roles" element={<AdminRoles />} />
+            <Route path="api-keys" element={<AdminApiKeys />} />
+            <Route path="invitations" element={<AdminInvitations />} />
+            <Route path="settings" element={<AdminSettings />} />
           </Route>
         </Route>
 
