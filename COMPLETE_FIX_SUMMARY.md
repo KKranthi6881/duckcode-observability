@@ -4,6 +4,8 @@
 
 Your complete SaaS-First registration and admin portal is now **fully functional**!
 
+**Total Fixes: 9 Critical Issues** 🎉
+
 ---
 
 ## 🐛 **Issues Fixed**
@@ -78,6 +80,16 @@ Your complete SaaS-First registration and admin portal is now **fully functional
 - `frontend/src/features/auth/components/RegisterPage.tsx`
 - `backend/src/routes/auth.ts`
 - `backend/src/models/SupabaseUser.ts`
+
+---
+
+### **9. RLS Policy Blocking Organization Queries (500 Error)** ✅
+**Problem:** 500 Internal Server Error when loading organizations  
+**Root Cause:** AdminLayout calling `getOrganization()` for each org, which queries table directly and hits RLS policies  
+**Fix:** Use data from `get_user_organizations` RPC directly (bypasses RLS with SECURITY DEFINER)  
+**Files:**
+- `frontend/src/pages/admin/AdminLayout.tsx`
+- `frontend/src/types/enterprise.ts`
 
 ---
 
