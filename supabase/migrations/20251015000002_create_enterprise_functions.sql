@@ -19,7 +19,8 @@ RETURNS TABLE (
   organization_name TEXT,
   organization_display_name TEXT,
   user_role_name TEXT,
-  is_admin BOOLEAN
+  is_admin BOOLEAN,
+  created_at TIMESTAMPTZ
 ) 
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -31,7 +32,8 @@ BEGIN
     o.name AS organization_name,
     o.display_name AS organization_display_name,
     r.name AS user_role_name,
-    (r.name = 'Admin') AS is_admin
+    (r.name = 'Admin') AS is_admin,
+    o.created_at AS created_at
   FROM enterprise.organizations o
   INNER JOIN enterprise.user_organization_roles uor ON uor.organization_id = o.id
   INNER JOIN enterprise.organization_roles r ON r.id = uor.role_id
