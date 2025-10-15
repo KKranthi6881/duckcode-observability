@@ -116,9 +116,9 @@ const LoginPage: React.FC = () => {
           // Direct redirect - backend will handle the IDE callback
           window.location.href = authUrlWithToken;
         } else {
-          console.log('LoginPage: Regular web auth, going to dashboard');
-          // Regular web authentication, go to dashboard
-          navigate('/dashboard');
+          console.log('LoginPage: Regular web auth, going to admin portal');
+          // Regular web authentication, go to admin portal
+          navigate('/admin');
         }
       } else {
         console.log('LoginPage: No session detected yet');

@@ -101,8 +101,8 @@ const RegisterPage: React.FC = () => {
         setRedirecting(true);
         await authorizeIDE(data.token, oauthData.state, oauthData.redirect_uri);
       } else {
-        // Regular web signup - redirect to dashboard
-        navigate('/dashboard');
+        // Regular web signup - redirect to admin portal
+        navigate('/admin');
       }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to register. Please try again.';
