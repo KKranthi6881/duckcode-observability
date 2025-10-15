@@ -27,7 +27,13 @@ export class SupabaseUser {
   /**
    * Create user for SaaS/Admin Portal (uses standard Supabase Auth)
    */
-  static async create(userData: { email: string; password: string; fullName?: string; avatarUrl?: string }): Promise<any> {
+  static async create(userData: { 
+    email: string; 
+    password: string; 
+    fullName?: string; 
+    avatarUrl?: string;
+    organizationName?: string;
+  }): Promise<any> {
     try {
       console.log('Creating user with standard Supabase Auth:', userData.email);
       
@@ -55,14 +61,18 @@ export class SupabaseUser {
 
       // Profile will be automatically created by database trigger
       // Auto-create organization for the user
-      const orgName = userData.email.split('@')[0].replace(/[^a-z0-9]/gi, '_').toLowerCase();
+      // Use provided organizationName or fallback to email-based name
+      const displayName = userData.organizationName || `${userData.fullName || 'My'} Organization`;
+      const orgSlug = (userData.organizationName || userData.email.split('@')[0])
+        .replace(/[^a-z0-9]/gi, '_')
+        .toLowerCase();
       
       try {
         const { data: orgData, error: orgError } = await supabaseEnterprise
           .from('organizations')
           .insert({
-            name: `${orgName}_org`,
-            display_name: `${userData.fullName || 'My'} Organization`,
+            name: orgSlug,
+            display_name: displayName,
             plan_type: 'trial',
             max_users: 10,
             status: 'trial',

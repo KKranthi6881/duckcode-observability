@@ -11,6 +11,7 @@ const RegisterPage: React.FC = () => {
   } = useAuthForm();
   const [searchParams] = useSearchParams();
   const [fullName, setFullName] = React.useState('');
+  const [organizationName, setOrganizationName] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [confirmPassword, setConfirmPassword] = React.useState('');
   const [passwordErrors, setPasswordErrors] = React.useState<string[]>([]);
@@ -83,7 +84,7 @@ const RegisterPage: React.FC = () => {
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, fullName })
+        body: JSON.stringify({ email, password, fullName, organizationName })
       });
 
       const data = await response.json();
@@ -196,6 +197,30 @@ const RegisterPage: React.FC = () => {
               }}
               placeholder="Jane Doe"
             />
+          </div>
+
+          <div style={{ marginBottom: '16px' }}>
+            <label htmlFor="organizationName" style={{ fontSize: '14px', fontWeight: '500', color: '#333', display: 'block', marginBottom: '6px' }}>
+              Organization name
+            </label>
+            <input
+              type="text"
+              id="organizationName"
+              value={organizationName}
+              onChange={(e) => setOrganizationName(e.target.value)}
+              required
+              style={{ 
+                width: '100%', 
+                padding: '8px 12px',
+                borderRadius: '4px',
+                border: '1px solid #ddd',
+                fontSize: '14px'
+              }}
+              placeholder="Acme Inc"
+            />
+            <p style={{ fontSize: '12px', color: '#6B7280', marginTop: '4px', marginBottom: 0 }}>
+              This will be your workspace name
+            </p>
           </div>
 
           <div style={{ marginBottom: '16px' }}>

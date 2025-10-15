@@ -32,7 +32,8 @@ router.post('/register',
   [
     body('email', 'Please include a valid email').isEmail().normalizeEmail({ gmail_remove_dots: false }),
     body('password').custom(passwordValidationMiddleware()), // Enterprise password policy
-    body('fullName', 'Full name is required').trim().notEmpty().isLength({ min: 2, max: 100 })
+    body('fullName', 'Full name is required').trim().notEmpty().isLength({ min: 2, max: 100 }),
+    body('organizationName', 'Organization name is required').trim().notEmpty().isLength({ min: 2, max: 100 })
   ], 
   async (req: Request, res: Response) => {
     const errors = validationResult(req);
@@ -40,7 +41,7 @@ router.post('/register',
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { email, password, fullName } = req.body;
+    const { email, password, fullName, organizationName } = req.body;
     const ipAddress = req.ip || 'unknown';
     const userAgent = req.headers['user-agent'];
 
@@ -65,7 +66,8 @@ router.post('/register',
         email,
         password,
         fullName,
-        avatarUrl: ''
+        avatarUrl: '',
+        organizationName
       });
 
       // Initialize billing info (optional - don't fail registration if this fails)
