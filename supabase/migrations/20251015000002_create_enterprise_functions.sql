@@ -36,7 +36,7 @@ BEGIN
   INNER JOIN enterprise.user_organization_roles uor ON uor.organization_id = o.id
   INNER JOIN enterprise.organization_roles r ON r.id = uor.role_id
   WHERE uor.user_id = p_user_id
-    AND o.status = 'active'
+    AND o.status IN ('active', 'trial')
   ORDER BY o.created_at DESC;
 END;
 $$;
