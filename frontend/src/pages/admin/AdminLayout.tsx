@@ -44,13 +44,22 @@ export const AdminLayout: React.FC = () => {
       setLoading(true);
       
       const userOrgs = await organizationService.getUserOrganizations();
+      console.log('getUserOrganizations returned:', userOrgs);
       
-      // Fetch full organization details
-      const orgPromises = userOrgs.map(uo => 
-        organizationService.getOrganization(uo.organization_id)
-      );
-      const orgs = await Promise.all(orgPromises);
+      // Map the RPC result to Organization objects
+      const orgs = userOrgs.map(uo => ({
+        id: uo.organization_id,
+        name: uo.organization_name,
+        display_name: uo.organization_display_name,
+        status: 'trial' as const, // We know it's trial from registration
+        plan_type: 'trial' as const,
+        max_users: 10,
+        settings: {},
+        created_at: uo.created_at,
+        updated_at: uo.created_at,
+      }));
       
+      console.log('Mapped organizations:', orgs);
       setOrganizations(orgs);
       
       // Auto-select first organization

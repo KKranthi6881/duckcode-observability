@@ -219,6 +219,7 @@ export interface UserOrganizationsResult {
   organization_display_name: string;
   user_role_name: string;
   is_admin: boolean;
+  created_at: string;
 }
 
 export interface UserTeamsResult {
