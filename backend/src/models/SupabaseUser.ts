@@ -92,22 +92,29 @@ export class SupabaseUser {
           });
 
           // Assign user as admin
-          const { data: adminRole } = await supabaseEnterprise
-            .from('organization_roles_definitions')
+          const { data: adminRole, error: roleError } = await supabaseEnterprise
+            .from('organization_roles')
             .select('id')
             .eq('organization_id', orgData.id)
             .eq('name', 'Admin')
             .single();
 
-          if (adminRole) {
-            await supabaseEnterprise
-              .from('organization_roles')
+          if (roleError) {
+            console.error('Error fetching admin role:', roleError);
+          } else if (adminRole) {
+            const { error: assignError } = await supabaseEnterprise
+              .from('user_organization_roles')
               .insert({
                 organization_id: orgData.id,
                 user_id: authData.user.id,
                 role_id: adminRole.id,
               });
-            console.log('User assigned as admin');
+            
+            if (assignError) {
+              console.error('Error assigning admin role:', assignError);
+            } else {
+              console.log('User assigned as admin');
+            }
           }
         }
       } catch (orgError) {
