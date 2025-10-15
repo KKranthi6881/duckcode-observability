@@ -1,4 +1,5 @@
-import { supabaseDuckCode } from '../config/supabaseClient';
+import { supabase } from '../config/supabase';
+import { supabaseEnterprise } from '../config/supabase';
 import bcrypt from 'bcryptjs';
 
 export interface UserProfile {
@@ -23,33 +24,93 @@ export interface CreateUserData {
 }
 
 export class SupabaseUser {
+  /**
+   * Create user for SaaS/Admin Portal (uses standard Supabase Auth)
+   */
   static async create(userData: { email: string; password: string; fullName?: string; avatarUrl?: string }): Promise<any> {
     try {
-      // Create user in Supabase Auth
-      const { data: authData, error: authError } = await supabaseDuckCode.auth.admin.createUser({
+      console.log('Creating user with standard Supabase Auth:', userData.email);
+      
+      // Create user in Supabase Auth (public schema)
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
         email: userData.email,
         password: userData.password,
-        email_confirm: true,
+        email_confirm: true, // Auto-confirm for now (can enable email verification later)
         user_metadata: {
           full_name: userData.fullName,
           avatar_url: userData.avatarUrl
         }
       });
 
-      if (authError) throw authError;
+      if (authError) {
+        console.error('Supabase auth error:', authError);
+        throw authError;
+      }
 
-      // Profile will be automatically created by the trigger
-      // Just return the user data
+      if (!authData.user) {
+        throw new Error('User creation failed - no user returned');
+      }
+
+      console.log('User created successfully:', authData.user.id);
+
+      // Profile will be automatically created by database trigger
+      // Auto-create organization for the user
+      const orgName = userData.email.split('@')[0].replace(/[^a-z0-9]/gi, '_').toLowerCase();
+      
+      try {
+        const { data: orgData, error: orgError } = await supabaseEnterprise
+          .from('organizations')
+          .insert({
+            name: `${orgName}_org`,
+            display_name: `${userData.fullName || 'My'} Organization`,
+            plan_type: 'trial',
+            max_users: 10,
+            status: 'trial',
+            settings: {},
+          })
+          .select()
+          .single();
+
+        if (orgError) {
+          console.error('Organization creation error:', orgError);
+        } else if (orgData) {
+          console.log('Organization created:', orgData.id);
+          
+          // Create default roles for the organization
+          await supabaseEnterprise.rpc('create_default_roles', { 
+            p_organization_id: orgData.id 
+          });
+
+          // Assign user as admin
+          const { data: adminRole } = await supabaseEnterprise
+            .from('organization_roles_definitions')
+            .select('id')
+            .eq('organization_id', orgData.id)
+            .eq('name', 'Admin')
+            .single();
+
+          if (adminRole) {
+            await supabaseEnterprise
+              .from('organization_roles')
+              .insert({
+                organization_id: orgData.id,
+                user_id: authData.user.id,
+                role_id: adminRole.id,
+              });
+            console.log('User assigned as admin');
+          }
+        }
+      } catch (orgError) {
+        console.error('Error setting up organization:', orgError);
+        // Don't fail registration if org creation fails
+      }
+
       return {
         id: authData.user.id,
         email: userData.email,
         fullName: userData.fullName,
         avatarUrl: userData.avatarUrl,
-        subscriptionTier: 'free',
-        totalTokensUsed: 0,
-        monthlyTokensUsed: 0,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        createdAt: authData.user.created_at,
       };
     } catch (error) {
       console.error('Error creating user:', error);
@@ -57,46 +118,67 @@ export class SupabaseUser {
     }
   }
 
+  /**
+   * Find user by email (checks Supabase Auth)
+   */
   static async findByEmail(email: string): Promise<any> {
-    const { data, error } = await supabaseDuckCode
-      .from('user_profiles')
-      .select('*')
-      .eq('email', email)
-      .single();
+    try {
+      // List all users and find by email
+      const { data, error } = await supabase.auth.admin.listUsers();
+      
+      if (error) {
+        console.error('Error listing users:', error);
+        throw new Error(`Failed to find user: ${error.message}`);
+      }
 
-    if (error && error.code !== 'PGRST116') {
+      const user = data.users.find(u => u.email === email);
+      
+      if (!user) {
+        return null;
+      }
+
+      return {
+        id: user.id,
+        email: user.email,
+        fullName: user.user_metadata?.full_name,
+        avatarUrl: user.user_metadata?.avatar_url,
+        createdAt: user.created_at,
+      };
+    } catch (error: any) {
+      console.error('Error finding user by email:', error);
       throw new Error(`Failed to find user: ${error.message}`);
     }
-
-    return data;
   }
 
   static async findById(id: string): Promise<UserProfile | null> {
     try {
       // Get user from Supabase Auth
-      const { data: authData, error: authError } = await supabaseDuckCode.auth.admin.getUserById(id);
+      const { data: authData, error: authError } = await supabase.auth.admin.getUserById(id);
       if (authError) throw authError;
 
-      // Get profile data
-      const { data: profile, error: profileError } = await supabaseDuckCode
-        .from('user_profiles')
+      // Get profile data from public.profiles table
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
         .select('*')
         .eq('id', id)
         .single();
 
-      if (profileError) throw profileError;
+      if (profileError && profileError.code !== 'PGRST116') {
+        console.error('Profile error:', profileError);
+        // Profile might not exist yet, return basic user data
+      }
 
       return {
-        id: profile.id,
-        email: authData.user.email,
-        full_name: profile.full_name,
-        avatar_url: profile.avatar_url,
-        subscription_tier: profile.subscription_tier,
-        total_tokens_used: profile.total_tokens_used,
-        last_login: profile.last_login,
-        last_activity: profile.last_activity,
-        created_at: profile.created_at,
-        updated_at: profile.updated_at
+        id: authData.user.id,
+        email: authData.user.email || '',
+        full_name: authData.user.user_metadata?.full_name || profile?.full_name,
+        avatar_url: authData.user.user_metadata?.avatar_url || profile?.avatar_url,
+        subscription_tier: profile?.subscription_tier || 'free',
+        total_tokens_used: profile?.total_tokens_used || 0,
+        last_login: profile?.last_login,
+        last_activity: profile?.last_activity,
+        created_at: authData.user.created_at,
+        updated_at: profile?.updated_at || authData.user.updated_at,
       };
     } catch (error) {
       console.error('Error finding user by ID:', error);
@@ -106,8 +188,8 @@ export class SupabaseUser {
 
   static async verifyPassword(email: string, password: string): Promise<UserProfile | null> {
     try {
-      // Sign in with Supabase Auth
-      const { data: authData, error: authError } = await supabaseDuckCode.auth.signInWithPassword({
+      // Sign in with Supabase Auth (standard auth, not admin)
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password
       });
@@ -115,14 +197,19 @@ export class SupabaseUser {
       if (authError) return null;
       if (!authData.user) return null;
 
-      // Update login timestamps
-      await supabaseDuckCode
-        .from('user_profiles')
-        .update({ 
-          last_login: new Date().toISOString(),
-          last_activity: new Date().toISOString()
-        })
-        .eq('id', authData.user.id);
+      // Update login timestamps in profiles table
+      try {
+        await supabase
+          .from('profiles')
+          .update({ 
+            last_login: new Date().toISOString(),
+            last_activity: new Date().toISOString()
+          })
+          .eq('id', authData.user.id);
+      } catch (updateError) {
+        console.error('Error updating login timestamps:', updateError);
+        // Don't fail login if timestamp update fails
+      }
 
       // Get full profile
       return await this.findById(authData.user.id);
@@ -133,8 +220,8 @@ export class SupabaseUser {
   }
 
   static async updateTokenUsage(userId: string, tokensUsed: number): Promise<void> {
-    const { error } = await supabaseDuckCode
-      .from('user_profiles')
+    const { error } = await supabase
+      .from('profiles')
       .update({ 
         total_tokens_used: tokensUsed,
         updated_at: new Date().toISOString()
@@ -147,8 +234,8 @@ export class SupabaseUser {
   }
 
   static async updateSubscriptionTier(userId: string, tier: string): Promise<any> {
-    const { data, error } = await supabaseDuckCode
-      .from('user_profiles')
+    const { data, error } = await supabase
+      .from('profiles')
       .update({ 
         subscription_tier: tier,
         updated_at: new Date().toISOString()
