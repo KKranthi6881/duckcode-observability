@@ -13,6 +13,7 @@ const RegisterPage: React.FC = () => {
   const [fullName, setFullName] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [confirmPassword, setConfirmPassword] = React.useState('');
+  const [passwordErrors, setPasswordErrors] = React.useState<string[]>([]);
   const [redirecting, setRedirecting] = React.useState(false);
   const navigate = useNavigate();
 
@@ -45,6 +46,21 @@ const RegisterPage: React.FC = () => {
 
   // Important: Do not auto-login or navigate on session during waitlist period.
 
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newPassword = e.target.value;
+    setPassword(newPassword);
+    
+    // Validate password requirements
+    const errors: string[] = [];
+    if (newPassword.length < 12) errors.push('At least 12 characters');
+    if (!/[A-Z]/.test(newPassword)) errors.push('One uppercase letter');
+    if (!/[a-z]/.test(newPassword)) errors.push('One lowercase letter');
+    if (!/[0-9]/.test(newPassword)) errors.push('One number');
+    if (!/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(newPassword)) errors.push('One special character');
+    
+    setPasswordErrors(errors);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -55,8 +71,9 @@ const RegisterPage: React.FC = () => {
       return;
     }
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters');
+    // Validate password requirements
+    if (passwordErrors.length > 0) {
+      setError('Please meet all password requirements');
       return;
     }
 
@@ -210,18 +227,65 @@ const RegisterPage: React.FC = () => {
               type="password"
               id="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={handlePasswordChange}
               required
-              minLength={6}
+              minLength={12}
               style={{ 
                 width: '100%', 
                 padding: '8px 12px',
                 borderRadius: '4px',
-                border: '1px solid #ddd',
+                border: passwordErrors.length > 0 && password.length > 0 ? '1px solid #EF4444' : '1px solid #ddd',
                 fontSize: '14px'
               }}
-              placeholder="At least 6 characters"
+              placeholder="Enter a strong password"
             />
+            
+            {/* Password requirements checklist */}
+            <div style={{ marginTop: '8px', fontSize: '12px' }}>
+              <div style={{ fontWeight: '500', color: '#374151', marginBottom: '4px' }}>Password must include:</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ color: password.length >= 12 ? '#10B981' : '#9CA3AF' }}>
+                    {password.length >= 12 ? '✓' : '○'}
+                  </span>
+                  <span style={{ color: password.length >= 12 ? '#10B981' : '#6B7280' }}>
+                    At least 12 characters
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ color: /[A-Z]/.test(password) ? '#10B981' : '#9CA3AF' }}>
+                    {/[A-Z]/.test(password) ? '✓' : '○'}
+                  </span>
+                  <span style={{ color: /[A-Z]/.test(password) ? '#10B981' : '#6B7280' }}>
+                    One uppercase letter (A-Z)
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ color: /[a-z]/.test(password) ? '#10B981' : '#9CA3AF' }}>
+                    {/[a-z]/.test(password) ? '✓' : '○'}
+                  </span>
+                  <span style={{ color: /[a-z]/.test(password) ? '#10B981' : '#6B7280' }}>
+                    One lowercase letter (a-z)
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ color: /[0-9]/.test(password) ? '#10B981' : '#9CA3AF' }}>
+                    {/[0-9]/.test(password) ? '✓' : '○'}
+                  </span>
+                  <span style={{ color: /[0-9]/.test(password) ? '#10B981' : '#6B7280' }}>
+                    One number (0-9)
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ color: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password) ? '#10B981' : '#9CA3AF' }}>
+                    {/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password) ? '✓' : '○'}
+                  </span>
+                  <span style={{ color: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password) ? '#10B981' : '#6B7280' }}>
+                    One special character (!@#$%^&*...)
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div style={{ marginBottom: '16px' }}>
