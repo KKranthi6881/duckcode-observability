@@ -5,15 +5,6 @@ import { useAuth } from '../contexts/AuthContext';
 const ProtectedRoute: React.FC = () => {
   const { user, isLoading, session } = useAuth();
 
-  // 🚨 TEMPORARY BYPASS FOR TESTING ADMIN PORTAL UI
-  // TODO: Remove this bypass after fixing authentication issues
-  const BYPASS_AUTH_FOR_TESTING = true;
-
-  if (BYPASS_AUTH_FOR_TESTING) {
-    // Allow access without authentication for testing
-    return <Outlet />;
-  }
-
   if (isLoading) {
     // You can render a loading spinner or a blank page while checking auth state
     return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>Loading...</div>;

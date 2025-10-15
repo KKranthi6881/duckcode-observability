@@ -33,13 +33,9 @@ export const AdminLayout: React.FC = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setUserEmail(user.email || '');
-      } else {
-        // 🚨 TESTING MODE: No real user
-        setUserEmail('test@example.com');
       }
     } catch (error) {
       console.error('Failed to load user:', error);
-      setUserEmail('test@example.com');
     }
   };
 
@@ -47,40 +43,19 @@ export const AdminLayout: React.FC = () => {
     try {
       setLoading(true);
       
-      try {
-        const userOrgs = await organizationService.getUserOrganizations();
-        
-        // Fetch full organization details
-        const orgPromises = userOrgs.map(uo => 
-          organizationService.getOrganization(uo.organization_id)
-        );
-        const orgs = await Promise.all(orgPromises);
-        
-        setOrganizations(orgs);
-        
-        // Auto-select first organization
-        if (orgs.length > 0 && !selectedOrg) {
-          setSelectedOrg(orgs[0]);
-        }
-      } catch (apiError) {
-        console.warn('Could not load organizations from API, using mock data:', apiError);
-        
-        // 🚨 TESTING MODE: Create mock organization for UI testing
-        const mockOrg: Organization = {
-          id: 'mock-org-id-123',
-          name: 'demo_organization',
-          display_name: 'Demo Organization',
-          domain: 'demo.com',
-          plan_type: 'professional',
-          max_users: 50,
-          status: 'active',
-          settings: {},
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-        
-        setOrganizations([mockOrg]);
-        setSelectedOrg(mockOrg);
+      const userOrgs = await organizationService.getUserOrganizations();
+      
+      // Fetch full organization details
+      const orgPromises = userOrgs.map(uo => 
+        organizationService.getOrganization(uo.organization_id)
+      );
+      const orgs = await Promise.all(orgPromises);
+      
+      setOrganizations(orgs);
+      
+      // Auto-select first organization
+      if (orgs.length > 0 && !selectedOrg) {
+        setSelectedOrg(orgs[0]);
       }
     } catch (error) {
       console.error('Failed to load organizations:', error);
