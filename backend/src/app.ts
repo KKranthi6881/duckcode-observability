@@ -8,6 +8,7 @@ import apiRoutes from './api/routes'; // Imports the main router from routes/ind
 import authRoutes from './routes/auth';
 import billingRoutes from './routes/billing';
 import analyticsRoutes from './routes/analytics';
+import enterpriseRoutes from './routes/enterprise.routes';
 
 // Load environment variables
 dotenv.config();
@@ -50,6 +51,7 @@ app.use('/api', apiRoutes); // Mounts all routes (GitHub, Insights, etc.) under 
 app.use('/api/auth', authRoutes); // Authentication routes
 app.use('/api/billing', billingRoutes); // Billing and pricing routes
 app.use('/api/analytics', analyticsRoutes); // Analytics and profit tracking routes
+app.use('/api/enterprise', enterpriseRoutes); // Enterprise management routes (organizations, teams, roles, API keys)
 
 // --- Error Handling Middleware (example) ---
 // This should be defined after all other app.use() and routes calls

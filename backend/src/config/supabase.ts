@@ -43,6 +43,18 @@ export const supabaseDuckCode = createClient(supabaseUrl, supabaseKey, {
   }
 });
 
+// Create client for enterprise schema (organizations, teams, roles)
+export const supabaseEnterprise = createClient(supabaseUrl, supabaseKey, {
+  db: { 
+    schema: 'enterprise' 
+  },
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+  }
+});
+
 console.log('[SupabaseClient] supabaseAdmin initialized:', typeof supabaseAdmin, !!supabaseAdmin, Object.keys(supabaseAdmin));
 console.log('[SupabaseClient] supabaseCodeInsights initialized:', typeof supabaseCodeInsights, !!supabaseCodeInsights, Object.keys(supabaseCodeInsights));
-console.log('[SupabaseClient] supabaseDuckCode initialized:', typeof supabaseDuckCode, !!supabaseDuckCode, Object.keys(supabaseDuckCode)); 
+console.log('[SupabaseClient] supabaseDuckCode initialized:', typeof supabaseDuckCode, !!supabaseDuckCode, Object.keys(supabaseDuckCode));
+console.log('[SupabaseClient] supabaseEnterprise initialized:', typeof supabaseEnterprise, !!supabaseEnterprise, Object.keys(supabaseEnterprise)); 
