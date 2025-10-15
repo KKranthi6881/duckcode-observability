@@ -1,4 +1,4 @@
-import { supabase } from '../../../config/supabaseClient';
+import { supabase, supabaseDuckcode } from '../../../config/supabaseClient';
 import { SignInWithPasswordCredentials, SignUpWithPasswordCredentials } from '@supabase/supabase-js';
 
 // Define a common interface for email/password credentials
@@ -101,12 +101,12 @@ export const getProfile = async (): Promise<{ profile: Profile | null; error: Er
   console.log(`[authService getProfile] User found (ID: ${user.id}). Attempting to fetch profile from DB.`); // ADDED
   console.log('[authService getProfile] About to query user_profiles table in duckcode schema');
   
-  const { data, error } = await supabase
+  const { data, error } = await supabaseDuckcode
     .from('user_profiles')
     .select('*')
     .eq('id', user.id)
     .single();
-  console.log('[authService getProfile] supabase.from(\'user_profiles\').select() returned.', { data, error }); // ADDED
+  console.log('[authService getProfile] supabaseDuckcode.from(\'user_profiles\').select() returned.', { data, error }); // ADDED
 
   if (error && error.code !== 'PGRST116') { // PGRST116: 'single' row not found (expected if no profile)
     console.error('[authService getProfile] Error fetching profile from DB:', error); // MODIFIED
@@ -137,7 +137,7 @@ export const upsertProfile = async (profileData: Partial<Profile>): Promise<{ pr
     updated_at: new Date().toISOString(), // Manually set updated_at as per RLS/trigger setup
   };
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseDuckcode
     .from('user_profiles')
     .upsert(dataToUpsert)
     .select()
