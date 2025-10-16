@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { Users, UserPlus, X, RefreshCw, Clock, CheckCircle, XCircle, Edit2, Trash2, Shield } from 'lucide-react';
 import type { Organization, OrganizationInvitationWithDetails, OrganizationRole } from '../../types/enterprise';
@@ -37,13 +37,7 @@ export const Members: React.FC = () => {
     message: '',
   });
 
-  useEffect(() => {
-    if (selectedOrg) {
-      loadData();
-    }
-  }, [selectedOrg]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!selectedOrg) {
       console.error('No organization selected!');
       return;
@@ -63,33 +57,32 @@ export const Members: React.FC = () => {
         setFormData(prev => ({ ...prev, role_id: defaultRole.id }));
       }
       
-      // Load existing members from user_profiles
+      // Load existing members using the RPC function
       const { data: membersData, error: membersError } = await supabase
-        .from('user_profiles')
-        .select(`
-          id,
-          email,
-          organization_id,
-          created_at,
-          organization_roles!inner (
-            id,
-            name,
-            display_name
-          )
-        `)
-        .eq('organization_id', selectedOrg.id);
+        .rpc('get_organization_members', { 
+          p_organization_id: selectedOrg.id 
+        });
 
       if (membersError) {
         console.error('Failed to load members:', membersError);
       } else {
-        const formattedMembers: Member[] = (membersData || []).map((m: any) => ({
-          id: m.id,
-          email: m.email,
-          role_id: m.organization_roles.id,
-          role_name: m.organization_roles.display_name || m.organization_roles.name,
-          status: 'active' as const,
-          joined_at: m.created_at,
-        }));
+        // Get role IDs by matching role names
+        const formattedMembers: Member[] = (membersData || []).map((m: {
+          user_id: string;
+          user_email: string;
+          role_name: string;
+          assigned_at: string;
+        }) => {
+          const role = rolesData.find(r => r.display_name === m.role_name || r.name === m.role_name);
+          return {
+            id: m.user_id,
+            email: m.user_email,
+            role_id: role?.id || '',
+            role_name: m.role_name,
+            status: 'active' as const,
+            joined_at: m.assigned_at,
+          };
+        });
         setMembers(formattedMembers);
       }
       
@@ -102,7 +95,13 @@ export const Members: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedOrg]);
+
+  useEffect(() => {
+    if (selectedOrg) {
+      loadData();
+    }
+  }, [selectedOrg, loadData]);
 
   const handleAddMember = async () => {
     if (!selectedOrg) return;
@@ -152,14 +151,25 @@ export const Members: React.FC = () => {
     try {
       setLoading(true);
       
-      // Update member role in organization_members table
-      const { error } = await supabase
-        .from('organization_members')
-        .update({ role_id: newRoleId })
+      // First, delete the old role assignment
+      const { error: deleteError } = await supabase
+        .from('user_organization_roles')
+        .delete()
         .eq('user_id', memberId)
         .eq('organization_id', selectedOrg.id);
 
-      if (error) throw error;
+      if (deleteError) throw deleteError;
+
+      // Then, insert the new role assignment
+      const { error: insertError } = await supabase
+        .from('user_organization_roles')
+        .insert({
+          user_id: memberId,
+          organization_id: selectedOrg.id,
+          role_id: newRoleId,
+        });
+
+      if (insertError) throw insertError;
 
       await loadData();
       alert('Member role updated successfully');
@@ -180,9 +190,9 @@ export const Members: React.FC = () => {
     try {
       setLoading(true);
       
-      // Remove from organization_members
+      // Remove from user_organization_roles
       const { error } = await supabase
-        .from('organization_members')
+        .from('user_organization_roles')
         .delete()
         .eq('user_id', memberId)
         .eq('organization_id', selectedOrg.id);
