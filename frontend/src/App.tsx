@@ -29,9 +29,6 @@ import InvitationAcceptPage from './pages/InvitationAcceptPage';
 import {
   AdminLayout,
   Dashboard as AdminDashboard,
-  Teams as AdminTeams,
-  Members as AdminMembers,
-  Roles as AdminRoles,
   ApiKeys as AdminApiKeys,
   Invitations as AdminInvitations,
   SettingsPage as AdminSettings,
@@ -115,9 +112,6 @@ const AppContent = () => {
           {/* Admin Portal Routes */}
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<AdminDashboard />} />
-            <Route path="teams" element={<AdminTeams />} />
-            <Route path="members" element={<AdminMembers />} />
-            <Route path="roles" element={<AdminRoles />} />
             <Route path="api-keys" element={<AdminApiKeys />} />
             <Route path="invitations" element={<AdminInvitations />} />
             <Route path="settings" element={<AdminSettings />} />

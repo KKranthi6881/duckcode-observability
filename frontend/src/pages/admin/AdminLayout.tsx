@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Building2,
-  Users,
-  Shield,
   Key,
   Mail,
   Settings,
@@ -82,9 +80,6 @@ export const AdminLayout: React.FC = () => {
   const navigationItems = [
     { name: 'Main Dashboard', path: '/dashboard', icon: Home, highlight: true },
     { name: 'Admin Dashboard', path: '/admin', icon: LayoutDashboard },
-    { name: 'Teams', path: '/admin/teams', icon: Users },
-    { name: 'Members', path: '/admin/members', icon: Users },
-    { name: 'Roles', path: '/admin/roles', icon: Shield },
     { name: 'API Keys', path: '/admin/api-keys', icon: Key },
     { name: 'Invitations', path: '/admin/invitations', icon: Mail },
     { name: 'Settings', path: '/admin/settings', icon: Settings },
