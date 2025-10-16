@@ -25,6 +25,7 @@ import GitHubCallbackPage from './pages/GitHubCallbackPage'; // Import the new p
 import GitHubCallbackDebugPage from './pages/GitHubCallbackDebugPage'; // Import our debug page
 import IDELoginPage from './pages/IDELoginPage';
 import IDERegisterPage from './pages/IDERegisterPage';
+import InvitationAcceptPage from './pages/InvitationAcceptPage';
 import {
   AdminLayout,
   Dashboard as AdminDashboard,
@@ -92,6 +93,9 @@ const AppContent = () => {
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/github/callback" element={<GitHubCallbackPage />} />
         <Route path="/github/debug-callback" element={<GitHubCallbackDebugPage />} /> {/* Add debug route */}
+        
+        {/* Invitation Accept - Public route (no auth required) */}
+        <Route path="/invite/:token" element={<InvitationAcceptPage />} />
 
         {/* IDE Analytics - No auth required (backend handles auth) */}
         <Route path="/dashboard/ide-analytics" element={<AnalyticsDashboard />} />

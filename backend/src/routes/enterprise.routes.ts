@@ -4,81 +4,84 @@ import * as enterpriseController from '../api/controllers/enterprise.controller'
 
 const router = express.Router();
 
-// All enterprise routes require authentication
-router.use(requireAuth);
-
-// ==================== API KEYS ====================
+// ==================== API KEYS (Protected) ====================
 
 /**
  * POST /api/enterprise/api-keys
  * Create and encrypt a new API key
  */
-router.post('/api-keys', enterpriseController.createApiKey);
+router.post('/api-keys', requireAuth, enterpriseController.createApiKey);
 
 /**
  * GET /api/enterprise/api-keys/:organizationId
  * Get all API keys for an organization
  */
-router.get('/api-keys/:organizationId', enterpriseController.getApiKeys);
+router.get('/api-keys/:organizationId', requireAuth, enterpriseController.getApiKeys);
 
 /**
  * PATCH /api/enterprise/api-keys/:keyId/status
  * Update API key status (activate, revoke, etc.)
  */
-router.patch('/api-keys/:keyId/status', enterpriseController.updateApiKeyStatus);
+router.patch('/api-keys/:keyId/status', requireAuth, enterpriseController.updateApiKeyStatus);
 
 /**
  * DELETE /api/enterprise/api-keys/:keyId
  * Delete an API key
  */
-router.delete('/api-keys/:keyId', enterpriseController.deleteApiKey);
+router.delete('/api-keys/:keyId', requireAuth, enterpriseController.deleteApiKey);
 
 /**
  * POST /api/enterprise/api-keys/:keyId/decrypt
  * Decrypt an API key for display (admin only)
  */
-router.post('/api-keys/:keyId/decrypt', enterpriseController.decryptApiKey);
+router.post('/api-keys/:keyId/decrypt', requireAuth, enterpriseController.decryptApiKey);
 
 // ==================== INVITATIONS ====================
 
 /**
- * POST /api/enterprise/invitations
- * Send invitation emails to users
+ * GET /api/enterprise/invitations/:token
+ * Get invitation details by token (PUBLIC - no auth required)
  */
-router.post('/invitations', enterpriseController.sendInvitations);
+router.get('/invitations/:token', enterpriseController.getInvitationByToken);
+
+/**
+ * POST /api/enterprise/invitations
+ * Send invitation emails to users (Protected)
+ */
+router.post('/invitations', requireAuth, enterpriseController.sendInvitations);
 
 /**
  * POST /api/enterprise/invitations/:token/accept
- * Accept an invitation (public endpoint, no auth required)
+ * Accept an invitation (PUBLIC - no auth required, creates user if needed)
  */
 router.post('/invitations/:token/accept', enterpriseController.acceptInvitation);
 
 /**
  * DELETE /api/enterprise/invitations/:invitationId
- * Cancel an invitation
+ * Cancel an invitation (Protected)
  */
-router.delete('/invitations/:invitationId', enterpriseController.cancelInvitation);
+router.delete('/invitations/:invitationId', requireAuth, enterpriseController.cancelInvitation);
 
-// ==================== ORGANIZATIONS ====================
+// ==================== ORGANIZATIONS (Protected) ====================
 
 /**
  * DELETE /api/enterprise/organizations/:organizationId
  * Delete an organization and all related data
  */
-router.delete('/organizations/:organizationId', enterpriseController.deleteOrganization);
+router.delete('/organizations/:organizationId', requireAuth, enterpriseController.deleteOrganization);
 
 /**
  * PATCH /api/enterprise/organizations/:organizationId
  * Update organization settings
  */
-router.patch('/organizations/:organizationId', enterpriseController.updateOrganization);
+router.patch('/organizations/:organizationId', requireAuth, enterpriseController.updateOrganization);
 
-// ==================== PERMISSIONS ====================
+// ==================== PERMISSIONS (Protected) ====================
 
 /**
  * POST /api/enterprise/permissions/check
  * Check if user has a specific permission
  */
-router.post('/permissions/check', enterpriseController.checkPermission);
+router.post('/permissions/check', requireAuth, enterpriseController.checkPermission);
 
 export default router;

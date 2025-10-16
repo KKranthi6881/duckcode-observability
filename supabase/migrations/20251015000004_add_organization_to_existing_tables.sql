@@ -1,10 +1,10 @@
 -- =====================================================
--- PHASE 1: Link Existing Tables to Enterprise Schema
+-- PHASE 1: Add organization_id to Existing Tables  
 -- =====================================================
 -- Adds organization_id to existing tables for multi-tenancy
 --
 -- Modified tables:
--- - public.profiles
+-- - duckcode.user_profiles (organization_id added in separate migration)
 -- - github_module.github_app_installations
 --
 -- Created: 2025-01-15
@@ -14,19 +14,10 @@
 BEGIN;
 
 -- =====================================================
--- 1. ADD ORGANIZATION_ID TO PROFILES
+-- 1. ORGANIZATION_ID FOR USER PROFILES
 -- =====================================================
-
--- Add organization_id column (nullable initially for migration)
-ALTER TABLE public.profiles 
-ADD COLUMN IF NOT EXISTS organization_id UUID 
-REFERENCES enterprise.organizations(id) ON DELETE SET NULL;
-
--- Create index for performance
-CREATE INDEX IF NOT EXISTS idx_profiles_organization 
-ON public.profiles(organization_id);
-
-COMMENT ON COLUMN public.profiles.organization_id IS 'Primary organization the user belongs to';
+-- Note: organization_id is added to duckcode.user_profiles 
+-- in migration 20251015000009_add_organization_id_to_user_profiles.sql
 
 -- =====================================================
 -- 2. ADD ORGANIZATION_ID TO GITHUB INSTALLATIONS
@@ -104,7 +95,7 @@ BEGIN
   
   -- Check if user already has an organization
   SELECT organization_id INTO v_org_id
-  FROM public.profiles
+  FROM duckcode.user_profiles
   WHERE id = p_user_id
     AND organization_id IS NOT NULL;
   
@@ -147,15 +138,12 @@ BEGIN
   );
   
   -- Update profile with organization
-  UPDATE public.profiles
+  UPDATE duckcode.user_profiles
   SET organization_id = v_org_id
   WHERE id = p_user_id;
   
-  -- Migrate GitHub installations if any
-  UPDATE github_module.github_app_installations
-  SET organization_id = v_org_id
-  WHERE supabase_user_id = p_user_id::TEXT
-    AND organization_id IS NULL;
+  -- Note: GitHub installations migration removed - new users won't have installations yet
+  -- Existing installations can be migrated separately if needed
   
   RETURN v_org_id;
 END;
@@ -184,10 +172,10 @@ BEGIN
 END;
 $$;
 
--- Create trigger on profiles table
-DROP TRIGGER IF EXISTS trigger_auto_create_organization ON public.profiles;
+-- Create trigger on duckcode.user_profiles table (NOT public.profiles)
+DROP TRIGGER IF EXISTS trigger_auto_create_organization ON duckcode.user_profiles;
 CREATE TRIGGER trigger_auto_create_organization
-  AFTER INSERT ON public.profiles
+  AFTER INSERT ON duckcode.user_profiles
   FOR EACH ROW
   EXECUTE FUNCTION enterprise.auto_create_organization_for_user();
 
@@ -207,7 +195,7 @@ To migrate existing users, run:
 SELECT enterprise.migrate_user_to_personal_organization(id)
 FROM auth.users
 WHERE id NOT IN (
-  SELECT id FROM public.profiles WHERE organization_id IS NOT NULL
+  SELECT id FROM duckcode.user_profiles WHERE organization_id IS NOT NULL
 )
 LIMIT 10;
 

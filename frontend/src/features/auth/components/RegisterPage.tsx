@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuthForm } from '../hooks/useAuthForm';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../../../config/supabaseClient';
 
 const RegisterPage: React.FC = () => {
   const {
@@ -96,6 +97,20 @@ const RegisterPage: React.FC = () => {
       // Store token
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
+
+      // ✅ CRITICAL: Sign in to Supabase to create session for RLS
+      // Without this, auth.uid() returns NULL and RLS blocks all queries
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (signInError) {
+        console.error('Failed to create Supabase session:', signInError);
+        throw new Error('Registration successful but failed to sign in. Please login manually.');
+      }
+
+      console.log('✅ Supabase session created successfully');
 
       // If IDE flow, authorize and redirect back to IDE
       if (isIdeFlow && oauthData) {

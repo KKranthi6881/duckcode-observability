@@ -1,0 +1,106 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:14-alpine
+    container_name: duckcode-db
+    restart: always
+    environment:
+      POSTGRES_DB: duckcode
+      POSTGRES_USER: duckcode_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_INITDB_ARGS: "-E UTF8"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U duckcode_user -d duckcode"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - duckcode-network
+
+  # Backend API
+  backend:
+    image: node:18-alpine
+    container_name: duckcode-backend
+    restart: always
+    working_dir: /app
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      JWT_SECRET: ${JWT_SECRET}
+      DATABASE_URL: postgresql://duckcode_user:${DB_PASSWORD}@postgres:5432/duckcode
+      DATABASE_SCHEMA: duckcode
+      FRONTEND_URL: ${FRONTEND_URL}
+      RATE_LIMIT_ENABLED: true
+      LOCKOUT_ENABLED: true
+      AUDIT_LOG_ENABLED: true
+      PASSWORD_MIN_LENGTH: 12
+    volumes:
+      - ./backend:/app
+      - backend_node_modules:/app/node_modules
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: sh -c "npm ci && npm run build && node dist/server.js"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - duckcode-network
+
+  # Frontend (Nginx)
+  frontend:
+    image: nginx:alpine
+    container_name: duckcode-frontend
+    restart: always
+    volumes:
+      - ./frontend/dist:/usr/share/nginx/html
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+      - ./ssl:/etc/nginx/ssl
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - backend
+    networks:
+      - duckcode-network
+
+  # Redis (Optional - for caching)
+  redis:
+    image: redis:7-alpine
+    container_name: duckcode-redis
+    restart: always
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - duckcode-network
+
+volumes:
+  postgres_data:
+    driver: local
+  backend_node_modules:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  duckcode-network:
+    driver: bridge

@@ -30,21 +30,107 @@ export const Invitations: React.FC = () => {
   }, [selectedOrg]);
 
   const loadData = async () => {
-    if (!selectedOrg) return;
+    if (!selectedOrg) {
+      console.error('No organization selected!');
+      return;
+    }
+    
+    console.log('Loading data for organization:', selectedOrg);
     
     try {
       setLoading(true);
-      const [invitationsData, rolesData] = await Promise.all([
-        invitationService.getInvitations(selectedOrg.id),
-        roleService.getOrganizationRoles(selectedOrg.id),
-      ]);
+      
+      // Load roles and invitations independently (don't let invitations error break roles)
+      let rolesData: OrganizationRole[] = [];
+      let invitationsData: OrganizationInvitationWithDetails[] = [];
+      
+      // Load roles first (critical for Send Invitation button)
+      try {
+        rolesData = await roleService.getOrganizationRoles(selectedOrg.id);
+        console.log('✅ Loaded roles:', rolesData);
+        console.log('Role count:', rolesData.length);
+        
+        if (rolesData.length === 0) {
+          console.error('⚠️ No roles found for organization:', selectedOrg.id);
+          console.error('Organization name:', selectedOrg.name);
+        }
+      } catch (rolesError) {
+        console.error('Failed to load roles:', rolesError);
+      }
+      
+      // Load invitations (non-critical, can fail gracefully)
+      try {
+        invitationsData = await invitationService.getInvitations(selectedOrg.id);
+      } catch (invError) {
+        console.error('❌ Failed to load invitations:', invError);
+        // Don't fail the whole page if invitations don't load
+      }
+      
       setInvitations(invitationsData);
       setRoles(rolesData);
+      
+      // Set default role to first available role
       if (rolesData.length > 0) {
-        setFormData(prev => ({ ...prev, role_id: rolesData[0].id }));
+        // Try to default to Member, then Viewer, then first role
+        const memberRole = rolesData.find(r => r.name === 'Member');
+        const viewerRole = rolesData.find(r => r.name === 'Viewer');
+        const defaultRole = memberRole || viewerRole || rolesData[0];
+        console.log('Setting default role to:', defaultRole.name);
+        setFormData(prev => ({ ...prev, role_id: defaultRole.id }));
       }
     } catch (error) {
-      console.error('Failed to load invitations:', error);
+      console.error('❌ Failed to load invitations:', error);
+      alert('Error loading roles: ' + error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSendInvitations = async () => {
+    if (!selectedOrg) return;
+
+    // Parse emails (one per line, comma-separated, or space-separated)
+    const emailList = formData.emails
+      .split(/[\n,\s]+/)
+      .map(email => email.trim())
+      .filter(email => email.length > 0);
+
+    if (emailList.length === 0) {
+      alert('Please enter at least one email address');
+      return;
+    }
+
+    if (!formData.role_id) {
+      alert('Please select a role');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await invitationService.inviteUser({
+        organization_id: selectedOrg.id,
+        emails: emailList,
+        role_id: formData.role_id,
+        message: formData.message || undefined,
+      });
+
+      // Reset form
+      setFormData({
+        emails: '',
+        role_id: roles.length > 0 ? roles[0].id : '',
+        message: '',
+      });
+
+      // Close modal
+      setShowInviteModal(false);
+
+      // Reload invitations
+      await loadData();
+
+      alert(`Successfully sent ${emailList.length} invitation(s)!`);
+    } catch (error) {
+      console.error('Failed to send invitations:', error);
+      alert('Failed to send invitations. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -291,23 +377,76 @@ export const Invitations: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-3">
                   Assign Role
                 </label>
-                <select
-                  value={formData.role_id}
-                  onChange={(e) => setFormData({ ...formData, role_id: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  {roles.map(role => (
-                    <option key={role.id} value={role.id}>
-                      {role.display_name}
-                    </option>
-                  ))}
-                </select>
-                <p className="mt-1 text-xs text-gray-500">
-                  This role will be assigned when they accept the invitation
-                </p>
+                {roles.length === 0 ? (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <p className="text-sm text-yellow-800">
+                      No roles found. Please refresh the page or contact support.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {roles.sort((a, b) => {
+                      // Sort: Viewer, Member, Admin
+                      const order = { 'Viewer': 1, 'Member': 2, 'Admin': 3 };
+                      return (order[a.name as keyof typeof order] || 99) - (order[b.name as keyof typeof order] || 99);
+                    }).map(role => {
+                    const isSelected = formData.role_id === role.id;
+                    const roleDescriptions: Record<string, string> = {
+                      'Viewer': 'Can view data and analytics (read-only access)',
+                      'Member': 'Can work with data and run operations',
+                      'Admin': 'Full administrative access and control',
+                    };
+                    const roleIcons: Record<string, string> = {
+                      'Viewer': '👁️',
+                      'Member': '🔧',
+                      'Admin': '👑',
+                    };
+                    
+                    return (
+                      <button
+                        key={role.id}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, role_id: role.id })}
+                        className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
+                          isSelected
+                            ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
+                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="flex items-start">
+                          <div className="flex-shrink-0 mr-3">
+                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                              isSelected
+                                ? 'border-blue-500 bg-blue-500'
+                                : 'border-gray-300'
+                            }`}>
+                              {isSelected && (
+                                <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2">
+                              <span className="text-lg">{roleIcons[role.name]}</span>
+                              <span className={`font-semibold ${isSelected ? 'text-blue-900' : 'text-gray-900'}`}>
+                                {role.display_name}
+                              </span>
+                            </div>
+                            <p className={`text-sm mt-1 ${isSelected ? 'text-blue-700' : 'text-gray-600'}`}>
+                              {roleDescriptions[role.name] || 'Custom role'}
+                            </p>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+                )}
               </div>
 
               <div>
@@ -337,8 +476,12 @@ export const Invitations: React.FC = () => {
               >
                 Cancel
               </button>
-              <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                Send Invitations
+              <button
+                onClick={handleSendInvitations}
+                disabled={loading}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                {loading ? 'Sending...' : 'Send Invitations'}
               </button>
             </div>
           </div>

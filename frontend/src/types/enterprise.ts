@@ -193,6 +193,7 @@ export interface CreateRoleRequest {
   name: string;
   display_name: string;
   permissions: string[];
+  is_default?: boolean;
 }
 
 export interface UpdateRoleRequest {
@@ -202,9 +203,10 @@ export interface UpdateRoleRequest {
 
 export interface InviteUserRequest {
   organization_id: string;
-  email: string;
+  emails: string[]; // Array of email addresses
   team_id?: string;
-  role_id?: string;
+  role_id: string;
+  message?: string;
 }
 
 export interface AcceptInvitationRequest {

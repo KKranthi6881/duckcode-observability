@@ -15,10 +15,47 @@ const IDERegisterPage: React.FC = () => {
   const [fullName, setFullName] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordErrors, setPasswordErrors] = useState<string[]>([]);
 
   // Get OAuth parameters from URL
   const state = searchParams.get('state');
   const redirectUri = searchParams.get('redirect_uri');
+
+  // Validate password and return all errors
+  const validatePassword = (pwd: string): string[] => {
+    const errors: string[] = [];
+    
+    if (pwd.length < 12) {
+      errors.push('At least 12 characters');
+    }
+    if (!/[A-Z]/.test(pwd)) {
+      errors.push('One uppercase letter (A-Z)');
+    }
+    if (!/[a-z]/.test(pwd)) {
+      errors.push('One lowercase letter (a-z)');
+    }
+    if (!/[0-9]/.test(pwd)) {
+      errors.push('One number (0-9)');
+    }
+    if (!/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(pwd)) {
+      errors.push('One special character (!@#$%^&*...)');
+    }
+    
+    return errors;
+  };
+
+  // Update password errors in real-time
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newPassword = e.target.value;
+    setPassword(newPassword);
+    
+    if (newPassword.length > 0) {
+      const errors = validatePassword(newPassword);
+      setPasswordErrors(errors);
+    } else {
+      setPasswordErrors([]);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,8 +71,29 @@ const IDERegisterPage: React.FC = () => {
       return;
     }
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters');
+    // Enterprise password policy validation
+    if (password.length < 12) {
+      setError('Password must be at least 12 characters');
+      return;
+    }
+
+    if (!/[A-Z]/.test(password)) {
+      setError('Password must contain at least one uppercase letter');
+      return;
+    }
+
+    if (!/[a-z]/.test(password)) {
+      setError('Password must contain at least one lowercase letter');
+      return;
+    }
+
+    if (!/[0-9]/.test(password)) {
+      setError('Password must contain at least one number');
+      return;
+    }
+
+    if (!/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password)) {
+      setError('Password must contain at least one special character');
       return;
     }
     
@@ -53,7 +111,22 @@ const IDERegisterPage: React.FC = () => {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.msg || data.message || 'Registration failed');
+        // Handle specific error cases with helpful messages
+        if (response.status === 400) {
+          if (data.msg?.includes('already exists')) {
+            throw new Error('This email is already registered. Please sign in instead or use a different email.');
+          }
+          if (data.errors && Array.isArray(data.errors)) {
+            // Validation errors from express-validator
+            const errorMessages = data.errors.map((err: { msg: string }) => err.msg).join(', ');
+            throw new Error(errorMessages);
+          }
+          throw new Error(data.msg || data.message || 'Invalid registration data. Please check all fields.');
+        }
+        if (response.status === 429) {
+          throw new Error('Too many registration attempts. Please try again in a few minutes.');
+        }
+        throw new Error(data.msg || data.message || 'Registration failed. Please try again.');
       }
 
       // Create Supabase session for browser (enables SaaS auto-login)
@@ -162,18 +235,65 @@ const IDERegisterPage: React.FC = () => {
               type="password"
               id="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={handlePasswordChange}
               required
-              minLength={6}
+              minLength={12}
               style={{ 
                 width: '100%', 
                 padding: '8px 12px',
                 borderRadius: '4px',
-                border: '1px solid #ddd',
+                border: passwordErrors.length > 0 && password.length > 0 ? '1px solid #EF4444' : '1px solid #ddd',
                 fontSize: '14px'
               }}
-              placeholder="At least 6 characters"
+              placeholder="Enter a strong password"
             />
+            
+            {/* Password requirements checklist */}
+            <div style={{ marginTop: '8px', fontSize: '12px' }}>
+              <div style={{ fontWeight: '500', color: '#374151', marginBottom: '4px' }}>Password must include:</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ color: password.length >= 12 ? '#10B981' : '#9CA3AF' }}>
+                    {password.length >= 12 ? '✓' : '○'}
+                  </span>
+                  <span style={{ color: password.length >= 12 ? '#10B981' : '#6B7280' }}>
+                    At least 12 characters
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ color: /[A-Z]/.test(password) ? '#10B981' : '#9CA3AF' }}>
+                    {/[A-Z]/.test(password) ? '✓' : '○'}
+                  </span>
+                  <span style={{ color: /[A-Z]/.test(password) ? '#10B981' : '#6B7280' }}>
+                    One uppercase letter (A-Z)
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ color: /[a-z]/.test(password) ? '#10B981' : '#9CA3AF' }}>
+                    {/[a-z]/.test(password) ? '✓' : '○'}
+                  </span>
+                  <span style={{ color: /[a-z]/.test(password) ? '#10B981' : '#6B7280' }}>
+                    One lowercase letter (a-z)
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ color: /[0-9]/.test(password) ? '#10B981' : '#9CA3AF' }}>
+                    {/[0-9]/.test(password) ? '✓' : '○'}
+                  </span>
+                  <span style={{ color: /[0-9]/.test(password) ? '#10B981' : '#6B7280' }}>
+                    One number (0-9)
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ color: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password) ? '#10B981' : '#9CA3AF' }}>
+                    {/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password) ? '✓' : '○'}
+                  </span>
+                  <span style={{ color: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password) ? '#10B981' : '#6B7280' }}>
+                    One special character (!@#$%^&*...)
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div style={{ marginBottom: '16px' }}>
@@ -186,7 +306,7 @@ const IDERegisterPage: React.FC = () => {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
-              minLength={6}
+              minLength={12}
               style={{ 
                 width: '100%', 
                 padding: '8px 12px',
@@ -199,8 +319,25 @@ const IDERegisterPage: React.FC = () => {
           </div>
           
           {error && (
-            <div style={{ padding: '10px', marginBottom: '16px', backgroundColor: '#FEE2E2', border: '1px solid #FECACA', borderRadius: '4px' }}>
-              <p style={{ color: '#DC2626', fontSize: '14px', margin: 0 }}>{error}</p>
+            <div style={{ 
+              padding: '12px', 
+              marginBottom: '16px', 
+              backgroundColor: '#FEE2E2', 
+              border: '1px solid #EF4444', 
+              borderRadius: '6px',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '8px'
+            }}>
+              <span style={{ color: '#DC2626', fontSize: '18px', lineHeight: '1' }}>⚠️</span>
+              <div style={{ flex: 1 }}>
+                <p style={{ color: '#DC2626', fontSize: '14px', fontWeight: '500', margin: '0 0 4px 0' }}>
+                  Registration Error
+                </p>
+                <p style={{ color: '#991B1B', fontSize: '13px', margin: 0 }}>
+                  {error}
+                </p>
+              </div>
             </div>
           )}
           

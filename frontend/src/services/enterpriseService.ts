@@ -587,14 +587,15 @@ export const invitationService = {
    * Get all invitations for an organization
    */
   async getInvitations(organizationId: string): Promise<OrganizationInvitationWithDetails[]> {
+    // Simplified query without cross-schema joins (auth.users is in different schema)
+    // We'll just return the invited_by UUID without the email for now
     const { data, error } = await supabase
       .schema('enterprise')
       .from('organization_invitations')
       .select(`
         *,
-        invited_by_user:invited_by (email),
-        team:team_id (name),
-        role:role_id (name)
+        role:role_id (name, display_name),
+        team:team_id (name)
       `)
       .eq('organization_id', organizationId)
       .order('created_at', { ascending: false });
@@ -603,35 +604,44 @@ export const invitationService = {
 
     return (data || []).map((inv: any) => ({
       ...inv,
-      invited_by_email: inv.invited_by_user?.email,
-      team_name: inv.team?.name,
+      invited_by_email: null, // TODO: Fetch from auth.users separately if needed
       role_name: inv.role?.name,
+      role_display_name: inv.role?.display_name,
+      team_name: inv.team?.name,
     }));
   },
 
   /**
-   * Invite user to organization
+   * Invite user to organization (handles multiple emails)
    */
   async inviteUser(request: InviteUserRequest): Promise<OrganizationInvitation> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
 
-    const invitationToken = crypto.randomUUID();
+    // Handle multiple emails by creating one invitation per email
+    const emails = Array.isArray(request.emails) ? request.emails : [request.emails];
+    
+    const invitations = emails.map(email => ({
+      organization_id: request.organization_id,
+      email: email, // singular 'email' column in DB
+      role_id: request.role_id,
+      team_id: request.team_id,
+      invited_by: user.id,
+      invitation_token: crypto.randomUUID(),
+      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days
+      status: 'pending',
+    }));
 
     const { data, error } = await supabase
       .schema('enterprise')
       .from('organization_invitations')
-      .insert({
-        ...request,
-        invited_by: user.id,
-        invitation_token: invitationToken,
-        status: 'pending',
-      })
-      .select()
-      .single();
+      .insert(invitations)
+      .select();
 
     if (error) throw error;
-    return data;
+    
+    // Return first invitation (for backward compatibility)
+    return data[0];
   },
 
   /**

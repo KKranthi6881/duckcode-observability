@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { Plus, Shield, Edit, Trash2, Users, Check } from 'lucide-react';
+import { Plus, Shield, Edit, Trash2, Users } from 'lucide-react';
 import type { Organization, OrganizationRole } from '../../types/enterprise';
 import { roleService } from '../../services/enterpriseService';
 import { PERMISSIONS } from '../../types/enterprise';
@@ -126,6 +126,76 @@ export const Roles: React.FC = () => {
     return permission.split(':')[1].replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   };
 
+  const handleSubmit = async () => {
+    if (!selectedOrg) return;
+
+    // Validation
+    if (!formData.name.trim()) {
+      alert('Please enter a role name');
+      return;
+    }
+
+    if (!formData.display_name.trim()) {
+      alert('Please enter a display name');
+      return;
+    }
+
+    if (formData.permissions.length === 0) {
+      alert('Please select at least one permission');
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      if (editingRole) {
+        // Update existing role
+        await roleService.updateRole(editingRole.id, {
+          display_name: formData.display_name,
+          permissions: formData.permissions,
+        });
+      } else {
+        // Create new role
+        await roleService.createRole({
+          organization_id: selectedOrg.id,
+          name: formData.name,
+          display_name: formData.display_name,
+          permissions: formData.permissions,
+          is_default: false,
+        });
+      }
+
+      // Close modal and reload
+      setShowCreateModal(false);
+      await loadRoles();
+
+      alert(editingRole ? 'Role updated successfully!' : 'Role created successfully!');
+    } catch (error) {
+      console.error('Failed to save role:', error);
+      alert('Failed to save role. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteRole = async (roleId: string, roleName: string) => {
+    if (!confirm(`Are you sure you want to delete the role "${roleName}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await roleService.deleteRole(roleId);
+      await loadRoles();
+      alert('Role deleted successfully!');
+    } catch (error) {
+      console.error('Failed to delete role:', error);
+      alert('Failed to delete role. Make sure no users are assigned to this role.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -174,10 +244,15 @@ export const Roles: React.FC = () => {
                   <button
                     onClick={() => openEditModal(role)}
                     className="p-1 text-gray-400 hover:text-blue-600"
+                    title="Edit role"
                   >
                     <Edit className="h-4 w-4" />
                   </button>
-                  <button className="p-1 text-gray-400 hover:text-red-600">
+                  <button
+                    onClick={() => handleDeleteRole(role.id, role.display_name)}
+                    className="p-1 text-gray-400 hover:text-red-600"
+                    title="Delete role"
+                  >
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
@@ -328,8 +403,12 @@ export const Roles: React.FC = () => {
               >
                 Cancel
               </button>
-              <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                {editingRole ? 'Update Role' : 'Create Role'}
+              <button
+                onClick={handleSubmit}
+                disabled={loading}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                {loading ? 'Saving...' : editingRole ? 'Update Role' : 'Create Role'}
               </button>
             </div>
           </div>

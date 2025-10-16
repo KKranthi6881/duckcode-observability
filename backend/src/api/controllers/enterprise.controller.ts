@@ -227,6 +227,77 @@ export const decryptApiKey = async (req: Request, res: Response) => {
 // ==================== INVITATIONS ====================
 
 /**
+ * Get invitation details by token (PUBLIC - no auth required)
+ */
+export const getInvitationByToken = async (req: Request, res: Response) => {
+  try {
+    const { token } = req.params;
+
+    if (!token) {
+      return res.status(400).json({ error: 'Token is required' });
+    }
+
+    // Find the invitation with organization and role details
+    const { data: invitation, error } = await supabaseEnterprise
+      .from('organization_invitations')
+      .select(`
+        *,
+        organization:organizations!organization_invitations_organization_id_fkey (
+          id,
+          name,
+          display_name
+        ),
+        role:organization_roles!organization_invitations_role_id_fkey (
+          id,
+          name
+        ),
+        inviter:invited_by (
+          email
+        )
+      `)
+      .eq('invitation_token', token)
+      .single();
+
+    if (error || !invitation) {
+      return res.status(404).json({ error: 'Invitation not found' });
+    }
+
+    // Check if already accepted
+    if (invitation.status === 'accepted') {
+      return res.status(410).json({ error: 'This invitation has already been accepted' });
+    }
+
+    // Check if expired
+    if (new Date(invitation.expires_at) < new Date()) {
+      // Update status if not already marked as expired
+      if (invitation.status === 'pending') {
+        await supabaseEnterprise
+          .from('organization_invitations')
+          .update({ status: 'expired' })
+          .eq('id', invitation.id);
+      }
+      return res.status(404).json({ error: 'This invitation has expired' });
+    }
+
+    // Return invitation details
+    res.json({
+      id: invitation.id,
+      organization_id: invitation.organization.id,
+      organization_name: invitation.organization.display_name || invitation.organization.name,
+      email: invitation.email,
+      role_name: invitation.role.name,
+      team_name: invitation.team_id ? 'Team' : null, // TODO: Fetch team name
+      invited_by_email: invitation.inviter?.email || 'Unknown',
+      expires_at: invitation.expires_at,
+      status: invitation.status,
+    });
+  } catch (error) {
+    console.error('Get invitation by token error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+/**
  * Send invitation emails
  */
 export const sendInvitations = async (req: Request, res: Response) => {
@@ -290,15 +361,15 @@ export const sendInvitations = async (req: Request, res: Response) => {
 };
 
 /**
- * Accept an invitation
+ * Accept an invitation (PUBLIC - supports both new and existing users)
  */
 export const acceptInvitation = async (req: Request, res: Response) => {
   try {
     const { token } = req.params;
-    const userId = (req as any).user?.id;
+    const { password, full_name } = req.body;
 
-    if (!userId) {
-      return res.status(401).json({ error: 'Unauthorized' });
+    if (!token) {
+      return res.status(400).json({ error: 'Token is required' });
     }
 
     // Find the invitation
@@ -310,7 +381,7 @@ export const acceptInvitation = async (req: Request, res: Response) => {
       .single();
 
     if (findError || !invitation) {
-      return res.status(404).json({ error: 'Invitation not found or expired' });
+      return res.status(404).json({ error: 'Invitation not found' });
     }
 
     // Check if expired
@@ -320,21 +391,70 @@ export const acceptInvitation = async (req: Request, res: Response) => {
         .update({ status: 'expired' })
         .eq('id', invitation.id);
 
-      return res.status(400).json({ error: 'Invitation has expired' });
+      return res.status(404).json({ error: 'Invitation has expired' });
     }
 
-    // Add user to organization
-    const { error: addError } = await supabaseEnterprise
-      .from('organization_roles')
+    // Check if user already exists
+    const { data: existingUsers } = await supabaseEnterprise
+      .rpc('get_user_by_email', { p_email: invitation.email });
+
+    let userId: string;
+    let userExists = false;
+
+    if (existingUsers && existingUsers.length > 0) {
+      // User exists - just add them to organization
+      userId = existingUsers[0].id;
+      userExists = true;
+    } else {
+      // New user - create account
+      if (!password || !full_name) {
+        return res.status(400).json({ error: 'Password and full name are required for new users' });
+      }
+
+      // Create user using Supabase Auth (admin API)
+      const { data: authData, error: authError } = await supabaseEnterprise.auth.admin.createUser({
+        email: invitation.email,
+        password: password,
+        email_confirm: true, // Auto-confirm email
+        user_metadata: {
+          full_name: full_name,
+        },
+      });
+
+      if (authError || !authData.user) {
+        console.error('Failed to create user:', authError);
+        return res.status(500).json({ error: 'Failed to create user account' });
+      }
+
+      userId = authData.user.id;
+
+      // Profile should be auto-created by trigger, but verify
+      console.log(`New user created: ${userId} (${invitation.email})`);
+    }
+
+    // Add user to organization with the invited role
+    const { error: roleError } = await supabaseEnterprise
+      .from('user_organization_roles')
       .insert({
-        organization_id: invitation.organization_id,
         user_id: userId,
+        organization_id: invitation.organization_id,
         role_id: invitation.role_id,
       });
 
-    if (addError) {
-      console.error('Failed to add user to organization:', addError);
-      return res.status(500).json({ error: 'Failed to accept invitation' });
+    if (roleError) {
+      console.error('Failed to assign role:', roleError);
+      return res.status(500).json({ error: 'Failed to add user to organization' });
+    }
+
+    // If team was specified, add user to team
+    if (invitation.team_id) {
+      await supabaseEnterprise
+        .from('team_members')
+        .insert({
+          team_id: invitation.team_id,
+          user_id: userId,
+          role: 'member', // Default team role
+        });
     }
 
     // Update invitation status
@@ -347,7 +467,13 @@ export const acceptInvitation = async (req: Request, res: Response) => {
       })
       .eq('id', invitation.id);
 
-    res.json({ success: true, organization_id: invitation.organization_id });
+    res.json({
+      success: true,
+      message: 'Invitation accepted successfully',
+      user_exists: userExists,
+      redirect_url: '/login',
+      organization_id: invitation.organization_id,
+    });
   } catch (error) {
     console.error('Accept invitation error:', error);
     res.status(500).json({ error: 'Internal server error' });
