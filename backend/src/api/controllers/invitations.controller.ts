@@ -270,6 +270,7 @@ export const acceptInvitation = async (req: Request, res: Response) => {
     }
 
     // Create user account in Supabase Auth
+    let userId: string;
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: invitation.email,
       password: password,
@@ -280,40 +281,66 @@ export const acceptInvitation = async (req: Request, res: Response) => {
       },
     });
 
-    if (authError || !authData.user) {
-      console.error('Failed to create user:', authError);
+    if (authError) {
+      // Check if user already exists
+      if (authError.message?.includes('already registered')) {
+        // Get existing user
+        const { data: existingUser } = await supabaseAdmin.auth.admin.listUsers();
+        const user = existingUser?.users.find((u) => u.email === invitation.email);
+        if (!user) {
+          console.error('User exists but could not find:', authError);
+          return res.status(500).json({ 
+            error: 'User already exists but could not be found',
+            details: authError.message,
+          });
+        }
+        userId = user.id;
+      } else {
+        console.error('Failed to create user:', authError);
+        return res.status(500).json({ 
+          error: 'Failed to create account',
+          details: authError?.message || 'Unknown error',
+        });
+      }
+    } else if (authData?.user) {
+      userId = authData.user.id;
+    } else {
       return res.status(500).json({ 
         error: 'Failed to create account',
-        details: authError?.message || 'Unknown error',
+        details: 'No user data returned',
       });
     }
 
-    const userId = authData.user.id;
-
-    // Create user profile in duckcode schema
+    // Create user profile in duckcode schema (use upsert in case it already exists)
     const { error: profileError } = await supabaseAdmin
       .schema('duckcode')
       .from('user_profiles')
-      .insert({
+      .upsert({
         id: userId,
         email: invitation.email,
         full_name: fullName,
         organization_id: invitation.organization_id,
+      }, {
+        onConflict: 'id',
+        ignoreDuplicates: false, // Update if exists
       });
 
     if (profileError) {
-      console.error('Failed to create profile:', profileError);
+      console.error('Failed to create/update profile:', profileError);
       // Don't fail - profile might be auto-created by trigger
     }
 
-    // Assign role to user
+    // Assign role to user (use upsert to handle re-invitations)
     const { error: roleError } = await supabaseAdmin
       .schema('enterprise')
-      .from('organization_user_roles')
-      .insert({
+      .from('user_organization_roles')
+      .upsert({
         organization_id: invitation.organization_id,
         user_id: userId,
         role_id: invitation.role_id,
+      }, {
+        onConflict: 'user_id,organization_id,role_id',
+        ignoreDuplicates: true, // Skip if already has this exact role
       });
 
     if (roleError) {
