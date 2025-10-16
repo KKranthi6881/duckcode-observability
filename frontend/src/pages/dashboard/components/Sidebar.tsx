@@ -34,31 +34,34 @@ export function Sidebar() {
     const checkAdminRole = async () => {
       if (user?.id) {
         try {
-          console.log('[Sidebar] Checking admin role for user:', user.id);
+          console.log('[Sidebar] Checking admin role for user:', user.id, 'email:', user.email);
           
           // Check user role from Supabase directly
+          // Note: Using limit(1) instead of single() to avoid errors if user has multiple roles
           const { data: roleData, error } = await supabase
             .schema('enterprise')
             .from('user_organization_roles')
             .select(`
-              role:role_id (
+              role_id,
+              organization_roles!inner (
                 name
               )
             `)
             .eq('user_id', user.id)
-            .single();
+            .limit(1);
 
-          console.log('[Sidebar] Role query result:', { roleData, error });
+          console.log('[Sidebar] Role query result:', { roleData, error, count: roleData?.length });
 
-          if (!error && roleData?.role) {
-            const role = roleData.role as unknown as { name: string };
-            const roleName = role?.name;
+          if (!error && roleData && roleData.length > 0) {
+            const firstRole = roleData[0];
+            const orgRoles = firstRole.organization_roles as unknown as { name: string };
+            const roleName = orgRoles?.name;
             console.log('[Sidebar] User role:', roleName);
             const adminStatus = roleName === 'Admin';
             console.log('[Sidebar] Setting isAdmin to:', adminStatus);
             setIsAdmin(adminStatus);
           } else {
-            console.log('[Sidebar] No role found or error, defaulting to non-admin');
+            console.log('[Sidebar] No role found or error, defaulting to non-admin', { error });
             setIsAdmin(false);
           }
         } catch (error) {
