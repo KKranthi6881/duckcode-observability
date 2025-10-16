@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useAuthForm } from '../hooks/useAuthForm';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../../config/supabaseClient';
+import { validatePassword } from '../../../utils/passwordValidation';
 
 const RegisterPage: React.FC = () => {
   const {
@@ -52,15 +53,9 @@ const RegisterPage: React.FC = () => {
     const newPassword = e.target.value;
     setPassword(newPassword);
     
-    // Validate password requirements
-    const errors: string[] = [];
-    if (newPassword.length < 12) errors.push('At least 12 characters');
-    if (!/[A-Z]/.test(newPassword)) errors.push('One uppercase letter');
-    if (!/[a-z]/.test(newPassword)) errors.push('One lowercase letter');
-    if (!/[0-9]/.test(newPassword)) errors.push('One number');
-    if (!/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(newPassword)) errors.push('One special character');
-    
-    setPasswordErrors(errors);
+    // Validate password requirements using utility
+    const validation = validatePassword(newPassword);
+    setPasswordErrors(validation.errors);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -74,7 +69,8 @@ const RegisterPage: React.FC = () => {
     }
 
     // Validate password requirements
-    if (passwordErrors.length > 0) {
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.isValid) {
       setError('Please meet all password requirements');
       return;
     }
@@ -117,8 +113,10 @@ const RegisterPage: React.FC = () => {
         setRedirecting(true);
         await authorizeIDE(data.token, oauthData.state, oauthData.redirect_uri);
       } else {
-        // Regular web signup - redirect to admin portal
-        navigate('/admin');
+        // Regular web signup - redirect to main dashboard
+        navigate('/dashboard', {
+          state: { message: 'Welcome! Your account has been created successfully.' }
+        });
       }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to register. Please try again.';

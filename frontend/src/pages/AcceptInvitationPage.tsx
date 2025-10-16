@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { CheckCircleIcon, XCircleIcon, ClockIcon } from '@heroicons/react/24/outline';
+import { validatePassword, PASSWORD_REQUIREMENTS } from '../utils/passwordValidation';
 
 interface InvitationDetails {
   email: string;
@@ -23,6 +24,7 @@ const AcceptInvitationPage: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [accepting, setAccepting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [passwordErrors, setPasswordErrors] = useState<string[]>([]);
 
   useEffect(() => {
     if (token) {
@@ -48,6 +50,15 @@ const AcceptInvitationPage: React.FC = () => {
     }
   };
 
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newPassword = e.target.value;
+    setPassword(newPassword);
+    
+    // Validate password requirements
+    const validation = validatePassword(newPassword);
+    setPasswordErrors(validation.errors);
+  };
+
   const handleAccept = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -58,8 +69,10 @@ const AcceptInvitationPage: React.FC = () => {
       return;
     }
 
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters');
+    // Validate password meets requirements
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.isValid) {
+      setError('Please meet all password requirements');
       return;
     }
 
@@ -91,11 +104,11 @@ const AcceptInvitationPage: React.FC = () => {
 
       setSuccess(true);
       
-      // Redirect to login after 3 seconds
+      // Redirect to dashboard after 3 seconds
       setTimeout(() => {
-        navigate('/login', { 
+        navigate('/dashboard', { 
           state: { 
-            message: 'Account created successfully! Please login.',
+            message: 'Welcome! Your account has been created successfully.',
             email: invitation?.email,
           }
         });
@@ -219,12 +232,26 @@ const AcceptInvitationPage: React.FC = () => {
                 type="password"
                 id="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={handlePasswordChange}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                placeholder="Create a password (min 8 characters)"
+                placeholder="Create a strong password (min 12 characters)"
                 required
-                minLength={8}
+                minLength={12}
               />
+              {/* Password requirements */}
+              {password && (
+                <div className="mt-2 text-xs space-y-1">
+                  {PASSWORD_REQUIREMENTS.map((req, idx) => {
+                    const isValid = !passwordErrors.includes(req.split(' (')[0]);
+                    return (
+                      <div key={idx} className={`flex items-center ${isValid ? 'text-green-600' : 'text-gray-500'}`}>
+                        <span className="mr-1">{isValid ? '✓' : '○'}</span>
+                        <span>{req}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             <div>
@@ -239,7 +266,7 @@ const AcceptInvitationPage: React.FC = () => {
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 placeholder="Confirm your password"
                 required
-                minLength={8}
+                minLength={12}
               />
             </div>
 

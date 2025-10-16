@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   ChevronDown,
   LogOut,
+  Home,
 } from 'lucide-react';
 import { supabase } from '../../config/supabaseClient';
 import type { Organization } from '../../types/enterprise';
@@ -79,7 +80,8 @@ export const AdminLayout: React.FC = () => {
   };
 
   const navigationItems = [
-    { name: 'Dashboard', path: '/admin', icon: LayoutDashboard },
+    { name: 'Main Dashboard', path: '/dashboard', icon: Home, highlight: true },
+    { name: 'Admin Dashboard', path: '/admin', icon: LayoutDashboard },
     { name: 'Teams', path: '/admin/teams', icon: Users },
     { name: 'Members', path: '/admin/members', icon: Users },
     { name: 'Roles', path: '/admin/roles', icon: Shield },
@@ -152,6 +154,7 @@ export const AdminLayout: React.FC = () => {
           {navigationItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.path);
+            const isHighlight = 'highlight' in item && item.highlight;
             
             return (
               <Link
@@ -162,11 +165,13 @@ export const AdminLayout: React.FC = () => {
                   transition-colors
                   ${active
                     ? 'bg-blue-50 text-blue-700'
+                    : isHighlight
+                    ? 'text-gray-700 hover:bg-green-50 border border-green-200'
                     : 'text-gray-700 hover:bg-gray-50'
                   }
                 `}
               >
-                <Icon className={`h-5 w-5 ${active ? 'text-blue-700' : 'text-gray-400'}`} />
+                <Icon className={`h-5 w-5 ${active ? 'text-blue-700' : isHighlight ? 'text-green-600' : 'text-gray-400'}`} />
                 <span>{item.name}</span>
               </Link>
             );
