@@ -154,19 +154,24 @@ export const Members: React.FC = () => {
   const handleUpdateMemberRole = async (memberId: string, newRoleId: string) => {
     try {
       setLoading(true);
+      console.log('🔄 Updating role for member:', memberId, 'to role:', newRoleId);
       
       // First, delete the old role assignment
-      const { error: deleteError } = await supabase
+      const { data: deleteData, error: deleteError } = await supabase
         .schema('enterprise')
         .from('user_organization_roles')
         .delete()
         .eq('user_id', memberId)
         .eq('organization_id', selectedOrg.id);
 
-      if (deleteError) throw deleteError;
+      console.log('🗑️ Delete result:', { deleteData, deleteError });
+      if (deleteError) {
+        console.error('❌ Delete error:', deleteError);
+        throw new Error(`Failed to delete old role: ${deleteError.message}`);
+      }
 
       // Then, insert the new role assignment
-      const { error: insertError } = await supabase
+      const { data: insertData, error: insertError } = await supabase
         .schema('enterprise')
         .from('user_organization_roles')
         .insert({
@@ -175,14 +180,19 @@ export const Members: React.FC = () => {
           role_id: newRoleId,
         });
 
-      if (insertError) throw insertError;
+      console.log('➕ Insert result:', { insertData, insertError });
+      if (insertError) {
+        console.error('❌ Insert error:', insertError);
+        throw new Error(`Failed to insert new role: ${insertError.message}`);
+      }
 
       await loadData();
       alert('Member role updated successfully');
       setShowEditModal(false);
-    } catch (error) {
-      console.error('Failed to update member role:', error);
-      alert('Failed to update member role');
+    } catch (error: unknown) {
+      const err = error as Error;
+      console.error('❌ Failed to update member role:', err);
+      alert(`Failed to update member role: ${err.message || 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
@@ -195,22 +205,28 @@ export const Members: React.FC = () => {
 
     try {
       setLoading(true);
+      console.log('🗑️ Deleting member:', memberId, 'from org:', selectedOrg.id);
       
       // Remove from user_organization_roles
-      const { error } = await supabase
+      const { data, error } = await supabase
         .schema('enterprise')
         .from('user_organization_roles')
         .delete()
         .eq('user_id', memberId)
         .eq('organization_id', selectedOrg.id);
 
-      if (error) throw error;
+      console.log('🗑️ Delete result:', { data, error });
+      if (error) {
+        console.error('❌ Delete error:', error);
+        throw new Error(`Failed to delete member: ${error.message}`);
+      }
 
       await loadData();
       alert('Member removed successfully');
-    } catch (error) {
-      console.error('Failed to remove member:', error);
-      alert('Failed to remove member');
+    } catch (error: unknown) {
+      const err = error as Error;
+      console.error('❌ Failed to remove member:', err);
+      alert(`Failed to remove member: ${err.message || 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
