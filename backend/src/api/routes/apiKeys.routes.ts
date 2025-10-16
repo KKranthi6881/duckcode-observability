@@ -9,8 +9,8 @@ import {
   upsertOrganizationAPIKey,
   deleteOrganizationAPIKey,
   getActiveAPIKeysForExtension,
-} from '../controllers/apiKeys.controller.js';
-import { requireAuth } from '../middlewares/auth.middleware.js';
+} from '../controllers/apiKeys.controller';
+import { requireAuth } from '../middlewares/auth.middleware';
 
 const router = express.Router();
 
