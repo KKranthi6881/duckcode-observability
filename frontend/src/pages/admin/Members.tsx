@@ -267,7 +267,7 @@ export const Members: React.FC = () => {
   const viewCounts = {
     active: members.filter(m => m.status === 'active').length,
     pending: invitations.filter(i => i.status === 'pending').length,
-    all: members.length + invitations.length,
+    all: members.length + invitations.filter(i => i.status === 'pending' || i.status === 'expired').length,
   };
 
   if (loading) {
@@ -406,7 +406,8 @@ export const Members: React.FC = () => {
       )}
 
       {/* Pending Invitations */}
-      {(selectedView === 'pending' || selectedView === 'all') && invitations.length > 0 && (
+      {(selectedView === 'pending' || selectedView === 'all') && 
+       invitations.filter(i => i.status === 'pending' || i.status === 'expired').length > 0 && (
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
             <h3 className="text-sm font-semibold text-gray-700 uppercase">Pending Invitations</h3>
@@ -435,7 +436,11 @@ export const Members: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {invitations.filter(i => selectedView === 'all' || i.status === 'pending').map((invitation) => (
+              {invitations.filter(i => {
+                // Only show truly pending invitations (not accepted/cancelled)
+                const isPending = i.status === 'pending' || i.status === 'expired';
+                return selectedView === 'all' ? isPending : i.status === 'pending';
+              }).map((invitation) => (
                 <tr key={invitation.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
