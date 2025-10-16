@@ -59,13 +59,15 @@ export const Members: React.FC = () => {
       
       // Load existing members using the RPC function
       const { data: membersData, error: membersError } = await supabase
+        .schema('enterprise')
         .rpc('get_organization_members', { 
           p_organization_id: selectedOrg.id 
         });
 
       if (membersError) {
-        console.error('Failed to load members:', membersError);
+        console.error('❌ Failed to load members:', membersError);
       } else {
+        console.log('📊 Raw members data from RPC:', membersData);
         // Get role IDs by matching role names
         const formattedMembers: Member[] = (membersData || []).map((m: {
           user_id: string;
@@ -83,6 +85,8 @@ export const Members: React.FC = () => {
             joined_at: m.assigned_at,
           };
         });
+        console.log('👥 Formatted members:', formattedMembers);
+        console.log('📈 Members count:', formattedMembers.length);
         setMembers(formattedMembers);
       }
       
@@ -153,6 +157,7 @@ export const Members: React.FC = () => {
       
       // First, delete the old role assignment
       const { error: deleteError } = await supabase
+        .schema('enterprise')
         .from('user_organization_roles')
         .delete()
         .eq('user_id', memberId)
@@ -162,6 +167,7 @@ export const Members: React.FC = () => {
 
       // Then, insert the new role assignment
       const { error: insertError } = await supabase
+        .schema('enterprise')
         .from('user_organization_roles')
         .insert({
           user_id: memberId,
@@ -192,6 +198,7 @@ export const Members: React.FC = () => {
       
       // Remove from user_organization_roles
       const { error } = await supabase
+        .schema('enterprise')
         .from('user_organization_roles')
         .delete()
         .eq('user_id', memberId)
@@ -218,6 +225,7 @@ export const Members: React.FC = () => {
       setLoading(true);
       
       const { error } = await supabase
+        .schema('enterprise')
         .from('organization_invitations')
         .update({ status: 'cancelled' })
         .eq('id', invitationId);
