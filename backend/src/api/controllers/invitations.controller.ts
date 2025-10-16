@@ -331,6 +331,7 @@ export const acceptInvitation = async (req: Request, res: Response) => {
     }
 
     // Assign role to user (use upsert to handle re-invitations)
+    // Note: ONE user = ONE role per organization (enterprise standard)
     const { error: roleError } = await supabaseAdmin
       .schema('enterprise')
       .from('user_organization_roles')
@@ -339,8 +340,8 @@ export const acceptInvitation = async (req: Request, res: Response) => {
         user_id: userId,
         role_id: invitation.role_id,
       }, {
-        onConflict: 'user_id,organization_id,role_id',
-        ignoreDuplicates: true, // Skip if already has this exact role
+        onConflict: 'user_id,organization_id', // Updated constraint: one role per user
+        ignoreDuplicates: false, // Update role if user already exists in org
       });
 
     if (roleError) {

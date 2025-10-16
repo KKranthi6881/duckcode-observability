@@ -433,12 +433,16 @@ export const acceptInvitation = async (req: Request, res: Response) => {
     }
 
     // Add user to organization with the invited role
+    // Use upsert to handle re-invitations (one role per user per org)
     const { error: roleError } = await supabaseEnterprise
       .from('user_organization_roles')
-      .insert({
+      .upsert({
         user_id: userId,
         organization_id: invitation.organization_id,
         role_id: invitation.role_id,
+      }, {
+        onConflict: 'user_id,organization_id',
+        ignoreDuplicates: false, // Update role if user already exists
       });
 
     if (roleError) {
