@@ -218,7 +218,7 @@ export const teamService = {
 
     if (membersError) throw membersError;
 
-    const membersWithUser: TeamMemberWithUser[] = (members || []).map((m: any) => ({
+    const membersWithUser: TeamMemberWithUser[] = (members || []).map((m: TeamMember & { user?: { email?: string; raw_user_meta_data?: { name?: string } } }) => ({
       ...m,
       user_email: m.user?.email,
       user_name: m.user?.raw_user_meta_data?.name,
@@ -512,7 +512,8 @@ export const apiKeyService = {
   /**
    * Create a new API key (Note: encryption happens server-side)
    */
-  async createApiKey(request: CreateApiKeyRequest): Promise<OrganizationApiKey> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async createApiKey(_request: CreateApiKeyRequest): Promise<OrganizationApiKey> {
     // This should call a backend API endpoint that handles encryption
     // For now, throwing error - implement backend endpoint first
     throw new Error('API key creation must be done through backend API endpoint for security');
@@ -602,9 +603,9 @@ export const invitationService = {
 
     if (error) throw error;
 
-    return (data || []).map((inv: any) => ({
+    return (data || []).map((inv: OrganizationInvitation & { role?: { name?: string; display_name?: string }; team?: { name?: string } }) => ({
       ...inv,
-      invited_by_email: null, // TODO: Fetch from auth.users separately if needed
+      invited_by_email: undefined, // TODO: Fetch from auth.users separately if needed
       role_name: inv.role?.name,
       role_display_name: inv.role?.display_name,
       team_name: inv.team?.name,
@@ -651,7 +652,8 @@ export const invitationService = {
   /**
    * Accept invitation
    */
-  async acceptInvitation(request: AcceptInvitationRequest): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async acceptInvitation(_request: AcceptInvitationRequest): Promise<void> {
     // This should be handled by backend API to properly assign roles
     throw new Error('Invitation acceptance must be done through backend API endpoint');
   },
