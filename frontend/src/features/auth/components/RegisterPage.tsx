@@ -113,9 +113,10 @@ const RegisterPage: React.FC = () => {
         setRedirecting(true);
         await authorizeIDE(data.token, oauthData.state, oauthData.redirect_uri);
       } else {
-        // Regular web signup - redirect to main dashboard
-        navigate('/dashboard', {
-          state: { message: 'Welcome! Your account has been created successfully.' }
+        // Regular web signup - first user creates organization, becomes admin
+        // Redirect to admin panel to set up organization (invite users, configure settings, etc.)
+        navigate('/admin', {
+          state: { message: 'Welcome! Your organization has been created. Set up your team and settings.' }
         });
       }
     } catch (err: unknown) {
