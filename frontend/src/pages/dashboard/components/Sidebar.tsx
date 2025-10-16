@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../../features/auth/contexts/AuthContext';
 import { useState, useEffect } from 'react';
+import { supabase } from '../../../config/supabaseClient';
 
 const navigation = [{
   name: 'Code Base',
@@ -33,17 +34,36 @@ export function Sidebar() {
     const checkAdminRole = async () => {
       if (user?.id) {
         try {
-          const token = localStorage.getItem('token');
-          const response = await fetch('http://localhost:3001/api/auth/me', {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-            },
-          });
-          const data = await response.json();
-          // Check if user has admin role
-          setIsAdmin(data.role === 'Admin' || data.role === 'admin');
+          console.log('[Sidebar] Checking admin role for user:', user.id);
+          
+          // Check user role from Supabase directly
+          const { data: roleData, error } = await supabase
+            .schema('enterprise')
+            .from('user_organization_roles')
+            .select(`
+              role:role_id (
+                name
+              )
+            `)
+            .eq('user_id', user.id)
+            .single();
+
+          console.log('[Sidebar] Role query result:', { roleData, error });
+
+          if (!error && roleData?.role) {
+            const role = roleData.role as unknown as { name: string };
+            const roleName = role?.name;
+            console.log('[Sidebar] User role:', roleName);
+            const adminStatus = roleName === 'Admin';
+            console.log('[Sidebar] Setting isAdmin to:', adminStatus);
+            setIsAdmin(adminStatus);
+          } else {
+            console.log('[Sidebar] No role found or error, defaulting to non-admin');
+            setIsAdmin(false);
+          }
         } catch (error) {
-          console.error('Failed to check admin role:', error);
+          console.error('[Sidebar] Failed to check admin role:', error);
+          setIsAdmin(false);
         }
       }
     };
@@ -119,6 +139,10 @@ export function Sidebar() {
               })}
 
               {/* Admin Panel Button - Only for admins */}
+              {(() => {
+                console.log('[Sidebar Render] authLoading:', authLoading, 'user:', !!user, 'isAdmin:', isAdmin);
+                return null;
+              })()}
               {!authLoading && user && isAdmin && (
                 <Link 
                   key="admin-panel"
