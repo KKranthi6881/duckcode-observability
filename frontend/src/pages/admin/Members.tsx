@@ -156,34 +156,19 @@ export const Members: React.FC = () => {
       setLoading(true);
       console.log('🔄 Updating role for member:', memberId, 'to role:', newRoleId);
       
-      // First, delete the old role assignment
-      const { data: deleteData, error: deleteError } = await supabase
+      // Update the role_id directly (now safe with one-role-per-user constraint)
+      const { data, error } = await supabase
         .schema('enterprise')
         .from('user_organization_roles')
-        .delete()
+        .update({ role_id: newRoleId })
         .eq('user_id', memberId)
-        .eq('organization_id', selectedOrg.id);
+        .eq('organization_id', selectedOrg.id)
+        .select();
 
-      console.log('🗑️ Delete result:', { deleteData, deleteError });
-      if (deleteError) {
-        console.error('❌ Delete error:', deleteError);
-        throw new Error(`Failed to delete old role: ${deleteError.message}`);
-      }
-
-      // Then, insert the new role assignment
-      const { data: insertData, error: insertError } = await supabase
-        .schema('enterprise')
-        .from('user_organization_roles')
-        .insert({
-          user_id: memberId,
-          organization_id: selectedOrg.id,
-          role_id: newRoleId,
-        });
-
-      console.log('➕ Insert result:', { insertData, insertError });
-      if (insertError) {
-        console.error('❌ Insert error:', insertError);
-        throw new Error(`Failed to insert new role: ${insertError.message}`);
+      console.log('✅ Update result:', { data, error });
+      if (error) {
+        console.error('❌ Update error:', error);
+        throw new Error(`Failed to update role: ${error.message}`);
       }
 
       await loadData();
