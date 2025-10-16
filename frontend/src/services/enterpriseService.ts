@@ -612,36 +612,40 @@ export const invitationService = {
   },
 
   /**
-   * Invite user to organization (handles multiple emails)
+   * Invite user to organization (handles multiple emails and sends email)
    */
   async inviteUser(request: InviteUserRequest): Promise<OrganizationInvitation> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
+    const token = localStorage.getItem('token');
+    if (!token) throw new Error('Not authenticated');
 
-    // Handle multiple emails by creating one invitation per email
+    // Handle multiple emails
     const emails = Array.isArray(request.emails) ? request.emails : [request.emails];
-    
-    const invitations = emails.map(email => ({
-      organization_id: request.organization_id,
-      email: email, // singular 'email' column in DB
-      role_id: request.role_id,
-      team_id: request.team_id,
-      invited_by: user.id,
-      invitation_token: crypto.randomUUID(),
-      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days
-      status: 'pending',
-    }));
 
-    const { data, error } = await supabase
-      .schema('enterprise')
-      .from('organization_invitations')
-      .insert(invitations)
-      .select();
+    // Call backend API which handles both DB insert and email sending
+    const response = await fetch('http://localhost:3001/api/invitations/send', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        organization_id: request.organization_id,
+        emails: emails,
+        role_id: request.role_id,
+        team_id: request.team_id,
+        message: request.message,
+      }),
+    });
 
-    if (error) throw error;
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to send invitations');
+    }
+
+    const result = await response.json();
     
     // Return first invitation (for backward compatibility)
-    return data[0];
+    return result.invitations[0];
   },
 
   /**

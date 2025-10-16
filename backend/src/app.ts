@@ -9,6 +9,8 @@ import authRoutes from './routes/auth';
 import billingRoutes from './routes/billing';
 import analyticsRoutes from './routes/analytics';
 import enterpriseRoutes from './routes/enterprise.routes';
+import emailRoutes from './routes/email.routes';
+import invitationsRoutes from './routes/invitations.routes';
 
 // Load environment variables
 dotenv.config();
@@ -52,6 +54,8 @@ app.use('/api/auth', authRoutes); // Authentication routes
 app.use('/api/billing', billingRoutes); // Billing and pricing routes
 app.use('/api/analytics', analyticsRoutes); // Analytics and profit tracking routes
 app.use('/api/enterprise', enterpriseRoutes); // Enterprise management routes (organizations, teams, roles, API keys)
+app.use('/api/email', emailRoutes); // Email service routes (testing and notifications)
+app.use('/api/invitations', invitationsRoutes); // Invitation management with email sending
 
 // --- Error Handling Middleware (example) ---
 // This should be defined after all other app.use() and routes calls

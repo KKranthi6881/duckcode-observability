@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import jwt from 'jsonwebtoken';
 import supabaseAdmin from '../../config/supabaseClient';
 import { supabaseDuckCode } from '../../config/supabase';
 import { IdeSession } from '../../models/IdeSession';
@@ -25,19 +26,41 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
     console.log('Extracted token length:', token.length);
 
-
-    // Try Supabase JWT validation first
     let user = null;
-    try {
-      const { data, error } = await supabaseAdmin.auth.getUser(token);
-      if (!error && data.user) {
-        user = data.user;
-        console.log('Supabase JWT validation successful for user:', user.id);
-      } else {
-        console.log('Supabase JWT validation failed:', error?.message);
+
+    // Try custom JWT validation first (for backend-issued tokens)
+    const jwtSecret = process.env.JWT_SECRET;
+    if (jwtSecret) {
+      try {
+        const decoded: any = jwt.verify(token, jwtSecret);
+        if (decoded && decoded.user && decoded.user.id) {
+          // Get user from database using the ID from JWT
+          const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(decoded.user.id);
+          if (!userError && userData.user) {
+            user = userData.user;
+            console.log('Custom JWT validation successful for user:', user.id);
+          } else {
+            console.log('Custom JWT valid but user not found:', userError?.message);
+          }
+        }
+      } catch (jwtError: any) {
+        console.log('Custom JWT validation failed:', jwtError.message);
       }
-    } catch (supabaseError) {
-      console.log('Supabase JWT validation error:', supabaseError);
+    }
+
+    // Try Supabase JWT validation if custom JWT failed
+    if (!user) {
+      try {
+        const { data, error } = await supabaseAdmin.auth.getUser(token);
+        if (!error && data.user) {
+          user = data.user;
+          console.log('Supabase JWT validation successful for user:', user.id);
+        } else {
+          console.log('Supabase JWT validation failed:', error?.message);
+        }
+      } catch (supabaseError) {
+        console.log('Supabase JWT validation error:', supabaseError);
+      }
     }
 
     // If Supabase validation failed, try IDE session token validation
