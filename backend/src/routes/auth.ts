@@ -675,4 +675,65 @@ router.post('/admin/unlock-account', auth, async (req: AuthenticatedRequest, res
   }
 });
 
+// @route   GET /api/auth/me
+// @desc    Get current user with role information
+// @access  Private
+router.get('/me', auth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    
+    if (!userId) {
+      return res.status(401).json({ message: 'Not authenticated' });
+    }
+
+    // Get user profile
+    const user = await SupabaseUser.findById(userId);
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Get user's role from organization
+    const { supabaseAdmin } = require('../config/supabase');
+    const { data: roleData, error: roleError } = await supabaseAdmin
+      .schema('enterprise')
+      .from('user_organization_roles')
+      .select(`
+        role:role_id (
+          name,
+          display_name,
+          permissions
+        )
+      `)
+      .eq('user_id', userId)
+      .single();
+
+    let role = 'Member'; // default
+    let permissions: string[] = [];
+
+    if (!roleError && roleData?.role) {
+      role = roleData.role.name || 'Member';
+      try {
+        permissions = Array.isArray(roleData.role.permissions) 
+          ? roleData.role.permissions 
+          : JSON.parse(roleData.role.permissions || '[]');
+      } catch (e) {
+        permissions = [];
+      }
+    }
+
+    res.json({
+      id: user.id,
+      email: user.email,
+      fullName: user.full_name,
+      role,
+      permissions,
+      organizationId: user.organization_id,
+    });
+  } catch (err) {
+    console.error('Error fetching current user:', err);
+    res.status(500).json({ message: 'Error fetching user information' });
+  }
+});
+
 export default router;

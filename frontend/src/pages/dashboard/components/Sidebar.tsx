@@ -1,8 +1,9 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
-  Settings as SettingsIcon, Code, UserCircle, LogOut, BarChart3 
+  Settings as SettingsIcon, Code, UserCircle, LogOut, BarChart3, Shield 
 } from 'lucide-react';
 import { useAuth } from '../../../features/auth/contexts/AuthContext';
+import { useState, useEffect } from 'react';
 
 const navigation = [{
   name: 'Code Base',
@@ -24,7 +25,30 @@ export function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, signOut, isLoading: authLoading } = useAuth();
-  const logoColor = "#2AB7A9"; 
+  const [isAdmin, setIsAdmin] = useState(false);
+  const logoColor = "#2AB7A9";
+
+  // Check if user is admin
+  useEffect(() => {
+    const checkAdminRole = async () => {
+      if (user?.id) {
+        try {
+          const token = localStorage.getItem('token');
+          const response = await fetch('http://localhost:3001/api/auth/me', {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          });
+          const data = await response.json();
+          // Check if user has admin role
+          setIsAdmin(data.role === 'Admin' || data.role === 'admin');
+        } catch (error) {
+          console.error('Failed to check admin role:', error);
+        }
+      }
+    };
+    checkAdminRole();
+  }, [user]); 
 
   const handleSignOut = async () => {
     try {
@@ -93,6 +117,18 @@ export function Sidebar() {
                   </Link>
                 );
               })}
+
+              {/* Admin Panel Button - Only for admins */}
+              {!authLoading && user && isAdmin && (
+                <Link 
+                  key="admin-panel"
+                  to="/admin"
+                  className="group flex items-center px-3 py-3 text-sm font-medium rounded-md transition-colors duration-150 bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200"
+                >
+                  <Shield className="mr-3 h-5 w-5 flex-shrink-0 text-purple-600" />
+                  Admin Panel
+                </Link>
+              )}
 
               {!authLoading && user && (
                 <Link 
