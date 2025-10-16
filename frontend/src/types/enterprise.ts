@@ -70,11 +70,9 @@ export interface TeamMember {
 
 export interface OrganizationApiKey {
   id: string;
-  organization_id: string;
+  organization_id?: string;
   provider: ProviderType;
-  encrypted_key: string;
-  encryption_iv: string;
-  encryption_auth_tag: string;
+  masked_key: string; // Already masked by backend for security
   key_name: string;
   is_default: boolean;
   status: ApiKeyStatus;

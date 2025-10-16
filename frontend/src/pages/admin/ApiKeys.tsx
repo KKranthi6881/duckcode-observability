@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { Plus, Key, Eye, EyeOff, Trash2, Star, AlertTriangle } from 'lucide-react';
+import { Plus, Key, Trash2, Star, AlertTriangle } from 'lucide-react';
 import type { Organization, OrganizationApiKey, ProviderType } from '../../types/enterprise';
 import { apiKeyService } from '../../services/enterpriseService';
 
@@ -23,7 +23,6 @@ export const ApiKeys: React.FC = () => {
   const [apiKeys, setApiKeys] = useState<OrganizationApiKey[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [visibleKeys, setVisibleKeys] = useState<Set<string>>(new Set());
   const [formData, setFormData] = useState({
     provider: 'openai' as ProviderType,
     api_key: '',
@@ -52,17 +51,6 @@ export const ApiKeys: React.FC = () => {
     }
   };
 
-  const toggleKeyVisibility = (keyId: string) => {
-    setVisibleKeys(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(keyId)) {
-        newSet.delete(keyId);
-      } else {
-        newSet.add(keyId);
-      }
-      return newSet;
-    });
-  };
 
   const handleAddApiKey = async () => {
     if (!selectedOrg || !formData.api_key) return;
@@ -121,12 +109,6 @@ export const ApiKeys: React.FC = () => {
     }
   };
 
-  const maskApiKey = (key: string, show: boolean) => {
-    if (show) return key;
-    // Show first 7 and last 4 characters
-    if (key.length < 15) return '•'.repeat(key.length);
-    return `${key.slice(0, 7)}${'•'.repeat(20)}${key.slice(-4)}`;
-  };
 
   const getProviderInfo = (provider: ProviderType) => {
     return PROVIDERS.find(p => p.value === provider) || PROVIDERS[0];
@@ -204,7 +186,6 @@ export const ApiKeys: React.FC = () => {
         <div className="space-y-4">
           {apiKeys.map((apiKey) => {
             const providerInfo = getProviderInfo(apiKey.provider);
-            const isVisible = visibleKeys.has(apiKey.id);
 
             return (
               <div key={apiKey.id} className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
@@ -230,14 +211,8 @@ export const ApiKeys: React.FC = () => {
                         <label className="text-xs text-gray-500 uppercase tracking-wider">API Key</label>
                         <div className="flex items-center space-x-2 mt-1">
                           <code className="text-sm font-mono text-gray-900">
-                            {maskApiKey(apiKey.encrypted_key, isVisible)}
+                            {apiKey.masked_key}
                           </code>
-                          <button
-                            onClick={() => toggleKeyVisibility(apiKey.id)}
-                            className="text-gray-400 hover:text-gray-600"
-                          >
-                            {isVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                          </button>
                         </div>
                       </div>
 
