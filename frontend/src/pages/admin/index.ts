@@ -6,7 +6,7 @@
 export { AdminLayout } from './AdminLayout';
 export { Dashboard } from './Dashboard';
 export { ApiKeys } from './ApiKeys';
-export { Invitations } from './Invitations';
+export { Members } from './Members';
 export { SettingsPage } from './Settings';
 
 // Export types for convenience

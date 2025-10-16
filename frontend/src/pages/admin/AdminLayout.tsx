@@ -3,7 +3,7 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Building2,
   Key,
-  Mail,
+  Users,
   Settings,
   LayoutDashboard,
   ChevronDown,
@@ -81,7 +81,7 @@ export const AdminLayout: React.FC = () => {
     { name: 'Main Dashboard', path: '/dashboard', icon: Home, highlight: true },
     { name: 'Admin Dashboard', path: '/admin', icon: LayoutDashboard },
     { name: 'API Keys', path: '/admin/api-keys', icon: Key },
-    { name: 'Invitations', path: '/admin/invitations', icon: Mail },
+    { name: 'Members', path: '/admin/members', icon: Users },
     { name: 'Settings', path: '/admin/settings', icon: Settings },
   ];
 

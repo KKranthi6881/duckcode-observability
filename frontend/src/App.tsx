@@ -30,7 +30,7 @@ import {
   AdminLayout,
   Dashboard as AdminDashboard,
   ApiKeys as AdminApiKeys,
-  Invitations as AdminInvitations,
+  Members as AdminMembers,
   SettingsPage as AdminSettings,
 } from './pages/admin';
 
@@ -113,7 +113,7 @@ const AppContent = () => {
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<AdminDashboard />} />
             <Route path="api-keys" element={<AdminApiKeys />} />
-            <Route path="invitations" element={<AdminInvitations />} />
+            <Route path="members" element={<AdminMembers />} />
             <Route path="settings" element={<AdminSettings />} />
           </Route>
         </Route>
