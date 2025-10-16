@@ -8,6 +8,7 @@ import { IdeSession } from '../models/IdeSession';
 import { AccountLockout } from '../models/AccountLockout';
 import { auth } from '../middleware/auth';
 import { AuthenticatedRequest } from '../middleware/supabaseAuth';
+import { supabaseAdmin } from '../config/supabase';
 import { 
   authRateLimiter, 
   registrationRateLimiter, 
@@ -541,6 +542,15 @@ router.post('/ide/token',
         });
       }
 
+      // Get user's primary organization
+      const { data: userOrg } = await supabaseAdmin
+        .schema('enterprise')
+        .from('user_organization_roles')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .limit(1)
+        .single();
+
       // Create IDE session
       const ideSession = await IdeSession.create(
         user.id,
@@ -566,7 +576,8 @@ router.post('/ide/token',
           id: user.id,
           email: user.email,
           full_name: user.full_name,
-          avatar_url: user.avatar_url
+          avatar_url: user.avatar_url,
+          organization_id: userOrg?.organization_id // Include organization ID for API key sync
         }
       });
 
