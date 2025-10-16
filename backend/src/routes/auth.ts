@@ -542,14 +542,18 @@ router.post('/ide/token',
         });
       }
 
-      // Get user's primary organization
-      const { data: userOrg } = await supabaseAdmin
+      // Get user's primary organization (ordered by assigned_at to get the first/main org)
+      const { data: userOrgs } = await supabaseAdmin
         .schema('enterprise')
         .from('user_organization_roles')
         .select('organization_id')
         .eq('user_id', user.id)
-        .limit(1)
-        .single();
+        .order('assigned_at', { ascending: true });
+
+      const userOrg = userOrgs?.[0];
+      
+      console.log('[Auth] User organizations:', userOrgs?.map(o => o.organization_id));
+      console.log('[Auth] Selected organization for user:', userOrg?.organization_id);
 
       // Create IDE session
       const ideSession = await IdeSession.create(
