@@ -15,6 +15,7 @@ export interface UserProfile {
   last_activity?: string;
   created_at?: string;
   updated_at?: string;
+  organization_id?: string;
 }
 
 export interface CreateUserData {
