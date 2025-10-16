@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { Plus, Key, Eye, EyeOff, Trash2, Star, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Plus, Key, Eye, EyeOff, Trash2, Star, AlertTriangle } from 'lucide-react';
 import type { Organization, OrganizationApiKey, ProviderType } from '../../types/enterprise';
 import { apiKeyService } from '../../services/enterpriseService';
 
@@ -35,6 +35,7 @@ export const ApiKeys: React.FC = () => {
     if (selectedOrg) {
       loadApiKeys();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedOrg]);
 
   const loadApiKeys = async () => {
@@ -63,9 +64,68 @@ export const ApiKeys: React.FC = () => {
     });
   };
 
+  const handleAddApiKey = async () => {
+    if (!selectedOrg || !formData.api_key) return;
+    
+    try {
+      await apiKeyService.createApiKey({
+        organization_id: selectedOrg.id,
+        provider: formData.provider,
+        api_key: formData.api_key,
+        key_name: formData.key_name || `${getProviderInfo(formData.provider).label} Key`,
+        is_default: formData.is_default,
+      });
+      
+      setShowAddModal(false);
+      setFormData({
+        provider: 'openai',
+        api_key: '',
+        key_name: '',
+        is_default: false,
+      });
+      await loadApiKeys();
+      alert('API key added successfully!');
+    } catch (error) {
+      console.error('Failed to add API key:', error);
+      alert(`Failed to add API key: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  const handleDeleteApiKey = async (keyId: string) => {
+    if (!selectedOrg) return;
+    
+    if (!confirm('Are you sure you want to revoke this API key? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      await apiKeyService.deleteApiKey(selectedOrg.id, keyId);
+      await loadApiKeys();
+      alert('API key revoked successfully');
+    } catch (error) {
+      console.error('Failed to delete API key:', error);
+      alert(`Failed to revoke API key: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  const handleSetDefault = async (keyId: string) => {
+    if (!selectedOrg) return;
+
+    try {
+      await apiKeyService.setDefaultApiKey(selectedOrg.id, keyId);
+      await loadApiKeys();
+      alert('Default key updated successfully');
+    } catch (error) {
+      console.error('Failed to set default key:', error);
+      alert(`Failed to set default key: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
   const maskApiKey = (key: string, show: boolean) => {
     if (show) return key;
-    return `${key.slice(0, 8)}${'•'.repeat(20)}${key.slice(-4)}`;
+    // Show first 7 and last 4 characters
+    if (key.length < 15) return '•'.repeat(key.length);
+    return `${key.slice(0, 7)}${'•'.repeat(20)}${key.slice(-4)}`;
   };
 
   const getProviderInfo = (provider: ProviderType) => {
@@ -209,18 +269,18 @@ export const ApiKeys: React.FC = () => {
 
                     <div className="flex items-center space-x-3">
                       {!apiKey.is_default && (
-                        <button className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center space-x-1">
+                        <button 
+                          onClick={() => handleSetDefault(apiKey.id)}
+                          className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center space-x-1"
+                        >
                           <Star className="h-4 w-4" />
                           <span>Set as Default</span>
                         </button>
                       )}
-                      {apiKey.status === 'active' && (
-                        <button className="text-sm text-gray-600 hover:text-gray-700 font-medium flex items-center space-x-1">
-                          <RefreshCw className="h-4 w-4" />
-                          <span>Rotate Key</span>
-                        </button>
-                      )}
-                      <button className="text-sm text-red-600 hover:text-red-700 font-medium flex items-center space-x-1">
+                      <button 
+                        onClick={() => handleDeleteApiKey(apiKey.id)}
+                        className="text-sm text-red-600 hover:text-red-700 font-medium flex items-center space-x-1"
+                      >
                         <Trash2 className="h-4 w-4" />
                         <span>Revoke</span>
                       </button>
@@ -318,7 +378,11 @@ export const ApiKeys: React.FC = () => {
               >
                 Cancel
               </button>
-              <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+              <button 
+                onClick={handleAddApiKey}
+                disabled={!formData.api_key}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+              >
                 Add API Key
               </button>
             </div>

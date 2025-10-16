@@ -495,28 +495,60 @@ export const roleService = {
 
 export const apiKeyService = {
   /**
-   * Get all API keys for an organization
+   * Get all API keys for an organization (masked for security)
    */
   async getApiKeys(organizationId: string): Promise<OrganizationApiKey[]> {
-    const { data, error } = await supabase
-      .schema('enterprise')
-      .from('organization_api_keys')
-      .select('*')
-      .eq('organization_id', organizationId)
-      .order('created_at', { ascending: false });
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session) throw new Error('Not authenticated');
 
-    if (error) throw error;
-    return data || [];
+    const response = await fetch(`${backendUrl}/api/organizations/${organizationId}/api-keys`, {
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to fetch API keys');
+    }
+
+    const result = await response.json();
+    return result.api_keys || [];
   },
 
   /**
-   * Create a new API key (Note: encryption happens server-side)
+   * Create or update an API key (encryption happens server-side)
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async createApiKey(_request: CreateApiKeyRequest): Promise<OrganizationApiKey> {
-    // This should call a backend API endpoint that handles encryption
-    // For now, throwing error - implement backend endpoint first
-    throw new Error('API key creation must be done through backend API endpoint for security');
+  async createApiKey(request: CreateApiKeyRequest): Promise<OrganizationApiKey> {
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session) throw new Error('Not authenticated');
+
+    const response = await fetch(`${backendUrl}/api/organizations/${request.organization_id}/api-keys`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        provider: request.provider,
+        api_key: request.api_key,
+        key_name: request.key_name,
+        is_default: request.is_default,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to create API key');
+    }
+
+    const result = await response.json();
+    return result.api_key;
   },
 
   /**
@@ -541,14 +573,23 @@ export const apiKeyService = {
   /**
    * Delete API key
    */
-  async deleteApiKey(keyId: string): Promise<void> {
-    const { error } = await supabase
-      .schema('enterprise')
-      .from('organization_api_keys')
-      .delete()
-      .eq('id', keyId);
+  async deleteApiKey(organizationId: string, keyId: string): Promise<void> {
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session) throw new Error('Not authenticated');
 
-    if (error) throw error;
+    const response = await fetch(`${backendUrl}/api/organizations/${organizationId}/api-keys/${keyId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to delete API key');
+    }
   },
 
   /**
