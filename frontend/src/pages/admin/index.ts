@@ -5,6 +5,7 @@
 
 export { AdminLayout } from './AdminLayout';
 export { Dashboard } from './Dashboard';
+export { Analytics } from './Analytics';
 export { ApiKeys } from './ApiKeys';
 export { Members } from './Members';
 export { SettingsPage } from './Settings';

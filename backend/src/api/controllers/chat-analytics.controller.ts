@@ -24,7 +24,11 @@ export const startConversation = async (req: AuthenticatedRequest, res: Response
       providerName, 
       modeName, 
       workspacePath, 
-      metadata = {} 
+      metadata = {},
+      // Enterprise analytics fields
+      organizationId,
+      apiKeyId,
+      apiKeyProvider
     } = req.body;
     const userId = req.user?.id;
 
@@ -52,7 +56,7 @@ export const startConversation = async (req: AuthenticatedRequest, res: Response
       });
     }
 
-    // Create new conversation
+    // Create new conversation with enterprise analytics tracking
     const { data: newConversation, error } = await supabaseDuckCode
       .from('conversation_analytics')
       .insert({
@@ -64,7 +68,10 @@ export const startConversation = async (req: AuthenticatedRequest, res: Response
         mode_name: modeName,
         workspace_path: workspacePath,
         status: 'active',
-        metadata
+        metadata,
+        // Enterprise analytics: organization and API key tracking
+        organization_id: organizationId || null,
+        api_key_id: apiKeyId || null
       })
       .select('*')
       .single();
@@ -100,7 +107,11 @@ export const updateConversation = async (req: AuthenticatedRequest, res: Respons
       totalToolCalls,
       toolUsage = {},
       status = 'active',
-      endedAt
+      endedAt,
+      // Enterprise analytics fields
+      organizationId,
+      apiKeyId,
+      apiKeyProvider
     } = req.body;
 
     // Extract metrics from apiMetrics object
@@ -109,8 +120,8 @@ export const updateConversation = async (req: AuthenticatedRequest, res: Respons
       totalTokensOut = 0,
       totalCacheWrites = 0,
       totalCacheReads = 0,
-      totalCost = 0, // This is the charged cost (with 2x markup) from IDE
-      actualApiCost = 0, // This is the actual API cost (without markup) from IDE
+      totalCost = 0, // This is now the actual API cost (no markup)
+      actualApiCost = 0, // Backward compatibility - same as totalCost
       contextTokens = 0,
       // Optional cost breakdowns if provided by IDE
       inputCost = 0,
@@ -156,11 +167,8 @@ export const updateConversation = async (req: AuthenticatedRequest, res: Respons
       conversationExists = retryConversation;
     }
 
-    // Calculate profit metrics
-    const chargedCost = totalCost; // Cost charged to user (with markup)
-    const actualCost = actualApiCost || (totalCost / 2.0); // Actual API cost (fallback to half of charged)
-    const profitAmount = chargedCost - actualCost;
-    const profitMargin = actualCost > 0 ? Number(((profitAmount / actualCost) * 100).toFixed(2)) : 100.0;
+    // Use actual API cost (no profit markup for enterprise customers with own keys)
+    const actualCost = totalCost || actualApiCost;
 
     // Derived metrics for convenience/UI
     const totalTokens = totalTokensIn + totalTokensOut;
@@ -185,12 +193,12 @@ export const updateConversation = async (req: AuthenticatedRequest, res: Respons
       total_cache_writes: totalCacheWrites,
       total_cache_reads: totalCacheReads,
       context_tokens: contextTokens,
-      total_cost: chargedCost, // Legacy column - keep for backward compatibility
-      // New cost tracking columns for profit analysis
-      charged_cost: chargedCost, // Cost charged to user (with 2x markup)
+      total_cost: actualCost, // Actual API cost (no markup)
+      // Cost tracking columns (no profit for enterprise customers with own keys)
+      charged_cost: actualCost, // Same as actual cost (no markup)
       actual_api_cost: actualCost, // Actual cost paid to API provider
-      profit_amount: profitAmount, // Profit = charged - actual
-      profit_margin: profitMargin, // Profit margin percentage
+      profit_amount: 0, // No profit for enterprise customers
+      profit_margin: 0, // No profit margin
       // Persist derived and optional breakdowns
       total_tokens: totalTokens,
       cache_tokens: cacheTokens,
@@ -204,7 +212,10 @@ export const updateConversation = async (req: AuthenticatedRequest, res: Respons
       // Prefer counts map if provided; else fall back to array
       tools_used: (toolUsage && Object.keys(toolUsage).length > 0) ? toolUsage : ((req.body as any).toolCalls || []),
       status: status,
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
+      // Enterprise analytics: organization and API key tracking
+      organization_id: organizationId || null,
+      api_key_id: apiKeyId || null
     };
 
     // If this is a final update (conversation ending)

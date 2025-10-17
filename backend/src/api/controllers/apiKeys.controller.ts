@@ -345,7 +345,8 @@ export async function getActiveAPIKeysForExtension(req: Request, res: Response) 
     }
 
     // Decrypt keys for extension use
-    const decryptedKeys: Record<string, string> = {};
+    // Return both the API key and the key ID for analytics tracking
+    const decryptedKeys: Record<string, { apiKey: string; keyId: string }> = {};
     
     for (const key of apiKeys) {
       try {
@@ -354,7 +355,11 @@ export async function getActiveAPIKeysForExtension(req: Request, res: Response) 
           key.encryption_iv,
           key.encryption_auth_tag
         );
-        decryptedKeys[key.provider] = decrypted;
+        // Include both the decrypted key and the key ID
+        decryptedKeys[key.provider] = {
+          apiKey: decrypted,
+          keyId: key.id
+        };
 
         // Update last_used_at
         await supabaseAdmin

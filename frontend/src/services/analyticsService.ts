@@ -178,6 +178,106 @@ class AnalyticsService {
     });
   }
 
+  // Enterprise Analytics Methods
+  async getOrganizationSummary(organizationId: string, days: number = 30): Promise<any> {
+    const token = await this.getAuthToken();
+    const response = await fetch(
+      `${this.baseUrl}/api/organizations/${organizationId}/analytics/summary?days=${days}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    if (!response.ok) throw new Error('Failed to fetch organization summary');
+    return response.json();
+  }
+
+  async getOrganizationTrends(organizationId: string, days: number = 30): Promise<any> {
+    const token = await this.getAuthToken();
+    const response = await fetch(
+      `${this.baseUrl}/api/organizations/${organizationId}/analytics/trends?days=${days}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    if (!response.ok) throw new Error('Failed to fetch organization trends');
+    return response.json();
+  }
+
+  async getOrganizationUserBreakdown(organizationId: string, days: number = 30): Promise<any> {
+    const token = await this.getAuthToken();
+    const response = await fetch(
+      `${this.baseUrl}/api/organizations/${organizationId}/analytics/users?days=${days}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    if (!response.ok) throw new Error('Failed to fetch user breakdown');
+    return response.json();
+  }
+
+  async getOrganizationApiKeyBreakdown(organizationId: string, days: number = 30): Promise<any> {
+    const token = await this.getAuthToken();
+    const response = await fetch(
+      `${this.baseUrl}/api/organizations/${organizationId}/analytics/api-keys?days=${days}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    if (!response.ok) throw new Error('Failed to fetch API key breakdown');
+    return response.json();
+  }
+
+  async getOrganizationModelBreakdown(organizationId: string, days: number = 30): Promise<any> {
+    const token = await this.getAuthToken();
+    const response = await fetch(
+      `${this.baseUrl}/api/organizations/${organizationId}/analytics/models?days=${days}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    if (!response.ok) throw new Error('Failed to fetch model breakdown');
+    return response.json();
+  }
+
+  async exportOrganizationAnalytics(organizationId: string): Promise<void> {
+    const token = await this.getAuthToken();
+    const response = await fetch(
+      `${this.baseUrl}/api/organizations/${organizationId}/analytics/export`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      }
+    );
+    if (!response.ok) throw new Error('Failed to export analytics');
+    
+    // Download CSV
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `analytics-${organizationId}-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  }
+
   private getMockData(): AnalyticsData {
     return {
       usageStats: {
