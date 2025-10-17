@@ -60,67 +60,37 @@ export class SupabaseUser {
 
       console.log('User created successfully:', authData.user.id);
 
-      // Profile will be automatically created by database trigger
-      // Auto-create organization for the user
-      // Use provided organizationName or fallback to email-based name
-      const displayName = userData.organizationName || `${userData.fullName || 'My'} Organization`;
-      const orgSlug = (userData.organizationName || userData.email.split('@')[0])
-        .replace(/[^a-z0-9]/gi, '_')
-        .toLowerCase();
+      // Profile will be automatically created by database trigger (duckcode.handle_new_user)
+      // Organization will be automatically created by trigger (trigger_auto_create_organization)
+      // This ensures consistent organization creation with proper naming and avoids duplicates
       
-      try {
-        const { data: orgData, error: orgError } = await supabaseEnterprise
-          .from('organizations')
-          .insert({
-            name: orgSlug,
-            display_name: displayName,
-            plan_type: 'trial',
-            max_users: 10,
-            status: 'trial',
-            settings: {},
-          })
-          .select()
-          .single();
-
-        if (orgError) {
-          console.error('Organization creation error:', orgError);
-        } else if (orgData) {
-          console.log('Organization created:', orgData.id);
-          
-          // Create default roles for the organization
-          await supabaseEnterprise.rpc('create_default_roles', { 
-            p_organization_id: orgData.id 
-          });
-
-          // Assign user as admin
-          const { data: adminRole, error: roleError } = await supabaseEnterprise
-            .from('organization_roles')
-            .select('id')
-            .eq('organization_id', orgData.id)
-            .eq('name', 'Admin')
+      // Note: If custom organizationName is provided, update it after profile creation
+      if (userData.organizationName) {
+        // Wait a moment for triggers to complete
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        try {
+          // Get user profile to find their organization (using duckcode schema)
+          const { data: profile } = await supabase
+            .schema('duckcode')
+            .from('user_profiles')
+            .select('organization_id')
+            .eq('id', authData.user.id)
             .single();
-
-          if (roleError) {
-            console.error('Error fetching admin role:', roleError);
-          } else if (adminRole) {
-            const { error: assignError } = await supabaseEnterprise
-              .from('user_organization_roles')
-              .insert({
-                organization_id: orgData.id,
-                user_id: authData.user.id,
-                role_id: adminRole.id,
-              });
+          
+          if (profile?.organization_id) {
+            // Update organization display name with custom name from registration
+            await supabaseEnterprise
+              .from('organizations')
+              .update({ display_name: userData.organizationName })
+              .eq('id', profile.organization_id);
             
-            if (assignError) {
-              console.error('Error assigning admin role:', assignError);
-            } else {
-              console.log('User assigned as admin');
-            }
+            console.log('Updated organization display name to:', userData.organizationName);
           }
+        } catch (updateError) {
+          console.error('Error updating organization display name (non-critical):', updateError);
+          // Don't fail registration if display name update fails
         }
-      } catch (orgError) {
-        console.error('Error setting up organization:', orgError);
-        // Don't fail registration if org creation fails
       }
 
       return {

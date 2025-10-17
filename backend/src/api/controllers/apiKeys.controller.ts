@@ -114,8 +114,23 @@ export async function upsertOrganizationAPIKey(req: Request, res: Response) {
     // Encrypt the API key
     const { encryptedKey, iv, authTag } = encryptAPIKey(api_key);
 
+    // Check if this is the first key for this provider
+    const { data: existingKeysForProvider } = await supabaseAdmin
+      .schema('enterprise')
+      .from('organization_api_keys')
+      .select('id, is_default')
+      .eq('organization_id', organizationId)
+      .eq('provider', provider);
+
+    // Auto-set as default if this is the first key for this provider
+    let shouldBeDefault = is_default;
+    if (!existingKeysForProvider || existingKeysForProvider.length === 0) {
+      shouldBeDefault = true;
+      console.log(`[API Keys] Auto-setting first ${provider} key as default for org ${organizationId}`);
+    }
+
     // If this is set as default, unset other defaults for this provider
-    if (is_default) {
+    if (shouldBeDefault) {
       await supabaseAdmin
         .schema('enterprise')
         .from('organization_api_keys')
@@ -143,7 +158,7 @@ export async function upsertOrganizationAPIKey(req: Request, res: Response) {
           encrypted_key: encryptedKey,
           encryption_iv: iv,
           encryption_auth_tag: authTag,
-          is_default: is_default || false,
+          is_default: shouldBeDefault,
           status: 'active',
         })
         .eq('id', existingKey.id)
@@ -176,7 +191,7 @@ export async function upsertOrganizationAPIKey(req: Request, res: Response) {
           encryption_iv: iv,
           encryption_auth_tag: authTag,
           key_name: key_name,
-          is_default: is_default || false,
+          is_default: shouldBeDefault,
           status: 'active',
           created_by: userId,
         })
