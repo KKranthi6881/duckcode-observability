@@ -1,13 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { useOutletContext } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
 import {
   TrendingUp,
   DollarSign,
-  Users,
   MessageSquare,
   Download,
   Loader2,
-  X,
+  Activity,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -20,12 +18,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { Card } from '../../components/ui/card';
-import { analyticsService } from '../../services/analyticsService';
-import type { Organization } from '../../types/enterprise';
-
-interface AdminContext {
-  selectedOrg: Organization | null;
-}
+import { userAnalyticsService } from '../../services/userAnalyticsService';
 
 const COLORS = {
   primary: '#3b82f6',
@@ -46,119 +39,57 @@ const getProviderFromModel = (modelName: string): string => {
   return 'Other';
 };
 
-export const Analytics: React.FC = () => {
-  const { selectedOrg } = useOutletContext<AdminContext>();
+export const UserAnalytics: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState(30);
   
   // Raw data
-  const [data, setData] = useState<any>(null);
+  const [summary, setSummary] = useState<any>(null);
   const [trends, setTrends] = useState<any>(null);
-  const [users, setUsers] = useState<any>(null);
   const [models, setModels] = useState<any>(null);
-  
-  // Filters
-  const [selectedUser, setSelectedUser] = useState<string>('');
-  const [selectedModel, setSelectedModel] = useState<string>('');
+  const [recentConversations, setRecentConversations] = useState<any>(null);
 
   useEffect(() => {
-    if (selectedOrg) {
-      loadAnalytics();
-    }
-  }, [selectedOrg, timeRange]);
+    loadAnalytics();
+  }, [timeRange]);
 
   const loadAnalytics = async () => {
-    if (!selectedOrg) return;
-    
     try {
       setLoading(true);
-      const [summaryData, trendsData, usersData, modelsData] = await Promise.all([
-        analyticsService.getOrganizationSummary(selectedOrg.id, timeRange),
-        analyticsService.getOrganizationTrends(selectedOrg.id, timeRange),
-        analyticsService.getOrganizationUserBreakdown(selectedOrg.id, timeRange),
-        analyticsService.getOrganizationModelBreakdown(selectedOrg.id, timeRange),
+      const [summaryData, trendsData, modelsData, conversationsData] = await Promise.all([
+        userAnalyticsService.getUserSummary(timeRange),
+        userAnalyticsService.getUserTrends(timeRange),
+        userAnalyticsService.getUserModelBreakdown(timeRange),
+        userAnalyticsService.getUserRecentConversations(10),
       ]);
 
-      setData(summaryData);
+      setSummary(summaryData);
       setTrends(trendsData);
-      setUsers(usersData);
       setModels(modelsData);
+      setRecentConversations(conversationsData);
 
-      console.log('[Analytics] Data loaded successfully');
+      console.log('[UserAnalytics] Data loaded successfully');
     } catch (error) {
-      console.error('Failed to load analytics:', error);
+      console.error('Failed to load user analytics:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Filter data based on selections
-  const filteredData = useMemo(() => {
-    if (!users?.users || !models?.models || !trends?.trends) {
-      return { users: [], models: [], trends: [] };
-    }
-
-    let filteredUsers = users.users;
-    let filteredModels = models.models;
-    const filteredTrends = trends.trends;
-
-    // Apply user filter
-    if (selectedUser) {
-      filteredUsers = filteredUsers.filter((u: any) => 
-        u.user_id === selectedUser
-      );
-    }
-
-    // Apply model filter
-    if (selectedModel) {
-      filteredModels = filteredModels.filter((m: any) =>
-        m.model === selectedModel
-      );
-    }
-
-    return {
-      users: filteredUsers,
-      models: filteredModels,
-      trends: filteredTrends,
-    };
-  }, [users, models, trends, selectedUser, selectedModel]);
-
-  // Calculate filtered totals
-  const filteredTotals = useMemo(() => {
-    const userTotal = filteredData.users.reduce((sum: number, u: any) => sum + u.total_cost, 0);
-    const conversationCount = filteredData.users.reduce((sum: number, u: any) => sum + u.conversations, 0);
-    const tokenCount = filteredData.users.reduce((sum: number, u: any) => sum + u.tokens, 0);
-
-    return {
-      total_cost: userTotal || data?.totals?.total_cost || 0,
-      conversations: conversationCount || data?.totals?.conversations || 0,
-      tokens: tokenCount || data?.totals?.tokens || 0,
-      active_users: filteredData.users.length || data?.totals?.active_users || 0,
-    };
-  }, [filteredData, data]);
-
   const handleExport = async () => {
-    if (!selectedOrg) return;
     try {
-      await analyticsService.exportOrganizationAnalytics(selectedOrg.id);
+      await userAnalyticsService.exportUserAnalytics(timeRange);
     } catch (error) {
       console.error('Failed to export analytics:', error);
     }
   };
-
-  const clearFilters = () => {
-    setSelectedUser('');
-    setSelectedModel('');
-  };
-
-  const hasActiveFilters = selectedUser !== '' || selectedModel !== '';
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
           <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600">Loading analytics...</p>
+          <p className="text-gray-600">Loading your analytics...</p>
         </div>
       </div>
     );
@@ -166,12 +97,12 @@ export const Analytics: React.FC = () => {
 
   return (
     <div className="p-6 bg-gray-50 min-h-full">
-      {/* Header with Filters */}
+      {/* Header */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Analytics Dashboard</h1>
-            <p className="text-sm text-gray-600 mt-1">{selectedOrg?.display_name}</p>
+            <h1 className="text-2xl font-bold text-gray-900">My Usage Analytics</h1>
+            <p className="text-sm text-gray-600 mt-1">Track your AI model usage and costs</p>
           </div>
           <div className="flex items-center gap-2">
             {/* Time Range */}
@@ -185,48 +116,6 @@ export const Analytics: React.FC = () => {
               <option value={90}>90 days</option>
             </select>
 
-            {/* Filter by User */}
-            <select
-              value={selectedUser}
-              onChange={(e) => setSelectedUser(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">All Users</option>
-              {users?.users?.map((user: any) => {
-                const displayName = user.email || user.full_name || user.display_name || user.user_id.substring(0, 12) + '...';
-                return (
-                  <option key={user.user_id} value={user.user_id}>
-                    {displayName}
-                  </option>
-                );
-              })}
-            </select>
-
-            {/* Filter by Model */}
-            <select
-              value={selectedModel}
-              onChange={(e) => setSelectedModel(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">All Models</option>
-              {models?.models?.map((model: any) => (
-                <option key={model.model} value={model.model}>
-                  {model.model}
-                </option>
-              ))}
-            </select>
-
-            {/* Clear Filters */}
-            {hasActiveFilters && (
-              <button
-                onClick={clearFilters}
-                className="flex items-center gap-1 px-3 py-2 text-sm text-blue-600 hover:text-blue-700 font-medium"
-              >
-                <X className="h-4 w-4" />
-                Clear
-              </button>
-            )}
-
             {/* Export */}
             <button
               onClick={handleExport}
@@ -237,7 +126,6 @@ export const Analytics: React.FC = () => {
             </button>
           </div>
         </div>
-
       </div>
 
       {/* Summary Cards - Compact */}
@@ -249,12 +137,12 @@ export const Analytics: React.FC = () => {
               <DollarSign className="h-4 w-4 text-blue-600" />
             </div>
           </div>
-          <p className="text-xs font-medium text-gray-600">Total Cost</p>
+          <p className="text-xs font-medium text-gray-600">Total Spend</p>
           <p className="text-2xl font-bold text-gray-900 mt-1">
-            ${(filteredTotals.total_cost || 0).toFixed(2)}
+            ${(summary?.totals?.total_cost || 0).toFixed(2)}
           </p>
           <p className="text-xs text-gray-500 mt-1">
-            ${((filteredTotals.total_cost || 0) / (filteredTotals.conversations || 1)).toFixed(3)} per conversation
+            ${((summary?.totals?.total_cost || 0) / (summary?.totals?.conversations || 1)).toFixed(3)} per conversation
           </p>
         </Card>
 
@@ -267,29 +155,28 @@ export const Analytics: React.FC = () => {
           </div>
           <p className="text-xs font-medium text-gray-600">Conversations</p>
           <p className="text-2xl font-bold text-gray-900 mt-1">
-            {(filteredTotals.conversations || 0).toLocaleString()}
+            {(summary?.totals?.conversations || 0).toLocaleString()}
           </p>
           <p className="text-xs text-gray-500 mt-1">
-            ${((filteredTotals.total_cost || 0) / (filteredTotals.conversations || 1)).toFixed(3)} avg
+            AI interactions
           </p>
         </Card>
 
-        {/* Active Users */}
+        {/* Tokens */}
         <Card className="p-4 bg-gradient-to-br from-green-50 to-white border-green-100">
           <div className="flex items-center justify-between mb-2">
             <div className="p-2 bg-green-100 rounded-lg">
-              <Users className="h-4 w-4 text-green-600" />
+              <Activity className="h-4 w-4 text-green-600" />
             </div>
           </div>
-          <p className="text-xs font-medium text-gray-600">Active Users</p>
+          <p className="text-xs font-medium text-gray-600">Total Tokens</p>
           <p className="text-2xl font-bold text-gray-900 mt-1">
-            {filteredTotals.active_users || 0}
+            {((summary?.totals?.total_tokens || 0) / 1000).toFixed(0)}K
           </p>
           <p className="text-xs text-gray-500 mt-1">
-            ${((filteredTotals.total_cost || 0) / (filteredTotals.active_users || 1)).toFixed(2)} per user
+            {((summary?.totals?.tokens_in || 0) / 1000).toFixed(0)}K in • {((summary?.totals?.tokens_out || 0) / 1000).toFixed(0)}K out
           </p>
         </Card>
-
       </div>
 
       {/* Cost Trend Chart - Full Width */}
@@ -303,7 +190,7 @@ export const Analytics: React.FC = () => {
             <TrendingUp className="h-4 w-4 text-gray-400" />
           </div>
           <ResponsiveContainer width="100%" height={240}>
-            <AreaChart data={filteredData.trends}>
+            <AreaChart data={trends?.trends || []}>
               <defs>
                 <linearGradient id="colorCost" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor={COLORS.primary} stopOpacity={0.3}/>
@@ -341,42 +228,37 @@ export const Analytics: React.FC = () => {
         </Card>
       </div>
 
-      {/* Bottom Row - User Leaderboard & Provider Breakdown */}
+      {/* Bottom Row - Recent Conversations & Model Breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* User Leaderboard */}
+        {/* Recent Conversations */}
         <Card className="p-4">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-sm font-semibold text-gray-900">Top Users</h3>
-              <p className="text-xs text-gray-500 mt-0.5">By spending</p>
+              <h3 className="text-sm font-semibold text-gray-900">Recent Conversations</h3>
+              <p className="text-xs text-gray-500 mt-0.5">Latest AI interactions</p>
             </div>
-            <Users className="h-4 w-4 text-gray-400" />
+            <MessageSquare className="h-4 w-4 text-gray-400" />
           </div>
           <div className="space-y-2">
-            {filteredData.users.slice(0, 6).map((user: any, index: number) => {
-              // Debug: Log user data
-              if (index === 0) {
-                console.log('[Analytics] User data sample:', user);
-              }
-              // Show complete email address, fallback to full name or user ID
-              const displayName = user.email || user.full_name || user.display_name || (user.user_id ? user.user_id.substring(0, 12) + '...' : 'Unknown User');
+            {recentConversations?.conversations?.slice(0, 6).map((conv: any) => {
+              const provider = getProviderFromModel(conv.model_name);
+              const displayTitle = conv.topic_title || 'Untitled Conversation';
               return (
                 <div
-                  key={user.user_id}
+                  key={conv.conversation_id}
                   className="flex items-center justify-between p-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
                 >
                   <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-600 font-semibold text-xs flex-shrink-0">
-                      {index + 1}
-                    </div>
                     <div className="min-w-0 flex-1">
-                      <p className="font-medium text-gray-900 text-xs truncate">{displayName}</p>
-                      <p className="text-xs text-gray-500">{user.conversations} convs</p>
+                      <p className="font-medium text-gray-900 text-xs truncate">{displayTitle}</p>
+                      <p className="text-xs text-gray-500">
+                        {conv.model_name} • {new Date(conv.created_at).toLocaleDateString()} • {provider}
+                      </p>
                     </div>
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <p className="font-semibold text-gray-900 text-sm">${user.total_cost.toFixed(2)}</p>
-                    <p className="text-xs text-gray-500">{(user.tokens / 1000).toFixed(0)}K</p>
+                    <p className="font-semibold text-gray-900 text-sm">${conv.total_cost.toFixed(2)}</p>
+                    <p className="text-xs text-gray-500">{((conv.total_tokens_in + conv.total_tokens_out) / 1000).toFixed(0)}K</p>
                   </div>
                 </div>
               );
@@ -384,12 +266,12 @@ export const Analytics: React.FC = () => {
           </div>
         </Card>
 
-        {/* Top Models */}
+        {/* Model Breakdown */}
         <Card className="p-4">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-sm font-semibold text-gray-900">Top Models</h3>
-              <p className="text-xs text-gray-500 mt-0.5">By usage & cost</p>
+              <h3 className="text-sm font-semibold text-gray-900">Model Usage</h3>
+              <p className="text-xs text-gray-500 mt-0.5">By cost & conversations</p>
             </div>
           </div>
           <div className="overflow-x-auto">
@@ -399,13 +281,12 @@ export const Analytics: React.FC = () => {
                   <th className="text-left py-2 px-2 text-xs font-semibold text-gray-600">#</th>
                   <th className="text-left py-2 px-2 text-xs font-semibold text-gray-600">Model</th>
                   <th className="text-left py-2 px-2 text-xs font-semibold text-gray-600">Provider</th>
-                  <th className="text-center py-2 px-2 text-xs font-semibold text-gray-600">Conversations</th>
+                  <th className="text-center py-2 px-2 text-xs font-semibold text-gray-600">Convs</th>
                   <th className="text-right py-2 px-2 text-xs font-semibold text-gray-600">Cost</th>
-                  <th className="text-right py-2 px-2 text-xs font-semibold text-gray-600">Tokens</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredData.models?.slice(0, 10).map((model: any, index: number) => {
+                {models?.models?.slice(0, 6).map((model: any, index: number) => {
                   const provider = getProviderFromModel(model.model);
                   return (
                     <tr
@@ -431,9 +312,6 @@ export const Analytics: React.FC = () => {
                       <td className="py-2 px-2 text-right">
                         <p className="font-semibold text-gray-900 text-sm">${model.cost.toFixed(2)}</p>
                       </td>
-                      <td className="py-2 px-2 text-right">
-                        <p className="text-xs text-gray-500">{(model.tokens / 1000).toFixed(0)}K</p>
-                      </td>
                     </tr>
                   );
                 })}
@@ -446,4 +324,4 @@ export const Analytics: React.FC = () => {
   );
 };
 
-export default Analytics;
+export default UserAnalytics;

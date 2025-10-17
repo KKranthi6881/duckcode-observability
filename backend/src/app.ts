@@ -13,6 +13,7 @@ import emailRoutes from './routes/email.routes';
 import invitationsRoutes from './routes/invitations.routes';
 import apiKeysRoutes from './api/routes/apiKeys.routes';
 import organizationAnalyticsRoutes from './api/routes/organization-analytics.routes';
+import userAnalyticsRoutes from './api/routes/user-analytics.routes';
 
 // Load environment variables
 dotenv.config();
@@ -60,6 +61,7 @@ app.use('/api/email', emailRoutes); // Email service routes (testing and notific
 app.use('/api/invitations', invitationsRoutes); // Invitation management with email sending
 app.use('/api', apiKeysRoutes); // Organization API keys management
 app.use('/api/organizations', organizationAnalyticsRoutes); // Organization analytics endpoints
+app.use('/api/user-analytics', userAnalyticsRoutes); // Individual user analytics endpoints
 
 // --- Error Handling Middleware (example) ---
 // This should be defined after all other app.use() and routes calls

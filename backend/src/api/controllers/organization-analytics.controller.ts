@@ -108,20 +108,8 @@ export async function getOrganizationTrends(req: AuthenticatedRequest, res: Resp
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
 
-    // Try to get from aggregated table first
-    const { data: stats, error } = await supabaseDuckCode
-      .from('organization_daily_stats')
-      .select('usage_date, total_cost, profit_amount, total_conversations, active_users')
-      .eq('organization_id', organizationId)
-      .gte('usage_date', startDate.toISOString().split('T')[0])
-      .order('usage_date', { ascending: true });
-
-    // If aggregated table has data, use it
-    if (!error && stats && stats.length > 0) {
-      return res.json({ trends: stats });
-    }
-
-    // Fallback: Calculate from raw conversation data
+    // Always use raw conversation data for accurate costs
+    // Note: organization_daily_stats table has incorrect cost aggregations
     const { data: conversations } = await supabaseDuckCode
       .from('conversation_analytics')
       .select('started_at, total_cost, profit_amount, user_id')
@@ -280,43 +268,25 @@ export async function getOrganizationModelBreakdown(req: AuthenticatedRequest, r
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
 
-    // Try aggregated table first
-    const { data: stats } = await supabaseDuckCode
-      .from('organization_daily_stats')
-      .select('model_usage')
-      .eq('organization_id', organizationId)
-      .gte('usage_date', startDate.toISOString().split('T')[0]);
-
     const modelMap: Record<string, any> = {};
 
-    // If aggregated data exists, use it
-    if (stats && stats.length > 0) {
-      stats.forEach(day => {
-        Object.entries(day.model_usage || {}).forEach(([model, data]: [string, any]) => {
-          if (!modelMap[model]) modelMap[model] = { model, conversations: 0, cost: 0, tokens: 0 };
-          modelMap[model].conversations += data.conversations || 0;
-          modelMap[model].cost += parseFloat(data.cost || 0);
-          modelMap[model].tokens += (data.tokens_in || 0) + (data.tokens_out || 0);
-        });
-      });
-    } else {
-      // Fallback: Calculate from raw conversation data
-      const { data: conversations } = await supabaseDuckCode
-        .from('conversation_analytics')
-        .select('model_name, total_cost, total_tokens_in, total_tokens_out')
-        .eq('organization_id', organizationId)
-        .gte('started_at', startDate.toISOString());
+    // Always use raw conversation data for accurate costs
+    // Note: organization_daily_stats table has incorrect cost aggregations
+    const { data: conversations } = await supabaseDuckCode
+      .from('conversation_analytics')
+      .select('model_name, total_cost, total_tokens_in, total_tokens_out')
+      .eq('organization_id', organizationId)
+      .gte('started_at', startDate.toISOString());
 
-      conversations?.forEach(conv => {
-        const model = conv.model_name || 'Unknown';
-        if (!modelMap[model]) {
-          modelMap[model] = { model, conversations: 0, cost: 0, tokens: 0 };
-        }
-        modelMap[model].conversations += 1;
-        modelMap[model].cost += parseFloat(conv.total_cost || 0);
-        modelMap[model].tokens += (conv.total_tokens_in || 0) + (conv.total_tokens_out || 0);
-      });
-    }
+    conversations?.forEach(conv => {
+      const model = conv.model_name || 'Unknown';
+      if (!modelMap[model]) {
+        modelMap[model] = { model, conversations: 0, cost: 0, tokens: 0 };
+      }
+      modelMap[model].conversations += 1;
+      modelMap[model].cost += parseFloat(conv.total_cost || 0);
+      modelMap[model].tokens += (conv.total_tokens_in || 0) + (conv.total_tokens_out || 0);
+    });
 
     const models = Object.values(modelMap).sort((a: any, b: any) => b.cost - a.cost);
     res.json({ models });

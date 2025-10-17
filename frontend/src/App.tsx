@@ -11,6 +11,7 @@ import { AnalysisSetup } from './pages/dashboard/AnalysisSetup';
 import { EnhancedAnalytics } from './pages/dashboard/EnhancedAnalytics';
 import AnalyticsDashboard from './pages/AnalyticsDashboard';
 import { FileProcessingStatus } from './components/FileProcessingStatus';
+import { UserAnalytics } from './pages/user/UserAnalytics';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider, useAuth } from './features/auth/contexts/AuthContext'; // Added useAuth import
 import { ProcessingStatusProvider } from './context/ProcessingStatusContext';
@@ -106,6 +107,7 @@ const AppContent = () => {
             <Route path="code/analyze/:owner/:repo" element={<AnalysisSetup />} />
             <Route path="code/status/:owner/:repo" element={<FileProcessingStatus />} />
             <Route path="analytics" element={<EnhancedAnalytics />} />
+            <Route path="my-usage" element={<UserAnalytics />} />
             <Route path="settings" element={<Settings />} />
           </Route>
           <Route path="/profile" element={<ProfilePage />} />
