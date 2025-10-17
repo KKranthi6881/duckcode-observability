@@ -8,8 +8,8 @@ import {
   Activity,
 } from 'lucide-react';
 import {
-  AreaChart,
-  Area,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -96,30 +96,36 @@ export const UserAnalytics: React.FC = () => {
   }
 
   return (
-    <div className="p-6 bg-gray-50 min-h-full">
-      {/* Header */}
+    <div className="p-6 bg-gray-50 min-h-screen">
+      {/* Page Header */}
       <div className="mb-6">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">My Usage Analytics</h1>
             <p className="text-sm text-gray-600 mt-1">Track your AI model usage and costs</p>
           </div>
-          <div className="flex items-center gap-2">
-            {/* Time Range */}
-            <select
-              value={timeRange}
-              onChange={(e) => setTimeRange(Number(e.target.value))}
-              className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value={7}>7 days</option>
-              <option value={30}>30 days</option>
-              <option value={90}>90 days</option>
-            </select>
+          <div className="flex items-center gap-3">
+            {/* Time Range Selector */}
+            <div className="flex bg-white border border-gray-200 rounded-lg p-1 shadow-sm">
+              {[7, 30, 90].map((days) => (
+                <button
+                  key={days}
+                  onClick={() => setTimeRange(days)}
+                  className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
+                    timeRange === days
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  }`}
+                >
+                  {days} days
+                </button>
+              ))}
+            </div>
 
-            {/* Export */}
+            {/* Export Button */}
             <button
               onClick={handleExport}
-              className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm"
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm shadow-sm"
             >
               <Download className="h-4 w-4" />
               Export
@@ -128,52 +134,46 @@ export const UserAnalytics: React.FC = () => {
         </div>
       </div>
 
-      {/* Summary Cards - Compact */}
+      {/* Summary Cards - Clean Enterprise Style */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         {/* Total Cost */}
-        <Card className="p-4 bg-gradient-to-br from-blue-50 to-white border-blue-100">
-          <div className="flex items-center justify-between mb-2">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <DollarSign className="h-4 w-4 text-blue-600" />
-            </div>
+        <Card className="p-6 bg-white hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between mb-3">
+            <DollarSign className="h-5 w-5 text-blue-600" />
           </div>
-          <p className="text-xs font-medium text-gray-600">Total Spend</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Total Cost</p>
+          <p className="text-3xl font-bold text-gray-900">
             ${(summary?.totals?.total_cost || 0).toFixed(2)}
           </p>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-gray-400 mt-2">
             ${((summary?.totals?.total_cost || 0) / (summary?.totals?.conversations || 1)).toFixed(3)} per conversation
           </p>
         </Card>
 
         {/* Conversations */}
-        <Card className="p-4 bg-gradient-to-br from-purple-50 to-white border-purple-100">
-          <div className="flex items-center justify-between mb-2">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <MessageSquare className="h-4 w-4 text-purple-600" />
-            </div>
+        <Card className="p-6 bg-white hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between mb-3">
+            <MessageSquare className="h-5 w-5 text-purple-600" />
           </div>
-          <p className="text-xs font-medium text-gray-600">Conversations</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Conversations</p>
+          <p className="text-3xl font-bold text-gray-900">
             {(summary?.totals?.conversations || 0).toLocaleString()}
           </p>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-gray-400 mt-2">
             AI interactions
           </p>
         </Card>
 
         {/* Tokens */}
-        <Card className="p-4 bg-gradient-to-br from-green-50 to-white border-green-100">
-          <div className="flex items-center justify-between mb-2">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <Activity className="h-4 w-4 text-green-600" />
-            </div>
+        <Card className="p-6 bg-white hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between mb-3">
+            <Activity className="h-5 w-5 text-green-600" />
           </div>
-          <p className="text-xs font-medium text-gray-600">Total Tokens</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Total Tokens</p>
+          <p className="text-3xl font-bold text-gray-900">
             {((summary?.totals?.total_tokens || 0) / 1000).toFixed(0)}K
           </p>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-gray-400 mt-2">
             {((summary?.totals?.tokens_in || 0) / 1000).toFixed(0)}K in • {((summary?.totals?.tokens_out || 0) / 1000).toFixed(0)}K out
           </p>
         </Card>
@@ -190,13 +190,7 @@ export const UserAnalytics: React.FC = () => {
             <TrendingUp className="h-4 w-4 text-gray-400" />
           </div>
           <ResponsiveContainer width="100%" height={240}>
-            <AreaChart data={trends?.trends || []}>
-              <defs>
-                <linearGradient id="colorCost" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={COLORS.primary} stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor={COLORS.primary} stopOpacity={0}/>
-                </linearGradient>
-              </defs>
+            <BarChart data={trends?.trends || []} barSize={20}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis
                 dataKey="usage_date"
@@ -215,15 +209,13 @@ export const UserAnalytics: React.FC = () => {
                 formatter={(value: number) => `$${value.toFixed(2)}`}
               />
               <Legend wrapperStyle={{ fontSize: '12px' }} />
-              <Area
-                type="monotone"
+              <Bar
                 dataKey="total_cost"
-                stroke={COLORS.primary}
-                fillOpacity={1}
-                fill="url(#colorCost)"
+                fill={COLORS.primary}
                 name="Cost"
+                radius={[4, 4, 0, 0]}
               />
-            </AreaChart>
+            </BarChart>
           </ResponsiveContainer>
         </Card>
       </div>

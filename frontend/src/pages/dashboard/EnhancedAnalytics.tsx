@@ -1,14 +1,22 @@
 import { useState, useEffect, useCallback } from 'react';
-import { BarChart3, DollarSign, Zap, Download } from 'lucide-react';
+import { BarChart3, DollarSign, Zap, Download, TrendingUp } from 'lucide-react';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
 import { userAnalyticsService } from '../../services/userAnalyticsService';
-import { UsageTrendChart } from '../../components/analytics/UsageTrendChart';
 import { ConversationHistoryTable } from '../../components/analytics/ConversationHistoryTable';
+import { Card } from '../../components/ui/card';
 
 interface AnalyticsSummary {
   totalConversations: number;
   totalCost: number;
-  totalProfit: number;
-  avgProfitMargin: number;
   totalTokens: number;
   avgCostPerConversation: number;
 }
@@ -16,16 +24,7 @@ interface AnalyticsSummary {
 interface DailyStats {
   usage_date: string;
   total_conversations: number;
-  total_messages: number;
-  total_tokens_in: number;
-  total_tokens_out: number;
   total_cost: number;
-  actual_api_cost: number;
-  charged_cost: number;
-  profit_amount: number;
-  input_cost: number;
-  output_cost: number;
-  cache_cost: number;
 }
 
 interface Conversation {
@@ -41,9 +40,6 @@ interface Conversation {
   total_tokens_in: number;
   total_tokens_out: number;
   total_cost: number;
-  actual_api_cost?: number;
-  profit_amount?: number;
-  profit_margin?: number;
   tool_call_count: number;
   tools_used: string[];
 }
@@ -74,16 +70,7 @@ export function EnhancedAnalytics() {
       const dailyData: DailyStats[] = trendsData.trends.map(trend => ({
         usage_date: trend.usage_date,
         total_conversations: trend.conversations || 0,
-        total_messages: 0,
-        total_tokens_in: 0,
-        total_tokens_out: 0,
         total_cost: trend.total_cost,
-        actual_api_cost: trend.total_cost, // No profit for enterprise users
-        charged_cost: trend.total_cost,
-        profit_amount: 0,
-        input_cost: 0,
-        output_cost: 0,
-        cache_cost: 0,
       }));
 
       // Transform conversations data to match expected format
@@ -100,9 +87,6 @@ export function EnhancedAnalytics() {
         total_tokens_in: conv.total_tokens_in,
         total_tokens_out: conv.total_tokens_out,
         total_cost: conv.total_cost,
-        actual_api_cost: conv.total_cost,
-        profit_amount: 0,
-        profit_margin: 0,
         tool_call_count: 0,
         tools_used: [],
       }));
@@ -115,8 +99,6 @@ export function EnhancedAnalytics() {
       setSummary({
         totalConversations,
         totalCost,
-        totalProfit: 0, // No profit for enterprise users with own API keys
-        avgProfitMargin: 0,
         totalTokens,
         avgCostPerConversation: totalConversations > 0 ? totalCost / totalConversations : 0
       });
@@ -194,25 +176,25 @@ export function EnhancedAnalytics() {
   }
 
   return (
-    <div className="p-6 bg-gray-50 min-h-full">
-      {/* Header */}
+    <div className="p-6 bg-gray-50 min-h-screen">
+      {/* Page Header */}
       <div className="mb-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">My Usage Analytics</h1>
             <p className="text-sm text-gray-600 mt-1">Track your AI model usage and costs</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             {/* Time Range Selector */}
-            <div className="flex bg-gray-100 rounded-lg p-1">
+            <div className="flex bg-white border border-gray-200 rounded-lg p-1 shadow-sm">
               {(['7d', '30d', '90d'] as const).map((range) => (
                 <button
                   key={range}
                   onClick={() => setTimeRange(range)}
-                  className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                  className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
                     timeRange === range
-                      ? 'bg-white text-blue-600 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                   }`}
                 >
                   {range === '7d' ? '7 days' : range === '30d' ? '30 days' : '90 days'}
@@ -223,7 +205,7 @@ export function EnhancedAnalytics() {
             {/* Export Button */}
             <button
               onClick={handleExport}
-              className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm"
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm shadow-sm"
             >
               <Download className="h-4 w-4" />
               Export
@@ -232,64 +214,90 @@ export function EnhancedAnalytics() {
         </div>
       </div>
 
-      {/* Summary Cards - Compact */}
+      {/* Summary Cards - Clean Enterprise Style */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         {/* Total Cost */}
-        <div className="p-4 bg-gradient-to-br from-blue-50 to-white border border-blue-100 rounded-lg">
-          <div className="flex items-center justify-between mb-2">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <DollarSign className="h-4 w-4 text-blue-600" />
-            </div>
+        <Card className="p-6 bg-white hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between mb-3">
+            <DollarSign className="h-5 w-5 text-blue-600" />
           </div>
-          <p className="text-xs font-medium text-gray-600">Total Spend</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Total Cost</p>
+          <p className="text-3xl font-bold text-gray-900">
             ${(summary?.totalCost || 0).toFixed(2)}
           </p>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-gray-400 mt-2">
             ${((summary?.totalCost || 0) / (summary?.totalConversations || 1)).toFixed(3)} per conversation
           </p>
-        </div>
+        </Card>
 
         {/* Conversations */}
-        <div className="p-4 bg-gradient-to-br from-purple-50 to-white border border-purple-100 rounded-lg">
-          <div className="flex items-center justify-between mb-2">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <BarChart3 className="h-4 w-4 text-purple-600" />
-            </div>
+        <Card className="p-6 bg-white hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between mb-3">
+            <BarChart3 className="h-5 w-5 text-purple-600" />
           </div>
-          <p className="text-xs font-medium text-gray-600">Conversations</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Conversations</p>
+          <p className="text-3xl font-bold text-gray-900">
             {(summary?.totalConversations || 0).toLocaleString()}
           </p>
-          <p className="text-xs text-gray-500 mt-1">
-            AI interactions
+          <p className="text-xs text-gray-400 mt-2">
+            ${((summary?.totalCost || 0) / (summary?.totalConversations || 1)).toFixed(3)} avg
           </p>
-        </div>
+        </Card>
 
         {/* Tokens */}
-        <div className="p-4 bg-gradient-to-br from-green-50 to-white border border-green-100 rounded-lg">
-          <div className="flex items-center justify-between mb-2">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <Zap className="h-4 w-4 text-green-600" />
-            </div>
+        <Card className="p-6 bg-white hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between mb-3">
+            <Zap className="h-5 w-5 text-green-600" />
           </div>
-          <p className="text-xs font-medium text-gray-600">Total Tokens</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Total Tokens</p>
+          <p className="text-3xl font-bold text-gray-900">
             {((summary?.totalTokens || 0) / 1000).toFixed(0)}K
           </p>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-gray-400 mt-2">
             {summary?.totalConversations ? Math.round((summary.totalTokens || 0) / summary.totalConversations).toLocaleString() : 0} avg per conversation
           </p>
-        </div>
+        </Card>
       </div>
 
       {/* Usage Trend Chart - Full Width */}
       <div className="mb-4">
-        <UsageTrendChart
-          data={dailyStats}
-          metric="cost"
-          title="Daily Cost Trend"
-        />
+        <Card className="p-4">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-sm font-semibold text-gray-900">Daily Cost Trend</h3>
+              <p className="text-xs text-gray-500 mt-0.5">Daily spending over time</p>
+            </div>
+            <TrendingUp className="h-4 w-4 text-gray-400" />
+          </div>
+          <ResponsiveContainer width="100%" height={240}>
+            <BarChart data={dailyStats} barSize={20}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis
+                dataKey="usage_date"
+                tickFormatter={(date) => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                stroke="#999"
+                style={{ fontSize: '11px' }}
+              />
+              <YAxis stroke="#999" style={{ fontSize: '11px' }} />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: 'white',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                }}
+                formatter={(value: number) => `$${value.toFixed(2)}`}
+              />
+              <Legend wrapperStyle={{ fontSize: '12px' }} />
+              <Bar
+                dataKey="total_cost"
+                fill="#3b82f6"
+                name="Cost"
+                radius={[4, 4, 0, 0]}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </Card>
       </div>
 
       {/* Conversation History */}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MessageSquare, Clock, DollarSign, Zap, ChevronDown, ChevronUp, Download } from 'lucide-react';
+import { MessageSquare, Download } from 'lucide-react';
 
 interface Conversation {
   id: string;
@@ -30,7 +30,6 @@ export function ConversationHistoryTable({ conversations, onExport }: Conversati
   const [sortField, setSortField] = useState<keyof Conversation>('started_at');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
   const handleSort = (field: keyof Conversation) => {
     if (sortField === field) {
@@ -41,15 +40,6 @@ export function ConversationHistoryTable({ conversations, onExport }: Conversati
     }
   };
 
-  const toggleRowExpansion = (id: string) => {
-    const newExpanded = new Set(expandedRows);
-    if (newExpanded.has(id)) {
-      newExpanded.delete(id);
-    } else {
-      newExpanded.add(id);
-    }
-    setExpandedRows(newExpanded);
-  };
 
   const filteredConversations = conversations.filter(conv => 
     filterStatus === 'all' || conv.status === filterStatus
@@ -82,9 +72,7 @@ export function ConversationHistoryTable({ conversations, onExport }: Conversati
 
   const SortIcon = ({ field }: { field: keyof Conversation }) => {
     if (sortField !== field) return null;
-    return sortDirection === 'asc' ? 
-      <ChevronUp className="h-4 w-4" /> : 
-      <ChevronDown className="h-4 w-4" />;
+    return sortDirection === 'asc' ? '↑' : '↓';
   };
 
   return (
@@ -170,15 +158,6 @@ export function ConversationHistoryTable({ conversations, onExport }: Conversati
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 <button
-                  onClick={() => handleSort('profit_amount')}
-                  className="flex items-center space-x-1 hover:text-gray-700"
-                >
-                  <span>Profit</span>
-                  <SortIcon field="profit_amount" />
-                </button>
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                <button
                   onClick={() => handleSort('started_at')}
                   className="flex items-center space-x-1 hover:text-gray-700"
                 >
@@ -186,142 +165,46 @@ export function ConversationHistoryTable({ conversations, onExport }: Conversati
                   <SortIcon field="started_at" />
                 </button>
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Details
-              </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {sortedConversations.map((conv) => {
-              const isExpanded = expandedRows.has(conv.id);
               const totalTokens = conv.total_tokens_in + conv.total_tokens_out;
               
               return (
-                <>
-                  <tr key={conv.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center space-x-3">
-                        <MessageSquare className="h-5 w-5 text-gray-400 flex-shrink-0" />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-gray-900 truncate max-w-xs">
-                            {conv.topic_title}
-                          </p>
-                        </div>
+                <tr key={conv.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-6 py-4">
+                    <div className="flex items-center space-x-3">
+                      <MessageSquare className="h-5 w-5 text-gray-400 flex-shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-gray-900 truncate max-w-xs">
+                          {conv.topic_title}
+                        </p>
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm text-gray-900">{conv.model_name}</span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {getStatusBadge(conv.status)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{conv.message_count}</div>
-                      <div className="text-xs text-gray-500">{totalTokens.toLocaleString()} tokens</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">${conv.total_cost.toFixed(4)}</div>
-                      {conv.actual_api_cost && (
-                        <div className="text-xs text-gray-500">API: ${conv.actual_api_cost.toFixed(4)}</div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {conv.profit_amount !== undefined && (
-                        <>
-                          <div className={`text-sm font-medium ${conv.profit_amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            ${conv.profit_amount.toFixed(4)}
-                          </div>
-                          {conv.profit_margin !== undefined && (
-                            <div className="text-xs text-gray-500">{conv.profit_margin.toFixed(1)}%</div>
-                          )}
-                        </>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {new Date(conv.started_at).toLocaleDateString()}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {new Date(conv.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        onClick={() => toggleRowExpansion(conv.id)}
-                        className="text-blue-600 hover:text-blue-900 transition-colors"
-                      >
-                        {isExpanded ? (
-                          <ChevronUp className="h-5 w-5" />
-                        ) : (
-                          <ChevronDown className="h-5 w-5" />
-                        )}
-                      </button>
-                    </td>
-                  </tr>
-                  
-                  {/* Expanded Details Row */}
-                  {isExpanded && (
-                    <tr className="bg-gray-50">
-                      <td colSpan={8} className="px-6 py-4">
-                        <div className="grid grid-cols-4 gap-4">
-                          <div className="bg-white rounded-lg p-3 border border-gray-200">
-                            <div className="flex items-center space-x-2 mb-1">
-                              <Clock className="h-4 w-4 text-gray-400" />
-                              <span className="text-xs font-medium text-gray-500">Duration</span>
-                            </div>
-                            <p className="text-sm font-semibold text-gray-900">
-                              {conv.duration_minutes ? `${conv.duration_minutes} min` : 'N/A'}
-                            </p>
-                          </div>
-                          
-                          <div className="bg-white rounded-lg p-3 border border-gray-200">
-                            <div className="flex items-center space-x-2 mb-1">
-                              <Zap className="h-4 w-4 text-gray-400" />
-                              <span className="text-xs font-medium text-gray-500">Tool Calls</span>
-                            </div>
-                            <p className="text-sm font-semibold text-gray-900">{conv.tool_call_count}</p>
-                          </div>
-                          
-                          <div className="bg-white rounded-lg p-3 border border-gray-200">
-                            <div className="flex items-center space-x-2 mb-1">
-                              <DollarSign className="h-4 w-4 text-gray-400" />
-                              <span className="text-xs font-medium text-gray-500">Cost/Message</span>
-                            </div>
-                            <p className="text-sm font-semibold text-gray-900">
-                              ${conv.message_count > 0 ? (conv.total_cost / conv.message_count).toFixed(4) : '0'}
-                            </p>
-                          </div>
-                          
-                          <div className="bg-white rounded-lg p-3 border border-gray-200">
-                            <div className="flex items-center space-x-2 mb-1">
-                              <MessageSquare className="h-4 w-4 text-gray-400" />
-                              <span className="text-xs font-medium text-gray-500">Tokens/Message</span>
-                            </div>
-                            <p className="text-sm font-semibold text-gray-900">
-                              {conv.message_count > 0 ? Math.round(totalTokens / conv.message_count) : 0}
-                            </p>
-                          </div>
-                        </div>
-                        
-                        {conv.tools_used && conv.tools_used.length > 0 && (
-                          <div className="mt-3">
-                            <p className="text-xs font-medium text-gray-500 mb-2">Tools Used:</p>
-                            <div className="flex flex-wrap gap-2">
-                              {conv.tools_used.map((tool, idx) => (
-                                <span
-                                  key={idx}
-                                  className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full font-medium"
-                                >
-                                  {tool}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  )}
-                </>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className="text-sm text-gray-900">{conv.model_name}</span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {getStatusBadge(conv.status)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{conv.message_count}</div>
+                    <div className="text-xs text-gray-500">{totalTokens.toLocaleString()} tokens</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-gray-900">${conv.total_cost.toFixed(4)}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">
+                      {new Date(conv.started_at).toLocaleDateString()}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {new Date(conv.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </td>
+                </tr>
               );
             })}
           </tbody>

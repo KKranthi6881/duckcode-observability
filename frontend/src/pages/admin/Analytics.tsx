@@ -10,8 +10,8 @@ import {
   X,
 } from 'lucide-react';
 import {
-  AreaChart,
-  Area,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -165,31 +165,37 @@ export const Analytics: React.FC = () => {
   }
 
   return (
-    <div className="p-6 bg-gray-50 min-h-full">
-      {/* Header with Filters */}
+    <div className="p-6 bg-gray-50 min-h-screen">
+      {/* Page Header */}
       <div className="mb-6">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Analytics Dashboard</h1>
             <p className="text-sm text-gray-600 mt-1">{selectedOrg?.display_name}</p>
           </div>
-          <div className="flex items-center gap-2">
-            {/* Time Range */}
-            <select
-              value={timeRange}
-              onChange={(e) => setTimeRange(Number(e.target.value))}
-              className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value={7}>7 days</option>
-              <option value={30}>30 days</option>
-              <option value={90}>90 days</option>
-            </select>
+          <div className="flex items-center gap-3">
+            {/* Time Range Selector */}
+            <div className="flex bg-white border border-gray-200 rounded-lg p-1 shadow-sm">
+              {[7, 30, 90].map((days) => (
+                <button
+                  key={days}
+                  onClick={() => setTimeRange(days)}
+                  className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
+                    timeRange === days
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  }`}
+                >
+                  {days} days
+                </button>
+              ))}
+            </div>
 
             {/* Filter by User */}
             <select
               value={selectedUser}
               onChange={(e) => setSelectedUser(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-3 py-2 border border-gray-200 rounded-lg bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
             >
               <option value="">All Users</option>
               {users?.users?.map((user: any) => {
@@ -206,7 +212,7 @@ export const Analytics: React.FC = () => {
             <select
               value={selectedModel}
               onChange={(e) => setSelectedModel(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-3 py-2 border border-gray-200 rounded-lg bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
             >
               <option value="">All Models</option>
               {models?.models?.map((model: any) => (
@@ -230,7 +236,7 @@ export const Analytics: React.FC = () => {
             {/* Export */}
             <button
               onClick={handleExport}
-              className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm"
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm shadow-sm"
             >
               <Download className="h-4 w-4" />
               Export
@@ -240,56 +246,49 @@ export const Analytics: React.FC = () => {
 
       </div>
 
-      {/* Summary Cards - Compact */}
+      {/* Summary Cards - Clean Enterprise Style */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         {/* Total Cost */}
-        <Card className="p-4 bg-gradient-to-br from-blue-50 to-white border-blue-100">
-          <div className="flex items-center justify-between mb-2">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <DollarSign className="h-4 w-4 text-blue-600" />
-            </div>
+        <Card className="p-6 bg-white hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between mb-3">
+            <DollarSign className="h-5 w-5 text-blue-600" />
           </div>
-          <p className="text-xs font-medium text-gray-600">Total Cost</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Total Cost</p>
+          <p className="text-3xl font-bold text-gray-900">
             ${(filteredTotals.total_cost || 0).toFixed(2)}
           </p>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-gray-400 mt-2">
             ${((filteredTotals.total_cost || 0) / (filteredTotals.conversations || 1)).toFixed(3)} per conversation
           </p>
         </Card>
 
         {/* Conversations */}
-        <Card className="p-4 bg-gradient-to-br from-purple-50 to-white border-purple-100">
-          <div className="flex items-center justify-between mb-2">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <MessageSquare className="h-4 w-4 text-purple-600" />
-            </div>
+        <Card className="p-6 bg-white hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between mb-3">
+            <MessageSquare className="h-5 w-5 text-purple-600" />
           </div>
-          <p className="text-xs font-medium text-gray-600">Conversations</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Conversations</p>
+          <p className="text-3xl font-bold text-gray-900">
             {(filteredTotals.conversations || 0).toLocaleString()}
           </p>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-gray-400 mt-2">
             ${((filteredTotals.total_cost || 0) / (filteredTotals.conversations || 1)).toFixed(3)} avg
           </p>
         </Card>
 
         {/* Active Users */}
-        <Card className="p-4 bg-gradient-to-br from-green-50 to-white border-green-100">
-          <div className="flex items-center justify-between mb-2">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <Users className="h-4 w-4 text-green-600" />
-            </div>
+        <Card className="p-6 bg-white hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between mb-3">
+            <Users className="h-5 w-5 text-green-600" />
           </div>
-          <p className="text-xs font-medium text-gray-600">Active Users</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">
-            {filteredTotals.active_users || 0}
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Active Users</p>
+          <p className="text-3xl font-bold text-gray-900">
+            {(users?.users?.length || 0).toLocaleString()}
           </p>
-          <p className="text-xs text-gray-500 mt-1">
-            ${((filteredTotals.total_cost || 0) / (filteredTotals.active_users || 1)).toFixed(2)} per user
+          <p className="text-xs text-gray-400 mt-2">
+            ${((filteredTotals.total_cost || 0) / (users?.users?.length || 1)).toFixed(2)} per user
           </p>
         </Card>
-
       </div>
 
       {/* Cost Trend Chart - Full Width */}
@@ -303,13 +302,7 @@ export const Analytics: React.FC = () => {
             <TrendingUp className="h-4 w-4 text-gray-400" />
           </div>
           <ResponsiveContainer width="100%" height={240}>
-            <AreaChart data={filteredData.trends}>
-              <defs>
-                <linearGradient id="colorCost" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={COLORS.primary} stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor={COLORS.primary} stopOpacity={0}/>
-                </linearGradient>
-              </defs>
+            <BarChart data={filteredData.trends} barSize={20}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis
                 dataKey="usage_date"
@@ -328,15 +321,13 @@ export const Analytics: React.FC = () => {
                 formatter={(value: number) => `$${value.toFixed(2)}`}
               />
               <Legend wrapperStyle={{ fontSize: '12px' }} />
-              <Area
-                type="monotone"
+              <Bar
                 dataKey="total_cost"
-                stroke={COLORS.primary}
-                fillOpacity={1}
-                fill="url(#colorCost)"
+                fill={COLORS.primary}
                 name="Cost"
+                radius={[4, 4, 0, 0]}
               />
-            </AreaChart>
+            </BarChart>
           </ResponsiveContainer>
         </Card>
       </div>

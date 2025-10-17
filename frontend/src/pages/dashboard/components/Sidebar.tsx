@@ -11,7 +11,7 @@ const navigation = [{
   href: '/dashboard/code',
   icon: Code
 }, {
-  name: 'Analytics',
+  name: 'Cost Analytics',
   href: '/dashboard/analytics',
   icon: BarChart3
 }];
