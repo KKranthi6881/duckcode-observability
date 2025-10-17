@@ -10,6 +10,7 @@ import {
   LogOut,
   Home,
   BarChart3,
+  Database,
 } from 'lucide-react';
 import { supabase } from '../../config/supabaseClient';
 import type { Organization } from '../../types/enterprise';
@@ -82,6 +83,7 @@ export const AdminLayout: React.FC = () => {
     { name: 'Main Dashboard', path: '/dashboard', icon: Home, highlight: true },
     { name: 'Admin Dashboard', path: '/admin', icon: LayoutDashboard },
     { name: 'Cost Analytics', path: '/admin/analytics', icon: BarChart3 },
+    { name: 'Metadata Extraction', path: '/admin/metadata', icon: Database },
     { name: 'API Keys', path: '/admin/api-keys', icon: Key },
     { name: 'Members', path: '/admin/members', icon: Users },
     { name: 'Settings', path: '/admin/settings', icon: Settings },

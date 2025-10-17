@@ -9,6 +9,7 @@ export { Analytics } from './Analytics';
 export { ApiKeys } from './ApiKeys';
 export { Members } from './Members';
 export { SettingsPage } from './Settings';
+export { MetadataExtraction } from './MetadataExtraction';
 
 // Export types for convenience
 export type { Organization, Team, TeamType } from '../../types/enterprise';
