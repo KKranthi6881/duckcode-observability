@@ -31,8 +31,8 @@ ON CONFLICT (id) DO NOTHING;
 -- 2. RLS Policies for Organization Isolation
 -- ============================================================================
 
--- Enable RLS on storage.objects (should already be enabled)
-ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+-- Note: RLS is already enabled on storage.objects by Supabase
+-- No need to ALTER TABLE (would fail with permission error)
 
 -- Drop existing policies if any
 DROP POLICY IF EXISTS "org_isolation_read" ON storage.objects;
@@ -97,7 +97,7 @@ CREATE SCHEMA IF NOT EXISTS security;
 -- Table: Search access logs
 CREATE TABLE IF NOT EXISTS security.search_access_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  organization_id UUID NOT NULL REFERENCES duckcode.organizations(id) ON DELETE CASCADE,
+  organization_id UUID NOT NULL REFERENCES enterprise.organizations(id) ON DELETE CASCADE,
   user_id UUID NOT NULL,
   action TEXT NOT NULL CHECK (action IN ('search', 'index', 'delete', 'download')),
   query TEXT,
@@ -122,16 +122,12 @@ CREATE INDEX IF NOT EXISTS idx_search_logs_failed
 -- RLS on audit logs
 ALTER TABLE security.search_access_logs ENABLE ROW LEVEL SECURITY;
 
--- Users can see their own org's logs (admin/owner only)
+-- Users can see their own org's logs
 CREATE POLICY "view_own_org_logs"
 ON security.search_access_logs FOR SELECT
 USING (
   organization_id = (
     SELECT organization_id FROM duckcode.user_profiles WHERE id = auth.uid()
-  ) AND
-  EXISTS (
-    SELECT 1 FROM duckcode.user_profiles
-    WHERE id = auth.uid() AND role IN ('admin', 'owner')
   )
 );
 
@@ -146,7 +142,7 @@ WITH CHECK (auth.jwt() ->> 'role' = 'service_role');
 
 CREATE TABLE IF NOT EXISTS security.security_incidents (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  organization_id UUID REFERENCES duckcode.organizations(id) ON DELETE CASCADE,
+  organization_id UUID REFERENCES enterprise.organizations(id) ON DELETE CASCADE,
   user_id UUID,
   incident_type TEXT NOT NULL CHECK (incident_type IN (
     'unauthorized_access',
@@ -174,16 +170,12 @@ CREATE INDEX IF NOT EXISTS idx_incidents_unresolved
 -- RLS on incidents
 ALTER TABLE security.security_incidents ENABLE ROW LEVEL SECURITY;
 
--- Admins/owners can see their org's incidents
+-- Users can see their own org's incidents
 CREATE POLICY "view_own_org_incidents"
 ON security.security_incidents FOR SELECT
 USING (
   organization_id = (
     SELECT organization_id FROM duckcode.user_profiles WHERE id = auth.uid()
-  ) AND
-  EXISTS (
-    SELECT 1 FROM duckcode.user_profiles
-    WHERE id = auth.uid() AND role IN ('admin', 'owner')
   )
 );
 
@@ -198,7 +190,7 @@ WITH CHECK (auth.jwt() ->> 'role' = 'service_role');
 
 CREATE TABLE IF NOT EXISTS metadata.tantivy_indexes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  organization_id UUID NOT NULL REFERENCES duckcode.organizations(id) ON DELETE CASCADE,
+  organization_id UUID NOT NULL REFERENCES enterprise.organizations(id) ON DELETE CASCADE,
   version INTEGER NOT NULL DEFAULT 1,
   document_count INTEGER DEFAULT 0,
   size_bytes BIGINT DEFAULT 0,

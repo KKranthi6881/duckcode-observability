@@ -6,6 +6,7 @@ import { EnhancedDependencyAnalyzer } from './analyzers/EnhancedDependencyAnalyz
 import { LineageCalculator } from './analyzers/LineageCalculator';
 import { MetadataStorageService } from './storage/MetadataStorageService';
 import { TantivySearchService } from '../TantivySearchService';
+import { FileIndexingService } from '../FileIndexingService';
 import axios from 'axios';
 
 interface ParsedObject {
@@ -566,6 +567,103 @@ export class MetadataExtractionOrchestrator {
       TantivySearchService.getInstance()
         .triggerIndexing(connection.organization_id)
         .catch(err => console.warn('Search indexing warning:', err));
+      
+      // Also index files for code search (async, non-blocking)
+      this.indexFilesAsync(connectionId, connection.organization_id)
+        .catch(err => console.warn('File indexing warning:', err));
+    }
+  }
+
+  /**
+   * Index files for Tantivy code search (async)
+   */
+  private async indexFilesAsync(connectionId: string, organizationId: string): Promise<void> {
+    console.log(`📄 Starting file indexing for connection: ${connectionId}`);
+    
+    try {
+      // Get connection details
+      const { data: conn } = await supabase
+        .schema('enterprise')
+        .from('github_connections')
+        .select('repository_owner, repository_name, branch, access_token_encrypted')
+        .eq('id', connectionId)
+        .single();
+      
+      if (!conn) return;
+      
+      // Get repository ID
+      const { data: repo } = await supabase
+        .schema('metadata')
+        .from('repositories')
+        .select('id, name')
+        .eq('connection_id', connectionId)
+        .single();
+      
+      if (!repo) return;
+      
+      // Get repository tree
+      const response = await axios.get(
+        `https://api.github.com/repos/${conn.repository_owner}/${conn.repository_name}/git/trees/${conn.branch}?recursive=1`,
+        {
+          headers: {
+            'Authorization': `token ${conn.access_token_encrypted}`,
+            'Accept': 'application/vnd.github.v3+json'
+          }
+        }
+      );
+      
+      // Filter code files (SQL, Python, JS/TS)
+      const codeFiles = response.data.tree.filter((file: any) => {
+        if (file.type !== 'blob') return false;
+        const ext = file.path.split('.').pop()?.toLowerCase();
+        return ['sql', 'py', 'js', 'ts', 'jsx', 'tsx'].includes(ext || '');
+      });
+      
+      console.log(`   Found ${codeFiles.length} code files to index`);
+      
+      // Limit to reasonable number for performance
+      const filesToIndex = codeFiles.slice(0, 100);
+      
+      // Fetch file contents
+      const filesWithContent = [];
+      for (const file of filesToIndex) {
+        try {
+          const contentResponse = await axios.get(
+            `https://api.github.com/repos/${conn.repository_owner}/${conn.repository_name}/contents/${file.path}?ref=${conn.branch}`,
+            {
+              headers: {
+                'Authorization': `token ${conn.access_token_encrypted}`,
+                'Accept': 'application/vnd.github.v3.raw'
+              }
+            }
+          );
+          
+          filesWithContent.push({
+            content: contentResponse.data,
+            filePath: file.path
+          });
+        } catch (err) {
+          console.warn(`   Skipping file ${file.path}:`, err instanceof Error ? err.message : 'error');
+        }
+      }
+      
+      console.log(`   Fetched ${filesWithContent.length} file contents`);
+      
+      // Index files via FileIndexingService
+      if (filesWithContent.length > 0) {
+        const result = await FileIndexingService.getInstance().indexFiles(
+          filesWithContent,
+          {
+            organizationId,
+            repositoryId: repo.id,
+            repositoryName: repo.name
+          }
+        );
+        
+        console.log(`   ✅ File indexing complete: ${result.filesIndexed} files indexed`);
+      }
+    } catch (error) {
+      console.error('File indexing error:', error instanceof Error ? error.message : error);
     }
   }
 

@@ -2,15 +2,19 @@ import React from 'react';
 import { Database, Table, Eye, FileCode, GitBranch } from 'lucide-react';
 
 interface SearchResult {
-  object_id: string;
+  object_id?: string;
+  file_id?: string;
   name: string;
   full_name?: string;
   description?: string;
-  object_type: string;
+  object_type?: string;
   file_path?: string;
   repository_name?: string;
-  confidence_score: number;
+  confidence_score?: number;
   score: number;
+  resultType?: 'metadata' | 'file';
+  language?: string;
+  content_snippet?: string;
 }
 
 interface SearchResultsProps {
@@ -20,7 +24,12 @@ interface SearchResultsProps {
 }
 
 export const SearchResults: React.FC<SearchResultsProps> = ({ results, onSelect, query }) => {
-  const getTypeIcon = (type: string) => {
+  const getTypeIcon = (result: SearchResult) => {
+    if (result.resultType === 'file') {
+      return <FileCode className="w-4 h-4 text-orange-500" />;
+    }
+    
+    const type = result.object_type || '';
     switch (type.toLowerCase()) {
       case 'table':
         return <Table className="w-4 h-4 text-blue-500" />;
@@ -33,7 +42,16 @@ export const SearchResults: React.FC<SearchResultsProps> = ({ results, onSelect,
     }
   };
 
-  const getTypeBadge = (type: string) => {
+  const getTypeBadge = (result: SearchResult) => {
+    if (result.resultType === 'file') {
+      return (
+        <span className="px-2 py-0.5 text-xs font-medium rounded bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300">
+          📄 {result.language || 'file'}
+        </span>
+      );
+    }
+    
+    const type = result.object_type || 'unknown';
     const colors: Record<string, string> = {
       table: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300',
       view: 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300',
@@ -79,14 +97,14 @@ export const SearchResults: React.FC<SearchResultsProps> = ({ results, onSelect,
       </div>
       {results.map((result) => (
         <button
-          key={result.object_id}
-          onClick={() => onSelect(result.object_id)}
+          key={result.object_id || result.file_id || result.name}
+          onClick={() => onSelect(result.object_id || result.file_id || '')}
           className="w-full px-3 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800 border-b border-gray-100 dark:border-gray-800 last:border-b-0 transition-colors"
         >
           <div className="flex items-start gap-3">
             {/* Icon */}
             <div className="mt-1">
-              {getTypeIcon(result.object_type)}
+              {getTypeIcon(result)}
             </div>
 
             {/* Content */}
@@ -96,13 +114,20 @@ export const SearchResults: React.FC<SearchResultsProps> = ({ results, onSelect,
                 <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
                   {highlightMatch(result.name, query)}
                 </h4>
-                {getTypeBadge(result.object_type)}
+                {getTypeBadge(result)}
               </div>
 
-              {/* Full Name */}
+              {/* Full Name or Content Snippet */}
               {result.full_name && result.full_name !== result.name && (
                 <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
                   {highlightMatch(result.full_name, query)}
+                </p>
+              )}
+              
+              {/* File Content Snippet */}
+              {result.content_snippet && (
+                <p className="text-xs text-gray-600 dark:text-gray-400 mb-2 line-clamp-2 font-mono bg-gray-50 dark:bg-gray-900 p-1 rounded">
+                  {result.content_snippet.substring(0, 100)}...
                 </p>
               )}
 
@@ -131,12 +156,14 @@ export const SearchResults: React.FC<SearchResultsProps> = ({ results, onSelect,
                   </div>
                 )}
 
-                {/* Confidence Score */}
-                <div className={`flex items-center gap-1 ml-auto ${getConfidenceColor(result.confidence_score)}`}>
-                  <span className="font-medium">
-                    {(result.confidence_score * 100).toFixed(0)}%
-                  </span>
-                </div>
+                {/* Confidence Score (metadata only) */}
+                {result.confidence_score !== undefined && (
+                  <div className={`flex items-center gap-1 ml-auto ${getConfidenceColor(result.confidence_score)}`}>
+                    <span className="font-medium">
+                      {(result.confidence_score * 100).toFixed(0)}%
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 

@@ -1,11 +1,38 @@
 import { Router } from 'express';
 import { SearchController } from '../controllers/search.controller';
+import { HybridSearchController } from '../controllers/hybrid-search.controller';
 import { requireAuth } from '../middlewares/auth.middleware';
 
 const router = Router();
 
 // Apply auth middleware to all search routes
 router.use(requireAuth);
+
+/**
+ * @route GET /api/search/hybrid
+ * @desc Hybrid search - searches both metadata and files simultaneously
+ * @query {
+ *   q: string,
+ *   metadata_limit?: number,
+ *   files_limit?: number
+ * }
+ * @access Authenticated users
+ */
+router.get('/hybrid', HybridSearchController.hybridSearch);
+
+/**
+ * @route GET /api/search/files
+ * @desc Search code files only
+ * @query {
+ *   q: string,
+ *   file_type?: string,
+ *   repository_name?: string,
+ *   language?: string,
+ *   limit?: number
+ * }
+ * @access Authenticated users
+ */
+router.get('/files', HybridSearchController.filesSearch);
 
 /**
  * @route POST /api/search/semantic
@@ -77,7 +104,7 @@ router.get('/analytics', SearchController.searchAnalytics);
  * }
  * @access Authenticated users
  */
-router.get('/metadata', SearchController.metadataSearch);
+router.get('/metadata', HybridSearchController.metadataSearch);
 
 /**
  * @route POST /api/search/rebuild-index

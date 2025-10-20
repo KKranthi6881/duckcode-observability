@@ -35,9 +35,9 @@ export const SearchBar: React.FC<SearchBarProps> = ({ organizationId, onSelectOb
   
   const debouncedQuery = useDebounce(query, 300);
   
-  // Use backend URL (which proxies to Tantivy) instead of calling Tantivy directly
+  // Use backend hybrid search endpoint (searches both metadata and files!)
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-  const SEARCH_URL = `${API_URL}/api/search/metadata`;
+  const SEARCH_URL = `${API_URL}/api/search/hybrid`;
 
   // Keyboard shortcut: Cmd+K (Mac) or Ctrl+K (Windows/Linux)
   useEffect(() => {
@@ -91,17 +91,30 @@ export const SearchBar: React.FC<SearchBarProps> = ({ organizationId, onSelectOb
         'Authorization': `Bearer ${token}`
       };
       
-      // Get search results from backend (which proxies to Tantivy)
+      // Get hybrid search results (metadata + files!)
       const searchResponse = await axios.get(SEARCH_URL, {
         params: {
-          query: searchQuery,
-          limit: 10
+          q: searchQuery,
+          metadata_limit: 5,
+          files_limit: 5
         },
         headers
       });
       
-      setResults(searchResponse.data.data?.results || []);
-      setSuggestions([]); // Backend doesn't support autocomplete yet
+      // Combine metadata and file results
+      const metadataResults = searchResponse.data.results?.metadata?.items || [];
+      const fileResults = searchResponse.data.results?.files?.items || [];
+      
+      // Add a type indicator to each result
+      const combinedResults = [
+        ...metadataResults.map((r: any) => ({ ...r, resultType: 'metadata' })),
+        ...fileResults.map((r: any) => ({ ...r, resultType: 'file', name: r.file_name || r.file_path }))
+      ];
+      
+      console.log(`🔍 Hybrid search: ${metadataResults.length} metadata + ${fileResults.length} files = ${combinedResults.length} total`);
+      
+      setResults(combinedResults);
+      setSuggestions([])
     } catch (error) {
       console.error('Search failed:', error);
       setResults([]);
