@@ -35,6 +35,7 @@ import {
   Members as AdminMembers,
   SettingsPage as AdminSettings,
   MetadataExtraction as AdminMetadata,
+  SearchPage as AdminSearch,
 } from './pages/admin';
 
 // Debug component to test routing
@@ -120,6 +121,7 @@ const AppContent = () => {
             <Route path="api-keys" element={<AdminApiKeys />} />
             <Route path="members" element={<AdminMembers />} />
             <Route path="metadata" element={<AdminMetadata />} />
+            <Route path="search" element={<AdminSearch />} />
             <Route path="settings" element={<AdminSettings />} />
           </Route>
         </Route>
