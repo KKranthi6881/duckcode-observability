@@ -40,12 +40,12 @@ export class MetadataStorageService {
     return data;
   }
 
-  async storeColumns(objectId: string, columns: any[]): Promise<void> {
+  async storeColumns(objectId: string, columns: any[], organizationId?: string): Promise<void> {
     if (!columns || columns.length === 0) return;
 
     const columnsData = columns.map(col => ({
       object_id: objectId,
-      organization_id: null, // Will be set by trigger or need to pass
+      organization_id: organizationId || null, // FIXED: Now accepts organization_id parameter
       name: col.name,
       data_type: col.data_type,
       is_nullable: col.is_nullable,
@@ -59,8 +59,11 @@ export class MetadataStorageService {
 
     if (error) {
       console.error('Error storing columns:', error);
+      console.error('Columns data:', columnsData);
       throw error;
     }
+    
+    console.log(`✅ Stored ${columns.length} columns for object ${objectId}`);
   }
 
   async storeDependency(depData: any): Promise<void> {

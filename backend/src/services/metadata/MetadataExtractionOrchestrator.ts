@@ -383,8 +383,9 @@ export class MetadataExtractionOrchestrator {
           confidence: obj.confidence || 0.9
         });
 
-        if (storedObject && obj.columns) {
-          await this.storage.storeColumns(storedObject.id, obj.columns);
+        if (storedObject && obj.columns && obj.columns.length > 0) {
+          console.log(`📊 Storing ${obj.columns.length} columns for ${obj.name}`);
+          await this.storage.storeColumns(storedObject.id, obj.columns, job.organization_id);
         }
       }
 

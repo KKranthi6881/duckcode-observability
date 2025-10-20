@@ -147,30 +147,149 @@ export class SQLParserService {
   }
 
   /**
-   * Extract column definitions (simplified)
+   * Extract column definitions (improved)
+   * Handles CREATE TABLE columns AND SELECT statement columns
    */
   private extractColumns(content: string, startLine: number): any[] {
     const columns: any[] = [];
     const lines = content.split('\n');
     
-    // Simple pattern: column_name TYPE
-    const columnRegex = /^\s*(\w+)\s+(VARCHAR|INTEGER|INT|BIGINT|DECIMAL|NUMERIC|FLOAT|DOUBLE|BOOLEAN|DATE|TIMESTAMP|TEXT|JSON|JSONB)/i;
+    // Check if this is a CREATE TABLE or a SELECT/VIEW
+    const fullContent = lines.slice(startLine - 1).join('\n');
+    const isCreateTable = /CREATE\s+(?:TABLE|TEMPORARY\s+TABLE|TEMP\s+TABLE)/i.test(fullContent);
     
-    for (let i = startLine; i < Math.min(startLine + 50, lines.length); i++) {
+    if (isCreateTable) {
+      // Extract columns from CREATE TABLE definition
+      return this.extractCreateTableColumns(lines, startLine);
+    } else {
+      // Extract columns from SELECT statement
+      return this.extractSelectColumns(fullContent);
+    }
+  }
+
+  /**
+   * Extract columns from CREATE TABLE (...) definition
+   */
+  private extractCreateTableColumns(lines: string[], startLine: number): any[] {
+    const columns: any[] = [];
+    
+    // Enhanced pattern: column_name TYPE [constraints]
+    const columnRegex = /^\s*(\w+)\s+(VARCHAR|INTEGER|INT|BIGINT|SMALLINT|DECIMAL|NUMERIC|FLOAT|DOUBLE|REAL|BOOLEAN|BOOL|DATE|TIMESTAMP|TIMESTAMPTZ|TIME|TEXT|JSON|JSONB|UUID|BYTEA|ARRAY|SERIAL|BIGSERIAL)(?:\([\d,\s]+\))?/i;
+    
+    for (let i = startLine; i < Math.min(startLine + 100, lines.length); i++) {
       const line = lines[i];
-      if (line.includes(')') || line.includes(';')) break;
+      
+      // Stop at closing parenthesis or semicolon
+      if (line.trim().startsWith(')') || line.includes(');')) break;
+      
+      // Skip constraint lines
+      if (/^\s*(PRIMARY|FOREIGN|UNIQUE|CHECK|CONSTRAINT)/i.test(line)) continue;
       
       const match = columnRegex.exec(line);
       if (match) {
+        const isNullable = !line.toUpperCase().includes('NOT NULL');
         columns.push({
           name: match[1],
-          data_type: match[2],
+          data_type: match[2].toUpperCase(),
+          is_nullable: isNullable,
           position: columns.length + 1
         });
       }
     }
     
     return columns;
+  }
+
+  /**
+   * Extract columns from SELECT statement (for VIEWs and CTEs)
+   */
+  private extractSelectColumns(content: string): any[] {
+    const columns: any[] = [];
+    
+    // Find SELECT clause
+    const selectMatch = content.match(/SELECT\s+(.*?)\s+FROM/is);
+    if (!selectMatch) return columns;
+    
+    const selectClause = selectMatch[1];
+    
+    // Split by comma (but not inside parentheses or CASE statements)
+    const columnExpressions = this.splitSelectColumns(selectClause);
+    
+    let position = 1;
+    for (const expr of columnExpressions) {
+      const trimmed = expr.trim();
+      if (!trimmed || trimmed === '*') continue;
+      
+      // Extract column name/alias
+      let columnName = '';
+      let dataType = 'VARCHAR'; // Default for SELECT columns
+      
+      // Pattern: "expression AS alias" or "expression alias"
+      const asMatch = trimmed.match(/\s+(?:AS\s+)?["']?(\w+)["']?\s*$/i);
+      if (asMatch) {
+        columnName = asMatch[1];
+      } else {
+        // No alias - extract table.column or just column
+        const columnMatch = trimmed.match(/(\w+)\s*$/);
+        if (columnMatch) {
+          columnName = columnMatch[1];
+        }
+      }
+      
+      // Infer data type from functions
+      if (trimmed.match(/COUNT\(/i)) dataType = 'BIGINT';
+      else if (trimmed.match(/SUM\(|AVG\(|STDDEV\(/i)) dataType = 'NUMERIC';
+      else if (trimmed.match(/MAX\(|MIN\(/i)) dataType = 'VARCHAR';
+      else if (trimmed.match(/CAST\(.*AS\s+(\w+)/i)) {
+        const castMatch = trimmed.match(/CAST\(.*AS\s+(\w+)/i);
+        if (castMatch) dataType = castMatch[1].toUpperCase();
+      }
+      
+      if (columnName) {
+        columns.push({
+          name: columnName,
+          data_type: dataType,
+          position: position++
+        });
+      }
+    }
+    
+    return columns;
+  }
+
+  /**
+   * Split SELECT column list by comma (respecting parentheses and CASE statements)
+   */
+  private splitSelectColumns(selectClause: string): string[] {
+    const result: string[] = [];
+    let current = '';
+    let depth = 0;
+    let inCase = false;
+    
+    for (let i = 0; i < selectClause.length; i++) {
+      const char = selectClause[i];
+      const remaining = selectClause.substring(i);
+      
+      // Track CASE...END blocks
+      if (remaining.match(/^CASE\s/i)) inCase = true;
+      if (remaining.match(/^END\s/i)) inCase = false;
+      
+      if (char === '(') depth++;
+      else if (char === ')') depth--;
+      else if (char === ',' && depth === 0 && !inCase) {
+        if (current.trim()) result.push(current.trim());
+        current = '';
+        continue;
+      }
+      
+      current += char;
+    }
+    
+    if (current.trim()) {
+      result.push(current.trim());
+    }
+    
+    return result;
   }
 
   /**

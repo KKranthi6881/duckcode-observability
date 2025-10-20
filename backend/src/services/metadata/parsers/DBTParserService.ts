@@ -37,12 +37,16 @@ export class DBTParserService {
     // Extract source() calls  
     const sources = this.extractSources(content);
     
+    // Extract columns from SELECT statement
+    const columns = this.extractColumnsFromSelect(content);
+    
     return {
       objects: [{
         name: modelName,
         object_type: 'dbt_model',
         definition: content,
         dependencies: [...refs, ...sources],
+        columns: columns, // FIXED: Now includes columns
         confidence: 0.85
       }],
       parserUsed: 'dbt-model',
@@ -72,5 +76,91 @@ export class DBTParserService {
     }
     
     return sources;
+  }
+
+  /**
+   * Extract column names from SELECT statement
+   * Handles: column_name, alias, function() as alias, table.column
+   */
+  private extractColumnsFromSelect(content: string): any[] {
+    const columns: any[] = [];
+    
+    // Find SELECT clause (between SELECT and FROM/WHERE/GROUP/ORDER/LIMIT)
+    const selectMatch = content.match(/SELECT\s+(.*?)\s+FROM/is);
+    if (!selectMatch) return columns;
+    
+    const selectClause = selectMatch[1];
+    
+    // Split by comma (but not inside parentheses)
+    const columnExpressions = this.splitByComma(selectClause);
+    
+    let position = 1;
+    for (const expr of columnExpressions) {
+      const trimmed = expr.trim();
+      if (!trimmed || trimmed === '*') continue;
+      
+      // Extract column name/alias
+      let columnName = '';
+      let dataType = 'UNKNOWN';
+      
+      // Pattern: "expression AS alias" or "expression alias"
+      const asMatch = trimmed.match(/\s+(?:AS\s+)?(\w+)\s*$/i);
+      if (asMatch) {
+        columnName = asMatch[1];
+      } else {
+        // No alias - extract last word
+        const lastWord = trimmed.match(/(\w+)\s*$/);
+        if (lastWord) {
+          columnName = lastWord[1];
+        }
+      }
+      
+      // Detect data type from function
+      if (trimmed.match(/COUNT\(/i)) dataType = 'BIGINT';
+      else if (trimmed.match(/SUM\(|AVG\(/i)) dataType = 'NUMERIC';
+      else if (trimmed.match(/CAST\(.*AS\s+(\w+)/i)) {
+        const castMatch = trimmed.match(/CAST\(.*AS\s+(\w+)/i);
+        if (castMatch) dataType = castMatch[1].toUpperCase();
+      }
+      
+      if (columnName) {
+        columns.push({
+          name: columnName,
+          data_type: dataType,
+          position: position++
+        });
+      }
+    }
+    
+    return columns;
+  }
+
+  /**
+   * Split string by comma, but not inside parentheses
+   */
+  private splitByComma(str: string): string[] {
+    const result: string[] = [];
+    let current = '';
+    let depth = 0;
+    
+    for (let i = 0; i < str.length; i++) {
+      const char = str[i];
+      
+      if (char === '(') depth++;
+      else if (char === ')') depth--;
+      else if (char === ',' && depth === 0) {
+        result.push(current);
+        current = '';
+        continue;
+      }
+      
+      current += char;
+    }
+    
+    if (current.trim()) {
+      result.push(current);
+    }
+    
+    return result;
   }
 }
