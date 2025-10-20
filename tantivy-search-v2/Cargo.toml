@@ -1,0 +1,65 @@
+[package]
+name = "tantivy-search-v2"
+version = "2.0.0"
+edition = "2021"
+authors = ["DuckCode Team"]
+description = "Enterprise-grade search with per-organization isolation"
+
+[dependencies]
+# Tantivy - Full-text search engine (using same version as IDE implementation)
+tantivy = "0.22"
+
+# Web framework
+actix-web = "4.4"
+actix-rt = "2.9"
+actix-cors = "0.7"
+
+# Async runtime
+tokio = { version = "1.35", features = ["full"] }
+
+# HTTP client (for Supabase Storage)
+reqwest = { version = "0.11", features = ["json", "multipart", "stream"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Database
+tokio-postgres = { version = "0.7", features = ["with-serde_json-1", "with-uuid-1", "with-chrono-0_4"] }
+deadpool-postgres = "0.12"
+
+# JWT validation
+jsonwebtoken = "9.2"
+
+# Logging
+env_logger = "0.11"
+log = "0.4"
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# UUID
+uuid = { version = "1.6", features = ["serde", "v4"] }
+
+# Date/time
+chrono = { version = "0.4", features = ["serde"] }
+
+# Config
+dotenv = "0.15"
+
+# File system utilities
+walkdir = "2.4"
+tempfile = "3.8"
+
+# Hashing (for cache keys)
+sha2 = "0.10"
+
+# Base64 encoding
+base64 = "0.21"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true  # Remove debug symbols
