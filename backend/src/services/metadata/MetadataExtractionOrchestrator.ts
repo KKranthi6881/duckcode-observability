@@ -2,9 +2,10 @@ import { supabase } from '../../config/supabase';
 import { SQLParserService } from './parsers/SQLParserService';
 import { PythonParserService } from './parsers/PythonParserService';
 import { DBTParserService } from './parsers/DBTParserService';
-import { DependencyAnalyzer } from './analyzers/DependencyAnalyzer';
+import { EnhancedDependencyAnalyzer } from './analyzers/EnhancedDependencyAnalyzer';
 import { LineageCalculator } from './analyzers/LineageCalculator';
 import { MetadataStorageService } from './storage/MetadataStorageService';
+import { TantivySearchService } from '../TantivySearchService';
 import axios from 'axios';
 
 interface ParsedObject {
@@ -44,7 +45,7 @@ export class MetadataExtractionOrchestrator {
   private sqlParser: SQLParserService;
   private pythonParser: PythonParserService;
   private dbtParser: DBTParserService;
-  private dependencyAnalyzer: DependencyAnalyzer;
+  private dependencyAnalyzer: EnhancedDependencyAnalyzer;
   private lineageCalculator: LineageCalculator;
   private storage: MetadataStorageService;
 
@@ -52,7 +53,7 @@ export class MetadataExtractionOrchestrator {
     this.sqlParser = new SQLParserService();
     this.pythonParser = new PythonParserService();
     this.dbtParser = new DBTParserService();
-    this.dependencyAnalyzer = new DependencyAnalyzer();
+    this.dependencyAnalyzer = new EnhancedDependencyAnalyzer();
     this.lineageCalculator = new LineageCalculator();
     this.storage = new MetadataStorageService();
   }
@@ -550,6 +551,22 @@ export class MetadataExtractionOrchestrator {
         total_columns: columnCount
       })
       .eq('id', connectionId);
+
+    // Trigger search index creation (async, non-blocking)
+    // This happens automatically - users don't need to know about it
+    const { data: connection } = await supabase
+      .schema('enterprise')
+      .from('github_connections')
+      .select('organization_id')
+      .eq('id', connectionId)
+      .single();
+
+    if (connection?.organization_id) {
+      // Fire and forget - don't block on search indexing
+      TantivySearchService.getInstance()
+        .triggerIndexing(connection.organization_id)
+        .catch(err => console.warn('Search indexing warning:', err));
+    }
   }
 
   private async failJob(jobId: string, connectionId: string, error: any) {

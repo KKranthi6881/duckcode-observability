@@ -97,6 +97,25 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
       return res.status(401).json({ error: 'Unauthorized: Invalid token.' });
     }
 
+    // Fetch user's organization from user_profiles table
+    try {
+      const { data: profileData, error: profileError } = await supabaseDuckCode
+        .from('user_profiles')
+        .select('organization_id')
+        .eq('id', user.id)
+        .single();
+
+      if (!profileError && profileData) {
+        // Add organization_id to user object (type-safe way)
+        (user as any).organization_id = profileData.organization_id;
+        console.log('User organization fetched:', profileData.organization_id);
+      } else {
+        console.log('Warning: Could not fetch user organization:', profileError?.message);
+      }
+    } catch (orgError) {
+      console.log('Warning: Error fetching organization:', orgError);
+    }
+
     req.user = user;
     next();
   } catch (error) {

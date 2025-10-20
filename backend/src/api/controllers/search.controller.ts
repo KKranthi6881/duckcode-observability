@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { vectorService } from '../../services/vector.service';
+import { TantivySearchService } from '../../services/TantivySearchService';
 
 export class SearchController {
   /**
@@ -360,5 +361,112 @@ export class SearchController {
         entity: 0
       }
     };
+  }
+
+  /**
+   * Fast metadata search using Tantivy
+   * Searches tables, views, columns, models - lightning fast!
+   */
+  static async metadataSearch(req: Request, res: Response) {
+    try {
+      const { 
+        query, 
+        object_type, 
+        limit = 20 
+      } = req.query;
+
+      if (!query || typeof query !== 'string' || query.trim().length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Query parameter is required'
+        });
+      }
+
+      // Get user's organization from auth
+      const organizationId = req.user?.organization_id;
+      if (!organizationId) {
+        return res.status(401).json({
+          success: false,
+          message: 'Organization not found in user context'
+        });
+      }
+
+      // Get user's JWT token for Tantivy service
+      const authHeader = req.headers.authorization;
+      if (!authHeader) {
+        return res.status(401).json({
+          success: false,
+          message: 'Authorization required'
+        });
+      }
+
+      const token = authHeader.replace('Bearer ', '');
+
+      // Search using Tantivy
+      const tantivyService = TantivySearchService.getInstance();
+      const results = await tantivyService.search(
+        organizationId,
+        query as string,
+        token,
+        {
+          object_type: object_type as string,
+          limit: Number(limit)
+        }
+      );
+
+      return res.json({
+        success: true,
+        data: results
+      });
+
+    } catch (error) {
+      console.error('Error in metadata search:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Internal server error during metadata search',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  /**
+   * Admin: Rebuild search index for organization
+   * Manual trigger if automatic indexing failed or for testing
+   */
+  static async rebuildSearchIndex(req: Request, res: Response) {
+    try {
+      // Check admin permissions
+      if (!req.user?.isAdmin && req.user?.role !== 'owner') {
+        return res.status(403).json({
+          success: false,
+          message: 'Admin or owner permissions required'
+        });
+      }
+
+      const organizationId = req.user?.organization_id;
+      if (!organizationId) {
+        return res.status(401).json({
+          success: false,
+          message: 'Organization not found'
+        });
+      }
+
+      // Trigger indexing
+      const tantivyService = TantivySearchService.getInstance();
+      await tantivyService.triggerIndexing(organizationId);
+
+      return res.json({
+        success: true,
+        message: 'Search index rebuild initiated'
+      });
+
+    } catch (error) {
+      console.error('Error rebuilding search index:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to rebuild search index',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
   }
 } 

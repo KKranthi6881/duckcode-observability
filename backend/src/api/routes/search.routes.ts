@@ -1,7 +1,11 @@
 import { Router } from 'express';
 import { SearchController } from '../controllers/search.controller';
+import { requireAuth } from '../middlewares/auth.middleware';
 
 const router = Router();
+
+// Apply auth middleware to all search routes
+router.use(requireAuth);
 
 /**
  * @route POST /api/search/semantic
@@ -62,5 +66,24 @@ router.get('/suggestions', SearchController.searchSuggestions);
  * }
  */
 router.get('/analytics', SearchController.searchAnalytics);
+
+/**
+ * @route GET /api/search/metadata
+ * @desc Fast metadata search using Tantivy (tables, views, columns, models)
+ * @query {
+ *   query: string,
+ *   object_type?: string,
+ *   limit?: number
+ * }
+ * @access Authenticated users
+ */
+router.get('/metadata', SearchController.metadataSearch);
+
+/**
+ * @route POST /api/search/rebuild-index
+ * @desc Admin: Manually rebuild search index for organization
+ * @access Admin/Owner only
+ */
+router.post('/rebuild-index', SearchController.rebuildSearchIndex);
 
 export default router; 
