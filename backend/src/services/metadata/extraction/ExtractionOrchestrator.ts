@@ -2,6 +2,7 @@ import { DbtRunner } from './DbtRunner';
 import { ManifestParser } from '../parsers/ManifestParser';
 import { EnhancedSQLParser } from '../parsers/EnhancedSQLParser';
 import { supabase } from '../../../config/supabase';
+import { TantivySearchService } from '../../TantivySearchService';
 import EventEmitter from 'events';
 
 export enum ExtractionPhase {
@@ -123,6 +124,15 @@ export class ExtractionOrchestrator extends EventEmitter {
         dbtResult.manifest.metadata?.dbt_schema_version || 'unknown',
         dbtResult.manifest.metadata?.dbt_version || 'unknown'
       );
+
+      // Trigger Tantivy search indexing (async, non-blocking)
+      console.log(`🚀 Starting Tantivy indexing for org: ${connection.organization_id}`);
+      TantivySearchService.getInstance()
+        .triggerIndexing(connection.organization_id)
+        .catch(err => {
+          console.error('❌ Search indexing error:', err);
+          console.error('   Error details:', err instanceof Error ? err.stack : err);
+        });
 
       const duration = Date.now() - startTime.getTime();
 
