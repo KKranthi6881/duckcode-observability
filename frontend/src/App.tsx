@@ -37,6 +37,7 @@ import {
   MetadataExtraction as AdminMetadata,
   SearchPage as AdminSearch,
 } from './pages/admin';
+import LineagePage from './pages/lineage/LineagePage';
 
 // Debug component to test routing
 const DebugComponent = () => {
@@ -121,6 +122,7 @@ const AppContent = () => {
             <Route path="api-keys" element={<AdminApiKeys />} />
             <Route path="members" element={<AdminMembers />} />
             <Route path="metadata" element={<AdminMetadata />} />
+            <Route path="lineage/:connectionId" element={<LineagePage />} />
             <Route path="search" element={<AdminSearch />} />
             <Route path="settings" element={<AdminSettings />} />
           </Route>
