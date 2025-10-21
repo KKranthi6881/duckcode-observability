@@ -17,6 +17,11 @@ import ExpandableModelNode from './ExpandableModelNode';
 
 interface LineageGraphProps {
   connectionId: string;
+  onDataUpdate?: (data: {
+    nodes: Node[];
+    edges: Edge[];
+    columnLineages: any[];
+  }) => void;
 }
 
 interface LineageData {
@@ -69,15 +74,27 @@ const nodeTypes: NodeTypes = {
   expandableModel: ExpandableModelNode,
 };
 
-export default function LineageGraph({ connectionId }: LineageGraphProps) {
+export default function LineageGraph({ connectionId, onDataUpdate }: LineageGraphProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lineageData, setLineageData] = useState<LineageData | null>(null);
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
   const [loadingColumns, setLoadingColumns] = useState<Set<string>>(new Set());
+  const [allColumnLineages, setAllColumnLineages] = useState<any[]>([]);
   
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+
+  // Notify parent of data updates
+  useEffect(() => {
+    if (onDataUpdate && nodes.length > 0) {
+      onDataUpdate({
+        nodes,
+        edges,
+        columnLineages: allColumnLineages
+      });
+    }
+  }, [nodes, edges, allColumnLineages, onDataUpdate]);
 
   // Fetch columns for a model
   const fetchColumns = useCallback(async (nodeId: string) => {
@@ -113,6 +130,20 @@ export default function LineageGraph({ connectionId }: LineageGraphProps) {
             lineages: columnLineages
           };
         });
+        
+        // Collect column lineages for table view
+        if (data.columnLineages && data.columnLineages.length > 0) {
+          setAllColumnLineages(prev => {
+            // Merge new lineages, avoiding duplicates
+            const existingIds = new Set(prev.map(l => 
+              `${l.source_object_id}-${l.source_column}-${l.target_object_id}-${l.target_column}`
+            ));
+            const newLineages = data.columnLineages.filter((l: any) => 
+              !existingIds.has(`${l.source_object_id}-${l.source_column}-${l.target_object_id}-${l.target_column}`)
+            );
+            return [...prev, ...newLineages];
+          });
+        }
         
         // Update node with columns
         setNodes((nds) =>

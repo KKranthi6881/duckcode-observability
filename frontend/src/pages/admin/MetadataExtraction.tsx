@@ -16,10 +16,13 @@ import {
   FileCode,
   Table,
   Columns,
-  TrendingUp
+  TrendingUp,
+  Network,
+  X
 } from 'lucide-react';
 import { supabase } from '../../config/supabaseClient';
 import axios from 'axios';
+import LineageViewContainer from '@/components/lineage/LineageViewContainer';
 
 interface GitHubConnection {
   id: string;
@@ -64,6 +67,8 @@ export const MetadataExtraction: React.FC = () => {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showLineage, setShowLineage] = useState(false);
+  const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
 
   // New connection form
   const [newRepo, setNewRepo] = useState({
@@ -471,7 +476,7 @@ export const MetadataExtraction: React.FC = () => {
                         >
                           Stop
                         </Button>
-                      ) : connection.status === 'error' || connection.status === 'failed' ? (
+                      ) : connection.status === 'error' ? (
                         <Button
                           variant="outline"
                           size="sm"
@@ -487,6 +492,25 @@ export const MetadataExtraction: React.FC = () => {
                           onClick={() => startExtraction(connection.id)}
                         >
                           <Play className="w-4 h-4" />
+                        </Button>
+                      )}
+                      {connection.status !== 'extracting' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            console.log('[MetadataExtraction] Lineage button clicked for connection:', connection.id);
+                            console.log('[MetadataExtraction] Connection has objects:', connection.total_objects);
+                            setSelectedConnectionId(connection.id);
+                            setShowLineage(true);
+                            console.log('[MetadataExtraction] Panel should open now');
+                          }}
+                          className="border-blue-500 text-blue-500 hover:bg-blue-50"
+                          disabled={(connection.total_objects || 0) === 0}
+                          title={(connection.total_objects || 0) === 0 ? 'No objects extracted yet' : 'View data lineage'}
+                        >
+                          <Network className="w-4 h-4 mr-1" />
+                          Lineage
                         </Button>
                       )}
                       <Button
@@ -569,6 +593,38 @@ export const MetadataExtraction: React.FC = () => {
           })
         )}
       </div>
+
+      {/* Lineage Side Panel */}
+      {showLineage && selectedConnectionId && (
+        <div className="fixed inset-0 z-50 flex">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black bg-opacity-50"
+            onClick={() => setShowLineage(false)}
+          />
+          
+          {/* Panel */}
+          <div className="relative ml-auto w-full max-w-7xl h-full bg-white shadow-2xl flex flex-col">
+            {/* Close Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowLineage(false)}
+              className="absolute top-4 right-4 z-10"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+            
+            {/* Content */}
+            <div className="flex-1 overflow-hidden">
+              <LineageViewContainer 
+                connectionId={selectedConnectionId}
+                connectionName={connections.find(c => c.id === selectedConnectionId)?.repository_name || 'Unknown'}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
