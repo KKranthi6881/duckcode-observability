@@ -160,9 +160,11 @@ export async function getModelColumns(req: AuthenticatedRequest, res: Response) 
       .eq('object_id', objectId)
       .eq('organization_id', organizationId);
 
-    // Get column lineage for these columns
+    // Get column lineage for these columns (both incoming and outgoing)
     const columnNames = (columns || []).map(c => c.name);
-    const { data: columnLineages, error: lineageError } = await supabase
+    
+    // Get incoming lineages (this object as target)
+    const { data: incomingLineages } = await supabase
       .schema('metadata')
       .from('columns_lineage')
       .select(`
@@ -181,11 +183,33 @@ export async function getModelColumns(req: AuthenticatedRequest, res: Response) 
       .in('target_column', columnNames)
       .eq('organization_id', organizationId);
 
-    if (lineageError) {
-      console.error('[ModelColumns] Error fetching column lineage:', lineageError);
-    }
+    // Get outgoing lineages (this object as source)
+    const { data: outgoingLineages } = await supabase
+      .schema('metadata')
+      .from('columns_lineage')
+      .select(`
+        id,
+        source_object_id,
+        source_column,
+        target_object_id,
+        target_column,
+        transformation_type,
+        confidence,
+        extracted_from,
+        expression,
+        metadata
+      `)
+      .eq('source_object_id', objectId)
+      .in('source_column', columnNames)
+      .eq('organization_id', organizationId);
 
-    console.log(`[ModelColumns] ✅ Found ${columns?.length || 0} columns, ${columnLineages?.length || 0} lineages`);
+    // Combine both directions
+    const columnLineages = [
+      ...(incomingLineages || []),
+      ...(outgoingLineages || [])
+    ];
+
+    console.log(`[ModelColumns] ✅ Found ${columns?.length || 0} columns, ${columnLineages?.length || 0} lineages (${incomingLineages?.length || 0} incoming, ${outgoingLineages?.length || 0} outgoing)`);
 
     res.json({
       object: {
