@@ -591,6 +591,7 @@ export class MetadataExtractionOrchestrator {
 
     // Trigger search index creation (async, non-blocking)
     // This happens automatically - users don't need to know about it
+    console.log(`📊 Fetching organization_id for connection: ${connectionId}`);
     const { data: connection } = await supabase
       .schema('enterprise')
       .from('github_connections')
@@ -599,14 +600,24 @@ export class MetadataExtractionOrchestrator {
       .single();
 
     if (connection?.organization_id) {
+      console.log(`🚀 Starting Tantivy indexing for org: ${connection.organization_id}`);
       // Fire and forget - don't block on search indexing
       TantivySearchService.getInstance()
         .triggerIndexing(connection.organization_id)
-        .catch(err => console.warn('Search indexing warning:', err));
+        .catch(err => {
+          console.error('❌ Search indexing error:', err);
+          console.error('   Error details:', err instanceof Error ? err.stack : err);
+        });
       
       // Also index files for code search (async, non-blocking)
+      console.log(`📄 Starting file indexing for connection: ${connectionId}`);
       this.indexFilesAsync(connectionId, connection.organization_id)
-        .catch(err => console.warn('File indexing warning:', err));
+        .catch(err => {
+          console.error('❌ File indexing error:', err);
+          console.error('   Error details:', err instanceof Error ? err.stack : err);
+        });
+    } else {
+      console.warn(`⚠️  No organization_id found for connection: ${connectionId}`);
     }
   }
 

@@ -28,9 +28,12 @@ export class TantivySearchService {
   async triggerIndexing(organizationId: string): Promise<void> {
     try {
       console.log(`🔍 Triggering search index creation for org: ${organizationId}`);
+      console.log(`   Tantivy URL: ${this.baseUrl}`);
+      console.log(`   JWT Secret configured: ${this.jwtSecret ? 'YES' : 'NO'}`);
 
       // Generate service JWT token
       const token = this.generateServiceToken(organizationId);
+      console.log(`   Generated JWT token (first 20 chars): ${token.substring(0, 20)}...`);
 
       const response = await axios.post(
         `${this.baseUrl}/api/v2/search/index`,
@@ -46,11 +49,21 @@ export class TantivySearchService {
 
       if (response.data.success) {
         console.log(`✅ Search index created: ${response.data.objects_indexed} objects indexed`);
+        console.log(`   Index stored in Supabase Storage with org ID: ${organizationId}`);
+      } else {
+        console.warn(`⚠️  Search indexing returned unsuccessful response:`, response.data);
       }
     } catch (error) {
       // Don't fail the whole extraction if indexing fails
       // User can always rebuild the index later
-      console.warn(`⚠️  Search indexing failed (non-critical):`, error instanceof Error ? error.message : error);
+      if (axios.isAxiosError(error)) {
+        console.error(`⚠️  Search indexing failed (non-critical):`);
+        console.error(`   Status: ${error.response?.status}`);
+        console.error(`   Message: ${error.response?.data?.message || error.message}`);
+        console.error(`   URL: ${error.config?.url}`);
+      } else {
+        console.warn(`⚠️  Search indexing failed (non-critical):`, error instanceof Error ? error.message : error);
+      }
     }
   }
 
