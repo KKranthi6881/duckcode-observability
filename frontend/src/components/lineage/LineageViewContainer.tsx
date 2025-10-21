@@ -79,10 +79,15 @@ function LineageViewContent({ connectionId, connectionName }: LineageViewContain
   }, [nodes, edges, columnLineages, filters]);
 
   // Handle node focus from search or table
-  const handleFocusNode = useCallback((nodeId: string) => {
+  const handleFocusNode = useCallback((nodeId: string, expandColumns = false) => {
     if (reactFlowInstance) {
       const node = reactFlowInstance.getNode(nodeId);
       if (node) {
+        // If expandColumns is true, trigger node expansion
+        if (expandColumns && node.data.onExpand) {
+          node.data.onExpand(nodeId);
+        }
+        
         reactFlowInstance.setCenter(
           node.position.x + (node.width || 0) / 2,
           node.position.y + (node.height || 0) / 2,

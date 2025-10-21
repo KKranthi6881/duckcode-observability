@@ -14,6 +14,7 @@ import 'reactflow/dist/style.css';
 import { supabase } from '../../config/supabaseClient';
 import { Loader2, AlertCircle } from 'lucide-react';
 import ExpandableModelNode from './ExpandableModelNode';
+import { LoadMoreButton } from './ProgressiveModelLoader';
 
 interface LineageGraphProps {
   connectionId: string;
@@ -74,6 +75,9 @@ const nodeTypes: NodeTypes = {
   expandableModel: ExpandableModelNode,
 };
 
+const INITIAL_MODEL_LIMIT = 10;
+const LOAD_MORE_INCREMENT = 5;
+
 export default function LineageGraph({ connectionId, onDataUpdate }: LineageGraphProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -82,8 +86,28 @@ export default function LineageGraph({ connectionId, onDataUpdate }: LineageGrap
   const [loadingColumns, setLoadingColumns] = useState<Set<string>>(new Set());
   const [allColumnLineages, setAllColumnLineages] = useState<any[]>([]);
   
+  // All nodes and edges from API
+  const [allNodes, setAllNodes] = useState<Node[]>([]);
+  const [allEdges, setAllEdges] = useState<Edge[]>([]);
+  
+  // Progressive loading state
+  const [displayLimit, setDisplayLimit] = useState(INITIAL_MODEL_LIMIT);
+  
+  // Visible nodes and edges based on limit
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  
+  // Update visible nodes when limit changes
+  useEffect(() => {
+    const visibleNodes = allNodes.slice(0, displayLimit);
+    const nodeIds = new Set(visibleNodes.map(n => n.id));
+    const visibleEdges = allEdges.filter(edge => 
+      nodeIds.has(edge.source) && nodeIds.has(edge.target)
+    );
+    
+    setNodes(visibleNodes);
+    setEdges(visibleEdges);
+  }, [allNodes, allEdges, displayLimit, setNodes, setEdges]);
 
   // Notify parent of data updates
   useEffect(() => {
@@ -361,22 +385,17 @@ export default function LineageGraph({ connectionId, onDataUpdate }: LineageGrap
           label: `${Math.round(edge.confidence * 100)}%`,
           labelStyle: {
             fill: '#10b981',
-            fontWeight: 600,
-            fontSize: 11
           }
         }));
 
-        const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
-          flowNodes,
-          flowEdges
-        );
-
-        setNodes(layoutedNodes);
-        setEdges(layoutedEdges);
-
-      } catch (err: any) {
-        console.error('Error fetching lineage:', err);
-        setError(err.message || 'Failed to load lineage');
+        // Apply layout
+        const layoutedGraph = getLayoutedElements(flowNodes, flowEdges);
+        setAllNodes(layoutedGraph.nodes);
+        setAllEdges(layoutedGraph.edges);
+        setDisplayLimit(INITIAL_MODEL_LIMIT); // Reset to initial limit on new data
+      } catch (err) {
+        console.error('[LineageGraph] Error fetching lineage:', err);
+        setError('Failed to load lineage data');
       } finally {
         setLoading(false);
       }
@@ -385,7 +404,7 @@ export default function LineageGraph({ connectionId, onDataUpdate }: LineageGrap
     if (connectionId) {
       fetchLineage();
     }
-  }, [connectionId, setNodes, setEdges, handleExpand, handleCollapse]);
+  }, [connectionId, handleExpand, handleCollapse]);
 
   if (loading) {
     return (
@@ -405,14 +424,30 @@ export default function LineageGraph({ connectionId, onDataUpdate }: LineageGrap
     );
   }
 
+  const hasMore = displayLimit < allNodes.length;
+  const remainingCount = allNodes.length - displayLimit;
+
+  const loadMore = () => {
+    setDisplayLimit(prev => Math.min(prev + LOAD_MORE_INCREMENT, allNodes.length));
+  };
+
   return (
-    <div className="w-full h-full bg-gray-50">
+    <div className="w-full h-full bg-gray-50 relative">
       {lineageData && (
         <div className="p-3 bg-white border-b border-gray-200">
-          <h3 className="font-semibold text-sm">Data Lineage</h3>
-          <p className="text-xs text-gray-600 mt-1">
-            {lineageData.metadata.totalModels} models · {lineageData.metadata.totalDependencies} dependencies
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold text-sm">Data Lineage</h3>
+              <p className="text-xs text-gray-600 mt-1">
+                {lineageData.metadata.totalModels} models · {lineageData.metadata.totalDependencies} dependencies
+              </p>
+            </div>
+            {hasMore && (
+              <div className="text-xs text-gray-500 bg-blue-50 px-3 py-1.5 rounded-full border border-blue-200">
+                Showing {displayLimit} of {allNodes.length} models
+              </div>
+            )}
+          </div>
         </div>
       )}
       
@@ -436,6 +471,16 @@ export default function LineageGraph({ connectionId, onDataUpdate }: LineageGrap
           />
           <Background gap={12} size={1} color="#e5e7eb" />
         </ReactFlow>
+        
+        {/* Load More Button */}
+        {hasMore && (
+          <LoadMoreButton
+            onClick={loadMore}
+            remainingCount={remainingCount}
+            currentCount={displayLimit}
+            totalCount={allNodes.length}
+          />
+        )}
       </div>
     </div>
   );
