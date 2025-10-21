@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { Network, Table2, Maximize2 } from 'lucide-react';
 import { ReactFlowProvider, useReactFlow } from 'reactflow';
-import LineageGraph from './LineageGraph';
+import FocusedLineageView from './FocusedLineageView';
 import LineageTable from './LineageTable';
 import LineageExport from './LineageExport';
 import LineageSearch from './LineageSearch';
@@ -193,7 +193,7 @@ function LineageViewContent({ connectionId, connectionName }: LineageViewContain
       {/* Content */}
       <div className="flex-1 overflow-hidden">
         {viewMode === 'graph' ? (
-          <LineageGraph
+          <FocusedLineageView
             connectionId={connectionId}
             onDataUpdate={handleDataUpdate}
           />
