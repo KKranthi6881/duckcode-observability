@@ -196,6 +196,7 @@ function LineageViewContent({ connectionId, connectionName }: LineageViewContain
           <FocusedLineageView
             connectionId={connectionId}
             onDataUpdate={handleDataUpdate}
+            hideHeader
           />
         ) : (
           <LineageTable

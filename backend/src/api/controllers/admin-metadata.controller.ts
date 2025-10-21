@@ -42,7 +42,43 @@ export class AdminMetadataController {
 
       if (error) throw error;
 
-      res.json({ connections });
+      // Enrich connections with actual object/column counts from metadata schema
+      const enrichedConnections = await Promise.all(
+        (connections || []).map(async (conn) => {
+          // Count objects for this connection
+          const { count: objectCount } = await supabase
+            .schema('metadata')
+            .from('objects')
+            .select('id', { count: 'exact', head: true })
+            .eq('connection_id', conn.id)
+            .eq('organization_id', organizationId);
+
+          // Count columns for this connection
+          const { count: columnCount } = await supabase
+            .schema('metadata')
+            .from('columns')
+            .select('id', { count: 'exact', head: true })
+            .eq('connection_id', conn.id)
+            .eq('organization_id', organizationId);
+
+          // Count files for this connection
+          const { count: fileCount } = await supabase
+            .schema('metadata')
+            .from('files')
+            .select('id', { count: 'exact', head: true })
+            .eq('connection_id', conn.id)
+            .eq('organization_id', organizationId);
+
+          return {
+            ...conn,
+            total_objects: objectCount || 0,
+            total_columns: columnCount || 0,
+            total_files: fileCount || 0
+          };
+        })
+      );
+
+      res.json({ connections: enrichedConnections });
     } catch (error) {
       console.error('Error listing connections:', error);
       res.status(500).json({ 

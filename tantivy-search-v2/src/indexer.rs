@@ -220,12 +220,19 @@ impl Indexer {
             .map(|v| v + 1)
             .unwrap_or(1);
         
+        // Delete old active index for this org before inserting new one
+        client.execute(
+            "DELETE FROM metadata.tantivy_indexes 
+             WHERE organization_id = $1 AND status = 'active'",
+            &[&org_uuid],
+        ).await?;
+        
         // Insert new index record
         client.execute(
             "INSERT INTO metadata.tantivy_indexes (
                 organization_id, version, document_count, size_bytes,
-                index_path, status
-             ) VALUES ($1, $2, $3, $4, $5, $6)",
+                index_path, status, last_indexed_at
+             ) VALUES ($1, $2, $3, $4, $5, $6, NOW())",
             &[
                 &org_uuid,
                 &next_version,

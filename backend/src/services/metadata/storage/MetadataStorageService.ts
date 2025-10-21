@@ -25,6 +25,8 @@ export class MetadataStorageService {
   }
 
   async storeObject(objectData: any): Promise<any> {
+    console.log(`[STORAGE] Attempting to insert object: ${objectData.name}`);
+    
     const { data, error } = await supabase
       .schema('metadata')
       .from('objects')
@@ -32,9 +34,20 @@ export class MetadataStorageService {
       .select()
       .single();
 
+    console.log(`[STORAGE] Insert result for ${objectData.name}:`, { 
+      hasData: !!data, 
+      hasError: !!error,
+      errorDetails: error 
+    });
+
     if (error) {
       console.error('Error storing object:', error);
       throw error;
+    }
+
+    if (!data) {
+      console.error('[STORAGE] WARNING: Insert succeeded but SELECT returned null!');
+      console.error('[STORAGE] This is likely an RLS issue blocking service_role SELECT');
     }
 
     return data;

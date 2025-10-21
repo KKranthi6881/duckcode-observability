@@ -1,7 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
 import ReactFlow, {
-  MiniMap,
-  Controls,
   Background,
   useNodesState,
   useEdgesState,
@@ -10,23 +8,69 @@ import ReactFlow, {
   NodeTypes,
   MarkerType,
   useReactFlow,
-  ReactFlowProvider
+  ReactFlowProvider,
+  BackgroundVariant,
+  Position
 } from 'reactflow';
 import dagre from 'dagre';
 import 'reactflow/dist/style.css';
 import { supabase } from '../../config/supabaseClient';
 import { Loader2, AlertCircle, Target, RefreshCw, Search, X } from 'lucide-react';
-import ExpandableModelNode from './ExpandableModelNode';
+import ModernModelNode from './ModernModelNode';
 import ModelSelector from './ModelSelector';
+import ColumnLineageView from './ColumnLineageView';
+
+interface ColumnLineage {
+  id: string;
+  source_column: string;
+  source_object_id: string;
+  target_column: string;
+  target_object_id: string;
+  transformation_type: string;
+  confidence: number;
+}
+
+interface Column {
+  id: string;
+  name: string;
+  data_type: string;
+  lineages?: ColumnLineage[];
+}
 
 interface FocusedLineageViewProps {
   connectionId: string;
-  onDataUpdate?: (data: { nodes: Node[]; edges: Edge[]; columnLineages: any[] }) => void;
+  onDataUpdate?: (data: { nodes: Node[]; edges: Edge[]; columnLineages: ColumnLineage[] }) => void;
+  hideHeader?: boolean;
 }
 
 const nodeTypes: NodeTypes = {
-  expandableModel: ExpandableModelNode,
+  expandableModel: ModernModelNode,
 };
+
+const defaultEdgeOptions = {
+  type: 'default' as const,
+  markerEnd: { type: MarkerType.ArrowClosed, color: '#cbd5e1' },
+  style: { stroke: '#cbd5e1', strokeWidth: 2 }
+};
+
+interface FocusedApiNode {
+  id: string;
+  name: string;
+  type: string;
+  stats: { upstreamCount: number; downstreamCount: number };
+  isFocal?: boolean;
+}
+
+interface FocusedApiEdge {
+  id: string;
+  source: string;
+  target: string;
+}
+
+interface FocusedLineageApiResponse {
+  nodes: FocusedApiNode[];
+  edges: FocusedApiEdge[];
+}
 
 // Layout with dagre
 const getLayoutedElements = (nodes: Node[], edges: Edge[]) => {
@@ -46,6 +90,9 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[]) => {
 
   nodes.forEach((node) => {
     const nodeWithPosition = dagreGraph.node(node.id);
+    // Anchor edges to left/right for clean horizontal step edges
+    node.targetPosition = Position.Left;
+    node.sourcePosition = Position.Right;
     node.position = {
       x: nodeWithPosition.x - 150,
       y: nodeWithPosition.y - 50,
@@ -56,14 +103,19 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[]) => {
 };
 
 // Inner component with ReactFlow context
-function FocusedLineageContent({ connectionId, onDataUpdate }: FocusedLineageViewProps) {
+function FocusedLineageContent({ connectionId, onDataUpdate, hideHeader }: FocusedLineageViewProps) {
   const reactFlowInstance = useReactFlow();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
   const [selectedModelName, setSelectedModelName] = useState<string>('');
-  const [allColumnLineages, setAllColumnLineages] = useState<any[]>([]);
+  const [allColumnLineages, setAllColumnLineages] = useState<ColumnLineage[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [columnLineageView, setColumnLineageView] = useState<{
+    sourceModel: { id: string; name: string; columns: Column[] };
+    targetModel: { id: string; name: string; columns: Column[] };
+    lineages: ColumnLineage[];
+  } | null>(null);
   
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -105,10 +157,10 @@ function FocusedLineageContent({ connectionId, onDataUpdate }: FocusedLineageVie
       );
 
       if (response.ok) {
-        const data = await response.json();
+        const data: { columns: Column[]; columnLineages: ColumnLineage[] } = await response.json();
         
-        const columnsWithLineages = data.columns.map((column: any) => {
-          const columnLineages = data.columnLineages.filter((lineage: any) => 
+        const columnsWithLineages: Column[] = data.columns.map((column: Column) => {
+          const columnLineages = data.columnLineages.filter((lineage: ColumnLineage) => 
             (lineage.source_object_id === nodeId && lineage.source_column === column.name) ||
             (lineage.target_object_id === nodeId && lineage.target_column === column.name)
           );
@@ -141,7 +193,63 @@ function FocusedLineageContent({ connectionId, onDataUpdate }: FocusedLineageVie
     }
   }, [setNodes]);
 
-  const handleExpand = useCallback((nodeId: string) => {
+  // Generate column edges based on columnLineages
+  const generateColumnEdges = useCallback((nodes: Node[]) => {
+    const columnEdges: Edge[] = [];
+    
+    nodes.forEach((node) => {
+      if (node.data.expanded && node.data.columns) {
+        const lineages = allColumnLineages.filter(
+          l => l.source_object_id === node.id || l.target_object_id === node.id
+        );
+        
+        lineages.forEach((lineage: ColumnLineage) => {
+          const sourceHandle = `${lineage.source_object_id}-${lineage.source_column}-source`;
+          const targetHandle = `${lineage.target_object_id}-${lineage.target_column}-target`;
+          
+          // Determine edge color based on confidence
+          let strokeColor = '#10b981'; // green (high confidence)
+          let strokeWidth = 2;
+          if (lineage.confidence < 0.95) {
+            strokeColor = '#3b82f6'; // blue (medium)
+          }
+          if (lineage.confidence < 0.90) {
+            strokeColor = '#f59e0b'; // orange (low)
+          }
+          if (lineage.confidence < 0.85) {
+            strokeColor = '#ef4444'; // red (very low)
+            strokeWidth = 1;
+          }
+          
+          columnEdges.push({
+            id: lineage.id,
+            source: lineage.source_object_id,
+            target: lineage.target_object_id,
+            sourceHandle,
+            targetHandle,
+            type: 'default',
+            animated: false,
+            style: {
+              stroke: strokeColor,
+              strokeWidth,
+            },
+            markerEnd: {
+              type: MarkerType.ArrowClosed,
+              color: strokeColor
+            },
+            data: {
+              transformationType: lineage.transformation_type,
+              confidence: lineage.confidence
+            }
+          });
+        });
+      }
+    });
+    
+    return columnEdges;
+  }, [allColumnLineages]);
+
+  const handleExpand = useCallback(async (nodeId: string) => {
     setNodes((nds) =>
       nds.map((node) =>
         node.id === nodeId
@@ -149,18 +257,88 @@ function FocusedLineageContent({ connectionId, onDataUpdate }: FocusedLineageVie
           : node
       )
     );
-    fetchColumns(nodeId);
-  }, [fetchColumns, setNodes]);
+    await fetchColumns(nodeId);
+    
+    // Generate column edges after fetching columns
+    setNodes((nds) => {
+      const updatedNodes = nds.map((node) =>
+        node.id === nodeId
+          ? { ...node, data: { ...node.data, loading: false } }
+          : node
+      );
+      
+      // Generate column edges for all expanded nodes
+      const columnEdges = generateColumnEdges(updatedNodes);
+      setEdges((eds) => {
+        // Keep model-level edges, add column edges
+        const modelEdges = eds.filter((e) => !e.id.startsWith('col-') && !e.sourceHandle && !e.targetHandle);
+        return [...modelEdges, ...columnEdges];
+      });
+      
+      return updatedNodes;
+    });
+  }, [fetchColumns, generateColumnEdges, setNodes, setEdges]);
 
   const handleCollapse = useCallback((nodeId: string) => {
-    setNodes((nds) =>
-      nds.map((node) =>
+    setNodes((nds) => {
+      const updatedNodes = nds.map((node) =>
         node.id === nodeId
           ? { ...node, data: { ...node.data, expanded: false } }
           : node
-      )
+      );
+      
+      // Regenerate column edges for remaining expanded nodes
+      const columnEdges = generateColumnEdges(updatedNodes);
+      setEdges((eds) => {
+        // Keep model-level edges, add column edges
+        const modelEdges = eds.filter((e) => !e.id.startsWith('col-') && !e.sourceHandle && !e.targetHandle);
+        return [...modelEdges, ...columnEdges];
+      });
+      
+      return updatedNodes;
+    });
+  }, [setNodes, generateColumnEdges, setEdges]);
+
+  // Handle column hover for highlighting
+  const handleColumnHover = useCallback((columnId: string | null, lineages: ColumnLineage[]) => {
+    
+    if (!columnId || lineages.length === 0) {
+      // Reset all edges to default style
+      setEdges((eds) =>
+        eds.map((edge) => ({
+          ...edge,
+          animated: false,
+          style: {
+            stroke: '#9ca3af',
+            strokeWidth: 2
+          }
+        }))
+      );
+      return;
+    }
+    
+    // Highlight edges related to this column
+    const lineageIds = new Set(lineages.map(l => l.id));
+    
+    setEdges((eds) =>
+      eds.map((edge) => {
+        const isHighlighted = lineageIds.has(edge.id);
+        return {
+          ...edge,
+          animated: isHighlighted,
+          style: {
+            stroke: isHighlighted ? '#3b82f6' : '#d1d5db',
+            strokeWidth: isHighlighted ? 3 : 2,
+            opacity: isHighlighted ? 1 : 0.4
+          },
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            color: isHighlighted ? '#3b82f6' : '#d1d5db'
+          }
+        };
+      })
     );
-  }, [setNodes]);
+  }, [setEdges]);
 
   // Fetch focused lineage
   const fetchFocusedLineage = useCallback(async (modelId: string) => {
@@ -188,7 +366,7 @@ function FocusedLineageContent({ connectionId, onDataUpdate }: FocusedLineageVie
         throw new Error('Failed to fetch focused lineage');
       }
 
-      const data = await response.json();
+      const data: FocusedLineageApiResponse = await response.json();
 
       if (!data.nodes || data.nodes.length === 0) {
         setError('No lineage data found for this model');
@@ -196,7 +374,7 @@ function FocusedLineageContent({ connectionId, onDataUpdate }: FocusedLineageVie
       }
 
       // Transform to ReactFlow format
-      const flowNodes: Node[] = data.nodes.map((node: any) => ({
+      const flowNodes: Node[] = data.nodes.map((node: FocusedApiNode) => ({
         id: node.id,
         type: 'expandableModel',
         data: {
@@ -207,43 +385,40 @@ function FocusedLineageContent({ connectionId, onDataUpdate }: FocusedLineageVie
           expanded: false,
           onExpand: handleExpand,
           onCollapse: handleCollapse,
+          onColumnHover: handleColumnHover,
           loading: false,
           isFocal: node.isFocal
         },
         position: { x: 0, y: 0 },
         style: node.isFocal ? {
-          border: '4px solid #3b82f6',
-          boxShadow: '0 8px 24px rgba(59, 130, 246, 0.4)',
-          backgroundColor: '#eff6ff'
+          boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
         } : {}
       }));
 
-      const flowEdges: Edge[] = data.edges.map((edge: any) => ({
+      const flowEdges: Edge[] = data.edges.map((edge: FocusedApiEdge) => ({
         id: edge.id,
         source: edge.source,
         target: edge.target,
-        type: 'smoothstep',
-        animated: true,
+        type: 'default',
+        animated: false,
         style: {
-          stroke: '#10b981',
-          strokeWidth: 3
+          stroke: '#cbd5e1',
+          strokeWidth: 2
         },
         markerEnd: {
           type: MarkerType.ArrowClosed,
-          color: '#10b981'
-        },
-        label: `${Math.round(edge.confidence * 100)}%`,
-        labelStyle: {
-          fill: '#10b981',
-          fontWeight: 700,
-          fontSize: 12
+          color: '#cbd5e1'
         }
       }));
 
-      // Apply layout
       const layouted = getLayoutedElements(flowNodes, flowEdges);
       setNodes(layouted.nodes);
       setEdges(layouted.edges);
+
+      const focal = data.nodes.find((n) => n.isFocal);
+      if (focal) {
+        handleExpand(focal.id);
+      }
 
     } catch (err) {
       console.error('[FocusedLineage] Error:', err);
@@ -251,7 +426,7 @@ function FocusedLineageContent({ connectionId, onDataUpdate }: FocusedLineageVie
     } finally {
       setLoading(false);
     }
-  }, [connectionId, handleExpand, handleCollapse, setNodes, setEdges]);
+  }, [connectionId, handleExpand, handleCollapse, handleColumnHover, setNodes, setEdges]);
 
   // Handle model selection
   const handleModelSelect = useCallback((modelId: string, modelName: string) => {
@@ -369,6 +544,7 @@ function FocusedLineageContent({ connectionId, onDataUpdate }: FocusedLineageVie
   return (
     <div className="w-full h-full flex flex-col bg-gray-50">
       {/* Header */}
+      {!hideHeader && (
       <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
@@ -457,6 +633,7 @@ function FocusedLineageContent({ connectionId, onDataUpdate }: FocusedLineageVie
           </button>
         </div>
       </div>
+      )}
 
       {/* Graph */}
       <div className="flex-1">
@@ -465,21 +642,50 @@ function FocusedLineageContent({ connectionId, onDataUpdate }: FocusedLineageVie
           edges={edges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
+          defaultEdgeOptions={defaultEdgeOptions}
+          fitViewOptions={{ padding: 0.2 }}
+          onEdgeClick={(_event, edge) => {
+            const sourceNode = nodes.find(n => n.id === edge.source);
+            const targetNode = nodes.find(n => n.id === edge.target);
+            
+            if (sourceNode?.data.columns && targetNode?.data.columns) {
+              // Get lineages between these two models
+              const relevantLineages = allColumnLineages.filter(
+                l => l.source_object_id === edge.source && l.target_object_id === edge.target
+              );
+              
+              setColumnLineageView({
+                sourceModel: {
+                  id: sourceNode.id,
+                  name: sourceNode.data.name,
+                  columns: sourceNode.data.columns
+                },
+                targetModel: {
+                  id: targetNode.id,
+                  name: targetNode.data.name,
+                  columns: targetNode.data.columns
+                },
+                lineages: relevantLineages
+              });
+            }
+          }}
           nodeTypes={nodeTypes}
           fitView
           attributionPosition="bottom-left"
         >
-          <Controls />
-          <MiniMap
-            nodeColor={(node) => node.data.isFocal ? '#3b82f6' : '#10b981'}
-            style={{
-              background: '#f9fafb',
-              border: '1px solid #e5e7eb'
-            }}
-          />
-          <Background gap={12} size={1} color="#e5e7eb" />
+          <Background variant={BackgroundVariant.Dots} gap={12} size={1} color="#e5e7eb" />
         </ReactFlow>
       </div>
+
+      {/* Column Lineage View Modal */}
+      {columnLineageView && (
+        <ColumnLineageView
+          sourceModel={columnLineageView.sourceModel}
+          targetModel={columnLineageView.targetModel}
+          lineages={columnLineageView.lineages}
+          onClose={() => setColumnLineageView(null)}
+        />
+      )}
     </div>
   );
 }

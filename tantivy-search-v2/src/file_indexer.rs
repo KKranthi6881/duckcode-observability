@@ -40,7 +40,10 @@ pub async fn build_file_index(
     // Upload to Supabase Storage
     let storage_path = format!("{}/files", organization_id);
     
-    // Note: Tantivy will overwrite existing files during upload
+    // Delete old file index before uploading (prevent 409 Duplicate errors)
+    info!("   🗑️  Deleting old file index (if exists)...");
+    let _ = storage.delete_index(&storage_path).await; // Ignore error if doesn't exist
+    
     info!("   📤 Uploading file index to storage: {}", storage_path);
 
     // Upload new index

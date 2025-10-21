@@ -197,17 +197,26 @@ impl SupabaseStorage {
     pub async fn delete_index(&self, org_id: &str) -> Result<()> {
         info!("🗑️  Deleting index for org {} from Supabase Storage...", org_id);
         
-        // List all files
-        let files = self.list_files(org_id).await?;
-        let file_count = files.len();
+        let mut total_deleted = 0;
         
-        // Delete each file
+        // Delete main index files (metadata objects)
+        let files = self.list_files(org_id).await?;
         for file_name in files {
             let storage_path = format!("{}/{}", org_id, file_name);
             self.delete_file(&storage_path).await?;
+            total_deleted += 1;
+        }
+        
+        // Delete file index (stored in /files subdirectory)
+        let files_subdir_path = format!("{}/files", org_id);
+        let file_index_files = self.list_files(&files_subdir_path).await?;
+        for file_name in file_index_files {
+            let storage_path = format!("{}/{}", files_subdir_path, file_name);
+            self.delete_file(&storage_path).await?;
+            total_deleted += 1;
         }
 
-        info!("✅ Deleted {} files for org {}", file_count, org_id);
+        info!("✅ Deleted {} files for org {}", total_deleted, org_id);
         Ok(())
     }
 

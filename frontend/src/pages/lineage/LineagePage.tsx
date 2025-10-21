@@ -1,22 +1,37 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import ReactFlow, {
-  MiniMap,
-  Controls,
   Background,
   useNodesState,
   useEdgesState,
   Node,
-  Edge
+  Edge,
+  MarkerType,
+  BackgroundVariant,
+  Position
 } from 'reactflow';
 import dagre from 'dagre';
 import 'reactflow/dist/style.css';
 import { supabase } from '../../config/supabaseClient';
 import { Loader2, AlertCircle } from 'lucide-react';
 
+interface ApiNode {
+  id: string;
+  name: string;
+  type: string;
+  stats: { upstreamCount: number; downstreamCount: number };
+}
+
+interface ApiEdge {
+  id: string;
+  source: string;
+  target: string;
+  confidence: number;
+}
+
 interface LineageData {
-  nodes: any[];
-  edges: any[];
+  nodes: ApiNode[];
+  edges: ApiEdge[];
   metadata: {
     connectionId: string;
     totalModels: number;
@@ -45,8 +60,8 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[], direction = 'LR') => 
 
   nodes.forEach((node) => {
     const nodeWithPosition = dagreGraph.node(node.id);
-    node.targetPosition = direction === 'LR' ? 'left' as any : 'top' as any;
-    node.sourcePosition = direction === 'LR' ? 'right' as any : 'bottom' as any;
+    node.targetPosition = direction === 'LR' ? Position.Left : Position.Top;
+    node.sourcePosition = direction === 'LR' ? Position.Right : Position.Bottom;
 
     // Shift to center
     node.position = {
@@ -58,6 +73,12 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[], direction = 'LR') => 
   });
 
   return { nodes, edges };
+};
+
+const defaultEdgeOptions = {
+  type: 'step' as const,
+  markerEnd: { type: MarkerType.ArrowClosed, color: '#94a3b8' },
+  style: { stroke: '#94a3b8', strokeWidth: 2 }
 };
 
 export default function LineagePage() {
@@ -121,9 +142,10 @@ export default function LineagePage() {
           position: { x: 0, y: 0 }, // Will be set by dagre
           style: {
             background: '#ffffff',
-            border: '2px solid #3b82f6',
-            borderRadius: '8px',
-            width: 250
+            border: '1px solid #e5e7eb',
+            borderRadius: '12px',
+            width: 280,
+            boxShadow: '0 1px 2px rgba(16,24,40,0.05), 0 1px 3px rgba(16,24,40,0.08)'
           }
         }));
 
@@ -131,12 +153,13 @@ export default function LineagePage() {
           id: edge.id,
           source: edge.source,
           target: edge.target,
-          type: 'smoothstep',
-          animated: true,
+          type: 'step',
+          animated: false,
           style: {
-            stroke: '#10b981',
+            stroke: '#94a3b8',
             strokeWidth: 2
           },
+          markerEnd: { type: MarkerType.ArrowClosed, color: '#94a3b8' },
           label: `${Math.round(edge.confidence * 100)}%`,
           labelStyle: {
             fill: '#10b981',
@@ -154,16 +177,16 @@ export default function LineagePage() {
         setNodes(layoutedNodes);
         setEdges(layoutedEdges);
 
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Error fetching lineage:', err);
-        setError(err.message || 'Failed to load lineage');
+        setError(err instanceof Error ? err.message : 'Failed to load lineage');
       } finally {
         setLoading(false);
       }
     }
 
     fetchLineage();
-  }, [connectionId]);
+  }, [connectionId, setNodes, setEdges]);
 
   if (loading) {
     return (
@@ -203,17 +226,11 @@ export default function LineagePage() {
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           fitView
+          fitViewOptions={{ padding: 0.2 }}
+          defaultEdgeOptions={defaultEdgeOptions}
           attributionPosition="bottom-left"
         >
-          <Controls />
-          <MiniMap
-            nodeColor={() => '#3b82f6'}
-            style={{
-              background: '#f9fafb',
-              border: '1px solid #e5e7eb'
-            }}
-          />
-          <Background gap={16} size={1} color="#e5e7eb" />
+          <Background variant={BackgroundVariant.Dots} gap={12} size={1} color="#e5e7eb" />
         </ReactFlow>
       </div>
     </div>

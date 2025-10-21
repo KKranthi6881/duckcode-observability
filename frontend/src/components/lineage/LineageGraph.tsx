@@ -7,13 +7,21 @@ import ReactFlow, {
   useEdgesState,
   Node,
   Edge,
-  NodeTypes
+  NodeTypes,
+  MarkerType,
+  BackgroundVariant,
+  Position
 } from 'reactflow';
+const defaultEdgeOptions = {
+  type: 'step' as const,
+  markerEnd: { type: MarkerType.ArrowClosed, color: '#94a3b8' },
+  style: { stroke: '#94a3b8', strokeWidth: 2 }
+};
 import dagre from 'dagre';
 import 'reactflow/dist/style.css';
 import { supabase } from '../../config/supabaseClient';
 import { Loader2, AlertCircle } from 'lucide-react';
-import ExpandableModelNode from './ExpandableModelNode';
+import ModernModelNode from './ModernModelNode';
 import { LoadMoreButton } from './ProgressiveModelLoader';
 
 interface LineageGraphProps {
@@ -56,8 +64,8 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[], direction = 'LR') => 
 
   nodes.forEach((node) => {
     const nodeWithPosition = dagreGraph.node(node.id);
-    node.targetPosition = direction === 'LR' ? ('left' as any) : ('top' as any);
-    node.sourcePosition = direction === 'LR' ? ('right' as any) : ('bottom' as any);
+    node.targetPosition = direction === 'LR' ? Position.Left : Position.Top;
+    node.sourcePosition = direction === 'LR' ? Position.Right : Position.Bottom;
 
     node.position = {
       x: nodeWithPosition.x - nodeWidth / 2,
@@ -72,7 +80,7 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[], direction = 'LR') => 
 
 // Custom node types for ReactFlow
 const nodeTypes: NodeTypes = {
-  expandableModel: ExpandableModelNode,
+  expandableModel: ModernModelNode,
 };
 
 const INITIAL_MODEL_LIMIT = 10;
@@ -377,14 +385,17 @@ export default function LineageGraph({ connectionId, onDataUpdate }: LineageGrap
           source: edge.source,
           target: edge.target,
           type: 'smoothstep',
-          animated: true,
+          animated: false,
           style: {
-            stroke: '#10b981',
+            stroke: '#94a3b8',
             strokeWidth: 2
           },
+          markerEnd: { type: MarkerType.ArrowClosed, color: '#94a3b8' },
           label: `${Math.round(edge.confidence * 100)}%`,
           labelStyle: {
-            fill: '#10b981',
+            fill: '#64748b',
+            fontWeight: 600,
+            fontSize: 11
           }
         }));
 
@@ -459,6 +470,8 @@ export default function LineageGraph({ connectionId, onDataUpdate }: LineageGrap
           onEdgesChange={onEdgesChange}
           nodeTypes={nodeTypes}
           fitView
+          fitViewOptions={{ padding: 0.2 }}
+          defaultEdgeOptions={defaultEdgeOptions}
           attributionPosition="bottom-left"
         >
           <Controls />
@@ -469,7 +482,7 @@ export default function LineageGraph({ connectionId, onDataUpdate }: LineageGrap
               border: '1px solid #e5e7eb'
             }}
           />
-          <Background gap={12} size={1} color="#e5e7eb" />
+          <Background variant={BackgroundVariant.Dots} gap={14} size={1} color="#e5e7eb" />
         </ReactFlow>
         
         {/* Load More Button */}

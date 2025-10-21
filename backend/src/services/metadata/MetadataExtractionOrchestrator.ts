@@ -1,5 +1,5 @@
 import { supabase } from '../../config/supabase';
-import { SQLParserService } from './parsers/SQLParserService';
+import { EnhancedSQLParser } from './parsers/EnhancedSQLParser';
 import { PythonParserService } from './parsers/PythonParserService';
 import { DBTParserService } from './parsers/DBTParserService';
 import { EnhancedDependencyAnalyzer } from './analyzers/EnhancedDependencyAnalyzer';
@@ -43,7 +43,7 @@ interface ParsedColumn {
 export class MetadataExtractionOrchestrator {
   private static instance: MetadataExtractionOrchestrator;
   
-  private sqlParser: SQLParserService;
+  private sqlParser: EnhancedSQLParser;
   private pythonParser: PythonParserService;
   private dbtParser: DBTParserService;
   private dependencyAnalyzer: EnhancedDependencyAnalyzer;
@@ -51,7 +51,7 @@ export class MetadataExtractionOrchestrator {
   private storage: MetadataStorageService;
 
   private constructor() {
-    this.sqlParser = new SQLParserService();
+    this.sqlParser = new EnhancedSQLParser();
     this.pythonParser = new PythonParserService();
     this.dbtParser = new DBTParserService();
     this.dependencyAnalyzer = new EnhancedDependencyAnalyzer();
@@ -366,9 +366,15 @@ export class MetadataExtractionOrchestrator {
         throw new Error(`File record not found for ${file.path}`);
       }
 
-      // Store parsed objects
+      // Store parsed objects and track their IDs for dependency resolution
+      const objectNameToId = new Map<string, string>();
+      
+      console.log(`🔍 [ORCHESTRATOR] Processing ${parseResult.objects.length} objects from ${file.path}`);
+      
       for (const obj of parseResult.objects) {
-        const { data: storedObject } = await this.storage.storeObject({
+        console.log(`[ORCH-LOOP] Processing object: ${obj.name}, has columns: ${obj.columns?.length || 0}`);
+        
+        const storedObject = await this.storage.storeObject({
           file_id: fileRecord.id,
           repository_id: fileRecord.repository_id,
           organization_id: job.organization_id,
@@ -383,10 +389,39 @@ export class MetadataExtractionOrchestrator {
           confidence: obj.confidence || 0.9
         });
 
-        if (storedObject && obj.columns && obj.columns.length > 0) {
-          console.log(`📊 Storing ${obj.columns.length} columns for ${obj.name}`);
-          await this.storage.storeColumns(storedObject.id, obj.columns, job.organization_id);
+        console.log(`[ORCH-LOOP] storedObject for ${obj.name}:`, storedObject ? 'EXISTS' : 'NULL');
+
+        if (storedObject) {
+          // Track object name -> ID mapping for dependency resolution
+          objectNameToId.set(obj.name, storedObject.id);
+          
+          // Debug logging
+          console.log(`[DEBUG] Object ${obj.name}: columns=`, obj.columns);
+          
+          if (obj.columns && obj.columns.length > 0) {
+            console.log(`📊 Storing ${obj.columns.length} columns for ${obj.name}`);
+            try {
+              await this.storage.storeColumns(storedObject.id, obj.columns, job.organization_id);
+              console.log(`✅ Successfully stored columns for ${obj.name}`);
+            } catch (error) {
+              console.error(`❌ Failed to store columns for ${obj.name}:`, error);
+              throw error;
+            }
+          } else {
+            console.log(`⚠️  No columns found for ${obj.name}`);
+          }
         }
+      }
+      
+      // Store dependencies if parser extracted them
+      if (parseResult.dependencies && parseResult.dependencies.length > 0) {
+        console.log(`🔗 Storing ${parseResult.dependencies.length} dependencies for ${file.path}`);
+        await this.storeParsedDependencies(
+          parseResult.dependencies,
+          objectNameToId,
+          job.organization_id,
+          fileRecord.repository_id
+        );
       }
 
       // Update file as parsed
@@ -572,6 +607,66 @@ export class MetadataExtractionOrchestrator {
       // Also index files for code search (async, non-blocking)
       this.indexFilesAsync(connectionId, connection.organization_id)
         .catch(err => console.warn('File indexing warning:', err));
+    }
+  }
+
+  /**
+   * Store dependencies extracted from parser
+   * Resolves object names to IDs and handles dbt ref() patterns
+   */
+  private async storeParsedDependencies(
+    dependencies: string[],
+    objectNameToId: Map<string, string>,
+    organizationId: string,
+    repositoryId: string
+  ): Promise<void> {
+    // Query all objects in this organization to resolve dependency names
+    const { data: allObjects } = await supabase
+      .schema('metadata')
+      .from('objects')
+      .select('id, name, full_name, schema_name')
+      .eq('organization_id', organizationId);
+
+    if (!allObjects) return;
+
+    // Create name lookup map
+    const nameToObjectId = new Map<string, string>();
+    for (const obj of allObjects) {
+      nameToObjectId.set(obj.name, obj.id);
+      if (obj.full_name) nameToObjectId.set(obj.full_name, obj.id);
+      if (obj.schema_name) {
+        nameToObjectId.set(`${obj.schema_name}.${obj.name}`, obj.id);
+      }
+    }
+
+    // Store each dependency
+    for (const depName of dependencies) {
+      // Try to resolve target object
+      const targetObjectId = nameToObjectId.get(depName);
+      
+      if (!targetObjectId) {
+        console.log(`⚠️  Dependency target not found: ${depName} (will be resolved in dependency analysis phase)`);
+        continue;
+      }
+
+      // Store all source objects that reference this target
+      for (const [sourceName, sourceId] of objectNameToId) {
+        try {
+          await this.storage.storeDependency({
+            organization_id: organizationId,
+            repository_id: repositoryId,
+            source_object_id: sourceId,
+            target_object_id: targetObjectId,
+            dependency_type: 'reference',
+            confidence: 0.85
+          });
+        } catch (error) {
+          // Ignore duplicate key errors
+          if (error instanceof Error && !error.message.includes('duplicate')) {
+            console.error(`Error storing dependency ${sourceName} -> ${depName}:`, error);
+          }
+        }
+      }
     }
   }
 
