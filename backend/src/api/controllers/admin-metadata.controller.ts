@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { supabase } from '../../config/supabase';
 import { MetadataExtractionOrchestrator } from '../../services/metadata/MetadataExtractionOrchestrator';
+import { encryptGitHubToken, validateGitHubToken } from '../../services/encryptionService';
 
 /**
  * Admin Metadata Controller
@@ -126,6 +127,20 @@ export class AdminMetadataController {
 
       const [, owner, name] = urlMatch;
 
+      // Validate GitHub token format
+      if (!validateGitHubToken(accessToken)) {
+        console.warn('⚠️  GitHub token format validation failed');
+        return res.status(400).json({ 
+          error: 'Invalid GitHub token format',
+          message: 'Please provide a valid GitHub Personal Access Token (ghp_...) or Fine-grained token (github_pat_...)'
+        });
+      }
+
+      // Encrypt the access token using AES-256-GCM
+      console.log('🔒 Encrypting GitHub access token...');
+      const encryptedToken = encryptGitHubToken(accessToken);
+      console.log('✅ Token encrypted successfully');
+
       // Create connection record
       const { data: connection, error: connError } = await supabase
         .schema('enterprise')
@@ -136,7 +151,7 @@ export class AdminMetadataController {
           repository_name: name,
           repository_owner: owner,
           branch: branch,
-          access_token_encrypted: accessToken, // TODO: Encrypt with Supabase Vault
+          access_token_encrypted: encryptedToken, // Encrypted with AES-256-GCM
           status: 'connected',
           created_by: userId
         })

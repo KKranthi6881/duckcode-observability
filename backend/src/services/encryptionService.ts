@@ -90,6 +90,21 @@ export const maskApiKey = (apiKey: string): string => {
 };
 
 /**
+ * Encrypt GitHub access token
+ * Uses same AES-256-GCM encryption as API keys
+ */
+export const encryptGitHubToken = (token: string): string => {
+  return encryptApiKey(token);
+};
+
+/**
+ * Decrypt GitHub access token
+ */
+export const decryptGitHubToken = (encryptedToken: string): string => {
+  return decryptApiKey(encryptedToken);
+};
+
+/**
  * Validate API key format
  */
 export const validateApiKeyFormat = (provider: string, apiKey: string): boolean => {
@@ -110,9 +125,29 @@ export const validateApiKeyFormat = (provider: string, apiKey: string): boolean 
   return pattern.test(apiKey);
 };
 
+/**
+ * Validate GitHub token format
+ */
+export const validateGitHubToken = (token: string): boolean => {
+  // GitHub Personal Access Tokens (classic): ghp_[40 chars]
+  // GitHub Fine-grained tokens: github_pat_[82 chars]
+  // GitHub OAuth tokens: gho_[40 chars]
+  const patterns = [
+    /^ghp_[a-zA-Z0-9]{36,}$/,      // Personal Access Token (classic)
+    /^github_pat_[a-zA-Z0-9_]{82}$/, // Fine-grained PAT
+    /^gho_[a-zA-Z0-9]{36,}$/,       // OAuth token
+    /^ghs_[a-zA-Z0-9]{36,}$/,       // Server-to-server token
+  ];
+  
+  return patterns.some(pattern => pattern.test(token));
+};
+
 export default {
   encryptApiKey,
   decryptApiKey,
+  encryptGitHubToken,
+  decryptGitHubToken,
   maskApiKey,
   validateApiKeyFormat,
+  validateGitHubToken,
 };

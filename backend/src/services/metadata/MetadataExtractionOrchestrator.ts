@@ -7,6 +7,7 @@ import { LineageCalculator } from './analyzers/LineageCalculator';
 import { MetadataStorageService } from './storage/MetadataStorageService';
 import { TantivySearchService } from '../TantivySearchService';
 import { FileIndexingService } from '../FileIndexingService';
+import { decryptGitHubToken } from '../encryptionService';
 import axios from 'axios';
 
 interface ParsedObject {
@@ -219,12 +220,15 @@ export class MetadataExtractionOrchestrator {
     const { repository_owner, repository_name, branch, access_token_encrypted } = job.connection;
     
     try {
+      // Decrypt the GitHub access token
+      const decryptedToken = decryptGitHubToken(access_token_encrypted);
+      
       // Get repository tree
       const response = await axios.get(
         `https://api.github.com/repos/${repository_owner}/${repository_name}/git/trees/${branch}?recursive=1`,
         {
           headers: {
-            'Authorization': `token ${access_token_encrypted}`,
+            'Authorization': `token ${decryptedToken}`,
             'Accept': 'application/vnd.github.v3+json'
           }
         }
@@ -459,11 +463,14 @@ export class MetadataExtractionOrchestrator {
    */
   private async fetchFileContent(connection: any, filePath: string): Promise<string> {
     try {
+      // Decrypt the GitHub access token
+      const decryptedToken = decryptGitHubToken(connection.access_token_encrypted);
+      
       const response = await axios.get(
         `https://api.github.com/repos/${connection.repository_owner}/${connection.repository_name}/contents/${filePath}?ref=${connection.branch}`,
         {
           headers: {
-            'Authorization': `token ${connection.access_token_encrypted}`,
+            'Authorization': `token ${decryptedToken}`,
             'Accept': 'application/vnd.github.v3.raw'
           }
         }
@@ -708,12 +715,15 @@ export class MetadataExtractionOrchestrator {
       
       if (!repo) return;
       
+      // Decrypt the GitHub access token
+      const decryptedToken = decryptGitHubToken(conn.access_token_encrypted);
+      
       // Get repository tree
       const response = await axios.get(
         `https://api.github.com/repos/${conn.repository_owner}/${conn.repository_name}/git/trees/${conn.branch}?recursive=1`,
         {
           headers: {
-            'Authorization': `token ${conn.access_token_encrypted}`,
+            'Authorization': `token ${decryptedToken}`,
             'Accept': 'application/vnd.github.v3+json'
           }
         }
@@ -739,7 +749,7 @@ export class MetadataExtractionOrchestrator {
             `https://api.github.com/repos/${conn.repository_owner}/${conn.repository_name}/contents/${file.path}?ref=${conn.branch}`,
             {
               headers: {
-                'Authorization': `token ${conn.access_token_encrypted}`,
+                'Authorization': `token ${decryptedToken}`,
                 'Accept': 'application/vnd.github.v3.raw'
               }
             }
