@@ -8,12 +8,14 @@ import ReactFlow, {
   Node,
   Edge,
   NodeTypes,
-  MarkerType
+  MarkerType,
+  useReactFlow,
+  ReactFlowProvider
 } from 'reactflow';
 import dagre from 'dagre';
 import 'reactflow/dist/style.css';
 import { supabase } from '../../config/supabaseClient';
-import { Loader2, AlertCircle, Target, RefreshCw } from 'lucide-react';
+import { Loader2, AlertCircle, Target, RefreshCw, Search, X } from 'lucide-react';
 import ExpandableModelNode from './ExpandableModelNode';
 import ModelSelector from './ModelSelector';
 
@@ -53,15 +55,38 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[]) => {
   return { nodes, edges };
 };
 
-export default function FocusedLineageView({ connectionId, onDataUpdate }: FocusedLineageViewProps) {
+// Inner component with ReactFlow context
+function FocusedLineageContent({ connectionId, onDataUpdate }: FocusedLineageViewProps) {
+  const reactFlowInstance = useReactFlow();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
   const [selectedModelName, setSelectedModelName] = useState<string>('');
   const [allColumnLineages, setAllColumnLineages] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
   
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+
+  // Focus on a specific node
+  const focusNode = useCallback((nodeId: string) => {
+    const node = reactFlowInstance.getNode(nodeId);
+    if (node) {
+      reactFlowInstance.setCenter(
+        node.position.x + 150,
+        node.position.y + 50,
+        { zoom: 1.5, duration: 800 }
+      );
+    }
+  }, [reactFlowInstance]);
+
+  // Filter nodes by search
+  const filteredNodes = searchTerm
+    ? nodes.filter(node => 
+        node.data.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        node.data.type.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    : [];
 
   // Fetch columns for a model
   const fetchColumns = useCallback(async (nodeId: string) => {
@@ -358,6 +383,65 @@ export default function FocusedLineageView({ connectionId, onDataUpdate }: Focus
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search models..."
+              className="w-64 pl-9 pr-9 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+
+            {/* Search Results Dropdown */}
+            {searchTerm && filteredNodes.length > 0 && (
+              <>
+                <div
+                  className="fixed inset-0 z-10"
+                  onClick={() => setSearchTerm('')}
+                />
+                <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl border border-gray-200 z-20 max-h-96 overflow-y-auto">
+                  <div className="px-3 py-2 bg-gray-50 border-b border-gray-200">
+                    <div className="text-xs font-semibold text-gray-600 uppercase">
+                      {filteredNodes.length} model{filteredNodes.length !== 1 ? 's' : ''} found
+                    </div>
+                  </div>
+                  {filteredNodes.map((node) => (
+                    <button
+                      key={node.id}
+                      onClick={() => {
+                        focusNode(node.id);
+                        setSearchTerm('');
+                      }}
+                      className="w-full px-4 py-2.5 text-left hover:bg-blue-50 flex items-center justify-between group"
+                    >
+                      <div className="flex-1">
+                        <div className="text-sm font-semibold text-gray-900 group-hover:text-blue-700">
+                          {node.data.name}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-0.5 capitalize">{node.data.type}</div>
+                      </div>
+                      {node.data.isFocal && (
+                        <div className="bg-blue-600 text-white text-xs px-2 py-1 rounded-full font-medium">
+                          FOCAL
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
           <button
             onClick={() => fetchFocusedLineage(selectedModel)}
             className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
@@ -397,5 +481,14 @@ export default function FocusedLineageView({ connectionId, onDataUpdate }: Focus
         </ReactFlow>
       </div>
     </div>
+  );
+}
+
+// Wrapper with ReactFlowProvider
+export default function FocusedLineageView(props: FocusedLineageViewProps) {
+  return (
+    <ReactFlowProvider>
+      <FocusedLineageContent {...props} />
+    </ReactFlowProvider>
   );
 }
