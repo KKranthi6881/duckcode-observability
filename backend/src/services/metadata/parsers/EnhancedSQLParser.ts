@@ -675,4 +675,380 @@ export class EnhancedSQLParser {
       confidence: response.data.confidence || 0.95
     };
   }
+
+  // ============================================================================
+  // COLUMN LINEAGE EXTRACTION (Production-Grade)
+  // ============================================================================
+
+  /**
+   * Extract column-level lineage from compiled SQL
+   * 
+   * Uses manifest dependencies as context for higher accuracy
+   * Returns which source columns contribute to which target columns
+   * 
+   * Approach: Same as dbt Cloud, Atlan, Metaphor
+   */
+  extractColumnLineage(
+    compiledSQL: string,
+    targetModel: string,
+    manifestContext: {
+      dependencies: string[];  // List of source model names from manifest
+      tableAliases?: Map<string, string>;  // Optional: pre-resolved aliases
+    }
+  ): ColumnLineageRelation[] {
+    console.log(`[ColumnLineage] Extracting for ${targetModel}`);
+    console.log(`[ColumnLineage] Known dependencies: ${manifestContext.dependencies.join(', ')}`);
+
+    const lineages: ColumnLineageRelation[] = [];
+
+    try {
+      // Step 1: Parse SELECT to get target columns with their expressions
+      const selectStatement = this.findMainSelectStatement(compiledSQL);
+      if (!selectStatement) {
+        console.log(`[ColumnLineage] No SELECT statement found`);
+        return [];
+      }
+
+      const targetColumns = this.parseSelectColumns(selectStatement);
+      console.log(`[ColumnLineage] Found ${targetColumns.length} target columns`);
+
+      // Step 2: Build CTE map (e.g., 'customers' CTE -> 'stg_customers' table)
+      const cteMap = this.buildCTEMap(compiledSQL, manifestContext.dependencies);
+      console.log(`[ColumnLineage] Resolved CTEs:`, Object.fromEntries(cteMap));
+      
+      // Step 3: Build table alias map (e.g., 'c' -> 'stg_customers')
+      const aliasMap = this.buildTableAliasMap(compiledSQL, manifestContext.dependencies);
+      console.log(`[ColumnLineage] Resolved aliases:`, Object.fromEntries(aliasMap));
+
+      // Step 3: For each target column, trace back to source columns
+      for (const targetCol of targetColumns) {
+        if (targetCol.name === '*') {
+          // Skip wildcard - needs upstream resolution
+          continue;
+        }
+
+        const sourceCols = this.traceColumnSources(
+          targetCol.expression,
+          aliasMap,
+          cteMap,
+          manifestContext.dependencies
+        );
+
+        if (sourceCols.length > 0) {
+          // Determine transformation type and confidence
+          const transformationType = this.classifyTransformationType(targetCol.expression);
+          const baseConfidence = this.calculateBaseConfidence(transformationType);
+
+          lineages.push({
+            target_column: targetCol.name,
+            source_columns: sourceCols.map(src => ({
+              table: src.table,
+              column: src.column,
+              transformation_type: transformationType,
+              confidence: this.adjustConfidenceForValidation(
+                baseConfidence,
+                src.table,
+                manifestContext.dependencies
+              ),
+              expression: targetCol.expression
+            }))
+          });
+
+          console.log(`[ColumnLineage] ${targetCol.name} ← ${sourceCols.map(s => `${s.table}.${s.column}`).join(', ')}`);
+        }
+      }
+
+      console.log(`[ColumnLineage] ✅ Extracted ${lineages.length} column lineages`);
+      return lineages;
+
+    } catch (error) {
+      console.error(`[ColumnLineage] ❌ Failed to extract lineage:`, error);
+      return [];
+    }
+  }
+
+  /**
+   * Build map of CTEs to their source tables
+   * CTEs (Common Table Expressions) are used heavily in dbt
+   * 
+   * Example:
+   * WITH customers AS (SELECT * FROM {{ ref('stg_customers') }})
+   * → cteMap['customers'] = 'stg_customers'
+   */
+  private buildCTEMap(
+    sql: string,
+    knownDependencies: string[]
+  ): Map<string, string> {
+    const cteMap = new Map<string, string>();
+
+    // Pattern: WITH cte_name AS (SELECT ... FROM table ...)
+    // We need to extract the CTE name and the table it references
+    const ctePattern = /WITH\s+(\w+)\s+AS\s*\(\s*SELECT[^)]*FROM\s+(?:\{\{\s*ref\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\}\}|`?(\w+)`?)/gi;
+    let match;
+
+    while ((match = ctePattern.exec(sql)) !== null) {
+      const cteName = match[1];
+      const tableName = match[2] || match[3];
+      
+      if (knownDependencies.includes(tableName)) {
+        cteMap.set(cteName, tableName);
+        console.log(`[CTE] ${cteName} → ${tableName}`);
+      }
+    }
+
+    // Pattern: Additional CTEs in comma-separated list
+    // , cte_name AS (SELECT ... FROM table ...)
+    const additionalCTEPattern = /,\s*(\w+)\s+AS\s*\(\s*SELECT[^)]*FROM\s+(?:\{\{\s*ref\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\}\}|`?(\w+)`?)/gi;
+    
+    while ((match = additionalCTEPattern.exec(sql)) !== null) {
+      const cteName = match[1];
+      const tableName = match[2] || match[3];
+      
+      if (knownDependencies.includes(tableName)) {
+        cteMap.set(cteName, tableName);
+        console.log(`[CTE] ${cteName} → ${tableName} (additional)`);
+      }
+    }
+
+    return cteMap;
+  }
+
+  /**
+   * Build map of table aliases to actual table names
+   * Uses manifest dependencies to validate
+   */
+  private buildTableAliasMap(
+    sql: string,
+    knownDependencies: string[]
+  ): Map<string, string> {
+    const aliasMap = new Map<string, string>();
+
+    // Pattern 1: FROM table [AS] alias
+    // Handles: FROM table AS alias, FROM table alias, FROM {{ ref('table') }} AS alias
+    const fromPattern = /FROM\s+(?:\{\{\s*ref\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\}\}|`?(\w+)`?)\s+(?:AS\s+)?`?(\w+)`?\b/gi;
+    let match;
+
+    while ((match = fromPattern.exec(sql)) !== null) {
+      const tableName = match[1] || match[2]; // dbt ref or regular table
+      const alias = match[3];
+      
+      // Only add if it's a known dependency
+      if (knownDependencies.includes(tableName)) {
+        aliasMap.set(alias, tableName);
+        console.log(`[Alias] ${alias} → ${tableName}`);
+      }
+    }
+
+    // Pattern 2: JOIN table [AS] alias
+    const joinPattern = /(?:LEFT|RIGHT|INNER|OUTER|CROSS)?\s*JOIN\s+(?:\{\{\s*ref\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\}\}|`?(\w+)`?)\s+(?:AS\s+)?`?(\w+)`?\b/gi;
+    
+    while ((match = joinPattern.exec(sql)) !== null) {
+      const tableName = match[1] || match[2];
+      const alias = match[3];
+      
+      if (knownDependencies.includes(tableName)) {
+        aliasMap.set(alias, tableName);
+        console.log(`[Alias] ${alias} → ${tableName} (from JOIN)`);
+      }
+    }
+
+    // Pattern 3: FROM/JOIN without AS keyword (e.g., "FROM customers c")
+    // This is common in jaffle-shop - no explicit AS
+    const simpleFromPattern = /FROM\s+(?:\{\{\s*ref\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\}\}|`?(\w+)`?)\s+`?(\w+)`?(?:\s+(?:WHERE|GROUP|ORDER|LIMIT|LEFT|RIGHT|INNER|JOIN|$))/gi;
+    
+    while ((match = simpleFromPattern.exec(sql)) !== null) {
+      const tableName = match[1] || match[2];
+      const alias = match[3];
+      
+      // Skip if alias is a SQL keyword
+      if (/^(WHERE|GROUP|ORDER|LIMIT|LEFT|RIGHT|INNER|OUTER|JOIN)$/i.test(alias)) {
+        continue;
+      }
+      
+      if (knownDependencies.includes(tableName) && !aliasMap.has(alias)) {
+        aliasMap.set(alias, tableName);
+        console.log(`[Alias] ${alias} → ${tableName} (simple from)`);
+      }
+    }
+
+    // Pattern 4: If no aliases found, try matching table names directly
+    // Some SQL doesn't use aliases at all
+    if (aliasMap.size === 0) {
+      for (const dep of knownDependencies) {
+        // Check if dependency name appears in SQL (as a table reference)
+        const tablePattern = new RegExp(`\\b${dep}\\b`, 'i');
+        if (tablePattern.test(sql)) {
+          // Map table name to itself (no alias)
+          aliasMap.set(dep, dep);
+          console.log(`[Alias] ${dep} → ${dep} (no alias)`);
+        }
+      }
+    }
+
+    return aliasMap;
+  }
+
+  /**
+   * Trace column expression back to source columns
+   * Handles: direct refs, aggregations, expressions, CASE statements, CTEs
+   */
+  private traceColumnSources(
+    expression: string,
+    aliasMap: Map<string, string>,
+    cteMap: Map<string, string>,
+    knownDependencies: string[]
+  ): Array<{ table: string; column: string }> {
+    const sources: Array<{ table: string; column: string }> = [];
+    const seen = new Set<string>(); // Deduplicate
+
+    // Pattern 1: Simple column reference (e.g., "c.customer_id" or "customers.customer_id")
+    const simpleRefPattern = /\b(\w+)\.(\w+)\b/g;
+    let match;
+
+    while ((match = simpleRefPattern.exec(expression)) !== null) {
+      const [, aliasOrCTEOrTable, columnName] = match;
+      
+      // Resolution priority:
+      // 1. Try alias map first (e.g., 'c' -> 'stg_customers')
+      // 2. Try CTE map (e.g., 'customers' CTE -> 'stg_customers' table)
+      // 3. Use as-is if it's a known dependency
+      let tableName = aliasMap.get(aliasOrCTEOrTable);
+      
+      if (!tableName) {
+        tableName = cteMap.get(aliasOrCTEOrTable);
+      }
+      
+      if (!tableName) {
+        tableName = aliasOrCTEOrTable;
+      }
+      
+      // Only include if it's a known dependency
+      if (knownDependencies.includes(tableName)) {
+        const key = `${tableName}.${columnName}`;
+        if (!seen.has(key)) {
+          sources.push({ table: tableName, column: columnName });
+          seen.add(key);
+          console.log(`[Trace] ${aliasOrCTEOrTable}.${columnName} → ${tableName}.${columnName}`);
+        }
+      }
+    }
+
+    // Pattern 2: Handle unqualified columns (no table prefix)
+    // These could come from any source table - we'll need context
+    const unqualifiedPattern = /\b(?:SELECT|,|\s)(\w+)(?:\s+AS|\s*,|\s+FROM)/gi;
+    // Note: This is tricky - skipping for now as it requires more context
+
+    return sources;
+  }
+
+  /**
+   * Classify transformation type based on SQL expression
+   */
+  private classifyTransformationType(expression: string): string {
+    const upper = expression.toUpperCase();
+
+    // Aggregation functions
+    if (/\b(COUNT|SUM|AVG|MAX|MIN|ARRAY_AGG|STRING_AGG)\s*\(/i.test(upper)) {
+      return 'aggregation';
+    }
+
+    // Window functions
+    if (/\b(ROW_NUMBER|RANK|DENSE_RANK|LAG|LEAD|FIRST_VALUE|LAST_VALUE)\s*\(/i.test(upper)) {
+      return 'window_function';
+    }
+
+    // CASE statements
+    if (/\bCASE\s+WHEN\b/i.test(upper)) {
+      return 'case_expression';
+    }
+
+    // Type casts
+    if (/\b(CAST|CONVERT)\s*\(/i.test(upper) || /::/.test(expression)) {
+      return 'cast';
+    }
+
+    // Mathematical operations
+    if (/[+\-*\/]/.test(expression) && !/\bCONCAT\b/i.test(upper)) {
+      return 'calculation';
+    }
+
+    // String operations
+    if (/\b(CONCAT|SUBSTRING|TRIM|UPPER|LOWER|REPLACE)\s*\(/i.test(upper)) {
+      return 'string_function';
+    }
+
+    // Date operations
+    if (/\b(DATE|TIMESTAMP|DATEADD|DATEDIFF|EXTRACT)\s*\(/i.test(upper)) {
+      return 'date_function';
+    }
+
+    // COALESCE, NULLIF, etc.
+    if (/\b(COALESCE|NULLIF|IFNULL|NVL)\s*\(/i.test(upper)) {
+      return 'null_handling';
+    }
+
+    // Direct column reference (no transformation)
+    return 'direct';
+  }
+
+  /**
+   * Calculate base confidence based on transformation type
+   */
+  private calculateBaseConfidence(transformationType: string): number {
+    switch (transformationType) {
+      case 'direct':
+        return 0.95;  // High confidence - simple column reference
+      case 'cast':
+        return 0.93;  // Very high - just type conversion
+      case 'aggregation':
+        return 0.90;  // High - clear aggregation semantics
+      case 'window_function':
+        return 0.88;  // Good - window functions are well-defined
+      case 'null_handling':
+        return 0.85;  // Good - COALESCE, etc.
+      case 'string_function':
+        return 0.83;  // Medium-high - string operations
+      case 'date_function':
+        return 0.83;  // Medium-high - date operations
+      case 'calculation':
+        return 0.80;  // Medium - math operations
+      case 'case_expression':
+        return 0.75;  // Medium-low - conditional logic is complex
+      default:
+        return 0.70;  // Lower for unknown patterns
+    }
+  }
+
+  /**
+   * Adjust confidence based on manifest validation
+   * Boost if source table is in known dependencies
+   */
+  private adjustConfidenceForValidation(
+    baseConfidence: number,
+    sourceTable: string,
+    knownDependencies: string[]
+  ): number {
+    if (knownDependencies.includes(sourceTable)) {
+      // ✅ Source table is validated by manifest - boost confidence
+      return Math.min(baseConfidence * 1.05, 1.0);
+    } else {
+      // ⚠️ Source table not in manifest - lower confidence
+      console.warn(`[Validation] Source table '${sourceTable}' not in manifest dependencies`);
+      return baseConfidence * 0.80;
+    }
+  }
+}
+
+/**
+ * Column lineage result types
+ */
+export interface ColumnLineageRelation {
+  target_column: string;
+  source_columns: Array<{
+    table: string;
+    column: string;
+    transformation_type: string;
+    confidence: number;
+    expression?: string;
+  }>;
 }

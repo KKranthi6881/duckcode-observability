@@ -230,6 +230,11 @@ export class ManifestParser {
   /**
    * Extract model-level dependencies from manifest
    * 100% accurate - comes directly from dbt compiler
+   * 
+   * Data flows FROM source TO target:
+   * - node "customers" depends on "stg_customers"
+   * - means: data flows FROM stg_customers TO customers
+   * - so: source = stg_customers, target = customers
    */
   private extractDependencies(manifest: DBTManifest): ParsedDependency[] {
     const dependencies: ParsedDependency[] = [];
@@ -243,11 +248,12 @@ export class ManifestParser {
         : [];
       
       for (const depId of dependencyNodes) {
+        // Data lineage perspective: data flows FROM depId TO uniqueId
         dependencies.push({
-          source_unique_id: uniqueId,
-          target_unique_id: depId,
-          source_name: this.extractName(uniqueId),
-          target_name: this.extractName(depId),
+          source_unique_id: depId,                    // WHERE data comes FROM
+          target_unique_id: uniqueId,                 // WHERE data goes TO
+          source_name: this.extractName(depId),       // stg_customers
+          target_name: this.extractName(uniqueId),    // customers
           confidence: 1.0  // 100% from manifest!
         });
       }

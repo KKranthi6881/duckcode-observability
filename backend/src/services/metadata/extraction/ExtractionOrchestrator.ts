@@ -1,5 +1,6 @@
 import { DbtRunner } from './DbtRunner';
 import { ManifestParser } from '../parsers/ManifestParser';
+import { EnhancedSQLParser } from '../parsers/EnhancedSQLParser';
 import { supabase } from '../../../config/supabase';
 import EventEmitter from 'events';
 
@@ -37,12 +38,14 @@ export interface ExtractionResult {
 export class ExtractionOrchestrator extends EventEmitter {
   private dbtRunner: DbtRunner;
   private manifestParser: ManifestParser;
+  private sqlParser: EnhancedSQLParser;
   private activeExtractions: Map<string, ExtractionProgress>;
 
   constructor() {
     super();
     this.dbtRunner = new DbtRunner();
     this.manifestParser = new ManifestParser();
+    this.sqlParser = new EnhancedSQLParser();
     this.activeExtractions = new Map();
   }
 
@@ -510,8 +513,11 @@ export class ExtractionOrchestrator extends EventEmitter {
       }
     }
 
-    // Store dependencies
-    const objectMap = new Map<string, string>();
+    // Store dependencies and build maps for lineage
+    const objectMapByUniqueId = new Map<string, string>(); // unique_id → object_id
+    const objectMapByName = new Map<string, string>();      // name → object_id
+    const dependencyMap = new Map<string, string[]>();      // target_name → [source_names]
+    
     const { data: allObjects } = await supabase
       .schema('metadata')
       .from('objects')
@@ -520,16 +526,20 @@ export class ExtractionOrchestrator extends EventEmitter {
 
     if (allObjects) {
       for (const obj of allObjects) {
+        // Map by unique_id for dependency storage
         const uniqueId = obj.metadata?.unique_id;
         if (uniqueId) {
-          objectMap.set(uniqueId, obj.id);
+          objectMapByUniqueId.set(uniqueId, obj.id);
         }
+        // Map by name for lineage extraction
+        objectMapByName.set(obj.name, obj.id);
       }
     }
 
+    // Store model dependencies and build dependency map
     for (const dep of parsed.dependencies) {
-      const sourceId = objectMap.get(dep.source_unique_id);
-      const targetId = objectMap.get(dep.target_unique_id);
+      const sourceId = objectMapByUniqueId.get(dep.source_unique_id);
+      const targetId = objectMapByUniqueId.get(dep.target_unique_id);
 
       if (sourceId && targetId) {
         await supabase
@@ -547,9 +557,239 @@ export class ExtractionOrchestrator extends EventEmitter {
           }, {
             onConflict: 'source_object_id,target_object_id,dependency_type,source_column,target_column'
           });
+
+        // Build dependency map for lineage extraction
+        if (!dependencyMap.has(dep.target_name)) {
+          dependencyMap.set(dep.target_name, []);
+        }
+        dependencyMap.get(dep.target_name)!.push(dep.source_name);
       }
     }
 
+    // Store column-level lineage
+    await this.storeColumnLineage(
+      connectionId,
+      organizationId,
+      parsed.columnLineage,
+      parsed.models,
+      objectMapByName,
+      dependencyMap
+    );
+
     console.log(`✅ All data stored in database`);
+  }
+
+  /**
+   * Extract and store column-level lineage
+   * 
+   * Strategy (Production-grade, like dbt Cloud/Atlan):
+   * 1. Check if manifest has native column lineage (dbt 1.6+) - use if available
+   * 2. Otherwise, parse compiled SQL using EnhancedSQLParser
+   * 3. Use manifest dependencies as context for validation
+   * 4. Store with confidence scores based on method
+   */
+  private async storeColumnLineage(
+    connectionId: string,
+    organizationId: string,
+    manifestColumnLineages: any[],
+    parsedModels: any[],
+    objectMap: Map<string, string>,
+    dependencyMap: Map<string, string[]>
+  ): Promise<void> {
+    console.log(`\n${'='.repeat(60)}`);
+    console.log(`🔍 COLUMN LINEAGE EXTRACTION`);
+    console.log(`${'='.repeat(60)}\n`);
+
+    let totalExtracted = 0;
+    let totalStored = 0;
+    let skipped = 0;
+
+    // Check if manifest has native column lineage (dbt 1.6+)
+    const hasManifestLineage = manifestColumnLineages && manifestColumnLineages.length > 0;
+    
+    if (hasManifestLineage) {
+      console.log(`✅ Manifest has native column lineage (dbt 1.6+)`);
+      console.log(`   Using GOLD tier lineage from manifest\n`);
+      
+      // Use manifest lineage - highest accuracy
+      const result = await this.storeManifestColumnLineage(
+        organizationId,
+        manifestColumnLineages,
+        objectMap
+      );
+      totalExtracted += result.extracted;
+      totalStored += result.stored;
+      skipped += result.skipped;
+    } else {
+      console.log(`ℹ️  No native column lineage in manifest (dbt < 1.6)`);
+      console.log(`   Falling back to SQL parsing (SILVER/BRONZE tier)\n`);
+    }
+
+    // Parse compiled SQL for all models (even if we have manifest lineage)
+    // This catches additional lineages that manifest might miss
+    console.log(`🔍 Parsing compiled SQL for additional column lineage...`);
+    
+    for (const model of parsedModels) {
+      if (!model.compiled_sql || model.object_type !== 'model') {
+        continue; // Skip seeds, sources, etc.
+      }
+
+      console.log(`\n   📊 Processing: ${model.name}`);
+
+      try {
+        // Get model dependencies from manifest
+        const dependencies = dependencyMap.get(model.name) || [];
+        
+        if (dependencies.length === 0) {
+          console.log(`      ⚠️  No dependencies found - skipping`);
+          continue;
+        }
+
+        console.log(`      Dependencies: ${dependencies.join(', ')}`);
+
+        // Extract column lineage using EnhancedSQLParser
+        const lineages = this.sqlParser.extractColumnLineage(
+          model.compiled_sql,
+          model.name,
+          {
+            dependencies: dependencies
+          }
+        );
+
+        totalExtracted += lineages.length;
+
+        if (lineages.length === 0) {
+          console.log(`      ℹ️  No column lineage extracted`);
+          continue;
+        }
+
+        // Store each lineage relationship
+        for (const lineage of lineages) {
+          const targetObjectId = objectMap.get(model.name);
+          if (!targetObjectId) {
+            skipped++;
+            continue;
+          }
+
+          for (const source of lineage.source_columns) {
+            const sourceObjectId = objectMap.get(source.table);
+            if (!sourceObjectId) {
+              console.log(`      ⚠️  Source table '${source.table}' not found in object map`);
+              skipped++;
+              continue;
+            }
+
+            // Store in database
+            const { error } = await supabase
+              .schema('metadata')
+              .from('columns_lineage')
+              .upsert({
+                organization_id: organizationId,
+                source_object_id: sourceObjectId,
+                source_column: source.column,
+                target_object_id: targetObjectId,
+                target_column: lineage.target_column,
+                transformation_type: source.transformation_type,
+                confidence: source.confidence,
+                extracted_from: 'sql_parsing',
+                expression: source.expression,
+                metadata: {
+                  parser: 'enhanced-sql-parser',
+                  source_model: source.table,
+                  target_model: model.name
+                }
+              }, {
+                onConflict: 'source_object_id,source_column,target_object_id,target_column'
+              });
+
+            if (error) {
+              console.error(`      ❌ Error storing: ${source.table}.${source.column} → ${lineage.target_column}`, error.message);
+              skipped++;
+            } else {
+              console.log(`      ✅ ${source.table}.${source.column} → ${lineage.target_column} (${source.transformation_type}, ${(source.confidence * 100).toFixed(0)}%)`);
+              totalStored++;
+            }
+          }
+        }
+
+      } catch (error: any) {
+        console.error(`      ❌ Failed to parse ${model.name}:`, error?.message || error);
+        skipped++;
+      }
+    }
+
+    console.log(`\n${'='.repeat(60)}`);
+    console.log(`📊 COLUMN LINEAGE SUMMARY`);
+    console.log(`${'='.repeat(60)}`);
+    console.log(`   Extracted: ${totalExtracted}`);
+    console.log(`   Stored:    ${totalStored}`);
+    console.log(`   Skipped:   ${skipped}`);
+    console.log(`${'='.repeat(60)}\n`);
+  }
+
+  /**
+   * Store manifest-based column lineage (dbt 1.6+)
+   * GOLD tier - 100% accurate
+   */
+  private async storeManifestColumnLineage(
+    organizationId: string,
+    columnLineages: any[],
+    objectMap: Map<string, string>
+  ): Promise<{ extracted: number; stored: number; skipped: number }> {
+    let stored = 0;
+    let skipped = 0;
+
+    console.log(`   Processing ${columnLineages.length} manifest column lineages...\n`);
+
+    for (const lineage of columnLineages) {
+      const targetObjectId = objectMap.get(lineage.target_model);
+      if (!targetObjectId) {
+        skipped++;
+        continue;
+      }
+
+      for (const source of lineage.source_columns) {
+        const sourceObjectId = objectMap.get(source.model);
+        if (!sourceObjectId) {
+          skipped++;
+          continue;
+        }
+
+        const { error } = await supabase
+          .schema('metadata')
+          .from('columns_lineage')
+          .upsert({
+            organization_id: organizationId,
+            source_object_id: sourceObjectId,
+            source_column: source.column,
+            target_object_id: targetObjectId,
+            target_column: lineage.target_column,
+            confidence: 1.0,  // GOLD tier - from manifest
+            extracted_from: 'manifest',
+            transformation_type: 'direct',
+            metadata: {
+              source: 'dbt_manifest',
+              dbt_version: '1.6+',
+              source_model: source.model,
+              target_model: lineage.target_model
+            }
+          }, {
+            onConflict: 'source_object_id,source_column,target_object_id,target_column'
+          });
+
+        if (!error) {
+          console.log(`   ✅ ${source.model}.${source.column} → ${lineage.target_model}.${lineage.target_column} (manifest, 100%)`);
+          stored++;
+        } else {
+          skipped++;
+        }
+      }
+    }
+
+    return {
+      extracted: columnLineages.length,
+      stored,
+      skipped
+    };
   }
 }
