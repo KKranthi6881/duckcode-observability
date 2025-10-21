@@ -34,7 +34,7 @@ interface ModelNodeData {
   showingColumns?: number;
 }
 
-const INITIAL_COLUMNS_SHOWN = 7;
+const INITIAL_COLUMNS_SHOWN = 5;
 
 function ExpandableModelNode({ data }: NodeProps<ModelNodeData>) {
   const [showingMore, setShowingMore] = useState(false);
@@ -99,10 +99,15 @@ function ExpandableModelNode({ data }: NodeProps<ModelNodeData>) {
             </div>
           ) : (
             <>
-              <div className="text-xs font-medium text-gray-700 mb-2">
-                Columns ({columns.length}):
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                  Columns
+                </div>
+                <div className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                  {columns.length}
+                </div>
               </div>
-              <div className="space-y-1 max-h-[300px] overflow-y-auto">
+              <div className="space-y-1.5 max-h-[400px] overflow-y-auto pr-1">
                 {visibleColumns.map((column) => {
                   const hasLineage = column.lineages && column.lineages.length > 0;
                   const avgConfidence = hasLineage
@@ -113,13 +118,17 @@ function ExpandableModelNode({ data }: NodeProps<ModelNodeData>) {
                   return (
                     <div
                       key={column.id}
-                      className="flex items-center justify-between p-2 rounded hover:bg-gray-50 border border-gray-200"
+                      className="flex items-center justify-between p-2.5 rounded-md hover:bg-blue-50 border border-gray-200 hover:border-blue-300 transition-all group"
                     >
                       <div className="flex-1 min-w-0">
-                        <div className="text-xs font-medium text-gray-800 truncate">
+                        <div className="text-xs font-semibold text-gray-900 truncate group-hover:text-blue-700">
                           {column.name}
                         </div>
-                        <div className="text-xs text-gray-500">{column.data_type}</div>
+                        <div className="text-xs text-gray-500 mt-0.5">
+                          <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-[10px]">
+                            {column.data_type}
+                          </span>
+                        </div>
                       </div>
                       {hasLineage && badge && (
                         <div className="flex items-center gap-1">
@@ -147,29 +156,33 @@ function ExpandableModelNode({ data }: NodeProps<ModelNodeData>) {
                 })}
               </div>
 
-              {/* Show More Button */}
-              {hasMore && !showingMore && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowingMore(true);
-                  }}
-                  className="w-full mt-2 py-1.5 text-xs text-blue-600 hover:bg-blue-50 rounded border border-blue-200 transition-colors"
-                >
-                  + Show {columns.length - INITIAL_COLUMNS_SHOWN} more columns
-                </button>
-              )}
-              
-              {showingMore && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowingMore(false);
-                  }}
-                  className="w-full mt-2 py-1.5 text-xs text-gray-600 hover:bg-gray-50 rounded border border-gray-200 transition-colors"
-                >
-                  Show less
-                </button>
+              {/* Show More/Less Buttons */}
+              {hasMore && (
+                <div className="mt-3 pt-3 border-t border-gray-200">
+                  {!showingMore ? (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowingMore(true);
+                      }}
+                      className="w-full py-2 text-xs font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md border border-blue-200 hover:border-blue-300 transition-all flex items-center justify-center gap-1.5"
+                    >
+                      <ChevronDown className="w-3.5 h-3.5" />
+                      Show {columns.length - INITIAL_COLUMNS_SHOWN} more columns
+                    </button>
+                  ) : (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowingMore(false);
+                      }}
+                      className="w-full py-2 text-xs font-medium text-gray-600 hover:text-gray-700 hover:bg-gray-50 rounded-md border border-gray-300 hover:border-gray-400 transition-all flex items-center justify-center gap-1.5"
+                    >
+                      <ChevronDown className="w-3.5 h-3.5 rotate-180" />
+                      Show less
+                    </button>
+                  )}
+                </div>
               )}
             </>
           )}

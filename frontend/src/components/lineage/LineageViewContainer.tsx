@@ -1,10 +1,11 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Network, Table2, Maximize2 } from 'lucide-react';
 import { ReactFlowProvider, useReactFlow } from 'reactflow';
 import LineageGraph from './LineageGraph';
 import LineageTable from './LineageTable';
 import LineageExport from './LineageExport';
 import LineageSearch from './LineageSearch';
+import LineageFilters, { FilterOptions } from './LineageFilters';
 
 interface LineageViewContainerProps {
   connectionId: string;
@@ -18,7 +19,64 @@ function LineageViewContent({ connectionId, connectionName }: LineageViewContain
   const [nodes, setNodes] = useState<any[]>([]);
   const [edges, setEdges] = useState<any[]>([]);
   const [columnLineages, setColumnLineages] = useState<any[]>([]);
+  const [filters, setFilters] = useState<FilterOptions>({
+    confidenceThreshold: 0,
+    modelTypes: [],
+    showOnlyConnected: false,
+    maxDepth: 0
+  });
   const reactFlowInstance = useReactFlow();
+
+  // Apply filters to nodes and edges
+  const filteredData = useMemo(() => {
+    let filteredNodes = [...nodes];
+    let filteredEdges = [...edges];
+    let filteredLineages = [...columnLineages];
+
+    // Filter by model type
+    if (filters.modelTypes.length > 0) {
+      filteredNodes = filteredNodes.filter(node => 
+        filters.modelTypes.includes(node.data.type)
+      );
+      const nodeIds = new Set(filteredNodes.map(n => n.id));
+      filteredEdges = filteredEdges.filter(edge => 
+        nodeIds.has(edge.source) && nodeIds.has(edge.target)
+      );
+    }
+
+    // Filter by confidence threshold
+    if (filters.confidenceThreshold > 0) {
+      const threshold = filters.confidenceThreshold / 100;
+      filteredLineages = filteredLineages.filter(lineage => 
+        lineage.confidence >= threshold
+      );
+      
+      // Filter edges based on column lineage confidence
+      const validEdges = new Set<string>();
+      filteredLineages.forEach(lineage => {
+        validEdges.add(`${lineage.source_object_id}-${lineage.target_object_id}`);
+      });
+      filteredEdges = filteredEdges.filter(edge => 
+        validEdges.has(`${edge.source}-${edge.target}`)
+      );
+    }
+
+    // Filter only connected nodes
+    if (filters.showOnlyConnected) {
+      const connectedNodeIds = new Set<string>();
+      filteredEdges.forEach(edge => {
+        connectedNodeIds.add(edge.source);
+        connectedNodeIds.add(edge.target);
+      });
+      filteredNodes = filteredNodes.filter(node => connectedNodeIds.has(node.id));
+    }
+
+    return {
+      nodes: filteredNodes,
+      edges: filteredEdges,
+      columnLineages: filteredLineages
+    };
+  }, [nodes, edges, columnLineages, filters]);
 
   // Handle node focus from search or table
   const handleFocusNode = useCallback((nodeId: string) => {
@@ -93,11 +151,18 @@ function LineageViewContent({ connectionId, connectionName }: LineageViewContain
             {/* Search (only in graph view) */}
             {viewMode === 'graph' && (
               <LineageSearch
-                nodes={nodes}
+                nodes={filteredData.nodes}
                 onNodeSelect={handleFocusNode}
                 onClear={handleFitView}
               />
             )}
+
+            {/* Filters */}
+            <LineageFilters
+              onFilterChange={setFilters}
+              totalNodes={nodes.length}
+              filteredNodes={filteredData.nodes.length}
+            />
 
             {/* Fit View (only in graph view) */}
             {viewMode === 'graph' && (
@@ -112,8 +177,8 @@ function LineageViewContent({ connectionId, connectionName }: LineageViewContain
 
             {/* Export */}
             <LineageExport
-              nodes={nodes}
-              edges={edges}
+              nodes={filteredData.nodes}
+              edges={filteredData.edges}
               connectionName={connectionName}
             />
           </div>
@@ -129,9 +194,9 @@ function LineageViewContent({ connectionId, connectionName }: LineageViewContain
           />
         ) : (
           <LineageTable
-            nodes={nodes}
-            edges={edges}
-            columnLineages={columnLineages}
+            nodes={filteredData.nodes}
+            edges={filteredData.edges}
+            columnLineages={filteredData.columnLineages}
             onFocusNode={(nodeId) => {
               setViewMode('graph');
               setTimeout(() => handleFocusNode(nodeId), 100);
