@@ -3,7 +3,8 @@ import {
   getModelLineage,
   getModelColumns,
   getColumnLineage,
-  getLineageStats
+  getLineageStats,
+  getFocusedLineage
 } from '../controllers/metadata-lineage.controller';
 import { requireAuth } from '../middlewares/auth.middleware';
 
@@ -18,6 +19,14 @@ router.use(requireAuth);
  * @access Private
  */
 router.get('/model/:connectionId', getModelLineage as any);
+
+/**
+ * @route GET /api/metadata/lineage/focused/:connectionId/:modelId
+ * @desc Get focused lineage for a specific model with upstream/downstream
+ * @query upstreamLimit, downstreamLimit - Number of models to fetch in each direction (default: 5)
+ * @access Private
+ */
+router.get('/focused/:connectionId/:modelId', getFocusedLineage as any);
 
 /**
  * @route GET /api/metadata/lineage/columns/:objectId

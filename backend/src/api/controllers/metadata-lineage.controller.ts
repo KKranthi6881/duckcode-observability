@@ -518,3 +518,174 @@ export async function getLineageStats(req: AuthenticatedRequest, res: Response) 
     res.status(500).json({ error: 'Internal server error' });
   }
 }
+
+/**
+ * Get focused lineage for a specific model
+ * Returns upstream and downstream models from a focal point
+ */
+export async function getFocusedLineage(req: AuthenticatedRequest, res: Response) {
+  try {
+    const { connectionId, modelId } = req.params;
+    const { upstreamLimit = 5, downstreamLimit = 5 } = req.query;
+    const organizationId = req.user.organization_id;
+
+    console.log(`[FocusedLineage] Fetching for model: ${modelId}, upstream: ${upstreamLimit}, downstream: ${downstreamLimit}`);
+
+    // Get the focal model
+    const { data: focalModel, error: focalError } = await supabase
+      .schema('metadata')
+      .from('objects')
+      .select('*')
+      .eq('id', modelId)
+      .eq('connection_id', connectionId)
+      .eq('organization_id', organizationId)
+      .single();
+
+    if (focalError || !focalModel) {
+      return res.status(404).json({ error: 'Model not found' });
+    }
+
+    // Recursive function to get upstream models
+    async function getUpstreamModels(startId: string, limit: number, visited = new Set<string>()): Promise<any[]> {
+      if (visited.has(startId) || visited.size >= limit) return [];
+      visited.add(startId);
+
+      const { data: deps } = await supabase
+        .schema('metadata')
+        .from('dependencies')
+        .select('source_object_id, confidence, metadata')
+        .eq('target_object_id', startId)
+        .eq('organization_id', organizationId);
+
+      if (!deps || deps.length === 0) return [];
+
+      const sourceIds = deps.map(d => d.source_object_id);
+      const { data: models } = await supabase
+        .schema('metadata')
+        .from('objects')
+        .select('*')
+        .in('id', sourceIds)
+        .eq('connection_id', connectionId);
+
+      const results = models || [];
+      
+      // Recursively get more upstream if we haven't hit the limit
+      for (const model of results) {
+        if (visited.size < limit) {
+          const moreUpstream = await getUpstreamModels(model.id, limit, visited);
+          results.push(...moreUpstream);
+        }
+      }
+
+      return results;
+    }
+
+    // Recursive function to get downstream models
+    async function getDownstreamModels(startId: string, limit: number, visited = new Set<string>()): Promise<any[]> {
+      if (visited.has(startId) || visited.size >= limit) return [];
+      visited.add(startId);
+
+      const { data: deps } = await supabase
+        .schema('metadata')
+        .from('dependencies')
+        .select('target_object_id, confidence, metadata')
+        .eq('source_object_id', startId)
+        .eq('organization_id', organizationId);
+
+      if (!deps || deps.length === 0) return [];
+
+      const targetIds = deps.map(d => d.target_object_id);
+      const { data: models } = await supabase
+        .schema('metadata')
+        .from('objects')
+        .select('*')
+        .in('id', targetIds)
+        .eq('connection_id', connectionId);
+
+      const results = models || [];
+      
+      // Recursively get more downstream if we haven't hit the limit
+      for (const model of results) {
+        if (visited.size < limit) {
+          const moreDownstream = await getDownstreamModels(model.id, limit, visited);
+          results.push(...moreDownstream);
+        }
+      }
+
+      return results;
+    }
+
+    // Get upstream and downstream models
+    const upstreamModels = await getUpstreamModels(modelId, Number(upstreamLimit));
+    const downstreamModels = await getDownstreamModels(modelId, Number(downstreamLimit));
+
+    // Get all dependencies between these models
+    const allModelIds = [
+      modelId,
+      ...upstreamModels.map(m => m.id),
+      ...downstreamModels.map(m => m.id)
+    ];
+
+    const { data: allDeps } = await supabase
+      .schema('metadata')
+      .from('dependencies')
+      .select('*')
+      .in('source_object_id', allModelIds)
+      .in('target_object_id', allModelIds)
+      .eq('organization_id', organizationId);
+
+    // Calculate stats for each model
+    const modelStats = new Map();
+    allDeps?.forEach(dep => {
+      const source = modelStats.get(dep.source_object_id) || { upstreamCount: 0, downstreamCount: 0 };
+      const target = modelStats.get(dep.target_object_id) || { upstreamCount: 0, downstreamCount: 0 };
+      source.downstreamCount++;
+      target.upstreamCount++;
+      modelStats.set(dep.source_object_id, source);
+      modelStats.set(dep.target_object_id, target);
+    });
+
+    // Format response
+    const allModels = [focalModel, ...upstreamModels, ...downstreamModels];
+    const uniqueModels = Array.from(new Map(allModels.map(m => [m.id, m])).values());
+
+    const nodes = uniqueModels.map(model => ({
+      id: model.id,
+      name: model.name,
+      type: model.object_type,
+      description: model.description,
+      metadata: model.metadata,
+      stats: modelStats.get(model.id) || { upstreamCount: 0, downstreamCount: 0 },
+      isFocal: model.id === modelId
+    }));
+
+    const edges = (allDeps || []).map(dep => ({
+      id: dep.id,
+      source: dep.source_object_id,
+      target: dep.target_object_id,
+      confidence: dep.confidence || 1.0,
+      metadata: dep.metadata
+    }));
+
+    res.json({
+      focalModel: {
+        id: focalModel.id,
+        name: focalModel.name,
+        type: focalModel.object_type
+      },
+      nodes,
+      edges,
+      metadata: {
+        connectionId,
+        totalModels: nodes.length,
+        totalDependencies: edges.length,
+        upstreamCount: upstreamModels.length,
+        downstreamCount: downstreamModels.length
+      }
+    });
+
+  } catch (error: any) {
+    console.error('[FocusedLineage] ❌ Error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
