@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Search, Target, X } from 'lucide-react';
+import { supabase } from '../../config/supabaseClient';
 
 interface Model {
   id: string;
@@ -21,18 +22,25 @@ export default function ModelSelector({ connectionId, onModelSelect, selectedMod
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (isOpen && models.length === 0) {
-      fetchModels();
-    }
-  }, [isOpen]);
-
-  const fetchModels = async () => {
+  const fetchModels = useCallback(async () => {
     setLoading(true);
     try {
+      // Get Supabase session for authentication
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        console.error('No session found');
+        return;
+      }
+
       // Fetch all models from the connection
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/metadata/lineage/model/${connectionId}`
+        `${import.meta.env.VITE_API_URL}/api/metadata/lineage/model/${connectionId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json'
+          }
+        }
       );
       
       if (response.ok) {
@@ -45,13 +53,21 @@ export default function ModelSelector({ connectionId, onModelSelect, selectedMod
           downstreamCount: node.stats?.downstreamCount || 0
         }));
         setModels(modelList);
+      } else {
+        console.error('Failed to fetch models:', response.status, response.statusText);
       }
     } catch (error) {
       console.error('Error fetching models:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [connectionId]);
+
+  useEffect(() => {
+    if (isOpen && models.length === 0) {
+      fetchModels();
+    }
+  }, [isOpen, models.length, fetchModels]);
 
   const filteredModels = models.filter(model =>
     model.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
