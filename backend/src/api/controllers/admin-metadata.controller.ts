@@ -90,11 +90,11 @@ export class AdminMetadataController {
   }
 
   /**
-   * Connect a new GitHub repository
+   * Connect a new GitHub or GitLab repository
    */
   static async connectRepository(req: Request, res: Response) {
     try {
-      const { repositoryUrl, branch = 'main', accessToken } = req.body;
+      const { repositoryUrl, branch = 'main', accessToken, provider = 'github' } = req.body;
       const userId = req.user?.id;
 
       if (!userId) {
@@ -115,29 +115,51 @@ export class AdminMetadataController {
 
       const organizationId = userProfile.organization_id;
 
-      if (!repositoryUrl || !accessToken) {
+      if (!repositoryUrl || !accessToken || !provider) {
         return res.status(400).json({ error: 'Missing required fields' });
       }
 
-      // Parse GitHub URL
-      const urlMatch = repositoryUrl.match(/github\.com\/([^\/]+)\/([^\/\.]+)/);
-      if (!urlMatch) {
-        return res.status(400).json({ error: 'Invalid GitHub URL' });
-      }
+      // Parse repository URL based on provider
+      let owner: string;
+      let name: string;
+      let urlMatch: RegExpMatchArray | null;
 
-      const [, owner, name] = urlMatch;
+      if (provider === 'gitlab') {
+        // Parse GitLab URL (supports gitlab.com and self-hosted)
+        urlMatch = repositoryUrl.match(/gitlab\.com\/([^\/]+)\/([^\/\.]+)/);
+        if (!urlMatch) {
+          return res.status(400).json({ error: 'Invalid GitLab URL' });
+        }
+        [, owner, name] = urlMatch;
+        
+        // Validate GitLab token format (glpat-...)
+        if (!accessToken.startsWith('glpat-')) {
+          console.warn('⚠️  GitLab token format validation failed');
+          return res.status(400).json({ 
+            error: 'Invalid GitLab token format',
+            message: 'Please provide a valid GitLab Personal Access Token (glpat-...)'
+          });
+        }
+      } else {
+        // Parse GitHub URL
+        urlMatch = repositoryUrl.match(/github\.com\/([^\/]+)\/([^\/\.]+)/);
+        if (!urlMatch) {
+          return res.status(400).json({ error: 'Invalid GitHub URL' });
+        }
+        [, owner, name] = urlMatch;
 
-      // Validate GitHub token format
-      if (!validateGitHubToken(accessToken)) {
-        console.warn('⚠️  GitHub token format validation failed');
-        return res.status(400).json({ 
-          error: 'Invalid GitHub token format',
-          message: 'Please provide a valid GitHub Personal Access Token (ghp_...) or Fine-grained token (github_pat_...)'
-        });
+        // Validate GitHub token format
+        if (!validateGitHubToken(accessToken)) {
+          console.warn('⚠️  GitHub token format validation failed');
+          return res.status(400).json({ 
+            error: 'Invalid GitHub token format',
+            message: 'Please provide a valid GitHub Personal Access Token (ghp_...) or Fine-grained token (github_pat_...)'
+          });
+        }
       }
 
       // Encrypt the access token using AES-256-GCM
-      console.log('🔒 Encrypting GitHub access token...');
+      console.log(`🔒 Encrypting ${provider} access token...`);
       const encryptedToken = encryptGitHubToken(accessToken);
       console.log('✅ Token encrypted successfully');
 
@@ -152,6 +174,7 @@ export class AdminMetadataController {
           repository_owner: owner,
           branch: branch,
           access_token_encrypted: encryptedToken, // Encrypted with AES-256-GCM
+          provider: provider, // 'github' or 'gitlab'
           status: 'connected',
           created_by: userId
         })
