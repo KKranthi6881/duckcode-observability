@@ -23,6 +23,7 @@ import { EnhancedCodeViewer } from '../../components/EnhancedCodeViewer';
 import { DocumentationViewer } from '../../components/DocumentationViewer';
 import { RepositoryGrid } from '../../components/RepositoryGrid';
 import FocusedLineageView from '../../components/lineage/FocusedLineageView';
+import { CodeLineageView } from '../../components/lineage/CodeLineageView';
 
 import { useProcessingStatus } from '../../context/ProcessingStatusContext';
 
@@ -258,7 +259,7 @@ export function CodeBase() {
   // UI State
   const [view, setView] = useState<'repos' | 'browser'>('repos');
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'code' | 'documentation' | 'lineage' | 'visual' | 'alerts'>('code');
+  const [activeTab, setActiveTab] = useState<'code' | 'documentation' | 'code-lineage' | 'data-lineage'>('code');
   
   // State has been moved to AnalysisSetup.tsx or is no longer needed here
   const [repoSummaryStatus, setRepoSummaryStatus] = useState<Record<string, { hasSummaries: boolean; summaryCount: number; lastSummaryDate?: string }>>({});
@@ -858,60 +859,8 @@ export function CodeBase() {
 
   // Connected State
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-gradient-to-r from-[#2AB7A9] to-[#24a497] rounded-lg flex items-center justify-center">
-                  <Database className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-xl font-bold text-gray-900">Code Repository</h1>
-                  <p className="text-xs text-gray-500">Explore and analyze your codebase</p>
-                </div>
-              </div>
-              
-              {/* Breadcrumb Navigation */}
-              {selectedGitHubRepo && (
-                <div className="flex items-center space-x-2 text-sm text-gray-500 ml-4">
-                  <ChevronRight className="h-4 w-4" />
-                  <button 
-                    onClick={() => setView('repos')}
-                    className="hover:text-[#2AB7A9] font-medium transition-colors"
-                  >
-                    Repositories
-                  </button>
-                  {view !== 'repos' && (
-                    <>
-                      <ChevronRight className="h-4 w-4" />
-                      <span className="text-gray-700 font-medium">{selectedGitHubRepo?.name}</span>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-            
-            {/* Search */}
-            <div className="flex items-center space-x-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search repositories, files..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 pr-4 py-2 w-80 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2AB7A9] focus:border-transparent bg-white shadow-sm"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="space-y-6">
         {isAuthLoading ? (
           <div className="flex items-center justify-center h-96">
             <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8">
@@ -941,65 +890,42 @@ export function CodeBase() {
           <>
             {/* Repository List View */}
             {view === 'repos' && (
-              <div className="space-y-6">
-                {/* Header Section */}
-                <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-                  <div className="bg-gradient-to-r from-[#2AB7A9] to-[#24a497] px-6 py-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                          <Database className="h-6 w-6 text-white" />
-                        </div>
-                        <div>
-                          <h2 className="text-xl font-bold text-white">Your Repositories</h2>
-                          <p className="text-[#a8f0e6] text-sm">Connected GitHub repositories</p>
-                        </div>
-                      </div>
-                      {repositories.length > 0 && (
-                        <div className="flex items-center space-x-2 text-sm text-white bg-white/10 rounded-full px-3 py-1">
-                          <div className="h-2 w-2 bg-white rounded-full animate-pulse"></div>
-                          <span>{repositories.length} repositories</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="p-6">
-                    {/* Repository List */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {repositories.map((repo) => (
-                        <div
-                          key={repo.id}
-                          onClick={() => handleRepositorySelect(repo)}
-                          className="bg-white border border-gray-200 rounded-lg p-4 hover:border-[#2AB7A9] hover:shadow-md transition-all cursor-pointer"
-                        >
-                          <div className="flex items-start justify-between mb-3">
-                            <div className="flex items-center space-x-2">
-                              <Database className="h-5 w-5 text-[#2AB7A9]" />
-                              <h3 className="font-semibold text-gray-900">{repo.repository_name}</h3>
-                            </div>
-                            {repo.status === 'completed' && (
-                              <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">
-                                Ready
-                              </span>
-                            )}
-                            {repo.status === 'extracting' && (
-                              <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
-                                Processing
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-sm text-gray-600 mb-3">{repo.repository_owner}/{repo.repository_name}</p>
-                          <div className="flex items-center justify-between text-xs text-gray-500">
-                            <span>{repo.total_objects || 0} objects</span>
-                            <span>{repo.total_files || 0} files</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+              <>
+                {/* Header */}
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h1 className="text-2xl font-bold text-gray-900">Repositories</h1>
+                    <p className="text-gray-600">Browse and analyze your connected repositories</p>
                   </div>
                 </div>
-              </div>
+
+                {/* Repository Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {repositories.map((repo) => (
+                    <div
+                      key={repo.id}
+                      onClick={() => handleRepositorySelect(repo)}
+                      className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow cursor-pointer border border-gray-200 hover:border-blue-300"
+                    >
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center space-x-3">
+                          <div className="p-2 bg-blue-100 rounded-lg">
+                            <Database className="h-5 w-5 text-blue-600" />
+                          </div>
+                          <div>
+                            <h3 className="font-semibold text-gray-900">{repo.repository_name}</h3>
+                            <p className="text-sm text-gray-500">{repo.repository_owner}</p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between text-sm text-gray-600">
+                        <span>{repo.total_objects || 0} objects</span>
+                        <span>{repo.total_files || 0} files</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
 
             {/* Browser View - Full Code Browser */}
@@ -1037,23 +963,28 @@ export function CodeBase() {
                         {/* File Content Tabs */}
                         <div className="border-b border-gray-200 bg-white flex-shrink-0 px-6 py-2">
                           <nav className="flex space-x-6" aria-label="Tabs">
-                            {['code', 'documentation', 'lineage'].map((tabName) => (
+                            {[
+                              { id: 'code', label: 'Code' },
+                              { id: 'documentation', label: 'Documentation' },
+                              { id: 'code-lineage', label: 'Code Lineage' },
+                              { id: 'data-lineage', label: 'Data Lineage' }
+                            ].map((tab) => (
                               <button
-                                key={tabName}
+                                key={tab.id}
                                 onClick={() => {
-                                  setActiveTab(tabName as any);
-                                  if (tabName === 'documentation' && selectedFile && selectedGitHubRepo) {
+                                  setActiveTab(tab.id as any);
+                                  if (tab.id === 'documentation' && selectedFile && selectedGitHubRepo) {
                                     const owner = selectedGitHubRepo.repository_owner;
                                     const repo = selectedGitHubRepo.repository_name;
                                     fetchFileSummary(owner, repo, selectedFile.path);
                                   }
                                 }}
                                 className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors
-                                            ${activeTab === tabName
+                                            ${activeTab === tab.id
                                               ? 'border-[#2AB7A9] text-[#2AB7A9]'
                                               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
                               >
-                                {tabName.charAt(0).toUpperCase() + tabName.slice(1)}
+                                {tab.label}
                               </button>
                             ))}
                           </nav>
@@ -1089,7 +1020,16 @@ export function CodeBase() {
                                 />
                               </div>
                             )}
-                            {activeTab === 'lineage' && selectedGitHubRepo && (
+                            {activeTab === 'code-lineage' && selectedGitHubRepo && (
+                              <div className="h-full w-full">
+                                <CodeLineageView 
+                                  connectionId={selectedGitHubRepo.id}
+                                  fileName={selectedFile?.name}
+                                  filePath={selectedFile?.path}
+                                />
+                              </div>
+                            )}
+                            {activeTab === 'data-lineage' && selectedGitHubRepo && (
                               <div className="h-full w-full">
                                 <FocusedLineageView 
                                   connectionId={selectedGitHubRepo.id}
@@ -1120,6 +1060,5 @@ export function CodeBase() {
           </>
         )}
       </div>
-    </div>
   );
 } 
