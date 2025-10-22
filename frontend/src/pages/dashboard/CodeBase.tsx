@@ -22,7 +22,6 @@ import { FileTree } from '../../components/FileTree';
 import { EnhancedCodeViewer } from '../../components/EnhancedCodeViewer';
 import { DocumentationViewer } from '../../components/DocumentationViewer';
 import { RepositoryGrid } from '../../components/RepositoryGrid';
-import FocusedLineageView from '../../components/lineage/FocusedLineageView';
 import { CodeLineageView } from '../../components/lineage/CodeLineageView';
 
 import { useProcessingStatus } from '../../context/ProcessingStatusContext';
@@ -259,7 +258,7 @@ export function CodeBase() {
   // UI State
   const [view, setView] = useState<'repos' | 'browser'>('repos');
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'code' | 'documentation' | 'code-lineage' | 'data-lineage'>('code');
+  const [activeTab, setActiveTab] = useState<'code' | 'documentation' | 'code-lineage'>('code');
   
   // State has been moved to AnalysisSetup.tsx or is no longer needed here
   const [repoSummaryStatus, setRepoSummaryStatus] = useState<Record<string, { hasSummaries: boolean; summaryCount: number; lastSummaryDate?: string }>>({});
@@ -966,8 +965,7 @@ export function CodeBase() {
                             {[
                               { id: 'code', label: 'Code' },
                               { id: 'documentation', label: 'Documentation' },
-                              { id: 'code-lineage', label: 'Code Lineage' },
-                              { id: 'data-lineage', label: 'Data Lineage' }
+                              { id: 'code-lineage', label: 'Code Lineage' }
                             ].map((tab) => (
                               <button
                                 key={tab.id}
@@ -1026,14 +1024,6 @@ export function CodeBase() {
                                   connectionId={selectedGitHubRepo.id}
                                   fileName={selectedFile?.name}
                                   filePath={selectedFile?.path}
-                                />
-                              </div>
-                            )}
-                            {activeTab === 'data-lineage' && selectedGitHubRepo && (
-                              <div className="h-full w-full">
-                                <FocusedLineageView 
-                                  connectionId={selectedGitHubRepo.id}
-                                  hideHeader={true}
                                 />
                               </div>
                             )}

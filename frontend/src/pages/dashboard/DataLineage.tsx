@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Network, Sparkles, Database, Table2, Columns, Tag, FileCode, TrendingUp, TrendingDown, Loader2, ArrowLeft, X } from 'lucide-react';
+import { Search, Network, Sparkles, Database, Table2, Columns, Tag, FileCode, TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
 import FocusedLineageView from '../../components/lineage/FocusedLineageView';
 import { supabase } from '../../config/supabaseClient';
 
@@ -36,19 +36,165 @@ export function DataLineage() {
     }, 300);
 
     return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery, searchType]);
 
   const handleSearch = async () => {
     setIsSearching(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
+      if (!session) {
+        console.log('No session found');
+        return;
+      }
 
-      // TODO: Call Tantivy search API
-      // For now, mock results
+      const searchUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/v2/search/query?q=${encodeURIComponent(searchQuery)}&limit=20`;
+      console.log('Searching:', searchUrl);
+
+      // Call Tantivy search API
+      const response = await fetch(searchUrl, {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+
+      console.log('Search response status:', response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Search failed:', response.status, errorText);
+        throw new Error(`Search failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Search results:', data);
+      
+      // Transform Tantivy results to our SearchResult format
+      const results: SearchResult[] = data.results.map((result: { id: string; object_type?: string; name: string; description?: string; file_path?: string; parent_object_name?: string; upstream_count?: number; downstream_count?: number; confidence?: number; extraction_tier?: string }) => {
+        // Determine type based on object_type
+        let type: 'model' | 'column' | 'table' | 'tag' = 'model';
+        if (result.object_type?.includes('column')) {
+          type = 'column';
+        } else if (result.object_type?.includes('table')) {
+          type = 'table';
+        }
+
+        return {
+          id: result.id,
+          type,
+          name: result.name,
+          description: result.description,
+          filePath: result.file_path,
+          parentModel: result.parent_object_name,
+          upstreamCount: result.upstream_count,
+          downstreamCount: result.downstream_count,
+          confidence: result.confidence,
+          tier: result.extraction_tier
+        };
+      });
+
+      // Apply search type filter
+      const filteredResults = searchType === 'all' 
+        ? results 
+        : results.filter(r => {
+            if (searchType === 'models') return r.type === 'model';
+            if (searchType === 'columns') return r.type === 'column';
+            if (searchType === 'tables') return r.type === 'table';
+            return true;
+          });
+
+      setSearchResults(filteredResults);
+    } catch (error) {
+      console.error('Search error:', error);
+      
+      // Fallback to direct database search
+      console.log('Tantivy search failed, falling back to direct database search');
+      
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+
+        const results: SearchResult[] = [];
+
+        // Search in metadata.objects table (models, tables)
+        const { data: objects, error: objError } = await supabase
+          .schema('metadata')
+          .from('objects')
+          .select('*')
+          .ilike('name', `%${searchQuery}%`)
+          .limit(10);
+
+        if (!objError && objects && objects.length > 0) {
+          console.log('Found objects in database:', objects);
+          
+          objects.forEach((obj: { id: string; object_type?: string; name: string; description?: string; file_path?: string; confidence?: number; extraction_tier?: string }) => {
+            results.push({
+              id: obj.id,
+              type: obj.object_type?.includes('table') ? 'table' : 'model',
+              name: obj.name,
+              description: obj.description,
+              filePath: obj.file_path,
+              confidence: obj.confidence,
+              tier: obj.extraction_tier
+            });
+          });
+        }
+
+        // Search in metadata.columns table
+        const { data: columns, error: colError } = await supabase
+          .schema('metadata')
+          .from('columns')
+          .select(`
+            id,
+            name,
+            data_type,
+            description,
+            object_id,
+            objects:object_id (
+              name,
+              object_type
+            )
+          `)
+          .ilike('name', `%${searchQuery}%`)
+          .limit(10);
+
+        if (!colError && columns && columns.length > 0) {
+          console.log('Found columns in database:', columns);
+          
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          columns.forEach((col: any) => {
+            // Supabase returns objects as a single object (not array) when using foreign key relationship
+            const parentObj = col.objects;
+            results.push({
+              id: col.id,
+              type: 'column' as const,
+              name: col.name,
+              description: col.description || `${col.data_type || 'column'}`,
+              parentModel: parentObj?.name,
+              // Store object_id for easy lookup
+              upstreamCount: undefined,
+              downstreamCount: undefined,
+              confidence: undefined,
+              tier: undefined,
+              filePath: col.object_id // Store object_id in filePath temporarily
+            });
+          });
+        }
+
+        if (results.length > 0) {
+          setSearchResults(results);
+          setIsSearching(false);
+          return;
+        }
+      } catch (dbError) {
+        console.error('Database fallback error:', dbError);
+      }
+      
+      // Last resort: mock data for UI testing
+      console.log('Using mock data as last resort');
       const mockResults: SearchResult[] = [
         {
-          id: '1',
+          id: 'mock-1',
           type: 'model',
           name: 'stg_customers',
           description: 'Staging table for customer data',
@@ -59,21 +205,42 @@ export function DataLineage() {
           tier: 'GOLD'
         },
         {
-          id: '2',
+          id: 'mock-2',
+          type: 'model',
+          name: 'stg_orders',
+          description: 'Staging table for order data',
+          filePath: 'models/staging/stg_orders.sql',
+          upstreamCount: 2,
+          downstreamCount: 4,
+          confidence: 1.0,
+          tier: 'GOLD'
+        },
+        {
+          id: 'mock-3',
           type: 'column',
           name: 'customer_id',
           parentModel: 'stg_customers',
           description: 'Unique identifier for customers',
           upstreamCount: 1,
           downstreamCount: 5
+        },
+        {
+          id: 'mock-4',
+          type: 'model',
+          name: 'stg_payments',
+          description: 'Staging table for payment transactions',
+          filePath: 'models/staging/stg_payments.sql',
+          upstreamCount: 1,
+          downstreamCount: 2,
+          confidence: 0.95,
+          tier: 'SILVER'
         }
       ];
-
-      setSearchResults(mockResults.filter(r => 
+      
+      const filtered = mockResults.filter(r => 
         r.name.toLowerCase().includes(searchQuery.toLowerCase())
-      ));
-    } catch (error) {
-      console.error('Search error:', error);
+      );
+      setSearchResults(filtered);
     } finally {
       setIsSearching(false);
     }
@@ -90,48 +257,132 @@ export function DataLineage() {
   };
 
   const handleResultClick = async (result: SearchResult) => {
+    console.log('Clicked result:', result);
+    
+    // Clear search query and results when clicking a result
+    setSearchQuery('');
+    setSearchResults([]);
+    
     if (result.type === 'model') {
       setSelectedModel(result.id);
       
-      // Fetch the connection ID for this model
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return;
-
-        // Get the model's connection from metadata
-        const response = await fetch(
-          `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/metadata/objects/${result.id}`,
-          {
-            headers: {
-              'Authorization': `Bearer ${session.access_token}`
-            }
-          }
-        );
-
-        if (response.ok) {
-          const modelData = await response.json();
-          if (modelData.connection_id) {
-            setConnectionId(modelData.connection_id);
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching model connection:', error);
+      // For mock data, show a message
+      if (result.id.startsWith('mock-')) {
+        console.log('Mock data clicked - need real repository data');
+        alert('This is demo data. To see real lineage:\n\n1. Connect a GitHub repository\n2. Extract metadata\n3. Search will show real models\n4. Click to see lineage!');
+        setSelectedModel(null);
+        return;
       }
-    } else if (result.type === 'column' && result.parentModel) {
-      // For columns, fetch the parent model's lineage
-      // TODO: Implement column-specific lineage view
-      console.log('Column lineage for:', result.name, 'in', result.parentModel);
+      
+      // Fetch the connection ID from the repository
+      try {
+        console.log('Fetching connection ID for model:', result.id);
+        
+        // Query the object to get repository_id, then get connection_id from repository
+        const { data: objectData, error: objError } = await supabase
+          .schema('metadata')
+          .from('objects')
+          .select('repository_id')
+          .eq('id', result.id)
+          .single();
+
+        if (objError || !objectData?.repository_id) {
+          console.error('Failed to get repository_id:', objError);
+          alert('Could not find repository for this model');
+          setSelectedModel(null);
+          return;
+        }
+
+        console.log('Repository ID:', objectData.repository_id);
+
+        // Get connection_id from repository
+        const { data: repoData, error: repoError } = await supabase
+          .schema('metadata')
+          .from('repositories')
+          .select('connection_id')
+          .eq('id', objectData.repository_id)
+          .single();
+
+        if (repoError || !repoData?.connection_id) {
+          console.error('Failed to get connection_id:', repoError);
+          alert('Could not find connection for this repository');
+          setSelectedModel(null);
+          return;
+        }
+
+        console.log('Connection ID:', repoData.connection_id);
+        setConnectionId(repoData.connection_id);
+        
+      } catch (error) {
+        console.error('Error fetching connection:', error);
+        alert('Error loading lineage. Check console for details.');
+        setSelectedModel(null);
+      }
+    } else if (result.type === 'column') {
+      // For columns, we need to find the parent model and show its lineage
+      try {
+        console.log('Column clicked:', result.name, 'Parent:', result.parentModel);
+        
+        // Get the object_id (stored in filePath temporarily)
+        const objectId = result.filePath;
+        
+        if (!objectId) {
+          alert('Could not find parent model for this column');
+          return;
+        }
+        
+        // Query to get the parent object's repository_id
+        const { data: parentObject, error: parentError } = await supabase
+          .schema('metadata')
+          .from('objects')
+          .select('id, repository_id')
+          .eq('id', objectId)
+          .single();
+
+        if (parentError || !parentObject) {
+          console.error('Failed to find parent model:', parentError);
+          alert('Could not find parent model for this column');
+          return;
+        }
+
+        console.log('Parent model found:', parentObject.id);
+
+        // Get connection_id from repository
+        const { data: repoData, error: repoError } = await supabase
+          .schema('metadata')
+          .from('repositories')
+          .select('connection_id')
+          .eq('id', parentObject.repository_id)
+          .single();
+
+        if (repoError || !repoData?.connection_id) {
+          console.error('Failed to get connection_id:', repoError);
+          alert('Could not find connection for this repository');
+          return;
+        }
+
+        console.log('Connection ID:', repoData.connection_id);
+        
+        // Set the parent model as selected to show its lineage
+        setSelectedModel(parentObject.id);
+        setConnectionId(repoData.connection_id);
+        
+      } catch (error) {
+        console.error('Error loading column lineage:', error);
+        alert('Error loading column lineage. Check console for details.');
+      }
     }
   };
 
   return (
-    <div className="h-full flex flex-col bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* AI-Style Central Search */}
+    <div className="h-screen flex flex-col bg-gradient-to-br from-gray-50 to-gray-100">
+      {/* AI-Style Central Search - Always visible */}
       <div className={`flex-shrink-0 flex items-center justify-center px-6 transition-all duration-300 ${
-        selectedModel && connectionId ? 'py-6' : 'py-12'
+        selectedModel && connectionId ? 'py-4' : 'py-12'
       }`}>
         <div className="w-full max-w-4xl">
-          {/* Header */}
+          {/* Header - Only show when no lineage */}
+          {!selectedModel && (
           <div className="text-center mb-8">
             <div className="inline-flex items-center gap-2 mb-4">
               <div className="p-3 bg-gradient-to-br from-purple-500 to-blue-500 rounded-2xl shadow-lg">
@@ -141,8 +392,9 @@ export function DataLineage() {
             <h1 className="text-4xl font-bold text-gray-900 mb-2">Data Lineage Intelligence</h1>
             <p className="text-lg text-gray-600">Search models, columns, tables, and business terms</p>
           </div>
+          )}
 
-          {/* Search Box */}
+          {/* Search Box - Always visible */}
           <div className="relative mb-6">
             <div className="absolute left-6 top-1/2 transform -translate-y-1/2 flex items-center gap-3">
               <Search className="w-6 h-6 text-gray-400" />
@@ -157,7 +409,8 @@ export function DataLineage() {
             />
           </div>
 
-          {/* Search Filters */}
+          {/* Search Filters - Only show when no lineage */}
+          {!selectedModel && (
           <div className="flex items-center justify-center gap-3 mb-6">
             {(['all', 'models', 'columns', 'tables'] as const).map((type) => (
               <button
@@ -173,8 +426,9 @@ export function DataLineage() {
               </button>
             ))}
           </div>
+          )}
 
-          {/* Search Results */}
+          {/* Search Results - Show always when there are results */}
           {searchResults.length > 0 && (
             <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
               <div className="p-4 bg-gray-50 border-b border-gray-200">
@@ -259,46 +513,12 @@ export function DataLineage() {
       {/* Lineage View */}
       {selectedModel && connectionId && (
         <div className="flex-1 overflow-hidden px-6 pb-6">
-          <div className="h-full bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col">
-            {/* Lineage Header */}
-            <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-blue-50">
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => {
-                    setSelectedModel(null);
-                    setConnectionId('');
-                  }}
-                  className="p-2 hover:bg-white rounded-lg transition-colors"
-                  title="Back to search"
-                >
-                  <ArrowLeft className="w-5 h-5 text-gray-600" />
-                </button>
-                <div>
-                  <h2 className="text-lg font-bold text-gray-900">
-                    {searchResults.find(r => r.id === selectedModel)?.name || 'Model Lineage'}
-                  </h2>
-                  <p className="text-sm text-gray-600">Explore dependencies and data flow</p>
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  setSelectedModel(null);
-                  setConnectionId('');
-                }}
-                className="p-2 hover:bg-white rounded-lg transition-colors"
-                title="Close"
-              >
-                <X className="w-5 h-5 text-gray-600" />
-              </button>
-            </div>
-            
-            {/* Lineage Graph */}
-            <div className="flex-1 overflow-hidden">
-              <FocusedLineageView 
-                connectionId={connectionId}
-                hideHeader={true}
-              />
-            </div>
+          <div className="h-full bg-white rounded-2xl shadow-xl overflow-hidden">
+            <FocusedLineageView 
+              connectionId={connectionId}
+              initialModelId={selectedModel}
+              hideHeader={false}
+            />
           </div>
         </div>
       )}

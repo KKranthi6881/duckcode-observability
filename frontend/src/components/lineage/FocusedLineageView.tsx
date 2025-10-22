@@ -39,6 +39,7 @@ interface Column {
 
 interface FocusedLineageViewProps {
   connectionId: string;
+  initialModelId?: string;
   onDataUpdate?: (data: { nodes: Node[]; edges: Edge[]; columnLineages: ColumnLineage[] }) => void;
   hideHeader?: boolean;
 }
@@ -113,12 +114,22 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[]) => {
 };
 
 // Inner component with ReactFlow context
-function FocusedLineageContent({ connectionId, onDataUpdate, hideHeader }: FocusedLineageViewProps) {
+function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate, hideHeader }: FocusedLineageViewProps) {
   const reactFlowInstance = useReactFlow();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedModel, setSelectedModel] = useState<string | null>(null);
+  const [selectedModel, setSelectedModel] = useState<string | null>(initialModelId || null);
   const [selectedModelName, setSelectedModelName] = useState<string>('');
+  
+  // Auto-load lineage if initialModelId is provided
+  useEffect(() => {
+    console.log('[FocusedLineageView] initialModelId:', initialModelId, 'selectedModel:', selectedModel);
+    if (initialModelId) {
+      console.log('[FocusedLineageView] Auto-loading lineage for:', initialModelId);
+      setSelectedModel(initialModelId);
+      fetchFocusedLineage(initialModelId);
+    }
+  }, [initialModelId]);
   const [allColumnLineages, setAllColumnLineages] = useState<ColumnLineage[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [columnLineageView, setColumnLineageView] = useState<{
@@ -613,9 +624,10 @@ function FocusedLineageContent({ connectionId, onDataUpdate, hideHeader }: Focus
                   {filteredNodes.map((node) => (
                     <button
                       key={node.id}
-                      onClick={() => {
-                        focusNode(node.id);
-                        setSearchTerm('');
+                      onClick={(e) => {
+                        e.stopPropagation(); // Prevent event bubbling
+                        setSearchTerm(''); // Clear search to hide dropdown
+                        setTimeout(() => focusNode(node.id), 0); // Focus after state update
                       }}
                       className="w-full px-4 py-2.5 text-left hover:bg-blue-50 flex items-center justify-between group"
                     >
@@ -643,12 +655,6 @@ function FocusedLineageContent({ connectionId, onDataUpdate, hideHeader }: Focus
           >
             <RefreshCw className="w-4 h-4" />
             Refresh
-          </button>
-          <button
-            onClick={handleReset}
-            className="px-4 py-1.5 text-sm text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 border border-blue-200"
-          >
-            Change Model
           </button>
         </div>
       </div>
@@ -713,7 +719,7 @@ function FocusedLineageContent({ connectionId, onDataUpdate, hideHeader }: Focus
 export default function FocusedLineageView(props: FocusedLineageViewProps) {
   return (
     <ReactFlowProvider>
-      <FocusedLineageContent {...props} />
+      <FocusedLineageViewContent {...props} />
     </ReactFlowProvider>
   );
 }
