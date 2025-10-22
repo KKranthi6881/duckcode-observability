@@ -9,6 +9,7 @@ import { Settings } from './pages/dashboard/Settings';
 import { CodeBase } from './pages/dashboard/CodeBase';
 import { AnalysisSetup } from './pages/dashboard/AnalysisSetup';
 import { EnhancedAnalytics } from './pages/dashboard/EnhancedAnalytics';
+import { DataLineage } from './pages/dashboard/DataLineage';
 import AnalyticsDashboard from './pages/AnalyticsDashboard';
 import { FileProcessingStatus } from './components/FileProcessingStatus';
 import { UserAnalytics } from './pages/user/UserAnalytics';
@@ -110,6 +111,7 @@ const AppContent = () => {
             <Route path="code/analyze/:owner/:repo" element={<AnalysisSetup />} />
             <Route path="code/status/:owner/:repo" element={<FileProcessingStatus />} />
             <Route path="analytics" element={<EnhancedAnalytics />} />
+            <Route path="lineage" element={<DataLineage />} />
             <Route path="my-usage" element={<UserAnalytics />} />
             <Route path="settings" element={<Settings />} />
           </Route>

@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
-  Settings as SettingsIcon, Code, UserCircle, LogOut, BarChart3, Shield 
+  Settings as SettingsIcon, Code, UserCircle, LogOut, BarChart3, Shield, Network 
 } from 'lucide-react';
 import { useAuth } from '../../../features/auth/contexts/AuthContext';
 import { useState, useEffect } from 'react';
@@ -14,6 +14,10 @@ const navigation = [{
   name: 'Cost Analytics',
   href: '/dashboard/analytics',
   icon: BarChart3
+}, {
+  name: 'Data Lineage',
+  href: '/dashboard/lineage',
+  icon: Network
 }];
 
 const bottomNavigation = [{
