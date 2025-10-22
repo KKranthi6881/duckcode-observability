@@ -90,7 +90,8 @@ export class ExtractionOrchestrator extends EventEmitter {
       const dbtResult = await this.dbtRunner.extractMetadata(
         connection.repository_url,
         connection.branch,
-        connection.access_token_encrypted // TODO: Decrypt
+        connection.access_token_encrypted, // TODO: Decrypt
+        connection.provider || 'github' // Pass provider to support GitLab
       );
 
       if (!dbtResult.success) {

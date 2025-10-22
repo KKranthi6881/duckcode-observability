@@ -31,24 +31,25 @@ export class DbtRunner {
   }
 
   /**
-   * Clone a GitHub repository
+   * Clone a GitHub or GitLab repository
    */
   async cloneRepository(
     repoUrl: string,
     branch: string,
-    token: string
+    token: string,
+    provider: 'github' | 'gitlab' = 'github'
   ): Promise<string> {
     const repoName = this.extractRepoName(repoUrl);
     const timestamp = Date.now();
     const clonePath = path.join(this.workDir, `${repoName}-${timestamp}`);
 
-    console.log(`📦 Cloning repository: ${repoUrl}`);
+    console.log(`📦 Cloning ${provider} repository: ${repoUrl}`);
     console.log(`   Branch: ${branch}`);
     console.log(`   Target: ${clonePath}`);
 
     await fs.mkdir(this.workDir, { recursive: true });
 
-    const authenticatedUrl = this.buildAuthenticatedUrl(repoUrl, token);
+    const authenticatedUrl = this.buildAuthenticatedUrl(repoUrl, token, provider);
 
     try {
       const { stdout, stderr } = await execAsync(
@@ -218,13 +219,14 @@ ${profileName}:
   async extractMetadata(
     repoUrl: string,
     branch: string,
-    token: string
+    token: string,
+    provider: 'github' | 'gitlab' = 'github'
   ): Promise<DbtRunResult> {
     let projectPath: string | null = null;
 
     try {
       // Step 1: Clone repository
-      projectPath = await this.cloneRepository(repoUrl, branch, token);
+      projectPath = await this.cloneRepository(repoUrl, branch, token, provider);
 
       // Step 2: Detect dbt version
       const dbtVersion = await this.detectDbtVersion(projectPath);
@@ -251,9 +253,15 @@ ${profileName}:
     return match ? match[1] : 'repo';
   }
 
-  private buildAuthenticatedUrl(repoUrl: string, token: string): string {
+  private buildAuthenticatedUrl(repoUrl: string, token: string, provider: 'github' | 'gitlab' = 'github'): string {
     if (repoUrl.startsWith('https://')) {
-      return repoUrl.replace('https://', `https://${token}@`);
+      if (provider === 'gitlab') {
+        // GitLab uses oauth2:TOKEN format
+        return repoUrl.replace('https://', `https://oauth2:${token}@`);
+      } else {
+        // GitHub uses TOKEN as username
+        return repoUrl.replace('https://', `https://${token}@`);
+      }
     }
     return repoUrl;
   }
