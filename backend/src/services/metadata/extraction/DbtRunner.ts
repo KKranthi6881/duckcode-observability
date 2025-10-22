@@ -162,7 +162,8 @@ ${profileName}:
       });
 
       console.log(`✅ dbt parse completed in Docker`);
-      if (stdout) console.log(`   Output: ${stdout.substring(0, 200)}...`);
+      if (stdout) console.log(`   stdout: ${stdout.substring(0, 500)}...`);
+      if (stderr) console.log(`   stderr: ${stderr.substring(0, 500)}...`);
 
       // Check if manifest was generated
       const manifestPath = path.join(projectPath, 'target', 'manifest.json');
@@ -188,7 +189,12 @@ ${profileName}:
       };
     } catch (error: any) {
       console.error(`❌ dbt parse failed:`, error.message);
+      if (error.stdout) console.error(`   Docker stdout:`, error.stdout);
+      if (error.stderr) console.error(`   Docker stderr:`, error.stderr);
+      if (error.code) console.error(`   Exit code:`, error.code);
+      
       errors.push(error.message);
+      if (error.stderr) errors.push(`stderr: ${error.stderr}`);
 
       return {
         success: false,
