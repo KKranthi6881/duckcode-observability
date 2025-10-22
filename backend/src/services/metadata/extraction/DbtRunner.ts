@@ -68,38 +68,40 @@ export class DbtRunner {
   }
 
   /**
-   * Find dbt_project.yml in repository (may be in subdirectory)
+   * Recursively search for dbt_project.yml in repository
    */
   async findDbtProject(projectPath: string): Promise<string | null> {
+    console.log(`🔍 Searching for dbt_project.yml in repository...`);
+    
     try {
-      // Check root directory first
-      const rootDbtProject = path.join(projectPath, 'dbt_project.yml');
-      await fs.access(rootDbtProject);
-      console.log(`✅ Found dbt_project.yml in root directory`);
-      return projectPath;
-    } catch {
-      // Search in subdirectories (common patterns)
-      const commonPaths = [
-        'dbt',
-        'transform',
-        'analytics',
-        'data',
-        'models'
-      ];
+      // Use find command to search for dbt_project.yml recursively
+      // Limit depth to 5 levels to avoid going too deep
+      const { stdout } = await execAsync(
+        `find "${projectPath}" -maxdepth 5 -name "dbt_project.yml" -type f`,
+        { timeout: 30000 }
+      );
 
-      for (const subdir of commonPaths) {
-        try {
-          const subdirPath = path.join(projectPath, subdir);
-          const dbtProjectPath = path.join(subdirPath, 'dbt_project.yml');
-          await fs.access(dbtProjectPath);
-          console.log(`✅ Found dbt_project.yml in /${subdir}/ directory`);
-          return subdirPath;
-        } catch {
-          continue;
-        }
+      const foundPaths = stdout.trim().split('\n').filter(p => p);
+      
+      if (foundPaths.length === 0) {
+        console.warn(`⚠️  Could not find dbt_project.yml in repository`);
+        return null;
       }
 
-      console.warn(`⚠️  Could not find dbt_project.yml in repository`);
+      // Use the first found dbt_project.yml
+      const dbtProjectFile = foundPaths[0];
+      const dbtProjectDir = path.dirname(dbtProjectFile);
+      
+      const relativePath = path.relative(projectPath, dbtProjectDir);
+      if (relativePath) {
+        console.log(`✅ Found dbt_project.yml in /${relativePath}/ directory`);
+      } else {
+        console.log(`✅ Found dbt_project.yml in root directory`);
+      }
+      
+      return dbtProjectDir;
+    } catch (error: any) {
+      console.error(`❌ Error searching for dbt_project.yml:`, error.message);
       return null;
     }
   }
