@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Network, Sparkles, Database, Table2, Columns, Tag, FileCode, TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
+import { Search, Network, Sparkles, Database, Table2, Columns, Tag, FileCode, TrendingUp, TrendingDown, Loader2, ArrowLeft, X } from 'lucide-react';
 import FocusedLineageView from '../../components/lineage/FocusedLineageView';
 import { supabase } from '../../config/supabaseClient';
 
@@ -89,17 +89,47 @@ export function DataLineage() {
     }
   };
 
-  const handleResultClick = (result: SearchResult) => {
+  const handleResultClick = async (result: SearchResult) => {
     if (result.type === 'model') {
       setSelectedModel(result.id);
-      // TODO: Set proper connectionId
+      
+      // Fetch the connection ID for this model
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+
+        // Get the model's connection from metadata
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/metadata/objects/${result.id}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`
+            }
+          }
+        );
+
+        if (response.ok) {
+          const modelData = await response.json();
+          if (modelData.connection_id) {
+            setConnectionId(modelData.connection_id);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching model connection:', error);
+      }
+    } else if (result.type === 'column' && result.parentModel) {
+      // For columns, fetch the parent model's lineage
+      // TODO: Implement column-specific lineage view
+      console.log('Column lineage for:', result.name, 'in', result.parentModel);
     }
   };
 
   return (
     <div className="h-full flex flex-col bg-gradient-to-br from-gray-50 to-gray-100">
       {/* AI-Style Central Search */}
-      <div className="flex-shrink-0 flex items-center justify-center py-12 px-6">
+      <div className={`flex-shrink-0 flex items-center justify-center px-6 transition-all duration-300 ${
+        selectedModel && connectionId ? 'py-6' : 'py-12'
+      }`}>
         <div className="w-full max-w-4xl">
           {/* Header */}
           <div className="text-center mb-8">
@@ -229,11 +259,46 @@ export function DataLineage() {
       {/* Lineage View */}
       {selectedModel && connectionId && (
         <div className="flex-1 overflow-hidden px-6 pb-6">
-          <div className="h-full bg-white rounded-2xl shadow-xl overflow-hidden">
-            <FocusedLineageView 
-              connectionId={connectionId}
-              hideHeader={true}
-            />
+          <div className="h-full bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col">
+            {/* Lineage Header */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-blue-50">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => {
+                    setSelectedModel(null);
+                    setConnectionId('');
+                  }}
+                  className="p-2 hover:bg-white rounded-lg transition-colors"
+                  title="Back to search"
+                >
+                  <ArrowLeft className="w-5 h-5 text-gray-600" />
+                </button>
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">
+                    {searchResults.find(r => r.id === selectedModel)?.name || 'Model Lineage'}
+                  </h2>
+                  <p className="text-sm text-gray-600">Explore dependencies and data flow</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setSelectedModel(null);
+                  setConnectionId('');
+                }}
+                className="p-2 hover:bg-white rounded-lg transition-colors"
+                title="Close"
+              >
+                <X className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
+            
+            {/* Lineage Graph */}
+            <div className="flex-1 overflow-hidden">
+              <FocusedLineageView 
+                connectionId={connectionId}
+                hideHeader={true}
+              />
+            </div>
           </div>
         </div>
       )}
