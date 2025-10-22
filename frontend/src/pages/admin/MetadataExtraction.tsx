@@ -15,14 +15,10 @@ import {
   GitPullRequest,
   FileCode,
   Table,
-  Columns,
-  TrendingUp,
-  Network,
-  X
+  Columns
 } from 'lucide-react';
 import { supabase } from '../../config/supabaseClient';
 import axios from 'axios';
-import LineageViewContainer from '@/components/lineage/LineageViewContainer';
 
 interface GitHubConnection {
   id: string;
@@ -67,14 +63,13 @@ export const MetadataExtraction: React.FC = () => {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [showLineage, setShowLineage] = useState(false);
-  const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
 
   // New connection form
   const [newRepo, setNewRepo] = useState({
     url: '',
     branch: 'main',
-    accessToken: ''
+    accessToken: '',
+    provider: 'github' as 'github' | 'gitlab'
   });
 
   const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
@@ -156,13 +151,14 @@ export const MetadataExtraction: React.FC = () => {
       await axios.post(`${API_BASE}/api/admin/metadata/connections`, {
         repositoryUrl: newRepo.url,
         branch: newRepo.branch,
-        accessToken: newRepo.accessToken
+        accessToken: newRepo.accessToken,
+        provider: newRepo.provider
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
       setShowAddDialog(false);
-      setNewRepo({ url: '', branch: 'main', accessToken: '' });
+      setNewRepo({ url: '', branch: 'main', accessToken: '', provider: 'github' });
       await fetchData();
     } catch (error: any) {
       console.error('Failed to connect repository:', error);
@@ -242,16 +238,6 @@ export const MetadataExtraction: React.FC = () => {
     );
   };
 
-  const getQualityBadge = (score?: number) => {
-    if (!score) return null;
-    const color = score >= 90 ? 'bg-green-500' : score >= 70 ? 'bg-yellow-500' : 'bg-red-500';
-    return (
-      <Badge className={`${color} text-white flex items-center gap-1`}>
-        <TrendingUp className="w-3 h-3" />
-        {score.toFixed(1)}% Quality
-      </Badge>
-    );
-  };
 
   return (
     <div className="space-y-6 p-6">
@@ -260,45 +246,35 @@ export const MetadataExtraction: React.FC = () => {
         <div>
           <h1 className="text-3xl font-bold">Metadata Extraction</h1>
           <p className="text-muted-foreground mt-1">
-            Enterprise data catalog powered by SQLglot + Tantivy
+            Connect repositories and extract metadata
           </p>
         </div>
-        <Button onClick={() => setShowAddDialog(true)}>
+        <Button onClick={() => setShowAddDialog(true)} size="lg">
           <Plus className="w-4 h-4 mr-2" />
-          Connect Repository
+          Add Repository
         </Button>
-      </div>
-
-      {/* Docker-based Extraction Banner */}
-      <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg">
-        <div className="flex items-start gap-3">
-          <div className="flex-shrink-0 mt-0.5">
-            <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-            </svg>
-          </div>
-          <div className="flex-1">
-            <h3 className="text-sm font-semibold text-blue-900 mb-1">
-              🐳 Docker-Based Automatic Extraction Enabled
-            </h3>
-            <p className="text-sm text-blue-800">
-              Extraction now runs in isolated Docker containers with <code className="bg-blue-100 px-1 rounded text-xs">dbt parse</code>. 
-              When you click "Extract", the system automatically clones your repo, runs dbt in a container, extracts the manifest, and stores metadata. 
-              Duration: 1-3 minutes. No manual uploads needed!
-            </p>
-          </div>
-        </div>
       </div>
 
       {/* Modal for adding repository */}
       {showAddDialog && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-2">Connect GitHub Repository</h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              Connect a repository to extract SQL, Python, and DBT metadata
-            </p>
+            <h2 className="text-xl font-bold mb-4">Add Repository</h2>
             <div className="space-y-4">
+              <div>
+                <label htmlFor="provider" className="block text-sm font-medium mb-1">
+                  Provider
+                </label>
+                <select
+                  id="provider"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
+                  value={newRepo.provider}
+                  onChange={(e) => setNewRepo({ ...newRepo, provider: e.target.value as 'github' | 'gitlab' })}
+                >
+                  <option value="github">GitHub</option>
+                  <option value="gitlab">GitLab</option>
+                </select>
+              </div>
               <div>
                 <label htmlFor="repo-url" className="block text-sm font-medium mb-1">
                   Repository URL
@@ -307,7 +283,7 @@ export const MetadataExtraction: React.FC = () => {
                   id="repo-url"
                   type="text"
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
-                  placeholder="https://github.com/owner/repo"
+                  placeholder={newRepo.provider === 'github' ? 'https://github.com/owner/repo' : 'https://gitlab.com/owner/repo'}
                   value={newRepo.url}
                   onChange={(e) => setNewRepo({ ...newRepo, url: e.target.value })}
                 />
@@ -327,23 +303,25 @@ export const MetadataExtraction: React.FC = () => {
               </div>
               <div>
                 <label htmlFor="token" className="block text-sm font-medium mb-1">
-                  GitHub Personal Access Token
+                  {newRepo.provider === 'github' ? 'GitHub' : 'GitLab'} Access Token
                 </label>
                 <input
                   id="token"
                   type="password"
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
-                  placeholder="ghp_..."
+                  placeholder={newRepo.provider === 'github' ? 'ghp_...' : 'glpat-...'}
                   value={newRepo.accessToken}
                   onChange={(e) => setNewRepo({ ...newRepo, accessToken: e.target.value })}
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Token needs 'repo' scope to read repository contents
+                  {newRepo.provider === 'github' 
+                    ? "Token needs 'repo' scope to read repository contents"
+                    : "Token needs 'read_repository' scope to read repository contents"}
                 </p>
               </div>
               <div className="flex gap-2">
                 <Button onClick={connectRepository} className="flex-1">
-                  Connect Repository
+                  Add
                 </Button>
                 <Button 
                   onClick={() => setShowAddDialog(false)} 
@@ -359,7 +337,7 @@ export const MetadataExtraction: React.FC = () => {
       )}
 
       {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -380,7 +358,6 @@ export const MetadataExtraction: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats?.total_objects?.toLocaleString() || 0}</div>
-            <p className="text-xs text-muted-foreground">Tables, Views, Models</p>
           </CardContent>
         </Card>
         <Card>
@@ -392,31 +369,17 @@ export const MetadataExtraction: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats?.total_columns?.toLocaleString() || 0}</div>
-            <p className="text-xs text-muted-foreground">With lineage tracking</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <TrendingUp className="w-4 h-4" />
-              Avg Quality
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats?.avg_quality_score?.toFixed(1) || 0}%</div>
-            <p className="text-xs text-muted-foreground">Extraction accuracy</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <RefreshCw className="w-4 h-4" />
-              Active Jobs
+              Extracting
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats?.active_jobs || 0}</div>
-            <p className="text-xs text-muted-foreground">Currently extracting</p>
           </CardContent>
         </Card>
       </div>
@@ -434,13 +397,13 @@ export const MetadataExtraction: React.FC = () => {
           <Card>
             <CardContent className="py-12 text-center">
               <GitBranch className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-lg font-semibold mb-2">No repositories connected</h3>
+              <h3 className="text-lg font-semibold mb-2">No repositories</h3>
               <p className="text-muted-foreground mb-4">
-                Connect your first repository to start building your data catalog
+                Add a repository to extract metadata
               </p>
               <Button onClick={() => setShowAddDialog(true)}>
                 <Plus className="w-4 h-4 mr-2" />
-                Connect Repository
+                Add Repository
               </Button>
             </CardContent>
           </Card>
@@ -456,10 +419,8 @@ export const MetadataExtraction: React.FC = () => {
                         <GitBranch className="w-5 h-5" />
                         <CardTitle className="text-xl">{connection.repository_name}</CardTitle>
                         {getStatusBadge(connection.status)}
-                        {getQualityBadge(connection.extraction_quality_score)}
                       </div>
                       <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-                        <span>{connection.repository_url}</span>
                         <span className="flex items-center gap-1">
                           <GitPullRequest className="w-3 h-3" />
                           {connection.branch}
@@ -492,25 +453,6 @@ export const MetadataExtraction: React.FC = () => {
                           onClick={() => startExtraction(connection.id)}
                         >
                           <Play className="w-4 h-4" />
-                        </Button>
-                      )}
-                      {connection.status !== 'extracting' && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            console.log('[MetadataExtraction] Lineage button clicked for connection:', connection.id);
-                            console.log('[MetadataExtraction] Connection has objects:', connection.total_objects);
-                            setSelectedConnectionId(connection.id);
-                            setShowLineage(true);
-                            console.log('[MetadataExtraction] Panel should open now');
-                          }}
-                          className="border-blue-500 text-blue-500 hover:bg-blue-50"
-                          disabled={(connection.total_objects || 0) === 0}
-                          title={(connection.total_objects || 0) === 0 ? 'No objects extracted yet' : 'View data lineage'}
-                        >
-                          <Network className="w-4 h-4 mr-1" />
-                          Lineage
                         </Button>
                       )}
                       <Button
@@ -566,12 +508,12 @@ export const MetadataExtraction: React.FC = () => {
                     <div className="text-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                       <FileCode className="w-5 h-5 mx-auto mb-1 text-blue-500" />
                       <p className="text-2xl font-bold">{connection.total_files || 0}</p>
-                      <p className="text-xs text-muted-foreground">SQL/Python Files</p>
+                      <p className="text-xs text-muted-foreground">Files</p>
                     </div>
                     <div className="text-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                       <Table className="w-5 h-5 mx-auto mb-1 text-green-500" />
                       <p className="text-2xl font-bold">{connection.total_objects || 0}</p>
-                      <p className="text-xs text-muted-foreground">Tables/Views/Models</p>
+                      <p className="text-xs text-muted-foreground">Objects</p>
                     </div>
                     <div className="text-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                       <Columns className="w-5 h-5 mx-auto mb-1 text-purple-500" />
@@ -594,37 +536,6 @@ export const MetadataExtraction: React.FC = () => {
         )}
       </div>
 
-      {/* Lineage Side Panel */}
-      {showLineage && selectedConnectionId && (
-        <div className="fixed inset-0 z-50 flex">
-          {/* Backdrop */}
-          <div 
-            className="absolute inset-0 bg-black bg-opacity-50"
-            onClick={() => setShowLineage(false)}
-          />
-          
-          {/* Panel */}
-          <div className="relative ml-auto w-full max-w-7xl h-full bg-white shadow-2xl flex flex-col">
-            {/* Close Button */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowLineage(false)}
-              className="absolute top-4 right-4 z-10"
-            >
-              <X className="w-4 h-4" />
-            </Button>
-            
-            {/* Content */}
-            <div className="flex-1 overflow-hidden">
-              <LineageViewContainer 
-                connectionId={selectedConnectionId}
-                connectionName={connections.find(c => c.id === selectedConnectionId)?.repository_name || 'Unknown'}
-              />
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
