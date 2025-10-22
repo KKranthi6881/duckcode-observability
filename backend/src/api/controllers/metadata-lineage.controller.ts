@@ -649,11 +649,26 @@ export async function getFocusedLineage(req: AuthenticatedRequest, res: Response
     const allModels = [focalModel, ...upstreamModels, ...downstreamModels];
     const uniqueModels = Array.from(new Map(allModels.map(m => [m.id, m])).values());
 
+    // Get file paths for models
+    const fileIds = uniqueModels.map(m => m.file_id).filter(Boolean);
+    const { data: files } = await supabase
+      .schema('metadata')
+      .from('files')
+      .select('id, relative_path')
+      .in('id', fileIds);
+    
+    const fileMap = new Map(files?.map(f => [f.id, f.relative_path]) || []);
+
     const nodes = uniqueModels.map(model => ({
       id: model.id,
       name: model.name,
       type: model.object_type,
       description: model.description,
+      filePath: fileMap.get(model.file_id),
+      updatedAt: model.updated_at,
+      extractionTier: model.extraction_tier,
+      extractedFrom: model.extracted_from,
+      confidence: model.confidence,
       metadata: model.metadata,
       stats: modelStats.get(model.id) || { upstreamCount: 0, downstreamCount: 0 },
       isFocal: model.id === modelId
@@ -663,8 +678,10 @@ export async function getFocusedLineage(req: AuthenticatedRequest, res: Response
       id: dep.id,
       source: dep.source_object_id,
       target: dep.target_object_id,
+      type: dep.dependency_type,
       confidence: dep.confidence || 1.0,
-      metadata: dep.metadata
+      metadata: dep.metadata,
+      expression: dep.expression
     }));
 
     res.json({

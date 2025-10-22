@@ -1,6 +1,7 @@
 import { memo, useState, useCallback } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 import { ChevronDown, Loader2, Database, Table2, FileText } from 'lucide-react';
+import { ModelTooltip } from './ModelTooltip';
 
 interface ColumnLineage {
   id: string;
@@ -23,7 +24,16 @@ interface ModelNodeData {
   id: string;
   name: string;
   type: string;
-  stats: {
+  description?: string;
+  filePath?: string;
+  updatedAt?: string;
+  extractionTier?: string;
+  extractedFrom?: string;
+  confidence?: number;
+  metadata?: any;
+  upstreamCount?: number;
+  downstreamCount?: number;
+  stats?: {
     upstreamCount: number;
     downstreamCount: number;
   };
@@ -71,6 +81,8 @@ const getTypeConfig = (type: string) => {
 function ModernModelNode({ data }: NodeProps<ModelNodeData>) {
   const [showingMore, setShowingMore] = useState(false);
   const [hoveredColumn, setHoveredColumn] = useState<string | null>(null);
+  const [showTooltip, setShowTooltip] = useState(false);
+  const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null);
   
   const columns = data.columns || [];
   const visibleColumns = showingMore ? columns : columns.slice(0, INITIAL_COLUMNS_SHOWN);
@@ -78,6 +90,26 @@ function ModernModelNode({ data }: NodeProps<ModelNodeData>) {
   
   const typeConfig = getTypeConfig(data.type);
   const Icon = typeConfig.icon;
+  
+  // Get upstream/downstream counts from either direct props or stats object
+  const upstreamCount = data.upstreamCount ?? data.stats?.upstreamCount ?? 0;
+  const downstreamCount = data.downstreamCount ?? data.stats?.downstreamCount ?? 0;
+
+  // Handle mouse enter with slight delay for better UX
+  const handleMouseEnter = useCallback(() => {
+    const timeout = setTimeout(() => {
+      setShowTooltip(true);
+    }, 300); // 300ms delay
+    setHoverTimeout(timeout);
+  }, []);
+
+  // Handle mouse leave - clear timeout and hide tooltip
+  const handleMouseLeave = useCallback(() => {
+    if (hoverTimeout) {
+      clearTimeout(hoverTimeout);
+    }
+    setShowTooltip(false);
+  }, [hoverTimeout]);
 
   const handleToggle = useCallback(() => {
     if (data.expanded) {
@@ -105,20 +137,49 @@ function ModernModelNode({ data }: NodeProps<ModelNodeData>) {
   return (
     <div
       className={`
-        bg-white rounded-lg transition-all duration-200 min-w-[320px] max-w-[400px]
+        bg-white rounded-lg transition-all duration-200 min-w-[320px] max-w-[400px] relative
         ${data.isFocal ? 'shadow-lg border-2 border-blue-400' : 'shadow-md hover:shadow-lg border-2 border-gray-200'}
       `}
     >
+      {/* Tooltip - positioned to overlay on top with high z-index */}
+      {showTooltip && (
+        <div 
+          className="fixed pointer-events-none"
+          style={{
+            zIndex: 9999,
+            left: '50%',
+            top: '50%',
+            transform: 'translate(-50%, -50%)'
+          }}
+        >
+          <ModelTooltip
+            model={{
+              name: data.name,
+              type: data.type,
+              description: data.description,
+              filePath: data.filePath,
+              updatedAt: data.updatedAt,
+              upstreamCount,
+              downstreamCount,
+              extractionTier: data.extractionTier,
+              confidence: data.confidence,
+              metadata: data.metadata
+            }}
+          />
+        </div>
+      )}
       <Handle 
         type="target" 
         position={Position.Left} 
         className="w-3 h-3 !bg-blue-500 border-2 border-white"
       />
       
-      {/* Model Header */}
+      {/* Model Header - tooltip only shows when hovering this area */}
       <div
         className="p-4 cursor-pointer transition-all duration-200 hover:bg-gray-50 rounded-t-lg border-b border-gray-200"
         onClick={handleToggle}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
       >
         <div className="flex items-center gap-3">
           {/* Icon */}

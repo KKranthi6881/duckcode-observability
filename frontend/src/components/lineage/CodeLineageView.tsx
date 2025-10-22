@@ -234,6 +234,13 @@ export function CodeLineageView({ connectionId, fileName, filePath }: CodeLineag
             name: node.name,  // Model name (e.g., "customers")
             label: node.name,
             type: node.type || 'model',  // Object type (e.g., "table in model")
+            description: node.description,
+            filePath: node.filePath,
+            updatedAt: node.updatedAt,
+            extractionTier: node.extractionTier,
+            extractedFrom: node.extractedFrom,
+            confidence: node.confidence,
+            metadata: node.metadata,
             upstreamCount,
             downstreamCount,
             isFocal,
