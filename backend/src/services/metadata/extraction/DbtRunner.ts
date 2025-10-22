@@ -68,6 +68,43 @@ export class DbtRunner {
   }
 
   /**
+   * Find dbt_project.yml in repository (may be in subdirectory)
+   */
+  async findDbtProject(projectPath: string): Promise<string | null> {
+    try {
+      // Check root directory first
+      const rootDbtProject = path.join(projectPath, 'dbt_project.yml');
+      await fs.access(rootDbtProject);
+      console.log(`✅ Found dbt_project.yml in root directory`);
+      return projectPath;
+    } catch {
+      // Search in subdirectories (common patterns)
+      const commonPaths = [
+        'dbt',
+        'transform',
+        'analytics',
+        'data',
+        'models'
+      ];
+
+      for (const subdir of commonPaths) {
+        try {
+          const subdirPath = path.join(projectPath, subdir);
+          const dbtProjectPath = path.join(subdirPath, 'dbt_project.yml');
+          await fs.access(dbtProjectPath);
+          console.log(`✅ Found dbt_project.yml in /${subdir}/ directory`);
+          return subdirPath;
+        } catch {
+          continue;
+        }
+      }
+
+      console.warn(`⚠️  Could not find dbt_project.yml in repository`);
+      return null;
+    }
+  }
+
+  /**
    * Detect dbt version from dbt_project.yml
    */
   async detectDbtVersion(projectPath: string): Promise<string> {
@@ -228,26 +265,32 @@ ${profileName}:
     token: string,
     provider: 'github' | 'gitlab' = 'github'
   ): Promise<DbtRunResult> {
-    let projectPath: string | null = null;
+    let clonePath: string | null = null;
 
     try {
       // Step 1: Clone repository
-      projectPath = await this.cloneRepository(repoUrl, branch, token, provider);
+      clonePath = await this.cloneRepository(repoUrl, branch, token, provider);
 
-      // Step 2: Detect dbt version
-      const dbtVersion = await this.detectDbtVersion(projectPath);
+      // Step 2: Find dbt project (may be in subdirectory)
+      const dbtProjectPath = await this.findDbtProject(clonePath);
+      if (!dbtProjectPath) {
+        throw new Error('Could not find dbt_project.yml in repository. This may not be a dbt project.');
+      }
 
-      // Step 3: Run dbt parse in Docker
-      const result = await this.runDbtParse(projectPath);
+      // Step 3: Detect dbt version
+      const dbtVersion = await this.detectDbtVersion(dbtProjectPath);
+
+      // Step 4: Run dbt parse in Docker
+      const result = await this.runDbtParse(dbtProjectPath);
 
       return result;
     } catch (error: any) {
       console.error(`❌ Extraction failed:`, error.message);
       throw error;
     } finally {
-      // Always cleanup
-      if (projectPath) {
-        await this.cleanup(projectPath);
+      // Always cleanup (cleanup the clone path, not the dbt project path)
+      if (clonePath) {
+        await this.cleanup(clonePath);
       }
     }
   }
