@@ -1,41 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
-import { User, Mail, Lock, CreditCard, Moon, Sun, Monitor, Bell, Check, Star, Zap } from 'lucide-react';
+import { User, Lock, CreditCard, Bell, Check, Star } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { PasswordChangeModal } from '@/components/modals/PasswordChangeModal';
 import { PaymentModal } from '@/components/modals/PaymentModal';
 import { useAuth } from '@/features/auth/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Github, Loader2 } from 'lucide-react';
-
-// Define types for GitHub connection status (mirroring backend types)
-interface GitHubAccountInfo {
-  login: string | null;
-  avatarUrl: string | null;
-  type: string | null;
-}
-
-interface GitHubRepositoryInfo { // We might not use all fields here, but good to have
-  id: number;
-  name: string;
-  full_name: string;
-  private: boolean;
-  html_url: string;
-}
-
-interface GitHubConnectionDetails {
-  installationId: number;
-  account: GitHubAccountInfo;
-  repositorySelection: string | null;
-  accessibleRepos: GitHubRepositoryInfo[];
-  totalAccessibleRepoCount: number;
-}
-
-interface GitHubConnectionStatusResponse {
-  isConnected: boolean;
-  details: GitHubConnectionDetails | null;
-  error?: string;
-}
+import { Github } from 'lucide-react';
 
 const plans = [{
   name: 'Free',
@@ -66,206 +37,88 @@ const plans = [{
 }];
 
 const GitHubIntegrationTab = () => {
-  const { profile, isLoading: authLoading, user, session } = useAuth();
-  const [isLoadingInstall, setIsLoadingInstall] = useState(false);
-  const [errorInstall, setErrorInstall] = useState<string | null>(null);
-
-  const [connectionStatus, setConnectionStatus] = useState<GitHubConnectionStatusResponse | null>(null);
-  const [isLoadingStatus, setIsLoadingStatus] = useState(true);
-
-  console.log('[Settings.tsx] Rendering GitHubIntegrationTab. Profile:', profile, 'Auth Loading:', authLoading, 'User:', user?.id, 'Session:', session);
-
-  const fetchConnectionStatus = useCallback(async () => {
-    if (!session?.access_token) {
-      setIsLoadingStatus(false);
-      console.log('[Settings.tsx] No session token, cannot fetch GitHub status.');
-      setConnectionStatus({ isConnected: false, details: null });
-      return;
-    }
-    setIsLoadingStatus(true);
-    console.log('[Settings.tsx] Attempting to fetch GitHub connection status...');
-    try {
-      const response = await fetch('/api/github/connection-status', {
-        headers: { 'Authorization': `Bearer ${session.access_token}` },
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Failed to fetch GitHub connection status from server.' }));
-        console.error('[Settings.tsx] API Error fetching GitHub connection status:', response.status, errorData);
-        throw new Error(errorData.message);
-      }
-      const data: GitHubConnectionStatusResponse = await response.json();
-      console.log('[Settings.tsx] Successfully received GitHub connection status:', data);
-      setConnectionStatus(data);
-    } catch (error: any) {
-      console.error('[Settings.tsx] Exception caught while fetching GitHub connection status:', error);
-      setConnectionStatus({ isConnected: false, details: null, error: error.message });
-    } finally {
-      setIsLoadingStatus(false);
-      console.log('[Settings.tsx] Finished fetching GitHub connection status. isLoadingStatus set to false.');
-    }
-  }, [session, setIsLoadingStatus, setConnectionStatus]); // Dependencies for useCallback
-
-  useEffect(() => {
-    console.log('[Settings.tsx] useEffect triggered. AuthLoading:', authLoading);
-    if (!authLoading) {
-      console.log('[Settings.tsx] Auth is not loading, calling fetchConnectionStatus.');
-      fetchConnectionStatus();
-    } else {
-      console.log('[Settings.tsx] Auth is loading, setting isLoadingStatus to true.');
-      setIsLoadingStatus(true); 
-    }
-
-    const handleFocus = () => {
-      console.log('[Settings.tsx] Window focused. AuthLoading:', authLoading);
-      if (!authLoading) { // Only fetch if auth is settled
-          console.log('[Settings.tsx] Window focused and auth not loading, calling fetchConnectionStatus.');
-          fetchConnectionStatus();
-      }
-    };
-
-    window.addEventListener('focus', handleFocus);
-    console.log('[Settings.tsx] Added window focus event listener.');
-
-    return () => {
-      window.removeEventListener('focus', handleFocus);
-      console.log('[Settings.tsx] Removed window focus event listener.');
-    };
-  }, [authLoading, fetchConnectionStatus]); // fetchConnectionStatus is now a stable dependency
-
-  const handleInstallGitHubApp = async () => {
-    console.log('[Settings.tsx] GitHub Install Button CLICKED.');
-    setIsLoadingInstall(true);
-    setErrorInstall(null);
-
-    if (!session?.access_token) {
-      console.error('[Settings.tsx] No access token found. User might not be authenticated.');
-      setErrorInstall('Authentication error. Please log in again.');
-      setIsLoadingInstall(false);
-      return;
-    }
-
-    try {
-      console.log('[Settings.tsx] Fetching GitHub installation URL from /api/github/start-installation');
-      const response = await fetch('/api/github/start-installation', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Failed to fetch installation URL. Please try again.' }));
-        console.error('[Settings.tsx] Error fetching installation URL:', response.status, errorData);
-        throw new Error(errorData.message || `HTTP error ${response.status}`);
-      }
-
-      const data = await response.json();
-      if (data.installationUrl) {
-        console.log('[Settings.tsx] Received installation URL. Redirecting to:', data.installationUrl);
-        window.location.href = data.installationUrl;
-      } else {
-        console.error('[Settings.tsx] Installation URL not found in response:', data);
-        throw new Error('Installation URL not provided by the server.');
-      }
-    } catch (error) {
-      console.error('[Settings.tsx] Failed to initiate GitHub installation:', error);
-      setErrorInstall(error instanceof Error ? error.message : 'An unknown error occurred.');
-      setIsLoadingInstall(false);
-    } 
-  };
-
-  if (isLoadingStatus) {
-    return (
-      <div className="space-y-6 py-6 flex flex-col items-center justify-center">
-        <Loader2 className="h-12 w-12 animate-spin text-muted-foreground mb-4" />
-        <p className="text-sm text-muted-foreground">Loading GitHub Integration status...</p>
-      </div>
-    );
-  }
-
-  if (connectionStatus?.isConnected && connectionStatus.details) {
-    const { account, repositorySelection, totalAccessibleRepoCount, accessibleRepos } = connectionStatus.details;
-    return (
-      <div className="space-y-6">
-        <div>
-          <h3 className="text-lg font-medium">GitHub App Integration</h3>
-          <p className="text-sm text-muted-foreground">
-            Manage your GitHub App connection.
-          </p>
-        </div>
-        <div className="rounded-md border bg-card p-6 shadow">
-          <div className="flex items-center space-x-4">
-            {account?.avatarUrl && (
-              <img src={account.avatarUrl} alt={`${account.login || 'GitHub Account'}'s avatar`} className="h-16 w-16 rounded-full" />
-            )}
-            <div>
-              <p className="text-xl font-semibold">Connected as {account?.login || 'Unknown Account'}</p>
-              <p className="text-sm text-muted-foreground">
-                Repository Access: {repositorySelection === 'all' ? 'All Repositories' : `Selected Repositories (${totalAccessibleRepoCount} accessible)`}
-              </p>
-              {repositorySelection === 'selected' && accessibleRepos && accessibleRepos.length > 0 && (
-                <div className="mt-2 pl-4">
-                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Accessible Repositories:</p>
-                  <ul className="list-disc list-inside mt-1 text-sm text-gray-600 dark:text-gray-300 space-y-1">
-                    {accessibleRepos.map(repo => (
-                      <li key={repo.id}>{repo.full_name}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          </div>
-          <div className="mt-6">
-            {/* TODO: Add a "Manage Installation on GitHub" link that goes to: 
-                `https://github.com/settings/installations/${connectionStatus.details.installationId}` 
-            */}
-            <a 
-              href={`https://github.com/settings/installations/${connectionStatus.details.installationId}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 mr-2"
-            >
-              Manage on GitHub
-            </a>
-            {/* TODO: Add a "Disconnect" button - this will require a backend endpoint and confirmation modal */}
-            <Button variant="outline" onClick={() => alert('Disconnect functionality to be implemented.')}>
-              Disconnect (Placeholder)
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // If not loading and not connected (or error fetching status), show the install button section
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-medium">GitHub App Integration</h3>
+        <h3 className="text-lg font-medium">Repository Management</h3>
         <p className="text-sm text-muted-foreground">
-          Connect your GitHub account to enable repository insights and observability.
+          GitHub repositories are centrally managed by organization administrators.
         </p>
       </div>
-      <div className="rounded-md border border-dashed p-6 flex flex-col items-center text-center">
-        <Github className="h-12 w-12 text-muted-foreground mb-4" />
-        <h4 className="text-md font-semibold mb-1">Connect to GitHub</h4>
-        <p className="text-sm text-muted-foreground mb-4">
-          Authorize DuckCode Observability to access your repositories.
-        </p>
-        <Button onClick={handleInstallGitHubApp} disabled={isLoadingInstall || authLoading}>
-          {isLoadingInstall ? (
-            <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Please wait...</>
-          ) : (
-            <><Github className="mr-2 h-4 w-4" /> Install GitHub App</>
-          )}
-        </Button>
-        {errorInstall && (
-          <p className="mt-4 text-sm text-red-600">Error: {errorInstall}</p>
-        )}
-        {connectionStatus?.error && !connectionStatus.isConnected && (
-            <p className="mt-4 text-sm text-red-600">Could not load connection status: {connectionStatus.error}</p>
-        )}
+
+      <div className="rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-800 p-6">
+        <div className="flex items-start space-x-4">
+          <div className="flex-shrink-0">
+            <Github className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+          </div>
+          <div className="flex-1">
+            <h4 className="text-base font-semibold text-blue-900 dark:text-blue-100 mb-2">
+              Centralized Repository Access
+            </h4>
+            <p className="text-sm text-blue-700 dark:text-blue-300 mb-4">
+              All team members have read-only access to view repositories, lineage diagrams, 
+              documentation, and data catalogs that have been connected by administrators.
+            </p>
+            
+            <div className="space-y-2 text-sm text-blue-700 dark:text-blue-300">
+              <div className="flex items-center space-x-2">
+                <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
+                <span>View repository metadata and objects</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
+                <span>Browse data lineage diagrams</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
+                <span>Read documentation</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
+                <span>Explore data catalog</span>
+              </div>
+            </div>
+
+            <div className="mt-6 pt-4 border-t border-blue-200 dark:border-blue-800">
+              <p className="text-sm text-blue-700 dark:text-blue-300 mb-3">
+                <strong>Need to connect a repository?</strong> Contact your organization 
+                administrator or visit the Admin page if you have admin access.
+              </p>
+              <Button 
+                onClick={() => window.location.href = '/admin'}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                Go to Admin Page
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6">
+        <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">
+          How It Works
+        </h4>
+        <ol className="space-y-3 text-sm text-gray-600 dark:text-gray-400">
+          <li className="flex items-start space-x-3">
+            <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 text-xs font-semibold">
+              1
+            </span>
+            <span>Administrators connect GitHub repositories in the Admin page</span>
+          </li>
+          <li className="flex items-start space-x-3">
+            <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 text-xs font-semibold">
+              2
+            </span>
+            <span>Metadata is automatically extracted and indexed</span>
+          </li>
+          <li className="flex items-start space-x-3">
+            <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 text-xs font-semibold">
+              3
+            </span>
+            <span>All team members can view and explore the data in the main dashboard</span>
+          </li>
+        </ol>
       </div>
     </div>
   );

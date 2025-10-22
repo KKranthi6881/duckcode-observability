@@ -109,8 +109,10 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
         // Add organization_id to user object (type-safe way)
         (user as any).organization_id = profileData.organization_id;
         console.log('User organization fetched:', profileData.organization_id);
+        console.log('User object now has organization_id:', (user as any).organization_id);
       } else {
         console.log('Warning: Could not fetch user organization:', profileError?.message);
+        console.log('Profile data:', profileData);
       }
     } catch (orgError) {
       console.log('Warning: Error fetching organization:', orgError);

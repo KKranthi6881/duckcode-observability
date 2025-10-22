@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   ChevronRight, 
@@ -14,18 +14,18 @@ import {
   File
 } from 'lucide-react';
 import { useAuth } from '../../features/auth/contexts/AuthContext';
-import { useGitHubRepository } from '../../hooks/useGitHubRepository';
+import { getOrganizationRepositories } from '../../services/repositoryService';
 import { useCopyToClipboard } from '../../hooks/useCopyToClipboard';
-import { processRepositoryForInsights, getRepositorySummaryStatus, getGitHubConnectionStatus, getProcessingStatus } from '../../services/githubService';
+import { processRepositoryForInsights, getRepositorySummaryStatus, getProcessingStatus } from '../../services/githubService';
 import { sequentialProcessingService } from '../../services/sequential-processing.service';
 import { FileTree } from '../../components/FileTree';
 import { EnhancedCodeViewer } from '../../components/EnhancedCodeViewer';
 import { DocumentationViewer } from '../../components/DocumentationViewer';
 import { RepositoryGrid } from '../../components/RepositoryGrid';
+import FocusedLineageView from '../../components/lineage/FocusedLineageView';
 
 import { useProcessingStatus } from '../../context/ProcessingStatusContext';
 
-const GITHUB_APP_NAME = 'DuckCode-Observability';
 const brandColor = "#2AB7A9";
 
 export function CodeBase() {
@@ -39,30 +39,221 @@ export function CodeBase() {
     console.log('CodeBase - Number of processing statuses:', Object.keys(processingStatuses).length);
   }, [processingStatuses]);
   
-  // Use custom hooks for GitHub repository management and clipboard functionality
-  const {
-    gitHubConnectionStatus,
-    isLoadingConnection,
-    connectionError,
-    selectedGitHubRepo,
-    activeBranch,
-    fileTree,
-    isLoadingTree,
-    treeError,
-    selectedFile,
-    selectedFileContent,
-    isLoadingFileContent,
-    fileContentError,
-    selectedFileSummary,
-    isLoadingFileSummary,
-    fileSummaryError,
-    handleRepositorySelect,
-    handleTreeItemClick,
-    toggleFolderExpansion,
-    fetchFileSummary
-  } = useGitHubRepository();
+  // State for admin-connected repositories
+  const [repositories, setRepositories] = useState<any[]>([]);
+  const [isLoadingConnection, setIsLoadingConnection] = useState(true);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [selectedGitHubRepo, setSelectedGitHubRepo] = useState<any>(null);
+  
+  // Fetch admin-connected repositories
+  useEffect(() => {
+    const fetchRepositories = async () => {
+      if (!session?.access_token) {
+        setIsLoadingConnection(false);
+        return;
+      }
+
+      try {
+        setIsLoadingConnection(true);
+        setConnectionError(null);
+        
+        const repos = await getOrganizationRepositories(session.access_token);
+        console.log('CodeBase - Fetched admin-connected repositories:', repos);
+        console.log('CodeBase - Number of repositories:', repos.length);
+        console.log('CodeBase - Repository details:', JSON.stringify(repos, null, 2));
+        setRepositories(repos);
+      } catch (err) {
+        console.error('Error fetching repositories:', err);
+        setConnectionError('Failed to load repositories. Please try again.');
+      } finally {
+        setIsLoadingConnection(false);
+      }
+    };
+
+    fetchRepositories();
+  }, [session]);
   
   const { copyToClipboard, isTextCopied } = useCopyToClipboard();
+
+  // File tree state
+  const [activeBranch, setActiveBranch] = useState('main');
+  const [fileTree, setFileTree] = useState<any>(null);
+  const [isLoadingTree, setIsLoadingTree] = useState(false);
+  const [treeError, setTreeError] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<any>(null);
+  const [selectedFileContent, setSelectedFileContent] = useState<string | null>(null);
+  const [isLoadingFileContent, setIsLoadingFileContent] = useState(false);
+  const [fileContentError, setFileContentError] = useState<string | null>(null);
+  const [selectedFileSummary, setSelectedFileSummary] = useState<any>(null);
+  const [isLoadingFileSummary, setIsLoadingFileSummary] = useState(false);
+  const [fileSummaryError, setFileSummaryError] = useState<string | null>(null);
+  
+  const handleRepositorySelect = async (repo: any) => {
+    setSelectedGitHubRepo(repo);
+    setView('browser');
+    setFileTree(null);
+    setIsLoadingTree(true);
+    setTreeError(null);
+    
+    try {
+      // Fetch file tree from GitHub API
+      const owner = repo.repository_owner;
+      const repoName = repo.repository_name;
+      const branch = repo.branch || 'main';
+      
+      const response = await fetch(
+        `https://api.github.com/repos/${owner}/${repoName}/git/trees/${branch}?recursive=1`,
+        {
+          headers: {
+            'Accept': 'application/vnd.github.v3+json',
+          }
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch file tree: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      
+      // Transform GitHub tree data into our file tree format
+      const tree = buildFileTree(data.tree);
+      setFileTree(tree);
+    } catch (error) {
+      console.error('Error fetching file tree:', error);
+      setTreeError('Failed to load repository files');
+    } finally {
+      setIsLoadingTree(false);
+    }
+  };
+  
+  // Helper function to build file tree from GitHub tree data
+  const buildFileTree = (githubTree: any[], level: number = 0): any[] => {
+    const root: any = { name: '/', path: '', type: 'folder', children: [], isExpanded: false, level: 0 };
+    
+    githubTree.forEach((item: any) => {
+      if (item.type === 'blob') {
+        const parts = item.path.split('/');
+        let current = root;
+        
+        // Build folder structure
+        for (let i = 0; i < parts.length - 1; i++) {
+          const folderName = parts[i];
+          const folderPath = parts.slice(0, i + 1).join('/');
+          let folder = current.children.find((c: any) => c.name === folderName && c.type === 'folder');
+          
+          if (!folder) {
+            folder = {
+              id: folderPath,
+              name: folderName,
+              path: folderPath,
+              type: 'folder',
+              children: [],
+              isExpanded: false,
+              level: i + 1
+            };
+            current.children.push(folder);
+          }
+          current = folder;
+        }
+        
+        // Add file
+        current.children.push({
+          id: item.path,
+          name: parts[parts.length - 1],
+          path: item.path,
+          type: 'file',
+          size: item.size,
+          isExpanded: false,
+          children: [],
+          level: parts.length
+        });
+      }
+    });
+    
+    // Sort: folders first, then files, both alphabetically
+    const sortNodes = (nodes: any[]) => {
+      nodes.sort((a, b) => {
+        if (a.type === b.type) {
+          return a.name.localeCompare(b.name);
+        }
+        return a.type === 'folder' ? -1 : 1;
+      });
+      nodes.forEach(node => {
+        if (node.children.length > 0) {
+          sortNodes(node.children);
+        }
+      });
+    };
+    
+    sortNodes(root.children);
+    return root.children;
+  };
+  
+  const handleTreeItemClick = async (file: any) => {
+    if (file.type === 'file' || file.type === 'blob') {
+      // It's a file, fetch its content
+      setSelectedFile(file);
+      setIsLoadingFileContent(true);
+      setFileContentError(null);
+      
+      try {
+        const owner = selectedGitHubRepo.repository_owner;
+        const repoName = selectedGitHubRepo.repository_name;
+        const branch = selectedGitHubRepo.branch || 'main';
+        
+        const response = await fetch(
+          `https://api.github.com/repos/${owner}/${repoName}/contents/${file.path}?ref=${branch}`,
+          {
+            headers: {
+              'Accept': 'application/vnd.github.v3+json',
+            }
+          }
+        );
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch file content: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        
+        // Decode base64 content
+        const content = atob(data.content);
+        setSelectedFileContent(content);
+      } catch (error) {
+        console.error('Error fetching file content:', error);
+        setFileContentError('Failed to load file content');
+      } finally {
+        setIsLoadingFileContent(false);
+      }
+    } else if (file.type === 'folder') {
+      // It's a folder, toggle expansion
+      toggleFolderExpansion(file.path);
+    }
+  };
+  
+  const toggleFolderExpansion = (nodePath: string) => {
+    if (!fileTree) return;
+    
+    const toggleNode = (nodes: any[]): any[] => {
+      return nodes.map(node => {
+        if (node.path === nodePath) {
+          return { ...node, isExpanded: !node.isExpanded };
+        }
+        if (node.children && node.children.length > 0) {
+          return { ...node, children: toggleNode(node.children) };
+        }
+        return node;
+      });
+    };
+    
+    setFileTree(toggleNode(fileTree));
+  };
+  
+  const fetchFileSummary = async (owner: string, repo: string, filePath: string) => {
+    // TODO: Implement documentation fetching
+    console.log('Fetching summary for:', owner, repo, filePath);
+  };
 
   // UI State
   const [view, setView] = useState<'repos' | 'browser'>('repos');
@@ -298,8 +489,8 @@ export function CodeBase() {
       console.log('✅ Sequential processing started successfully:', response);
 
       // Find repo ID for status tracking
-      const repo = gitHubConnectionStatus?.details?.accessibleRepos?.find(
-        (r: any) => r.full_name === repoFullName
+      const repo = repositories.find(
+        (r) => `${r.repository_owner}/${r.repository_name}` === repoFullName
       );
       
       if (!repo) {
@@ -481,12 +672,13 @@ export function CodeBase() {
 
   // Load repository summary status for all repositories
   const loadRepositorySummaryStatus = async () => {
-    if (!gitHubConnectionStatus?.details?.accessibleRepos) return;
+    if (repositories.length === 0) return;
 
     try {
-      const statusPromises = gitHubConnectionStatus.details.accessibleRepos.map(async (repo: any) => {
+      const statusPromises = repositories.map(async (repo) => {
         try {
-          const [owner, repoName] = repo.full_name.split('/');
+          const owner = repo.repository_owner;
+          const repoName = repo.repository_name;
           const summaryStatus = await getRepositorySummaryStatus(owner, repoName);
           return { repoId: repo.id.toString(), status: summaryStatus };
         } catch (error) {
@@ -510,13 +702,14 @@ export function CodeBase() {
 
   // Load processing status for repositories that might have been previously processed
   const loadRepositoryProcessingStatus = async () => {
-    if (!gitHubConnectionStatus?.details?.accessibleRepos) return;
+    if (repositories.length === 0) return;
 
     try {
-      const statusPromises = gitHubConnectionStatus.details.accessibleRepos.map(async (repo: any) => {
+      const statusPromises = repositories.map(async (repo) => {
         try {
-          const processingStatus = await getProcessingStatus(repo.full_name);
-          console.log(`Status for ${repo.full_name}:`, processingStatus);
+          const repoFullName = `${repo.repository_owner}/${repo.repository_name}`;
+          const processingStatus = await getProcessingStatus(repoFullName);
+          console.log(`Status for ${repoFullName}:`, processingStatus);
           
           // Handle both legacy and new comprehensive status formats
           let formattedStatus;
@@ -567,13 +760,13 @@ export function CodeBase() {
     }
   };
 
-  // Load repository summary status when GitHub connection status changes
+  // Load repository summary status when repositories are fetched
   React.useEffect(() => {
-    if (gitHubConnectionStatus?.isConnected && gitHubConnectionStatus?.details?.accessibleRepos) {
+    if (repositories.length > 0) {
       loadRepositorySummaryStatus();
       loadRepositoryProcessingStatus();
     }
-  }, [gitHubConnectionStatus]);
+  }, [repositories]);
 
   // Cleanup polling intervals on unmount
   React.useEffect(() => {
@@ -602,7 +795,8 @@ export function CodeBase() {
     );
   }
 
-  if (connectionError && (!gitHubConnectionStatus || !gitHubConnectionStatus.isConnected)) {
+  // Error state
+  if (connectionError) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 flex items-center justify-center p-6">
         <div className="bg-white rounded-xl shadow-lg border border-red-200 p-8 max-w-2xl w-full">
@@ -613,17 +807,17 @@ export function CodeBase() {
               </div>
             </div>
             <div className="flex-1">
-              <h3 className="text-xl font-bold text-gray-900 mb-2">GitHub Connection Error</h3>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Failed to Load Repositories</h3>
               <p className="text-gray-700 mb-4">{connectionError}</p>
               <p className="text-gray-600 text-sm mb-6">
-                Please ensure your GitHub account is connected via the <strong>{GITHUB_APP_NAME}</strong> GitHub App and that it has the necessary permissions to access your repositories.
+                Contact your administrator if repositories should be available.
               </p>
               <button
-                onClick={() => navigate('/dashboard/settings?tab=github')}
+                onClick={() => window.location.reload()}
                 className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors shadow-sm"
               >
                 <Settings className="h-4 w-4 mr-2" />
-                Go to GitHub Settings
+                Retry
               </button>
             </div>
           </div>
@@ -632,27 +826,28 @@ export function CodeBase() {
     );
   }
   
-  if (!gitHubConnectionStatus?.isConnected) {
+  // Empty state - no repositories connected
+  if (repositories.length === 0 && !isLoadingConnection) {
      return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 flex items-center justify-center p-6">
-        <div className="bg-white rounded-xl shadow-lg border border-yellow-200 p-8 max-w-2xl w-full">
+        <div className="bg-white rounded-xl shadow-lg border border-blue-200 p-8 max-w-2xl w-full">
           <div className="flex items-start space-x-4">
             <div className="flex-shrink-0">
-              <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
-                <Github className="h-6 w-6 text-yellow-600" />
+              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                <Database className="h-6 w-6 text-blue-600" />
               </div>
             </div>
             <div className="flex-1">
-              <h3 className="text-xl font-bold text-gray-900 mb-2">GitHub Not Connected</h3>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">No Repositories Connected</h3>
               <p className="text-gray-700 mb-6">
-                To browse your repositories and their code, please connect your GitHub account.
+                Your organization hasn't connected any GitHub repositories yet. Contact your administrator to add repositories.
               </p>
               <button
-                onClick={() => navigate('/dashboard/settings?tab=integrations')}
+                onClick={() => navigate('/admin')}
                 className="inline-flex items-center px-5 py-2.5 bg-[#2AB7A9] text-white rounded-lg hover:bg-[#24a497] transition-colors shadow-sm"
               >
-                <Github className="h-4 w-4 mr-2" />
-                Connect to GitHub
+                <Settings className="h-4 w-4 mr-2" />
+                Go to Admin Page
               </button>
             </div>
           </div>
@@ -760,66 +955,79 @@ export function CodeBase() {
                           <p className="text-[#a8f0e6] text-sm">Connected GitHub repositories</p>
                         </div>
                       </div>
-                      {gitHubConnectionStatus?.isConnected && (
+                      {repositories.length > 0 && (
                         <div className="flex items-center space-x-2 text-sm text-white bg-white/10 rounded-full px-3 py-1">
                           <div className="h-2 w-2 bg-white rounded-full animate-pulse"></div>
-                          <span>{gitHubConnectionStatus.details?.account?.login}</span>
+                          <span>{repositories.length} repositories</span>
                         </div>
                       )}
                     </div>
                   </div>
                   
                   <div className="p-6">
-                    <RepositoryGrid 
-                gitHubConnectionStatus={gitHubConnectionStatus}
-                summaryGenerationError={summaryGenerationError}
-                isLoadingConnection={isLoadingConnection}
-                connectionError={connectionError}
-                repoSummaryStatus={repoSummaryStatus}
-                reposStatus={repoProgressStatus}
-                processingRepos={[]}
-                queuedRepos={[]}
-                generatingSummaries={[]}
-                brandColor={brandColor}
-                onConnectGitHub={handleConnectGitHub}
-                onRepoClick={handleGitHubRepoClick}
-                onAnalyzeRepository={handleAnalyzeRepository}
-                onStatusModalOpen={handleStatusModalOpen}
-                onClearSummaryError={handleClearSummaryError}
-                      fetchGitHubConnectionStatus={async () => {
-                        try {
-                          const connectionStatus = await getGitHubConnectionStatus();
-                          // This will trigger the useEffect to reload summary statuses
-                          console.log('Refreshed GitHub connection status:', connectionStatus);
-                        } catch (error) {
-                          console.error('Error refreshing GitHub connection status:', error);
-                        }
-                      }}
-                    />
+                    {/* Repository List */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {repositories.map((repo) => (
+                        <div
+                          key={repo.id}
+                          onClick={() => handleRepositorySelect(repo)}
+                          className="bg-white border border-gray-200 rounded-lg p-4 hover:border-[#2AB7A9] hover:shadow-md transition-all cursor-pointer"
+                        >
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex items-center space-x-2">
+                              <Database className="h-5 w-5 text-[#2AB7A9]" />
+                              <h3 className="font-semibold text-gray-900">{repo.repository_name}</h3>
+                            </div>
+                            {repo.status === 'completed' && (
+                              <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">
+                                Ready
+                              </span>
+                            )}
+                            {repo.status === 'extracting' && (
+                              <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                                Processing
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-600 mb-3">{repo.repository_owner}/{repo.repository_name}</p>
+                          <div className="flex items-center justify-between text-xs text-gray-500">
+                            <span>{repo.total_objects || 0} objects</span>
+                            <span>{repo.total_files || 0} files</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Browser View */}
-            {view === 'browser' && (
+            {/* Browser View - Full Code Browser */}
+            {view === 'browser' && selectedGitHubRepo && (
               <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden" style={{ height: 'calc(100vh - 8rem)' }}>
                 <div className="flex h-full w-full">
                   {/* Left Sidebar - File Tree */}
                   <div className="w-60 min-w-60 max-w-72 border-r border-gray-200 bg-gray-50 flex-shrink-0">
-                    <FileTree 
-                      fileTree={fileTree}
-                      isLoadingTree={isLoadingTree}
-                      treeError={treeError}
-                      selectedFile={selectedFile}
-                      searchQuery={searchQuery}
-                      activeBranch={activeBranch}
-                      selectedGitHubRepo={selectedGitHubRepo}
-                      brandColor={brandColor}
-                      onTreeItemClick={handleTreeItemClick}
-                      onSearchChange={setSearchQuery}
-                      onFolderToggle={toggleFolderExpansion}
-                    />
+                    {fileTree ? (
+                      <FileTree 
+                        fileTree={fileTree}
+                        isLoadingTree={isLoadingTree}
+                        treeError={treeError}
+                        selectedFile={selectedFile}
+                        searchQuery={searchQuery}
+                        activeBranch={activeBranch}
+                        selectedGitHubRepo={selectedGitHubRepo}
+                        brandColor={brandColor}
+                        onTreeItemClick={handleTreeItemClick}
+                        onSearchChange={setSearchQuery}
+                        onFolderToggle={toggleFolderExpansion}
+                      />
+                    ) : (
+                      <div className="p-4 text-center">
+                        <Loader2 className="h-8 w-8 animate-spin text-[#2AB7A9] mx-auto mb-2" />
+                        <p className="text-sm text-gray-600">Loading files...</p>
+                      </div>
+                    )}
                   </div>
                   
                   {/* Right Content Area */}
@@ -829,14 +1037,14 @@ export function CodeBase() {
                         {/* File Content Tabs */}
                         <div className="border-b border-gray-200 bg-white flex-shrink-0 px-6 py-2">
                           <nav className="flex space-x-6" aria-label="Tabs">
-                            {['code', 'documentation', 'lineage', 'visual', 'alerts'].map((tabName) => (
+                            {['code', 'documentation', 'lineage'].map((tabName) => (
                               <button
                                 key={tabName}
                                 onClick={() => {
                                   setActiveTab(tabName as any);
-                                  // Fetch documentation when documentation tab is clicked
                                   if (tabName === 'documentation' && selectedFile && selectedGitHubRepo) {
-                                    const [owner, repo] = selectedGitHubRepo.full_name.split('/');
+                                    const owner = selectedGitHubRepo.repository_owner;
+                                    const repo = selectedGitHubRepo.repository_name;
                                     fetchFileSummary(owner, repo, selectedFile.path);
                                   }
                                 }}
@@ -867,52 +1075,26 @@ export function CodeBase() {
                                 />
                               </div>
                             )}
-                            {activeTab === 'documentation' && (
+                            {activeTab === 'documentation' && selectedFile && (
                               <div className="h-full w-full p-6">
                                 <DocumentationViewer 
+                                  selectedFileName={selectedFile.name}
+                                  selectedFilePath={selectedFile.path}
+                                  selectedFileSummary={selectedFileSummary}
                                   isLoadingFileSummary={isLoadingFileSummary}
                                   fileSummaryError={fileSummaryError}
-                                  selectedFileSummary={selectedFileSummary}
-                                  selectedFileName={selectedFile?.name}
-                                  selectedFilePath={selectedFile?.path}
                                   brandColor={brandColor}
                                   copyToClipboard={copyToClipboard}
                                   isTextCopied={isTextCopied}
-                                  onUpdateDocumentation={handleUpdateDocumentation}
                                 />
                               </div>
                             )}
-                            {activeTab === 'lineage' && (
-                              <div className="h-full w-full p-6 flex items-center justify-center">
-                                <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
-                                  <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                                    <File className="h-6 w-6 text-gray-400" />
-                                  </div>
-                                  <h3 className="text-lg font-medium text-gray-900 mb-2">Lineage View</h3>
-                                  <p className="text-gray-500">Lineage view for {selectedFile?.path} - Coming soon!</p>
-                                </div>
-                              </div>
-                            )}
-                            {activeTab === 'visual' && (
-                              <div className="h-full w-full p-6 flex items-center justify-center">
-                                <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
-                                  <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                                    <File className="h-6 w-6 text-gray-400" />
-                                  </div>
-                                  <h3 className="text-lg font-medium text-gray-900 mb-2">Visual Analysis</h3>
-                                  <p className="text-gray-500">Visual tab content not yet implemented.</p>
-                                </div>
-                              </div>
-                            )}
-                            {activeTab === 'alerts' && (
-                              <div className="h-full w-full p-6 flex items-center justify-center">
-                                <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
-                                  <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                                    <AlertTriangle className="h-6 w-6 text-gray-400" />
-                                  </div>
-                                  <h3 className="text-lg font-medium text-gray-900 mb-2">Code Alerts</h3>
-                                  <p className="text-gray-500">Alerts tab content not yet implemented.</p>
-                                </div>
+                            {activeTab === 'lineage' && selectedGitHubRepo && (
+                              <div className="h-full w-full">
+                                <FocusedLineageView 
+                                  connectionId={selectedGitHubRepo.id}
+                                  hideHeader={true}
+                                />
                               </div>
                             )}
                           </div>
@@ -926,7 +1108,7 @@ export function CodeBase() {
                           </div>
                           <h3 className="text-xl font-semibold text-gray-900 mb-3">Select a file to view</h3>
                           <p className="text-gray-500 leading-relaxed">
-                            Choose a file from the tree on the left to view its content, documentation, and analysis.
+                            Choose a file from the tree on the left to view its content, documentation, and lineage.
                           </p>
                         </div>
                       </div>

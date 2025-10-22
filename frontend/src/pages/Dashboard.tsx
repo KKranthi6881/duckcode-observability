@@ -19,6 +19,8 @@ import {
 } from 'lucide-react';
 
 import { MetadataProcessingDashboard } from '@/components/MetadataProcessingDashboard';
+import { getOrganizationRepositories, transformRepositoryForDashboard } from '@/services/repositoryService';
+import { useAuth } from '@/features/auth/contexts/AuthContext';
 
 interface Repository {
   id: string;
@@ -37,59 +39,41 @@ interface Repository {
 }
 
 export default function Dashboard() {
+  const { session } = useAuth();
   const [repositories, setRepositories] = useState<Repository[]>([]);
   const [selectedRepo, setSelectedRepo] = useState<string>('');
   const [activeTab, setActiveTab] = useState('overview');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Mock data - in production this would come from API
-    setRepositories([
-      {
-        id: '1',
-        name: 'analytics-dbt',
-        fullName: 'company/analytics-dbt',
-        language: 'dbt',
-        lastProcessed: '2024-01-15T10:30:00Z',
-        status: 'completed',
-        stats: {
-          files: 145,
-          documentation: 145,
-          vectors: 145,
-          lineage: 89,
-          dependencies: 234
-        }
-      },
-      {
-        id: '2',
-        name: 'data-pipeline',
-        fullName: 'company/data-pipeline',
-        language: 'python',
-        lastProcessed: '2024-01-14T15:45:00Z',
-        status: 'processing',
-        stats: {
-          files: 78,
-          documentation: 65,
-          vectors: 45,
-          lineage: 23,
-          dependencies: 0
-        }
-      },
-      {
-        id: '3',
-        name: 'sql-queries',
-        fullName: 'company/sql-queries',
-        language: 'sql',
-        status: 'pending',
-        stats: {
-          files: 234,
-          documentation: 0,
-          vectors: 0,
-          lineage: 0,
-          dependencies: 0
-        }
+    const fetchRepositories = async () => {
+      if (!session?.access_token) {
+        setIsLoading(false);
+        return;
       }
-    ]);
-  }, []);
+
+      try {
+        setIsLoading(true);
+        setError(null);
+        
+        // Fetch admin-connected repositories for the organization
+        const repos = await getOrganizationRepositories(session.access_token);
+        
+        // Transform to dashboard format
+        const transformed = repos.map(transformRepositoryForDashboard);
+        
+        setRepositories(transformed);
+      } catch (err) {
+        console.error('Error fetching repositories:', err);
+        setError('Failed to load repositories. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchRepositories();
+  }, [session]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -129,6 +113,54 @@ export default function Dashboard() {
     return Math.round(progress * 100);
   };
 
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <RefreshCw className="h-12 w-12 animate-spin text-blue-500 mx-auto mb-4" />
+          <p className="text-gray-600">Loading repositories...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Failed to Load Repositories</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <Button onClick={() => window.location.reload()}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Retry
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Empty state
+  if (repositories.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <Database className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">No Repositories Connected</h2>
+          <p className="text-gray-600 mb-4">
+            Your organization hasn't connected any GitHub repositories yet. 
+            Contact your administrator to add repositories.
+          </p>
+          <Button onClick={() => window.location.href = '/admin'}>
+            Go to Admin Page
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="p-6 space-y-6">
@@ -143,9 +175,9 @@ export default function Dashboard() {
               <Settings className="h-4 w-4" />
               Settings
             </Button>
-            <Button className="flex items-center gap-2">
+            <Button className="flex items-center gap-2" onClick={() => window.location.href = '/admin'}>
               <Play className="h-4 w-4" />
-              Process Repository
+              Manage Repositories
             </Button>
           </div>
         </div>
