@@ -57,8 +57,18 @@ interface FocusedApiNode {
   id: string;
   name: string;
   type: string;
-  stats: { upstreamCount: number; downstreamCount: number };
-  isFocal?: boolean;
+  description?: string;
+  filePath?: string;
+  updatedAt?: string;
+  extractionTier?: string;
+  extractedFrom?: string;
+  confidence?: number;
+  metadata?: any;
+  stats: { 
+    upstreamCount: number; 
+    downstreamCount: number; 
+  };
+  isFocal: boolean;
 }
 
 interface FocusedApiEdge {
@@ -381,6 +391,15 @@ function FocusedLineageContent({ connectionId, onDataUpdate, hideHeader }: Focus
           id: node.id,
           name: node.name,
           type: node.type,
+          description: node.description,
+          filePath: node.filePath,
+          updatedAt: node.updatedAt,
+          extractionTier: node.extractionTier,
+          extractedFrom: node.extractedFrom,
+          confidence: node.confidence,
+          metadata: node.metadata,
+          upstreamCount: node.stats.upstreamCount,
+          downstreamCount: node.stats.downstreamCount,
           stats: node.stats,
           expanded: false,
           onExpand: handleExpand,
