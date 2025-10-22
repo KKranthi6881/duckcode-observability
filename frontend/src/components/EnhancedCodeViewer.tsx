@@ -145,7 +145,7 @@ export const EnhancedCodeViewer: React.FC<EnhancedCodeViewerProps> = ({
       {/* Enhanced Code Content with Line Numbers */}
       <div className="relative flex">
         {/* Line Numbers */}
-        <div className="bg-gray-800 text-gray-400 px-3 py-4 text-sm font-mono leading-6 select-none border-r border-gray-700 min-w-[3rem]">
+        <div className="bg-gray-800 text-gray-400 px-3 py-3 text-sm font-mono leading-5 select-none border-r border-gray-700 min-w-[3rem]">
           {selectedFileContent.split('\n').map((_, index) => (
             <div key={index} className="text-right pr-2">
               {index + 1}
@@ -154,8 +154,8 @@ export const EnhancedCodeViewer: React.FC<EnhancedCodeViewerProps> = ({
         </div>
         
         {/* Code Content with Syntax Highlighting */}
-        <div className="flex-1 bg-gray-900 text-gray-100 p-4 overflow-x-auto">
-          <pre className="text-sm font-mono leading-6 whitespace-pre">
+        <div className="flex-1 bg-gray-900 text-gray-100 p-3 overflow-x-auto">
+          <pre className="text-sm font-mono leading-5 whitespace-pre">
             <code className="language-auto">
               {formatCodeWithSyntaxHighlighting(selectedFileContent, selectedFile.name)}
             </code>

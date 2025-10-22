@@ -961,8 +961,8 @@ export function CodeBase() {
                     {selectedFile ? (
                       <>
                         {/* File Content Tabs */}
-                        <div className="border-b border-gray-200 bg-white flex-shrink-0 px-6 py-2">
-                          <nav className="flex space-x-6" aria-label="Tabs">
+                        <div className="border-b border-gray-200 bg-white flex-shrink-0 px-3 py-1">
+                          <nav className="flex space-x-3" aria-label="Tabs">
                             {[
                               { id: 'code', label: 'Code' },
                               { id: 'documentation', label: 'Documentation' },
@@ -979,7 +979,7 @@ export function CodeBase() {
                                     fetchFileSummary(owner, repo, selectedFile.path);
                                   }
                                 }}
-                                className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors
+                                className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors
                                             ${activeTab === tab.id
                                               ? 'border-[#2AB7A9] text-[#2AB7A9]'
                                               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
@@ -994,7 +994,7 @@ export function CodeBase() {
                         <div className="flex-1 overflow-auto bg-gray-50 min-h-0">
                           <div className="h-full w-full">
                             {activeTab === 'code' && selectedFile && (
-                              <div className="h-full w-full p-6">
+                              <div className="h-full w-full p-2">
                                 <EnhancedCodeViewer 
                                   selectedFile={selectedFile}
                                   selectedFileContent={selectedFileContent || ''}
@@ -1007,7 +1007,7 @@ export function CodeBase() {
                               </div>
                             )}
                             {activeTab === 'documentation' && selectedFile && (
-                              <div className="h-full w-full p-6">
+                              <div className="h-full w-full p-2">
                                 <DocumentationViewer 
                                   selectedFileName={selectedFile.name}
                                   selectedFilePath={selectedFile.path}
