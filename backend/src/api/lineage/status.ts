@@ -12,11 +12,12 @@ interface AuthenticatedRequest extends Request {
 const router = Router();
 
 // Initialize Supabase client
+// Use github_module schema which contains the RPC functions
 const supabase = createClient(
   process.env.SUPABASE_URL || '',
   process.env.SUPABASE_SERVICE_ROLE_KEY || '',
   {
-    db: { schema: 'code_insights' }
+    db: { schema: 'github_module' }
   }
 );
 

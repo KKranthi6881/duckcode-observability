@@ -126,6 +126,134 @@ export function CodeLineageView({ connectionId, fileName, filePath }: CodeLineag
     fetchModelLineage();
   }, [connectionId, fileName, filePath]);
 
+  const fetchFileSpecificLineage = async (accessToken: string) => {
+    try {
+      // Extract dbt-relative path from full repository path
+      // e.g., "transform/snowflake-dbt/models/common_mart_marketing/mart_crm_person.sql" 
+      // becomes "models/common_mart_marketing/mart_crm_person.sql"
+      let dbtRelativePath = filePath!;
+      if (filePath!.includes('/models/')) {
+        dbtRelativePath = 'models/' + filePath!.split('/models/')[1];
+      }
+      
+      console.log('===================== CODE LINEAGE DEBUG =====================');
+      console.log('[CodeLineageView] Connection ID:', connectionId);
+      console.log('[CodeLineageView] Original file path:', filePath);
+      console.log('[CodeLineageView] DBT-relative path:', dbtRelativePath);
+      console.log('[CodeLineageView] File name:', fileName);
+      console.log('============================================================');
+      
+      const response = await fetch(
+        `http://localhost:3001/api/metadata/lineage/by-file/${connectionId}?filePath=${encodeURIComponent(dbtRelativePath)}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          const errorData = await response.json();
+          setError(errorData.message || 'No lineage data found for this file. Make sure metadata has been extracted.');
+        } else {
+          throw new Error(`Failed to fetch file lineage: ${response.statusText}`);
+        }
+        setLoading(false);
+        return;
+      }
+
+      const data = await response.json();
+      console.log('[CodeLineageView] ✅ File lineage data received:');
+      console.log('  - File:', data.file);
+      console.log('  - Focal objects:', data.focalObjects);
+      console.log('  - Total nodes:', data.nodes?.length);
+      console.log('  - Total edges:', data.edges?.length);
+      console.log('  - Metadata:', data.metadata);
+
+      // Convert to ReactFlow format with ModernModelNode
+      const flowNodes: Node[] = await Promise.all(data.nodes.map(async (node: any) => {
+        // Fetch columns for each model
+        let columns = [];
+        try {
+          const columnsResponse = await fetch(
+            `http://localhost:3001/api/metadata/lineage/columns/${node.id}?limit=100`,
+            {
+              headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json'
+              }
+            }
+          );
+          
+          if (columnsResponse.ok) {
+            const columnsData = await columnsResponse.json();
+            columns = columnsData.columns || [];
+          }
+        } catch (err) {
+          console.warn(`Failed to fetch columns for ${node.name}:`, err);
+        }
+
+        // Calculate upstream/downstream counts
+        const upstreamCount = data.edges.filter((e: any) => e.target === node.id).length;
+        const downstreamCount = data.edges.filter((e: any) => e.source === node.id).length;
+
+        return {
+          id: node.id,
+          type: 'expandableModel',
+          data: { 
+            id: node.id,
+            name: node.name,  // Use simple name instead of full_name to avoid "dummy_dummy" prefix
+            label: node.name,
+            type: node.object_type || 'model',
+            description: node.description,
+            filePath: node.filePath,
+            fileName: node.fileName,
+            updatedAt: node.updatedAt,
+            extractionTier: node.extractionTier,
+            extractedFrom: node.extractedFrom,
+            confidence: node.confidence,
+            metadata: node.metadata,
+            fullName: node.full_name,  // Keep full_name in metadata for reference
+            upstreamCount,
+            downstreamCount,
+            isFocal: node.isFocal,  // Highlight the clicked file's objects
+            expanded: false,
+            loading: false,
+            onExpand: handleExpand,
+            onCollapse: handleCollapse,
+            columns: columns.map((col: any) => ({
+              id: col.id || col.name,
+              name: col.name,
+              type: col.data_type || col.type || 'string',
+              data_type: col.data_type || col.type || 'string'
+            }))
+          },
+          position: { x: 0, y: 0 }
+        };
+      }));
+
+      const flowEdges: Edge[] = data.edges.map((edge: any) => ({
+        id: edge.id,
+        source: edge.source,
+        target: edge.target,
+        ...defaultEdgeOptions
+      }));
+
+      // Apply dagre layout
+      const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(flowNodes, flowEdges);
+      
+      setNodes(layoutedNodes);
+      setEdges(layoutedEdges);
+      setLoading(false);
+    } catch (err: any) {
+      console.error('Error fetching file-specific lineage:', err);
+      setError(err.message || 'Failed to load lineage data');
+      setLoading(false);
+    }
+  };
+
   const fetchModelLineage = async () => {
     try {
       setLoading(true);
@@ -139,6 +267,16 @@ export function CodeLineageView({ connectionId, fileName, filePath }: CodeLineag
         return;
       }
 
+      // NEW: Use file-based lineage API if we have a file path
+      if (filePath) {
+        console.log('[CodeLineageView] Fetching file-specific lineage for:', filePath);
+        await fetchFileSpecificLineage(session.access_token);
+        return;
+      }
+
+      // FALLBACK: Show all lineage if no file selected
+      console.log('[CodeLineageView] No file selected, showing all lineage');
+      
       // First, get all models to find the ID of the current file
       const modelName = getModelName();
       

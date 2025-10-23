@@ -706,3 +706,332 @@ export async function getFocusedLineage(req: AuthenticatedRequest, res: Response
     res.status(500).json({ error: 'Internal server error' });
   }
 }
+
+/**
+ * Get lineage for a specific file path
+ * This is the primary endpoint for file-specific lineage in the CodeBase UI
+ */
+export async function getLineageByFilePath(req: AuthenticatedRequest, res: Response) {
+  try {
+    const { connectionId } = req.params;
+    const { filePath } = req.query;
+    const organizationId = req.user.organization_id;
+
+    console.log('===================== BACKEND FILE LINEAGE DEBUG =====================');
+    console.log(`[FileLineage] Connection ID received: ${connectionId}`);
+    console.log(`[FileLineage] File path received: ${filePath}`);
+    console.log(`[FileLineage] Organization ID: ${organizationId}`);
+    console.log('=====================================================================');
+
+    if (!filePath || typeof filePath !== 'string') {
+      return res.status(400).json({ error: 'filePath query parameter is required' });
+    }
+
+    // Step 0: Get the metadata repository_id from the connection_id
+    const { data: metadataRepo, error: repoError } = await supabase
+      .schema('metadata')
+      .from('repositories')
+      .select('id')
+      .eq('connection_id', connectionId)
+      .eq('organization_id', organizationId)
+      .single();
+
+    if (repoError || !metadataRepo) {
+      console.log(`[FileLineage] ❌ Metadata repository not found for connection: ${connectionId}`);
+      console.log(`[FileLineage] Error:`, repoError);
+      return res.status(404).json({ 
+        error: 'Repository not found in metadata',
+        message: 'This repository has not been processed for metadata extraction yet.',
+        connectionId 
+      });
+    }
+
+    const repositoryId = metadataRepo.id;
+    console.log(`[FileLineage] ✅ Found metadata repository ID: ${repositoryId}`);
+
+    // Step 1: Find the file in metadata
+    // Try exact match first
+    let { data: file, error: fileError } = await supabase
+      .schema('metadata')
+      .from('files')
+      .select('id, relative_path, file_type')
+      .eq('repository_id', repositoryId)
+      .eq('relative_path', filePath)
+      .eq('organization_id', organizationId)
+      .single();
+
+    // If exact match fails, try matching by filename only
+    // (dbt manifest stores flat paths like "models/file.sql" without subdirectories)
+    if (fileError || !file) {
+      const fileName = filePath.split('/').pop();
+      console.log(`[FileLineage] ⚠️  Exact path not found, trying filename match: ${fileName}`);
+      console.log(`[FileLineage] File error:`, fileError);
+      
+      const { data: filesByName, error: nameError } = await supabase
+        .schema('metadata')
+        .from('files')
+        .select('id, relative_path, file_type')
+        .eq('repository_id', repositoryId)
+        .ilike('relative_path', `%${fileName}`)
+        .eq('organization_id', organizationId);
+
+      console.log(`[FileLineage] Files found by name (${fileName}):`, filesByName?.length || 0);
+      if (filesByName && filesByName.length > 0) {
+        console.log('[FileLineage] Matching files:', filesByName.map(f => f.relative_path));
+      }
+
+      if (nameError || !filesByName || filesByName.length === 0) {
+        console.log(`[FileLineage] ❌ File not found by name either: ${fileName}`);
+        console.log(`[FileLineage] Name error:`, nameError);
+        return res.status(404).json({ 
+          error: 'File not found in metadata',
+          message: 'This file has not been processed yet or does not exist in the repository.',
+          filePath,
+          fileName
+        });
+      }
+
+      // If multiple files match, prefer exact filename match
+      file = filesByName.find(f => f.relative_path.endsWith(`/${fileName}`)) || filesByName[0];
+      console.log(`[FileLineage] ✅ Found file by name: ${file.relative_path} (ID: ${file.id})`);
+    } else {
+      console.log(`[FileLineage] ✅ Found file by exact path: ${file.relative_path} (ID: ${file.id})`);
+    }
+
+    // Step 2: Get all objects from this file
+    const { data: objects, error: objectsError } = await supabase
+      .schema('metadata')
+      .from('objects')
+      .select(`
+        id,
+        name,
+        full_name,
+        schema_name,
+        database_name,
+        object_type,
+        description,
+        metadata,
+        confidence
+      `)
+      .eq('file_id', file.id)
+      .eq('organization_id', organizationId)
+      .order('name');
+
+    if (objectsError) {
+      console.error('[FileLineage] Error fetching objects:', objectsError);
+      return res.status(500).json({ error: 'Failed to fetch objects from file' });
+    }
+
+    if (!objects || objects.length === 0) {
+      console.log(`[FileLineage] No objects found in file: ${filePath}`);
+      return res.status(404).json({ 
+        error: 'No objects found in this file',
+        message: 'This file does not contain any extractable database objects (tables, views, models).',
+        file: {
+          id: file.id,
+          path: file.relative_path,
+          name: file.relative_path.split('/').pop() || file.relative_path
+        }
+      });
+    }
+
+    console.log(`[FileLineage] Found ${objects.length} objects in file`);
+
+    const objectIds = objects.map(o => o.id);
+
+    // Step 3: Get upstream dependencies (what this file depends on)
+    const { data: upstreamDeps, error: upstreamError } = await supabase
+      .schema('metadata')
+      .from('dependencies')
+      .select(`
+        id,
+        source_object_id,
+        target_object_id,
+        dependency_type,
+        confidence,
+        metadata,
+        expression,
+        source:objects!source_object_id(
+          id,
+          name,
+          full_name,
+          object_type,
+          description,
+          file_id,
+          metadata
+        )
+      `)
+      .in('target_object_id', objectIds)
+      .eq('organization_id', organizationId)
+      .limit(100);
+
+    if (upstreamError) {
+      console.error('[FileLineage] Error fetching upstream deps:', upstreamError);
+    }
+
+    // Step 4: Get downstream dependencies (what depends on this file)
+    const { data: downstreamDeps, error: downstreamError } = await supabase
+      .schema('metadata')
+      .from('dependencies')
+      .select(`
+        id,
+        source_object_id,
+        target_object_id,
+        dependency_type,
+        confidence,
+        metadata,
+        expression,
+        target:objects!target_object_id(
+          id,
+          name,
+          full_name,
+          object_type,
+          description,
+          file_id,
+          metadata
+        )
+      `)
+      .in('source_object_id', objectIds)
+      .eq('organization_id', organizationId)
+      .limit(100);
+
+    if (downstreamError) {
+      console.error('[FileLineage] Error fetching downstream deps:', downstreamError);
+    }
+
+    // Step 5: Combine and deduplicate nodes
+    const allDeps = [...(upstreamDeps || []), ...(downstreamDeps || [])];
+    console.log(`[FileLineage] Total dependencies: ${allDeps.length} (${upstreamDeps?.length || 0} upstream, ${downstreamDeps?.length || 0} downstream)`);
+    
+    const nodeMap = new Map();
+
+    // Add focal objects (from the clicked file)
+    const fileName = file.relative_path.split('/').pop() || file.relative_path;
+    objects.forEach(obj => {
+      nodeMap.set(obj.id, { 
+        ...obj, 
+        isFocal: true, 
+        filePath: file.relative_path,
+        fileName: fileName
+      });
+    });
+
+    console.log(`[FileLineage] Added ${objects.length} focal objects to nodeMap`);
+
+    // Add related objects from dependencies
+    // We need to fetch the related objects separately since Supabase joins aren't working
+    const relatedObjectIds = new Set<string>();
+    allDeps.forEach(dep => {
+      // Add source object IDs (for upstream dependencies)
+      if (dep.source_object_id && !objectIds.includes(dep.source_object_id)) {
+        relatedObjectIds.add(dep.source_object_id);
+      }
+      // Add target object IDs (for downstream dependencies)
+      if (dep.target_object_id && !objectIds.includes(dep.target_object_id)) {
+        relatedObjectIds.add(dep.target_object_id);
+      }
+    });
+
+    console.log(`[FileLineage] Found ${relatedObjectIds.size} related object IDs from dependencies`);
+
+    // Fetch all related objects in one query
+    if (relatedObjectIds.size > 0) {
+      const { data: relatedObjects, error: relatedError } = await supabase
+        .schema('metadata')
+        .from('objects')
+        .select(`
+          id,
+          name,
+          full_name,
+          object_type,
+          description,
+          file_id,
+          metadata,
+          confidence
+        `)
+        .in('id', Array.from(relatedObjectIds))
+        .eq('organization_id', organizationId);
+
+      if (relatedError) {
+        console.error('[FileLineage] Error fetching related objects:', relatedError);
+      } else {
+        console.log(`[FileLineage] Fetched ${relatedObjects?.length || 0} related objects`);
+        relatedObjects?.forEach(obj => {
+          if (!nodeMap.has(obj.id)) {
+            nodeMap.set(obj.id, { 
+              ...obj, 
+              isFocal: false 
+            });
+          }
+        });
+      }
+    }
+
+    // Get file paths for all related objects
+    const allFileIds = Array.from(nodeMap.values())
+      .map(n => n.file_id)
+      .filter(Boolean);
+    
+    const { data: relatedFiles } = await supabase
+      .schema('metadata')
+      .from('files')
+      .select('id, relative_path, file_name')
+      .in('id', allFileIds);
+
+    const filePathMap = new Map(
+      relatedFiles?.map(f => [f.id, { path: f.relative_path, name: f.file_name }]) || []
+    );
+
+    // Enrich nodes with file paths
+    const enrichedNodes = Array.from(nodeMap.values()).map(node => ({
+      ...node,
+      filePath: node.filePath || filePathMap.get(node.file_id)?.path,
+      fileName: node.fileName || filePathMap.get(node.file_id)?.name
+    }));
+
+    const edges = allDeps.map(dep => ({
+      id: dep.id,
+      source: dep.source_object_id,
+      target: dep.target_object_id,
+      type: dep.dependency_type,
+      confidence: dep.confidence || 1.0,
+      metadata: dep.metadata,
+      expression: dep.expression
+    }));
+
+    console.log(`[FileLineage] ✅ Returning ${enrichedNodes.length} nodes (${objects.length} focal, ${enrichedNodes.length - objects.length} related), ${edges.length} edges`);
+
+    res.json({
+      file: {
+        id: file.id,
+        path: file.relative_path,
+        name: fileName,
+        type: file.file_type
+      },
+      focalObjects: objects.map(obj => ({
+        id: obj.id,
+        name: obj.name,
+        fullName: obj.full_name,
+        type: obj.object_type
+      })),
+      nodes: enrichedNodes,
+      edges,
+      metadata: {
+        connectionId,
+        filePath,
+        totalNodes: enrichedNodes.length,
+        totalEdges: edges.length,
+        focalObjectCount: objects.length,
+        upstreamCount: (upstreamDeps || []).length,
+        downstreamCount: (downstreamDeps || []).length
+      }
+    });
+
+  } catch (error: any) {
+    console.error('[FileLineage] ❌ Error:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: error.message 
+    });
+  }
+}

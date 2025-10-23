@@ -75,9 +75,9 @@ export class DbtRunner {
     
     try {
       // Use find command to search for dbt_project.yml recursively
-      // Limit depth to 5 levels to avoid going too deep
+      // Limit depth to 10 levels to handle deeply nested structures
       const { stdout } = await execAsync(
-        `find "${projectPath}" -maxdepth 5 -name "dbt_project.yml" -type f`,
+        `find "${projectPath}" -maxdepth 10 -name "dbt_project.yml" -type f`,
         { timeout: 30000 }
       );
 
@@ -151,6 +151,78 @@ export class DbtRunner {
   }
 
   /**
+   * Scan dbt project for env_var references and extract variable names
+   */
+  async scanForEnvVars(projectPath: string): Promise<string[]> {
+    try {
+      // Search for env_var() calls in SQL and YAML files
+      const { stdout } = await execAsync(
+        `grep -r "env_var(" "${projectPath}" --include="*.sql" --include="*.yml" --include="*.yaml" || true`,
+        { timeout: 30000 }
+      );
+
+      // Extract variable names from env_var('VAR_NAME') or env_var("VAR_NAME")
+      const envVarMatches = stdout.matchAll(/env_var\(['"]([^'"]+)['"]\)/g);
+      const envVars = new Set<string>();
+      
+      for (const match of envVarMatches) {
+        envVars.add(match[1]);
+      }
+
+      console.log(`🔍 Found ${envVars.size} unique env_var references in project`);
+      return Array.from(envVars);
+    } catch (error) {
+      console.warn(`⚠️  Could not scan for env vars:`, error);
+      return [];
+    }
+  }
+
+  /**
+   * Handle packages.yml to filter out private SSH repos but keep public packages
+   */
+  async handlePackagesFile(projectPath: string): Promise<void> {
+    const packagesPath = path.join(projectPath, 'packages.yml');
+    const packagesBackupPath = path.join(projectPath, 'packages.yml.backup');
+
+    try {
+      await fs.access(packagesPath);
+      
+      // Read and parse packages.yml
+      const content = await fs.readFile(packagesPath, 'utf-8');
+      const packages = yaml.load(content) as any;
+
+      if (!packages || !packages.packages) {
+        console.log(`   No packages defined in packages.yml`);
+        return;
+      }
+
+      // Backup original
+      await fs.writeFile(packagesBackupPath, content, 'utf-8');
+
+      // Filter out git packages (SSH repos), keep only public packages from dbt hub
+      const publicPackages = packages.packages.filter((pkg: any) => {
+        // Keep packages that use 'package' key (dbt hub packages like dbt_utils)
+        // Remove packages that use 'git' key (private SSH repos)
+        return pkg.package && !pkg.git;
+      });
+
+      if (publicPackages.length === 0) {
+        // No public packages, remove packages.yml entirely
+        await fs.rename(packagesPath, packagesBackupPath);
+        console.log(`✅ Disabled packages.yml (only private repos found)`);
+      } else {
+        // Write filtered packages.yml with only public packages
+        const filteredPackages = { packages: publicPackages };
+        await fs.writeFile(packagesPath, yaml.dump(filteredPackages), 'utf-8');
+        console.log(`✅ Filtered packages.yml: kept ${publicPackages.length} public packages, removed private repos`);
+      }
+    } catch (error) {
+      // No packages.yml file or error reading it
+      console.log(`   No packages.yml found or error reading it`);
+    }
+  }
+
+  /**
    * Create dummy profiles.yml for dbt parse
    */
   async createDummyProfile(projectPath: string): Promise<void> {
@@ -183,15 +255,68 @@ ${profileName}:
       // Create dummy profile
       await this.createDummyProfile(projectPath);
 
-      // Build docker command
-      // Mount project directory and run dbt parse
-      const dockerCommand = `
-        docker run --rm \
-          -v ${projectPath}:/project \
-          -e DBT_PROFILES_DIR=/project \
-          ${this.dockerImage} \
-          sh -c "cd /project && dbt deps && dbt parse"
-      `.replace(/\s+/g, ' ').trim();
+      // Handle packages.yml - remove or stub it to avoid SSH dependency issues
+      await this.handlePackagesFile(projectPath);
+
+      // Scan project for env_var references
+      const projectEnvVars = await this.scanForEnvVars(projectPath);
+
+      // Build docker command with comprehensive dummy environment variables
+      // dbt projects often reference env vars in their SQL code (e.g., {{ env_var('DB_NAME') }})
+      // We provide dummy values so dbt parse can compile the templates without actual credentials
+      const baseEnvVars = [
+        'DBT_PROFILES_DIR=/project',
+        // Snowflake connection variables
+        'SNOWFLAKE_ACCOUNT=dummy',
+        'SNOWFLAKE_USER=dummy',
+        'SNOWFLAKE_TRANSFORM_USER=dummy',
+        'SNOWFLAKE_PASSWORD=dummy',
+        'SNOWFLAKE_ROLE=dummy',
+        'SNOWFLAKE_TRANSFORM_ROLE=dummy',
+        'SNOWFLAKE_DATABASE=dummy',
+        'SNOWFLAKE_WAREHOUSE=dummy',
+        'SNOWFLAKE_TRANSFORM_WAREHOUSE=dummy',
+        'SNOWFLAKE_SCHEMA=INFORMATION_SCHEMA',
+        'SNOWFLAKE_TIMEZONE=America/Los_Angeles',
+        // Snowflake database variables
+        'SNOWFLAKE_PREP_DATABASE=dummy',
+        'SNOWFLAKE_PROD_DATABASE=PROD',
+        'SNOWFLAKE_LOAD_DATABASE=dummy',
+        'SNOWFLAKE_SNAPSHOT_DATABASE=dummy',
+        'SNOWFLAKE_TRANSFORM_DATABASE=dummy',
+        'SNOWFLAKE_RAW_DATABASE=dummy',
+        'SNOWFLAKE_ANALYTICS_DATABASE=dummy',
+        // GitLab-specific variables
+        'DATA_TEST_BRANCH=main',
+        'CI_COMMIT_BRANCH=main',
+        'CI_PROJECT_DIR=/project',
+        // Generic database variables
+        'DBT_DATABASE=dummy',
+        'DBT_SCHEMA=dummy',
+        'TARGET_DATABASE=dummy',
+        'TARGET_SCHEMA=dummy',
+        'DATABASE=dummy',
+        'SCHEMA=dummy',
+        // Environment variables
+        'ENV=dev',
+        'ENVIRONMENT=dev',
+        'DBT_ENV=dev',
+        'TARGET=dev'
+      ];
+
+      // Add dynamically discovered env vars with dummy values
+      const discoveredEnvVars = projectEnvVars.map(varName => `${varName}=dummy`);
+      
+      // Combine all env vars and format for Docker
+      const allEnvVars = [...baseEnvVars, ...discoveredEnvVars]
+        .map(v => `-e ${v}`)
+        .join(' ');
+
+      console.log(`   Providing ${baseEnvVars.length + discoveredEnvVars.length} environment variables`);
+
+      // Run dbt deps first (to install public packages like dbt_utils), then dbt parse
+      // We filtered packages.yml to only include public packages, so this is safe
+      const dockerCommand = `docker run --rm -v ${projectPath}:/project ${allEnvVars} ${this.dockerImage} sh -c "cd /project && dbt deps && dbt parse --no-partial-parse"`;
 
       console.log(`   Docker command: ${dockerCommand}`);
 

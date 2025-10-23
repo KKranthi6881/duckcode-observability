@@ -620,21 +620,34 @@ export const getRepositoryDetails = async (owner: string, repo: string): Promise
 export const getRepositorySummaryStatus = async (owner: string, repo: string): Promise<{ hasSummaries: boolean; summaryCount: number; lastSummaryDate?: string }> => {
   try {
     const headers = await getAuthHeaders();
+    const repositoryFullName = `${owner}/${repo}`;
     
-    const response = await fetchWithTimeout(`${API_BASE_URL}/api/github/repos/${owner}/${repo}/summary-status`, {
+    // Use sequential processing status instead of GitHub-specific endpoint
+    // This works for both GitHub and GitLab repos
+    const response = await fetchWithTimeout(`${API_BASE_URL}/api/sequential/status/${encodeURIComponent(repositoryFullName)}`, {
       method: 'GET',
       headers,
     });
 
     if (!response.ok) {
-      // If 404, repository hasn't been processed
+      // If 404, repository hasn't been processed yet
       if (response.status === 404) {
         return { hasSummaries: false, summaryCount: 0 };
       }
       throw new Error(`Failed to get summary status: ${response.statusText}`);
     }
 
-    return await response.json();
+    const data = await response.json();
+    
+    // Convert sequential processing status to summary status format
+    const hasSummaries = data.status === 'completed' || data.currentPhase === 'analysis';
+    const summaryCount = data.totalFiles || 0;
+    
+    return { 
+      hasSummaries, 
+      summaryCount,
+      lastSummaryDate: data.completedAt 
+    };
   } catch (error) {
     console.error('[GitHubService] Error getting summary status:', error);
     // Return default status on error
