@@ -1,9 +1,10 @@
+import { EventEmitter } from 'events';
 import { DbtRunner } from './DbtRunner';
 import { ManifestParser } from '../parsers/ManifestParser';
 import { EnhancedSQLParser } from '../parsers/EnhancedSQLParser';
 import { supabase } from '../../../config/supabase';
+import { ExtractionLogger } from '../../../utils/ExtractionLogger';
 import { TantivySearchService } from '../../TantivySearchService';
-import EventEmitter from 'events';
 
 export enum ExtractionPhase {
   QUEUED = 'queued',
@@ -529,13 +530,42 @@ export class ExtractionOrchestrator extends EventEmitter {
     const objectMapByName = new Map<string, string>();      // name → object_id
     const dependencyMap = new Map<string, string[]>();      // target_name → [source_names]
     
-    const { data: allObjects } = await supabase
-      .schema('metadata')
-      .from('objects')
-      .select('id, name, metadata')
-      .eq('connection_id', connectionId);
+    // Fetch ALL objects using pagination - critical for dependency mapping
+    console.log(`🔍 Fetching ALL objects for connection: ${connectionId}`);
+    let allObjects: any[] = [];
+    let page = 0;
+    const pageSize = 1000;
+    let hasMore = true;
 
-    if (allObjects) {
+    while (hasMore) {
+      const from = page * pageSize;
+      const to = from + pageSize - 1;
+      
+      const { data: pageData, error: objectFetchError } = await supabase
+        .schema('metadata')
+        .from('objects')
+        .select('id, name, metadata')
+        .eq('connection_id', connectionId)
+        .range(from, to);
+
+      if (objectFetchError) {
+        console.error(`❌ Error fetching objects page ${page}:`, objectFetchError);
+        break;
+      }
+
+      if (pageData && pageData.length > 0) {
+        allObjects = allObjects.concat(pageData);
+        console.log(`   📄 Page ${page + 1}: fetched ${pageData.length} objects (total: ${allObjects.length})`);
+        hasMore = pageData.length === pageSize;
+        page++;
+      } else {
+        hasMore = false;
+      }
+    }
+    
+    console.log(`📦 Fetched ${allObjects.length} total objects from database`);
+    
+    if (allObjects.length > 0) {
       for (const obj of allObjects) {
         // Map by unique_id for dependency storage
         const uniqueId = obj.metadata?.unique_id;
@@ -547,10 +577,37 @@ export class ExtractionOrchestrator extends EventEmitter {
       }
     }
 
+    console.log(`\n📋 Object map built:`);
+    console.log(`   Total objects in DB: ${allObjects?.length || 0}`);
+    console.log(`   Objects with unique_id: ${objectMapByUniqueId.size}`);
+    console.log(`   Sample unique_ids (first 5):`);
+    Array.from(objectMapByUniqueId.keys()).slice(0, 5).forEach(key => {
+      console.log(`      - ${key}`);
+    });
+
     // Store model dependencies and build dependency map
+    console.log(`\n🔗 Storing ${parsed.dependencies.length} dependencies from manifest...`);
+    let storedCount = 0;
+    let skippedSourceCount = 0;
+    let skippedTargetCount = 0;
+    const skippedSources = new Set<string>();
+    const skippedTargets = new Set<string>();
+
     for (const dep of parsed.dependencies) {
       const sourceId = objectMapByUniqueId.get(dep.source_unique_id);
       const targetId = objectMapByUniqueId.get(dep.target_unique_id);
+
+      if (!sourceId) {
+        skippedSourceCount++;
+        skippedSources.add(dep.source_unique_id);
+        continue;
+      }
+      
+      if (!targetId) {
+        skippedTargetCount++;
+        skippedTargets.add(dep.target_unique_id);
+        continue;
+      }
 
       if (sourceId && targetId) {
         await supabase
@@ -563,11 +620,15 @@ export class ExtractionOrchestrator extends EventEmitter {
             dependency_type: 'dbt_ref',
             confidence: dep.confidence,
             metadata: {
-              extracted_from: 'manifest'
+              extracted_from: 'manifest',
+              source_unique_id: dep.source_unique_id,
+              target_unique_id: dep.target_unique_id
             }
           }, {
             onConflict: 'source_object_id,target_object_id,dependency_type,source_column,target_column'
           });
+
+        storedCount++;
 
         // Build dependency map for lineage extraction
         if (!dependencyMap.has(dep.target_name)) {
@@ -575,6 +636,25 @@ export class ExtractionOrchestrator extends EventEmitter {
         }
         dependencyMap.get(dep.target_name)!.push(dep.source_name);
       }
+    }
+
+    console.log(`✅ Dependency storage complete:`);
+    console.log(`   ✓ Stored: ${storedCount}`);
+    console.log(`   ⚠️  Skipped (source not found): ${skippedSourceCount}`);
+    console.log(`   ⚠️  Skipped (target not found): ${skippedTargetCount}`);
+    
+    if (skippedSources.size > 0) {
+      console.log(`\n   Missing source objects (first 10):`);
+      Array.from(skippedSources).slice(0, 10).forEach(id => {
+        console.log(`      - ${id}`);
+      });
+    }
+    
+    if (skippedTargets.size > 0) {
+      console.log(`\n   Missing target objects (first 10):`);
+      Array.from(skippedTargets).slice(0, 10).forEach(id => {
+        console.log(`      - ${id}`);
+      });
     }
 
     // Store column-level lineage

@@ -1,6 +1,8 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import ReactFlow, {
   Background,
+  Controls,
+  MiniMap,
   useNodesState,
   useEdgesState,
   Node,
@@ -15,7 +17,7 @@ import ReactFlow, {
 import dagre from 'dagre';
 import 'reactflow/dist/style.css';
 import { supabase } from '../../config/supabaseClient';
-import { Loader2, AlertCircle, Target, RefreshCw, Search, X } from 'lucide-react';
+import { Loader2, AlertCircle, Target, RefreshCw, Search, X, Maximize2, EyeOff, Maximize, Minimize } from 'lucide-react';
 import ModernModelNode from './ModernModelNode';
 import ExpandNode from './ExpandNode';
 import ModelSelector from './ModelSelector';
@@ -128,7 +130,6 @@ function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate,
   const [downstreamLimit, setDownstreamLimit] = useState(2);
   const [lineageMetadata, setLineageMetadata] = useState<any>(null);
   const [isExpanding, setIsExpanding] = useState(false);
-  const [expandingDirection, setExpandingDirection] = useState<'upstream' | 'downstream' | null>(null);
   
   // Auto-load lineage if initialModelId is provided
   useEffect(() => {
@@ -159,37 +160,173 @@ function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate,
   
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  
+  // Highlighting state for better navigation
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [hoveredColumnPath, setHoveredColumnPath] = useState<string | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const graphContainerRef = useRef<HTMLDivElement>(null);
 
   // Handle expanding upstream/downstream - Load 5 more at a time
   const handleExpandUpstream = useCallback(() => {
     setIsExpanding(true);
-    setExpandingDirection('upstream');
     setUpstreamLimit(prev => prev + 5);
   }, []);
 
   const handleExpandDownstream = useCallback(() => {
     setIsExpanding(true);
-    setExpandingDirection('downstream');
     setDownstreamLimit(prev => prev + 5);
   }, []);
 
-  // Focus on a specific node
+  // Clear all highlighting and reset to normal view
+  const clearHighlight = useCallback(() => {
+    setSelectedNodeId(null);
+    setHoveredColumnPath(null);
+    
+    // Reset all edges to default
+    setEdges((eds) =>
+      eds.map((edge) => ({
+        ...edge,
+        animated: false,
+        style: {
+          stroke: '#9ca3af',
+          strokeWidth: 2,
+          opacity: 1
+        },
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          color: '#9ca3af'
+        }
+      }))
+    );
+    
+    // Reset all nodes to default
+    setNodes((nds) =>
+      nds.map((node) => ({
+        ...node,
+        style: {
+          ...node.style,
+          opacity: 1,
+          boxShadow: node.data.isFocal ? '0 4px 12px rgba(59, 130, 246, 0.3)' : undefined
+        }
+      }))
+    );
+  }, [setEdges, setNodes]);
+
+  // Fit view to see all nodes
+  const fitToView = useCallback(() => {
+    reactFlowInstance.fitView({ padding: 0.2, duration: 800 });
+  }, [reactFlowInstance]);
+
+  // Toggle fullscreen
+  const toggleFullscreen = useCallback(async () => {
+    if (!graphContainerRef.current) return;
+
+    try {
+      if (!document.fullscreenElement) {
+        await graphContainerRef.current.requestFullscreen();
+        setIsFullscreen(true);
+      } else {
+        await document.exitFullscreen();
+        setIsFullscreen(false);
+      }
+    } catch (err) {
+      console.error('Error toggling fullscreen:', err);
+    }
+  }, []);
+
+  // Listen for fullscreen changes and update nodes
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const isNowFullscreen = !!document.fullscreenElement;
+      setIsFullscreen(isNowFullscreen);
+      
+      // Update all nodes to use new tooltip container (for fullscreen tooltips)
+      setNodes((nds) =>
+        nds.map((node) => ({
+          ...node,
+          data: {
+            ...node.data,
+            tooltipContainer: graphContainerRef.current
+          }
+        }))
+      );
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, [setNodes]);
+
+  // Focus on a specific node with highlighting
   const focusNode = useCallback((nodeId: string) => {
     const node = reactFlowInstance.getNode(nodeId);
     if (node) {
+      // Center on node with animation
       reactFlowInstance.setCenter(
         node.position.x + 150,
         node.position.y + 50,
-        { zoom: 1.5, duration: 800 }
+        { zoom: 1.2, duration: 800 }
+      );
+      
+      // Set as selected for highlighting
+      setSelectedNodeId(nodeId);
+      
+      // Highlight this node and its direct connections
+      const connectedEdges = new Set<string>();
+      const connectedNodes = new Set<string>();
+      connectedNodes.add(nodeId);
+      
+      setEdges((eds) => {
+        eds.forEach((edge) => {
+          if (edge.source === nodeId || edge.target === nodeId) {
+            connectedEdges.add(edge.id);
+            connectedNodes.add(edge.source);
+            connectedNodes.add(edge.target);
+          }
+        });
+        
+        return eds.map((edge) => {
+          const isConnected = connectedEdges.has(edge.id);
+          return {
+            ...edge,
+            animated: isConnected,
+            style: {
+              ...edge.style,
+              stroke: isConnected ? '#10b981' : '#d1d5db', // Green for selected node connections
+              strokeWidth: isConnected ? 3 : 2,
+              opacity: isConnected ? 1 : 0.3
+            },
+            markerEnd: {
+              type: MarkerType.ArrowClosed,
+              color: isConnected ? '#10b981' : '#d1d5db'
+            }
+          };
+        });
+      });
+      
+      // Highlight connected nodes
+      setNodes((nds) =>
+        nds.map((n) => ({
+          ...n,
+          style: {
+            ...n.style,
+            opacity: connectedNodes.has(n.id) ? 1 : 0.3,
+            boxShadow: n.id === nodeId ? '0 0 0 3px #10b981' : n.style?.boxShadow
+          }
+        }))
       );
     }
-  }, [reactFlowInstance]);
+  }, [reactFlowInstance, setEdges, setNodes]);
 
-  // Filter nodes by search
+  // Filter nodes by search (only filter model nodes, not expand buttons)
   const filteredNodes = searchTerm
     ? nodes.filter(node => 
-        node.data.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        node.data.type.toLowerCase().includes(searchTerm.toLowerCase())
+        node.type === 'expandableModel' && 
+        node.data.name && 
+        (node.data.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+         (node.data.type && node.data.type.toLowerCase().includes(searchTerm.toLowerCase())))
       )
     : [];
 
@@ -355,22 +492,43 @@ function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate,
   // Handle column hover for highlighting
   const handleColumnHover = useCallback((columnId: string | null, lineages: ColumnLineage[]) => {
     
+    setHoveredColumnPath(columnId);
+    
     if (!columnId || lineages.length === 0) {
-      // Reset all edges to default style
+      // Reset all edges to default style - remove dimming
       setEdges((eds) =>
         eds.map((edge) => ({
           ...edge,
           animated: false,
           style: {
             stroke: '#9ca3af',
-            strokeWidth: 2
+            strokeWidth: 2,
+            opacity: 1
+          }
+        }))
+      );
+      
+      // Reset node dimming
+      setNodes((nds) =>
+        nds.map((node) => ({
+          ...node,
+          style: {
+            ...node.style,
+            opacity: 1
           }
         }))
       );
       return;
     }
     
-    // Highlight edges related to this column
+    // Get related node IDs from lineages
+    const relatedNodeIds = new Set<string>();
+    lineages.forEach(l => {
+      relatedNodeIds.add(l.source_object_id);
+      relatedNodeIds.add(l.target_object_id);
+    });
+    
+    // Highlight edges and dim non-related ones
     const lineageIds = new Set(lineages.map(l => l.id));
     
     setEdges((eds) =>
@@ -381,8 +539,8 @@ function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate,
           animated: isHighlighted,
           style: {
             stroke: isHighlighted ? '#3b82f6' : '#d1d5db',
-            strokeWidth: isHighlighted ? 3 : 2,
-            opacity: isHighlighted ? 1 : 0.4
+            strokeWidth: isHighlighted ? 4 : 2,
+            opacity: isHighlighted ? 1 : 0.25 // Dim non-related edges
           },
           markerEnd: {
             type: MarkerType.ArrowClosed,
@@ -391,7 +549,18 @@ function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate,
         };
       })
     );
-  }, [setEdges]);
+    
+    // Dim nodes not involved in this lineage
+    setNodes((nds) =>
+      nds.map((node) => ({
+        ...node,
+        style: {
+          ...node.style,
+          opacity: relatedNodeIds.has(node.id) ? 1 : 0.4
+        }
+      }))
+    );
+  }, [setEdges, setNodes]);
 
   // Fetch focused lineage
   const fetchFocusedLineage = useCallback(async (modelId: string) => {
@@ -461,6 +630,8 @@ function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate,
           onExpand: handleExpand,
           onCollapse: handleCollapse,
           onColumnHover: handleColumnHover,
+          onNodeClick: focusNode,
+          tooltipContainer: graphContainerRef.current,
           loading: false,
           isFocal: node.isFocal
         },
@@ -516,11 +687,7 @@ function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate,
         finalEdges = layouted.edges;
       }
 
-      // Reset expanding flags before rendering (so expand buttons render with correct state)
-      setIsExpanding(false);
-      setExpandingDirection(null);
-
-      // Add expand nodes if there are more to load
+      // Add expand nodes if there are more to load (don't pass isLoading - buttons are fresh)
       const focalNode = data.nodes.find((n) => n.isFocal);
       const focalNodeId = focalNode?.id;
 
@@ -540,7 +707,7 @@ function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate,
               direction: 'upstream' as const,
               count: displayCount,
               onExpand: handleExpandUpstream,
-              isLoading: expandingDirection === 'upstream'
+              isLoading: false // Always fresh buttons without loading state
             },
             position: { x: 0, y: 0 }
           });
@@ -569,7 +736,7 @@ function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate,
               direction: 'downstream' as const,
               count: displayCount,
               onExpand: handleExpandDownstream,
-              isLoading: expandingDirection === 'downstream'
+              isLoading: false // Always fresh buttons without loading state
             },
             position: { x: 0, y: 0 }
           });
@@ -605,12 +772,11 @@ function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate,
       console.error('[FocusedLineage] Error:', err);
       setError('Failed to load lineage data');
       setIsExpanding(false); // Reset on error
-      setExpandingDirection(null);
     } finally {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [connectionId, handleExpand, handleCollapse, handleColumnHover, handleExpandUpstream, handleExpandDownstream, setNodes, setEdges, upstreamLimit, downstreamLimit, isExpanding]);
+  }, [connectionId, handleExpand, handleCollapse, handleColumnHover, focusNode, handleExpandUpstream, handleExpandDownstream, setNodes, setEdges, upstreamLimit, downstreamLimit, isExpanding]);
 
   // Handle model selection
   const handleModelSelect = useCallback((modelId: string, modelName: string) => {
@@ -815,7 +981,15 @@ function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate,
       )}
 
       {/* Graph */}
-      <div className="flex-1">
+      <div 
+        ref={graphContainerRef} 
+        className="flex-1"
+        style={{
+          position: 'relative',
+          backgroundColor: isFullscreen ? '#ffffff' : undefined,
+          overflow: 'visible'
+        }}
+      >
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -853,6 +1027,63 @@ function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate,
           attributionPosition="bottom-left"
         >
           <Background variant={BackgroundVariant.Dots} gap={12} size={1} color="#e5e7eb" />
+          <Controls showInteractive={false} />
+          <MiniMap 
+            nodeColor={(node) => {
+              if (node.data.isFocal) return '#3b82f6';
+              if (node.type === 'expandButton') return '#e5e7eb';
+              return '#9ca3af';
+            }}
+            maskColor="rgba(0, 0, 0, 0.05)"
+            style={{
+              backgroundColor: '#f9fafb',
+              border: '1px solid #e5e7eb'
+            }}
+          />
+          
+          {/* Custom Control Buttons */}
+          <div className="absolute top-4 right-4 flex flex-col gap-2 z-10">
+            {/* Clear Highlight Button */}
+            {(selectedNodeId || hoveredColumnPath) && (
+              <button
+                onClick={clearHighlight}
+                className="px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-md hover:bg-gray-50 transition-colors flex items-center gap-2 text-sm font-medium text-gray-700"
+                title="Clear highlighting"
+              >
+                <EyeOff className="w-4 h-4" />
+                Clear Highlight
+              </button>
+            )}
+            
+            {/* Fit View Button */}
+            <button
+              onClick={fitToView}
+              className="px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-md hover:bg-gray-50 transition-colors flex items-center gap-2 text-sm font-medium text-gray-700"
+              title="Fit all nodes to view"
+            >
+              <Maximize2 className="w-4 h-4" />
+              Fit View
+            </button>
+            
+            {/* Fullscreen Button */}
+            <button
+              onClick={toggleFullscreen}
+              className="px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-md hover:bg-gray-50 transition-colors flex items-center gap-2 text-sm font-medium text-gray-700"
+              title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+            >
+              {isFullscreen ? (
+                <>
+                  <Minimize className="w-4 h-4" />
+                  Exit Fullscreen
+                </>
+              ) : (
+                <>
+                  <Maximize className="w-4 h-4" />
+                  Fullscreen
+                </>
+              )}
+            </button>
+          </div>
         </ReactFlow>
       </div>
 

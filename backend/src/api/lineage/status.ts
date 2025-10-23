@@ -12,13 +12,10 @@ interface AuthenticatedRequest extends Request {
 const router = Router();
 
 // Initialize Supabase client
-// Use github_module schema which contains the RPC functions
+// Use enterprise schema where github_connections and metadata are stored
 const supabase = createClient(
   process.env.SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || '',
-  {
-    db: { schema: 'github_module' }
-  }
+  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 );
 
 // GET /api/lineage/status/:owner/:repo - Get comprehensive lineage status
@@ -34,20 +31,40 @@ router.get('/status/:owner/:repo', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    // Use existing comprehensive status function
-    const { data, error } = await supabase.rpc('get_comprehensive_repository_status', {
-      repo_full_name: repositoryFullName,
-      user_id_param: userId
-    });
+    // Check if repository connection exists in enterprise schema
+    // Note: We filter by user_id since organization_id may not be in the user object
+    const { data: connection, error: connError } = await supabase
+      .schema('enterprise')
+      .from('github_connections')
+      .select('*')
+      .eq('repository_owner', owner)
+      .eq('repository_name', repo)
+      .eq('created_by', userId)
+      .single();
 
-    if (error) {
-      console.error('Error fetching lineage status:', error);
-      return res.status(500).json({ error: 'Failed to fetch lineage status' });
+    if (connError || !connection) {
+      console.log('Repository not found in enterprise.github_connections:', connError);
+      return res.status(404).json({ error: 'Repository not found or not connected' });
     }
 
-    if (!data || data.length === 0) {
-      return res.status(404).json({ error: 'Repository not found' });
-    }
+    // Return basic status from connection
+    const data = [{
+      total_files: connection.total_files || 0,
+      lineage_completed: connection.total_objects || 0,
+      lineage_pending: 0,
+      lineage_failed: 0,
+      lineage_eligible: 0,
+      lineage_progress: connection.status === 'completed' ? 100 : 0,
+      documentation_completed: 0,
+      documentation_failed: 0,
+      documentation_pending: 0,
+      documentation_progress: 0,
+      vector_completed: 0,
+      vector_failed: 0,
+      vector_pending: 0,
+      vector_progress: 0,
+      file_details: []
+    }];
 
     const status = data[0];
     

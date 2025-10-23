@@ -1,7 +1,7 @@
 import { memo, useState, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Handle, Position, NodeProps } from 'reactflow';
-import { ChevronDown, Loader2, Database, Table2, FileText } from 'lucide-react';
+import { ChevronDown, Loader2, Database, Table2, FileText, Focus } from 'lucide-react';
 import { ModelTooltip } from './ModelTooltip';
 
 interface ColumnLineage {
@@ -42,9 +42,11 @@ interface ModelNodeData {
   expanded?: boolean;
   onExpand?: (nodeId: string) => void;
   onCollapse?: (nodeId: string) => void;
+  onNodeClick?: (nodeId: string) => void;
   loading?: boolean;
   isFocal?: boolean;
   onColumnHover?: (columnId: string | null, lineages: ColumnLineage[]) => void;
+  tooltipContainer?: HTMLElement | null;
 }
 
 const INITIAL_COLUMNS_SHOWN = 5;
@@ -158,11 +160,12 @@ function ModernModelNode({ data }: NodeProps<ModelNodeData>) {
         ${data.isFocal ? 'shadow-lg border-2 border-blue-400' : 'shadow-md hover:shadow-lg border-2 border-gray-200'}
       `}
     >
-      {/* Tooltip - rendered via portal to document body for proper z-index */}
+      {/* Tooltip - rendered to fullscreen container if available, otherwise document.body */}
       {showTooltip && tooltipPosition.x > 0 && createPortal(
         <div 
-          className="fixed pointer-events-none"
+          className="pointer-events-none"
           style={{
+            position: data.tooltipContainer ? 'absolute' : 'fixed',
             zIndex: 999999,
             left: `${tooltipPosition.x}px`,
             top: `${tooltipPosition.y}px`,
@@ -184,7 +187,7 @@ function ModernModelNode({ data }: NodeProps<ModelNodeData>) {
             }}
           />
         </div>,
-        document.body
+        data.tooltipContainer || document.body
       )}
       <Handle 
         type="target" 
@@ -230,10 +233,18 @@ function ModernModelNode({ data }: NodeProps<ModelNodeData>) {
             )}
           </div>
           
-          {/* Explore Button */}
+          {/* Focus Button */}
           <div className="flex flex-col items-end gap-1">
-            <button className="text-blue-600 text-xs font-medium hover:text-blue-700 flex items-center gap-1 px-2 py-1 rounded hover:bg-blue-50 transition-colors">
-              <span>Explore</span>
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                data.onNodeClick?.(data.id);
+              }}
+              className="text-green-600 text-xs font-medium hover:text-green-700 flex items-center gap-1 px-2 py-1 rounded hover:bg-green-50 transition-colors"
+              title="Center view and highlight connections"
+            >
+              <Focus className="w-3.5 h-3.5" />
+              <span>Focus</span>
             </button>
           </div>
         </div>

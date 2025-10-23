@@ -14,6 +14,7 @@ import {
   File
 } from 'lucide-react';
 import { useAuth } from '../../features/auth/contexts/AuthContext';
+import { supabase } from '../../config/supabaseClient';
 import { getOrganizationRepositories } from '../../services/repositoryService';
 import { useCopyToClipboard } from '../../hooks/useCopyToClipboard';
 import { processRepositoryForInsights, getRepositorySummaryStatus, getProcessingStatus } from '../../services/githubService';
@@ -96,16 +97,30 @@ export function CodeBase() {
     setTreeError(null);
     
     try {
-      // Fetch file tree from GitHub API
+      // Get auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('No active session');
+      }
+
+      // Fetch file tree from universal API (works for both GitHub and GitLab)
       const owner = repo.repository_owner;
       const repoName = repo.repository_name;
       const branch = repo.branch || 'main';
+      const provider = repo.provider || 'github';
       
+      // Update active branch to match repository's branch
+      setActiveBranch(branch);
+      
+      console.log(`[CodeBase] Fetching tree for ${provider} repo: ${owner}/${repoName}, branch: ${branch}`);
+      
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
       const response = await fetch(
-        `https://api.github.com/repos/${owner}/${repoName}/git/trees/${branch}?recursive=1`,
+        `${API_BASE_URL}/api/repos/${owner}/${repoName}/tree?ref=${branch}&recursive=true`,
         {
           headers: {
-            'Accept': 'application/vnd.github.v3+json',
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
           }
         }
       );
@@ -116,8 +131,19 @@ export function CodeBase() {
       
       const data = await response.json();
       
-      // Transform GitHub tree data into our file tree format
-      const tree = buildFileTree(data.tree);
+      // Handle different response formats
+      const treeData = data.tree || data;
+      console.log(`[CodeBase] ===== TREE DATA DEBUG =====`);
+      console.log(`[CodeBase] Raw response:`, data);
+      console.log(`[CodeBase] Tree data length:`, treeData?.length);
+      console.log(`[CodeBase] First 5 items:`, treeData?.slice(0, 5));
+      console.log(`[CodeBase] Item types:`, treeData?.slice(0, 10).map((item: any) => ({ name: item.name, type: item.type, path: item.path })));
+      
+      // Transform tree data into our file tree format
+      const tree = buildFileTree(treeData);
+      console.log(`[CodeBase] Built tree:`, tree);
+      console.log(`[CodeBase] Tree children count:`, tree?.[0]?.children?.length);
+      console.log(`[CodeBase] ===== END DEBUG =====`);
       setFileTree(tree);
     } catch (error) {
       console.error('Error fetching file tree:', error);
@@ -127,12 +153,14 @@ export function CodeBase() {
     }
   };
   
-  // Helper function to build file tree from GitHub tree data
+  // Helper function to build file tree from tree data (works for both GitHub and GitLab)
   const buildFileTree = (githubTree: any[], level: number = 0): any[] => {
-    const root: any = { name: '/', path: '', type: 'folder', children: [], isExpanded: false, level: 0 };
+    const root: any = { name: '/', path: '', type: 'folder', children: [], isExpanded: true, level: 0 };
     
     githubTree.forEach((item: any) => {
-      if (item.type === 'blob') {
+      // Process both files (blob) and directories (tree)
+      if (item.type === 'blob' || item.type === 'file') {
+        // It's a file
         const parts = item.path.split('/');
         let current = root;
         
@@ -168,6 +196,17 @@ export function CodeBase() {
           children: [],
           level: parts.length
         });
+      } else if (item.type === 'tree' || item.type === 'dir') {
+        // It's a directory - add it directly to root
+        root.children.push({
+          id: item.path,
+          name: item.name,
+          path: item.path,
+          type: 'folder',
+          children: [],
+          isExpanded: false,
+          level: 1
+        });
       }
     });
     
@@ -190,23 +229,139 @@ export function CodeBase() {
     return root.children;
   };
   
+  // Helper function to toggle folder expansion
+  const toggleFolderExpansion = (tree: any[], folderPath: string): any[] => {
+    return tree.map(node => {
+      if (node.path === folderPath && node.type === 'folder') {
+        return { ...node, isExpanded: !node.isExpanded };
+      }
+      if (node.children && node.children.length > 0) {
+        return { ...node, children: toggleFolderExpansion(node.children, folderPath) };
+      }
+      return node;
+    });
+  };
+  
+  // Helper function to load folder contents
+  const loadFolderContents = async (folder: any) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('No active session');
+      }
+
+      const owner = selectedGitHubRepo.repository_owner;
+      const repoName = selectedGitHubRepo.repository_name;
+      const branch = selectedGitHubRepo.branch || 'main';
+      
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const response = await fetch(
+        `${API_BASE_URL}/api/repos/${owner}/${repoName}/tree?ref=${branch}&path=${folder.path}&recursive=false`,
+        {
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          }
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch folder contents: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      const treeData = data.tree || data;
+      
+      // Build children for this folder
+      const children: any[] = [];
+      treeData.forEach((item: any) => {
+        if (item.type === 'blob' || item.type === 'file') {
+          children.push({
+            id: item.path,
+            name: item.name,
+            path: item.path,
+            type: 'file',
+            size: item.size,
+            isExpanded: false,
+            children: [],
+            level: folder.level + 1
+          });
+        } else if (item.type === 'tree' || item.type === 'dir') {
+          children.push({
+            id: item.path,
+            name: item.name,
+            path: item.path,
+            type: 'folder',
+            children: [],
+            isExpanded: false,
+            childrenLoaded: false,
+            level: folder.level + 1
+          });
+        }
+      });
+      
+      // Sort children
+      children.sort((a, b) => {
+        if (a.type === b.type) {
+          return a.name.localeCompare(b.name);
+        }
+        return a.type === 'folder' ? -1 : 1;
+      });
+      
+      // Update the tree with the new children
+      const updateTreeWithChildren = (tree: any[], folderPath: string, newChildren: any[]): any[] => {
+        return tree.map(node => {
+          if (node.path === folderPath && node.type === 'folder') {
+            return { ...node, children: newChildren, childrenLoaded: true, isExpanded: true };
+          }
+          if (node.children && node.children.length > 0) {
+            return { ...node, children: updateTreeWithChildren(node.children, folderPath, newChildren) };
+          }
+          return node;
+        });
+      };
+      
+      setFileTree(updateTreeWithChildren(fileTree, folder.path, children));
+    } catch (error) {
+      console.error('Error loading folder contents:', error);
+      setTreeError('Failed to load folder contents');
+    }
+  };
+  
   const handleTreeItemClick = async (file: any) => {
-    if (file.type === 'file' || file.type === 'blob') {
+    if (file.type === 'folder') {
+      // It's a folder - toggle expansion and fetch contents if not loaded
+      const updatedTree = toggleFolderExpansion(fileTree, file.path);
+      setFileTree(updatedTree);
+      
+      // If folder hasn't been loaded yet, fetch its contents
+      if (!file.childrenLoaded) {
+        await loadFolderContents(file);
+      }
+    } else if (file.type === 'file' || file.type === 'blob') {
       // It's a file, fetch its content
       setSelectedFile(file);
       setIsLoadingFileContent(true);
       setFileContentError(null);
       
       try {
+        // Get auth token
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) {
+          throw new Error('No active session');
+        }
+
         const owner = selectedGitHubRepo.repository_owner;
         const repoName = selectedGitHubRepo.repository_name;
         const branch = selectedGitHubRepo.branch || 'main';
         
+        const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
         const response = await fetch(
-          `https://api.github.com/repos/${owner}/${repoName}/contents/${file.path}?ref=${branch}`,
+          `${API_BASE_URL}/api/repos/${owner}/${repoName}/file/${file.path}?ref=${branch}`,
           {
             headers: {
-              'Accept': 'application/vnd.github.v3+json',
+              'Authorization': `Bearer ${session.access_token}`,
+              'Content-Type': 'application/json',
             }
           }
         );
@@ -218,7 +373,7 @@ export function CodeBase() {
         const data = await response.json();
         
         // Decode base64 content
-        const content = atob(data.content);
+        const content = atob(data.content.replace(/\s/g, ''));
         setSelectedFileContent(content);
       } catch (error) {
         console.error('Error fetching file content:', error);
@@ -226,28 +381,7 @@ export function CodeBase() {
       } finally {
         setIsLoadingFileContent(false);
       }
-    } else if (file.type === 'folder') {
-      // It's a folder, toggle expansion
-      toggleFolderExpansion(file.path);
     }
-  };
-  
-  const toggleFolderExpansion = (nodePath: string) => {
-    if (!fileTree) return;
-    
-    const toggleNode = (nodes: any[]): any[] => {
-      return nodes.map(node => {
-        if (node.path === nodePath) {
-          return { ...node, isExpanded: !node.isExpanded };
-        }
-        if (node.children && node.children.length > 0) {
-          return { ...node, children: toggleNode(node.children) };
-        }
-        return node;
-      });
-    };
-    
-    setFileTree(toggleNode(fileTree));
   };
   
   const fetchFileSummary = async (owner: string, repo: string, filePath: string) => {

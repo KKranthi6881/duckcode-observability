@@ -4,7 +4,8 @@ import {
   getModelColumns,
   getColumnLineage,
   getLineageStats,
-  getFocusedLineage
+  getFocusedLineage,
+  getLineageByFilePath
 } from '../controllers/metadata-lineage.controller';
 import { requireAuth } from '../middlewares/auth.middleware';
 
@@ -12,6 +13,14 @@ const router = express.Router();
 
 // Apply authentication to all routes
 router.use(requireAuth);
+
+/**
+ * @route GET /api/metadata/lineage/by-file/:connectionId
+ * @desc Get lineage for a specific file path (file-specific lineage)
+ * @query filePath - The relative path of the file (e.g., "models/marts/customers.sql")
+ * @access Private
+ */
+router.get('/by-file/:connectionId', getLineageByFilePath as any);
 
 /**
  * @route GET /api/metadata/lineage/model/:connectionId
