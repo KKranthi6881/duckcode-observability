@@ -128,6 +128,7 @@ function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate,
   const [downstreamLimit, setDownstreamLimit] = useState(2);
   const [lineageMetadata, setLineageMetadata] = useState<any>(null);
   const [isExpanding, setIsExpanding] = useState(false);
+  const [expandingDirection, setExpandingDirection] = useState<'upstream' | 'downstream' | null>(null);
   
   // Auto-load lineage if initialModelId is provided
   useEffect(() => {
@@ -162,11 +163,13 @@ function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate,
   // Handle expanding upstream/downstream - Load 5 more at a time
   const handleExpandUpstream = useCallback(() => {
     setIsExpanding(true);
+    setExpandingDirection('upstream');
     setUpstreamLimit(prev => prev + 5);
   }, []);
 
   const handleExpandDownstream = useCallback(() => {
     setIsExpanding(true);
+    setExpandingDirection('downstream');
     setDownstreamLimit(prev => prev + 5);
   }, []);
 
@@ -513,8 +516,9 @@ function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate,
         finalEdges = layouted.edges;
       }
 
-      // Reset expanding flag before rendering (so expand buttons render with correct state)
+      // Reset expanding flags before rendering (so expand buttons render with correct state)
       setIsExpanding(false);
+      setExpandingDirection(null);
 
       // Add expand nodes if there are more to load
       const focalNode = data.nodes.find((n) => n.isFocal);
@@ -535,7 +539,8 @@ function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate,
             data: {
               direction: 'upstream' as const,
               count: displayCount,
-              onExpand: handleExpandUpstream
+              onExpand: handleExpandUpstream,
+              isLoading: expandingDirection === 'upstream'
             },
             position: { x: 0, y: 0 }
           });
@@ -563,7 +568,8 @@ function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate,
             data: {
               direction: 'downstream' as const,
               count: displayCount,
-              onExpand: handleExpandDownstream
+              onExpand: handleExpandDownstream,
+              isLoading: expandingDirection === 'downstream'
             },
             position: { x: 0, y: 0 }
           });
@@ -599,6 +605,7 @@ function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate,
       console.error('[FocusedLineage] Error:', err);
       setError('Failed to load lineage data');
       setIsExpanding(false); // Reset on error
+      setExpandingDirection(null);
     } finally {
       setLoading(false);
     }

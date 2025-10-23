@@ -1,4 +1,4 @@
-import { memo, useState } from 'react';
+import { memo } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 
@@ -6,17 +6,18 @@ interface ExpandNodeData {
   direction: 'upstream' | 'downstream';
   count: number;
   onExpand: () => void;
+  isLoading?: boolean; // Controlled from parent
 }
 
 function ExpandNode({ data }: NodeProps<ExpandNodeData>) {
-  const [isLoading, setIsLoading] = useState(false);
+  const isLoading = data.isLoading || false;
   const isUpstream = data.direction === 'upstream';
   const Icon = isUpstream ? ChevronLeft : ChevronRight;
   
   const handleClick = () => {
-    setIsLoading(true);
-    data.onExpand();
-    // Loading state will be cleared when component re-renders with new data
+    if (!isLoading) {
+      data.onExpand();
+    }
   };
   
   return (
