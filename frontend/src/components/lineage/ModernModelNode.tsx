@@ -1,4 +1,5 @@
-import { memo, useState, useCallback } from 'react';
+import { memo, useState, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Handle, Position, NodeProps } from 'reactflow';
 import { ChevronDown, Loader2, Database, Table2, FileText } from 'lucide-react';
 import { ModelTooltip } from './ModelTooltip';
@@ -83,6 +84,8 @@ function ModernModelNode({ data }: NodeProps<ModelNodeData>) {
   const [hoveredColumn, setHoveredColumn] = useState<string | null>(null);
   const [showTooltip, setShowTooltip] = useState(false);
   const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
+  const nodeRef = useRef<HTMLDivElement>(null);
   
   const columns = data.columns || [];
   const visibleColumns = showingMore ? columns : columns.slice(0, INITIAL_COLUMNS_SHOWN);
@@ -98,15 +101,28 @@ function ModernModelNode({ data }: NodeProps<ModelNodeData>) {
   // Handle mouse enter with slight delay for better UX
   const handleMouseEnter = useCallback(() => {
     const timeout = setTimeout(() => {
+      // Calculate tooltip position relative to viewport
+      if (nodeRef.current) {
+        const rect = nodeRef.current.getBoundingClientRect();
+        console.log('[Tooltip] Node rect:', rect);
+        setTooltipPosition({
+          x: rect.right + 16, // 16px margin to the right of node
+          y: rect.top + (rect.height / 2) // Vertically centered
+        });
+        console.log('[Tooltip] Position set to:', { x: rect.right + 16, y: rect.top + (rect.height / 2) });
+      } else {
+        console.log('[Tooltip] nodeRef.current is null!');
+      }
       setShowTooltip(true);
-    }, 300); // 300ms delay
+      console.log('[Tooltip] showTooltip set to true');
+    }, 300); // 300ms delay (reduced from 500ms for better responsiveness)
     setHoverTimeout(timeout);
   }, []);
 
-  // Handle mouse leave - clear timeout and hide tooltip
   const handleMouseLeave = useCallback(() => {
     if (hoverTimeout) {
       clearTimeout(hoverTimeout);
+      setHoverTimeout(null);
     }
     setShowTooltip(false);
   }, [hoverTimeout]);
@@ -136,20 +152,21 @@ function ModernModelNode({ data }: NodeProps<ModelNodeData>) {
 
   return (
     <div
+      ref={nodeRef}
       className={`
         bg-white rounded-lg transition-all duration-200 min-w-[320px] max-w-[400px] relative
         ${data.isFocal ? 'shadow-lg border-2 border-blue-400' : 'shadow-md hover:shadow-lg border-2 border-gray-200'}
       `}
     >
-      {/* Tooltip - positioned to overlay on top with high z-index */}
-      {showTooltip && (
+      {/* Tooltip - rendered via portal to document body for proper z-index */}
+      {showTooltip && tooltipPosition.x > 0 && createPortal(
         <div 
           className="fixed pointer-events-none"
           style={{
-            zIndex: 9999,
-            left: '50%',
-            top: '50%',
-            transform: 'translate(-50%, -50%)'
+            zIndex: 999999,
+            left: `${tooltipPosition.x}px`,
+            top: `${tooltipPosition.y}px`,
+            transform: 'translateY(-50%)'
           }}
         >
           <ModelTooltip
@@ -166,7 +183,8 @@ function ModernModelNode({ data }: NodeProps<ModelNodeData>) {
               metadata: data.metadata
             }}
           />
-        </div>
+        </div>,
+        document.body
       )}
       <Handle 
         type="target" 

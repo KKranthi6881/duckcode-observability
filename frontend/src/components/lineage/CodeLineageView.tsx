@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import ReactFlow, {
   Background,
   useNodesState,
@@ -15,6 +15,7 @@ import 'reactflow/dist/style.css';
 import { supabase } from '../../config/supabaseClient';
 import { Loader2, AlertCircle, Database } from 'lucide-react';
 import ModernModelNode from './ModernModelNode';
+import ExpandNode from './ExpandNode';
 
 interface CodeLineageViewProps {
   connectionId: string;
@@ -38,6 +39,7 @@ interface LineageEdge {
 
 const nodeTypes: NodeTypes = {
   expandableModel: ModernModelNode,
+  expandButton: ExpandNode,
 };
 
 const defaultEdgeOptions = {
@@ -85,12 +87,15 @@ export function CodeLineageView({ connectionId, fileName, filePath }: CodeLineag
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [modelId, setModelId] = useState<string | null>(null);
-  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+  
+  // Progressive loading state
+  const [upstreamLimit, setUpstreamLimit] = useState(4);
+  const [downstreamLimit, setDownstreamLimit] = useState(4);
+  const [lineageMetadata, setLineageMetadata] = useState<any>(null);
+  const [isExpanding, setIsExpanding] = useState(false);
 
   // Handle node expansion
   const handleExpand = (nodeId: string) => {
-    setExpandedNodes(prev => new Set([...prev, nodeId]));
     setNodes(nodes => 
       nodes.map(node => 
         node.id === nodeId 
@@ -101,11 +106,6 @@ export function CodeLineageView({ connectionId, fileName, filePath }: CodeLineag
   };
 
   const handleCollapse = (nodeId: string) => {
-    setExpandedNodes(prev => {
-      const next = new Set(prev);
-      next.delete(nodeId);
-      return next;
-    });
     setNodes(nodes => 
       nodes.map(node => 
         node.id === nodeId 
@@ -114,6 +114,17 @@ export function CodeLineageView({ connectionId, fileName, filePath }: CodeLineag
       )
     );
   };
+
+  // Handle expanding upstream/downstream
+  const handleExpandUpstream = useCallback(() => {
+    setIsExpanding(true);
+    setUpstreamLimit(prev => prev + 4);
+  }, []);
+
+  const handleExpandDownstream = useCallback(() => {
+    setIsExpanding(true);
+    setDownstreamLimit(prev => prev + 4);
+  }, []);
 
   // Extract model name from file path (e.g., "models/customers.sql" -> "customers")
   const getModelName = () => {
@@ -124,10 +135,15 @@ export function CodeLineageView({ connectionId, fileName, filePath }: CodeLineag
 
   useEffect(() => {
     fetchModelLineage();
-  }, [connectionId, fileName, filePath]);
+  }, [connectionId, fileName, filePath, upstreamLimit, downstreamLimit]); // Re-fetch when limits change
 
-  const fetchFileSpecificLineage = async (accessToken: string) => {
+  const fetchFileSpecificLineage = async (accessToken: string, skipLoadingState = false) => {
     try {
+      // Don't show loading spinner if we're just expanding (skipLoadingState = true)
+      if (!skipLoadingState) {
+        setLoading(true);
+      }
+      
       // Extract dbt-relative path from full repository path
       // e.g., "transform/snowflake-dbt/models/common_mart_marketing/mart_crm_person.sql" 
       // becomes "models/common_mart_marketing/mart_crm_person.sql"
@@ -144,7 +160,7 @@ export function CodeLineageView({ connectionId, fileName, filePath }: CodeLineag
       console.log('============================================================');
       
       const response = await fetch(
-        `http://localhost:3001/api/metadata/lineage/by-file/${connectionId}?filePath=${encodeURIComponent(dbtRelativePath)}`,
+        `http://localhost:3001/api/metadata/lineage/by-file/${connectionId}?filePath=${encodeURIComponent(dbtRelativePath)}&upstreamLimit=${upstreamLimit}&downstreamLimit=${downstreamLimit}`,
         {
           headers: {
             'Authorization': `Bearer ${accessToken}`,
@@ -241,22 +257,76 @@ export function CodeLineageView({ connectionId, fileName, filePath }: CodeLineag
         ...defaultEdgeOptions
       }));
 
+      // Store metadata for expand controls
+      setLineageMetadata(data.metadata);
+
+      // Add expand button nodes if there are more to load
+      const focalNodeId = data.focalObjects?.[0]?.id;
+      const allNodes = [...flowNodes];
+      
+      if (data.metadata.hasMoreUpstream && focalNodeId) {
+        allNodes.push({
+          id: 'expand-upstream',
+          type: 'expandButton',
+          data: {
+            direction: 'upstream' as const,
+            count: data.metadata.totalUpstreamCount - data.metadata.upstreamCount,
+            onExpand: handleExpandUpstream
+          },
+          position: { x: 0, y: 0 }
+        });
+        
+        // Add edge connecting expand button to focal node
+        flowEdges.push({
+          id: 'edge-expand-upstream',
+          source: 'expand-upstream',
+          target: focalNodeId,
+          ...defaultEdgeOptions
+        });
+      }
+
+      if (data.metadata.hasMoreDownstream && focalNodeId) {
+        allNodes.push({
+          id: 'expand-downstream',
+          type: 'expandButton',
+          data: {
+            direction: 'downstream' as const,
+            count: data.metadata.totalDownstreamCount - data.metadata.downstreamCount,
+            onExpand: handleExpandDownstream
+          },
+          position: { x: 0, y: 0 }
+        });
+        
+        // Add edge connecting focal node to expand button
+        flowEdges.push({
+          id: 'edge-expand-downstream',
+          source: focalNodeId,
+          target: 'expand-downstream',
+          ...defaultEdgeOptions
+        });
+      }
+
       // Apply dagre layout
-      const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(flowNodes, flowEdges);
+      const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(allNodes, flowEdges);
       
       setNodes(layoutedNodes);
       setEdges(layoutedEdges);
       setLoading(false);
+      setIsExpanding(false);
     } catch (err: any) {
       console.error('Error fetching file-specific lineage:', err);
       setError(err.message || 'Failed to load lineage data');
       setLoading(false);
+      setIsExpanding(false);
     }
   };
 
   const fetchModelLineage = async () => {
     try {
-      setLoading(true);
+      // Only set loading if not expanding (to avoid full page refresh)
+      if (!isExpanding) {
+        setLoading(true);
+      }
       setError(null);
 
       // Get auth token
@@ -270,7 +340,7 @@ export function CodeLineageView({ connectionId, fileName, filePath }: CodeLineag
       // NEW: Use file-based lineage API if we have a file path
       if (filePath) {
         console.log('[CodeLineageView] Fetching file-specific lineage for:', filePath);
-        await fetchFileSpecificLineage(session.access_token);
+        await fetchFileSpecificLineage(session.access_token, isExpanding); // Pass isExpanding to skip loading state
         return;
       }
 
@@ -329,7 +399,6 @@ export function CodeLineageView({ connectionId, fileName, filePath }: CodeLineag
         const focusedData = await focusedResponse.json();
         apiNodes = focusedData.nodes;
         apiEdges = focusedData.edges;
-        setModelId(currentModel.id);
       } else {
         // Show all lineage if no specific file
         apiNodes = allModelsData.nodes;

@@ -714,18 +714,22 @@ export async function getFocusedLineage(req: AuthenticatedRequest, res: Response
 export async function getLineageByFilePath(req: AuthenticatedRequest, res: Response) {
   try {
     const { connectionId } = req.params;
-    const { filePath } = req.query;
+    const { filePath, upstreamLimit = '4', downstreamLimit = '4' } = req.query;
     const organizationId = req.user.organization_id;
 
     console.log('===================== BACKEND FILE LINEAGE DEBUG =====================');
     console.log(`[FileLineage] Connection ID received: ${connectionId}`);
     console.log(`[FileLineage] File path received: ${filePath}`);
+    console.log(`[FileLineage] Upstream limit: ${upstreamLimit}, Downstream limit: ${downstreamLimit}`);
     console.log(`[FileLineage] Organization ID: ${organizationId}`);
     console.log('=====================================================================');
 
     if (!filePath || typeof filePath !== 'string') {
       return res.status(400).json({ error: 'filePath query parameter is required' });
     }
+
+    const upLimit = parseInt(upstreamLimit as string, 10);
+    const downLimit = parseInt(downstreamLimit as string, 10);
 
     // Step 0: Get the metadata repository_id from the connection_id
     const { data: metadataRepo, error: repoError } = await supabase
@@ -839,7 +843,15 @@ export async function getLineageByFilePath(req: AuthenticatedRequest, res: Respo
 
     const objectIds = objects.map(o => o.id);
 
-    // Step 3: Get upstream dependencies (what this file depends on)
+    // Step 3: Get upstream dependencies (what this file depends on) - LIMITED
+    // First get total count
+    const { count: totalUpstreamCount } = await supabase
+      .schema('metadata')
+      .from('dependencies')
+      .select('id', { count: 'exact', head: true })
+      .in('target_object_id', objectIds)
+      .eq('organization_id', organizationId);
+
     const { data: upstreamDeps, error: upstreamError } = await supabase
       .schema('metadata')
       .from('dependencies')
@@ -850,26 +862,25 @@ export async function getLineageByFilePath(req: AuthenticatedRequest, res: Respo
         dependency_type,
         confidence,
         metadata,
-        expression,
-        source:objects!source_object_id(
-          id,
-          name,
-          full_name,
-          object_type,
-          description,
-          file_id,
-          metadata
-        )
+        expression
       `)
       .in('target_object_id', objectIds)
       .eq('organization_id', organizationId)
-      .limit(100);
+      .limit(upLimit);
 
     if (upstreamError) {
       console.error('[FileLineage] Error fetching upstream deps:', upstreamError);
     }
 
-    // Step 4: Get downstream dependencies (what depends on this file)
+    // Step 4: Get downstream dependencies (what depends on this file) - LIMITED
+    // First get total count
+    const { count: totalDownstreamCount } = await supabase
+      .schema('metadata')
+      .from('dependencies')
+      .select('id', { count: 'exact', head: true })
+      .in('source_object_id', objectIds)
+      .eq('organization_id', organizationId);
+
     const { data: downstreamDeps, error: downstreamError } = await supabase
       .schema('metadata')
       .from('dependencies')
@@ -880,24 +891,20 @@ export async function getLineageByFilePath(req: AuthenticatedRequest, res: Respo
         dependency_type,
         confidence,
         metadata,
-        expression,
-        target:objects!target_object_id(
-          id,
-          name,
-          full_name,
-          object_type,
-          description,
-          file_id,
-          metadata
-        )
+        expression
       `)
       .in('source_object_id', objectIds)
       .eq('organization_id', organizationId)
-      .limit(100);
+      .limit(downLimit);
 
     if (downstreamError) {
       console.error('[FileLineage] Error fetching downstream deps:', downstreamError);
     }
+
+    const hasMoreUpstream = (totalUpstreamCount || 0) > upLimit;
+    const hasMoreDownstream = (totalDownstreamCount || 0) > downLimit;
+    
+    console.log(`[FileLineage] Upstream: ${upstreamDeps?.length || 0}/${totalUpstreamCount || 0}, Downstream: ${downstreamDeps?.length || 0}/${totalDownstreamCount || 0}`);
 
     // Step 5: Combine and deduplicate nodes
     const allDeps = [...(upstreamDeps || []), ...(downstreamDeps || [])];
@@ -1023,7 +1030,13 @@ export async function getLineageByFilePath(req: AuthenticatedRequest, res: Respo
         totalEdges: edges.length,
         focalObjectCount: objects.length,
         upstreamCount: (upstreamDeps || []).length,
-        downstreamCount: (downstreamDeps || []).length
+        downstreamCount: (downstreamDeps || []).length,
+        totalUpstreamCount: totalUpstreamCount || 0,
+        totalDownstreamCount: totalDownstreamCount || 0,
+        hasMoreUpstream,
+        hasMoreDownstream,
+        upstreamLimit: upLimit,
+        downstreamLimit: downLimit
       }
     });
 
