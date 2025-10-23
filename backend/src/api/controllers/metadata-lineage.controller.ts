@@ -546,8 +546,12 @@ export async function getFocusedLineage(req: AuthenticatedRequest, res: Response
     }
 
     // Recursive function to get upstream models
-    async function getUpstreamModels(startId: string, limit: number, visited = new Set<string>()): Promise<any[]> {
-      if (visited.has(startId) || visited.size >= limit) return [];
+    async function getUpstreamModels(startId: string, limit: number, visited = new Set<string>(), countOnly = false): Promise<any[]> {
+      if (visited.has(startId)) return [];
+      
+      // If counting, don't apply limit
+      if (!countOnly && visited.size >= limit) return [];
+      
       visited.add(startId);
 
       const { data: deps } = await supabase
@@ -569,10 +573,10 @@ export async function getFocusedLineage(req: AuthenticatedRequest, res: Response
 
       const results = models || [];
       
-      // Recursively get more upstream if we haven't hit the limit
+      // Recursively get more upstream
       for (const model of results) {
-        if (visited.size < limit) {
-          const moreUpstream = await getUpstreamModels(model.id, limit, visited);
+        if (countOnly || visited.size < limit) {
+          const moreUpstream = await getUpstreamModels(model.id, limit, visited, countOnly);
           results.push(...moreUpstream);
         }
       }
@@ -581,8 +585,12 @@ export async function getFocusedLineage(req: AuthenticatedRequest, res: Response
     }
 
     // Recursive function to get downstream models
-    async function getDownstreamModels(startId: string, limit: number, visited = new Set<string>()): Promise<any[]> {
-      if (visited.has(startId) || visited.size >= limit) return [];
+    async function getDownstreamModels(startId: string, limit: number, visited = new Set<string>(), countOnly = false): Promise<any[]> {
+      if (visited.has(startId)) return [];
+      
+      // If counting, don't apply limit
+      if (!countOnly && visited.size >= limit) return [];
+      
       visited.add(startId);
 
       const { data: deps } = await supabase
@@ -604,10 +612,10 @@ export async function getFocusedLineage(req: AuthenticatedRequest, res: Response
 
       const results = models || [];
       
-      // Recursively get more downstream if we haven't hit the limit
+      // Recursively get more downstream
       for (const model of results) {
-        if (visited.size < limit) {
-          const moreDownstream = await getDownstreamModels(model.id, limit, visited);
+        if (countOnly || visited.size < limit) {
+          const moreDownstream = await getDownstreamModels(model.id, limit, visited, countOnly);
           results.push(...moreDownstream);
         }
       }
@@ -615,9 +623,18 @@ export async function getFocusedLineage(req: AuthenticatedRequest, res: Response
       return results;
     }
 
-    // Get upstream and downstream models
+    // Get upstream and downstream models with limits
     const upstreamModels = await getUpstreamModels(modelId, Number(upstreamLimit));
     const downstreamModels = await getDownstreamModels(modelId, Number(downstreamLimit));
+
+    // Count total available (without limits) for metadata
+    const totalUpstreamModels = await getUpstreamModels(modelId, 9999, new Set(), true);
+    const totalDownstreamModels = await getDownstreamModels(modelId, 9999, new Set(), true);
+    
+    const totalUpstreamCount = totalUpstreamModels.length;
+    const totalDownstreamCount = totalDownstreamModels.length;
+    const hasMoreUpstream = totalUpstreamCount > upstreamModels.length;
+    const hasMoreDownstream = totalDownstreamCount > downstreamModels.length;
 
     // Get all dependencies between these models
     const allModelIds = [
@@ -684,6 +701,8 @@ export async function getFocusedLineage(req: AuthenticatedRequest, res: Response
       expression: dep.expression
     }));
 
+    console.log(`[FocusedLineage] ✅ Returning: ${upstreamModels.length}/${totalUpstreamCount} upstream, ${downstreamModels.length}/${totalDownstreamCount} downstream`);
+
     res.json({
       focalModel: {
         id: focalModel.id,
@@ -697,7 +716,11 @@ export async function getFocusedLineage(req: AuthenticatedRequest, res: Response
         totalModels: nodes.length,
         totalDependencies: edges.length,
         upstreamCount: upstreamModels.length,
-        downstreamCount: downstreamModels.length
+        downstreamCount: downstreamModels.length,
+        totalUpstreamCount,
+        totalDownstreamCount,
+        hasMoreUpstream,
+        hasMoreDownstream
       }
     });
 

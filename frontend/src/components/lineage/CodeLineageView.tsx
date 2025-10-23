@@ -88,9 +88,9 @@ export function CodeLineageView({ connectionId, fileName, filePath }: CodeLineag
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  // Progressive loading state
-  const [upstreamLimit, setUpstreamLimit] = useState(4);
-  const [downstreamLimit, setDownstreamLimit] = useState(4);
+  // Progressive loading state - Start with only 2 to keep it simple
+  const [upstreamLimit, setUpstreamLimit] = useState(2);
+  const [downstreamLimit, setDownstreamLimit] = useState(2);
   const [lineageMetadata, setLineageMetadata] = useState<any>(null);
   const [isExpanding, setIsExpanding] = useState(false);
 
@@ -115,15 +115,17 @@ export function CodeLineageView({ connectionId, fileName, filePath }: CodeLineag
     );
   };
 
-  // Handle expanding upstream/downstream
+  // Handle expanding upstream/downstream - Load 5 more at a time
   const handleExpandUpstream = useCallback(() => {
+    console.log('[CodeLineage] Expanding upstream');
     setIsExpanding(true);
-    setUpstreamLimit(prev => prev + 4);
+    setUpstreamLimit(prev => prev + 5);
   }, []);
 
   const handleExpandDownstream = useCallback(() => {
+    console.log('[CodeLineage] Expanding downstream');
     setIsExpanding(true);
-    setDownstreamLimit(prev => prev + 4);
+    setDownstreamLimit(prev => prev + 5);
   }, []);
 
   // Extract model name from file path (e.g., "models/customers.sql" -> "customers")
@@ -265,12 +267,15 @@ export function CodeLineageView({ connectionId, fileName, filePath }: CodeLineag
       const allNodes = [...flowNodes];
       
       if (data.metadata.hasMoreUpstream && focalNodeId) {
+        const remainingUpstream = data.metadata.totalUpstreamCount - data.metadata.upstreamCount;
+        const displayCount = Math.min(remainingUpstream, 5); // Cap at 5 to load incrementally
+        
         allNodes.push({
           id: 'expand-upstream',
           type: 'expandButton',
           data: {
             direction: 'upstream' as const,
-            count: data.metadata.totalUpstreamCount - data.metadata.upstreamCount,
+            count: displayCount,
             onExpand: handleExpandUpstream
           },
           position: { x: 0, y: 0 }
@@ -286,12 +291,15 @@ export function CodeLineageView({ connectionId, fileName, filePath }: CodeLineag
       }
 
       if (data.metadata.hasMoreDownstream && focalNodeId) {
+        const remainingDownstream = data.metadata.totalDownstreamCount - data.metadata.downstreamCount;
+        const displayCount = Math.min(remainingDownstream, 5); // Cap at 5 to load incrementally
+        
         allNodes.push({
           id: 'expand-downstream',
           type: 'expandButton',
           data: {
             direction: 'downstream' as const,
-            count: data.metadata.totalDownstreamCount - data.metadata.downstreamCount,
+            count: displayCount,
             onExpand: handleExpandDownstream
           },
           position: { x: 0, y: 0 }

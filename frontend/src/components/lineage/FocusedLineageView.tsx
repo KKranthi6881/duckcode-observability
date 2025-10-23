@@ -17,6 +17,7 @@ import 'reactflow/dist/style.css';
 import { supabase } from '../../config/supabaseClient';
 import { Loader2, AlertCircle, Target, RefreshCw, Search, X } from 'lucide-react';
 import ModernModelNode from './ModernModelNode';
+import ExpandNode from './ExpandNode';
 import ModelSelector from './ModelSelector';
 import ColumnLineageView from './ColumnLineageView';
 
@@ -46,6 +47,7 @@ interface FocusedLineageViewProps {
 
 const nodeTypes: NodeTypes = {
   expandableModel: ModernModelNode,
+  expandButton: ExpandNode,
 };
 
 const defaultEdgeOptions = {
@@ -121,6 +123,12 @@ function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate,
   const [selectedModel, setSelectedModel] = useState<string | null>(initialModelId || null);
   const [selectedModelName, setSelectedModelName] = useState<string>('');
   
+  // Progressive loading state - Start with only 2 to keep it simple
+  const [upstreamLimit, setUpstreamLimit] = useState(2);
+  const [downstreamLimit, setDownstreamLimit] = useState(2);
+  const [lineageMetadata, setLineageMetadata] = useState<any>(null);
+  const [isExpanding, setIsExpanding] = useState(false);
+  
   // Auto-load lineage if initialModelId is provided
   useEffect(() => {
     console.log('[FocusedLineageView] initialModelId:', initialModelId, 'selectedModel:', selectedModel);
@@ -130,6 +138,16 @@ function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate,
       fetchFocusedLineage(initialModelId);
     }
   }, [initialModelId]);
+
+  // Re-fetch when limits change (for progressive loading)
+  useEffect(() => {
+    if (selectedModel && (upstreamLimit > 2 || downstreamLimit > 2)) {
+      console.log('[FocusedLineageView] Limits changed, re-fetching lineage');
+      fetchFocusedLineage(selectedModel);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [upstreamLimit, downstreamLimit]);
+
   const [allColumnLineages, setAllColumnLineages] = useState<ColumnLineage[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [columnLineageView, setColumnLineageView] = useState<{
@@ -140,6 +158,17 @@ function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate,
   
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+
+  // Handle expanding upstream/downstream - Load 5 more at a time
+  const handleExpandUpstream = useCallback(() => {
+    setIsExpanding(true);
+    setUpstreamLimit(prev => prev + 5);
+  }, []);
+
+  const handleExpandDownstream = useCallback(() => {
+    setIsExpanding(true);
+    setDownstreamLimit(prev => prev + 5);
+  }, []);
 
   // Focus on a specific node
   const focusNode = useCallback((nodeId: string) => {
@@ -364,17 +393,24 @@ function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate,
   // Fetch focused lineage
   const fetchFocusedLineage = useCallback(async (modelId: string) => {
     try {
-      setLoading(true);
+      // Only show loading spinner if not expanding (to avoid graph refresh)
+      if (!isExpanding) {
+        setLoading(true);
+      }
       setError(null);
 
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         setError('Not authenticated');
+        setLoading(false);
+        setIsExpanding(false);
         return;
       }
 
+      console.log(`[FocusedLineage] Fetching with limits: upstream=${upstreamLimit}, downstream=${downstreamLimit}`);
+
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/metadata/lineage/focused/${connectionId}/${modelId}?upstreamLimit=5&downstreamLimit=5`,
+        `${import.meta.env.VITE_API_URL}/api/metadata/lineage/focused/${connectionId}/${modelId}?upstreamLimit=${upstreamLimit}&downstreamLimit=${downstreamLimit}`,
         {
           headers: {
             'Authorization': `Bearer ${session.access_token}`,
@@ -387,7 +423,13 @@ function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate,
         throw new Error('Failed to fetch focused lineage');
       }
 
-      const data: FocusedLineageApiResponse = await response.json();
+      const data: FocusedLineageApiResponse & { metadata?: any } = await response.json();
+      
+      // Store metadata for expand buttons
+      if (data.metadata) {
+        console.log('[FocusedLineage] Metadata:', data.metadata);
+        setLineageMetadata(data.metadata);
+      }
 
       if (!data.nodes || data.nodes.length === 0) {
         setError('No lineage data found for this model');
@@ -441,9 +483,112 @@ function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate,
         }
       }));
 
-      const layouted = getLayoutedElements(flowNodes, flowEdges);
-      setNodes(layouted.nodes);
-      setEdges(layouted.edges);
+      // If expanding, merge with existing nodes to keep positions
+      let finalNodes: Node[];
+      let finalEdges: Edge[];
+      
+      if (isExpanding && nodes.length > 0) {
+        console.log('[FocusedLineage] Expanding - merging with existing nodes');
+        
+        // Get existing node IDs
+        const existingNodeIds = new Set(nodes.map(n => n.id));
+        
+        // Find only NEW nodes
+        const newNodes = flowNodes.filter(n => !existingNodeIds.has(n.id));
+        console.log(`[FocusedLineage] Adding ${newNodes.length} new nodes`);
+        
+        // Remove old expand buttons from existing nodes
+        const nodesWithoutExpandButtons = nodes.filter(n => 
+          n.type !== 'expandButton'
+        );
+        
+        // Layout only the new nodes relative to existing
+        const layouted = getLayoutedElements([...nodesWithoutExpandButtons, ...newNodes], [...edges, ...flowEdges]);
+        finalNodes = layouted.nodes;
+        finalEdges = layouted.edges;
+      } else {
+        // Initial load - do full layout
+        const layouted = getLayoutedElements(flowNodes, flowEdges);
+        finalNodes = layouted.nodes;
+        finalEdges = layouted.edges;
+      }
+
+      // Reset expanding flag before rendering (so expand buttons render with correct state)
+      setIsExpanding(false);
+
+      // Add expand nodes if there are more to load
+      const focalNode = data.nodes.find((n) => n.isFocal);
+      const focalNodeId = focalNode?.id;
+
+      if (data.metadata && focalNodeId) {
+        const { hasMoreUpstream, hasMoreDownstream, totalUpstreamCount, totalDownstreamCount, upstreamCount, downstreamCount } = data.metadata;
+
+        // Add upstream expand button (cap at 5 to load incrementally)
+        if (hasMoreUpstream) {
+          const remainingUpstream = totalUpstreamCount - upstreamCount;
+          const displayCount = Math.min(remainingUpstream, 5); // Show max 5 at a time
+          console.log(`[FocusedLineage] Adding upstream expand button: ${displayCount} more nodes (${remainingUpstream} total remaining)`);
+          
+          finalNodes.push({
+            id: 'expand-upstream',
+            type: 'expandButton',
+            data: {
+              direction: 'upstream' as const,
+              count: displayCount,
+              onExpand: handleExpandUpstream
+            },
+            position: { x: 0, y: 0 }
+          });
+
+          finalEdges.push({
+            id: 'edge-expand-upstream',
+            source: 'expand-upstream',
+            target: focalNodeId,
+            type: 'default',
+            animated: false,
+            style: { stroke: '#cbd5e1', strokeWidth: 2 },
+            markerEnd: { type: MarkerType.ArrowClosed, color: '#cbd5e1' }
+          });
+        }
+
+        // Add downstream expand button (cap at 5 to load incrementally)
+        if (hasMoreDownstream) {
+          const remainingDownstream = totalDownstreamCount - downstreamCount;
+          const displayCount = Math.min(remainingDownstream, 5); // Show max 5 at a time
+          console.log(`[FocusedLineage] Adding downstream expand button: ${displayCount} more nodes (${remainingDownstream} total remaining)`);
+          
+          finalNodes.push({
+            id: 'expand-downstream',
+            type: 'expandButton',
+            data: {
+              direction: 'downstream' as const,
+              count: displayCount,
+              onExpand: handleExpandDownstream
+            },
+            position: { x: 0, y: 0 }
+          });
+
+          finalEdges.push({
+            id: 'edge-expand-downstream',
+            source: focalNodeId,
+            target: 'expand-downstream',
+            type: 'default',
+            animated: false,
+            style: { stroke: '#cbd5e1', strokeWidth: 2 },
+            markerEnd: { type: MarkerType.ArrowClosed, color: '#cbd5e1' }
+          });
+        }
+
+        // Re-layout with expand nodes if any were added
+        if (hasMoreUpstream || hasMoreDownstream) {
+          const finalLayout = getLayoutedElements(finalNodes, finalEdges);
+          finalNodes = finalLayout.nodes;
+          finalEdges = finalLayout.edges;
+        }
+      }
+
+      setNodes(finalNodes);
+      setEdges(finalEdges);
 
       const focal = data.nodes.find((n) => n.isFocal);
       if (focal) {
@@ -453,10 +598,12 @@ function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate,
     } catch (err) {
       console.error('[FocusedLineage] Error:', err);
       setError('Failed to load lineage data');
+      setIsExpanding(false); // Reset on error
     } finally {
       setLoading(false);
     }
-  }, [connectionId, handleExpand, handleCollapse, handleColumnHover, setNodes, setEdges]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connectionId, handleExpand, handleCollapse, handleColumnHover, handleExpandUpstream, handleExpandDownstream, setNodes, setEdges, upstreamLimit, downstreamLimit, isExpanding]);
 
   // Handle model selection
   const handleModelSelect = useCallback((modelId: string, modelName: string) => {
