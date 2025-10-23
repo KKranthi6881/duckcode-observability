@@ -19,7 +19,7 @@ import { getOrganizationRepositories } from '../../services/repositoryService';
 import { useCopyToClipboard } from '../../hooks/useCopyToClipboard';
 import { processRepositoryForInsights, getRepositorySummaryStatus, getProcessingStatus } from '../../services/githubService';
 import { sequentialProcessingService } from '../../services/sequential-processing.service';
-import { FileTree } from '../../components/FileTree';
+import { FileTreeModern } from '../../components/FileTreeModern';
 import { EnhancedCodeViewer } from '../../components/EnhancedCodeViewer';
 import { DocumentationViewer } from '../../components/DocumentationViewer';
 import { RepositoryGrid } from '../../components/RepositoryGrid';
@@ -328,6 +328,12 @@ export function CodeBase() {
     }
   };
   
+  // Wrapper for folder toggle that matches FileTree signature
+  const handleFolderToggle = (folderPath: string) => {
+    const updatedTree = toggleFolderExpansion(fileTree, folderPath);
+    setFileTree(updatedTree);
+  };
+
   const handleTreeItemClick = async (file: any) => {
     if (file.type === 'folder') {
       // It's a folder - toggle expansion and fetch contents if not loaded
@@ -1063,31 +1069,31 @@ export function CodeBase() {
 
             {/* Browser View - Full Code Browser */}
             {view === 'browser' && selectedGitHubRepo && (
-              <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden" style={{ height: 'calc(100vh - 8rem)' }}>
+              <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden" style={{ height: 'calc(100vh - 40px)' }}>
                 <div className="flex h-full w-full">
-                  {/* Left Sidebar - File Tree */}
-                  <div className="w-60 min-w-60 max-w-72 border-r border-gray-200 bg-gray-50 flex-shrink-0">
-                    {fileTree ? (
-                      <FileTree 
-                        fileTree={fileTree}
-                        isLoadingTree={isLoadingTree}
-                        treeError={treeError}
-                        selectedFile={selectedFile}
-                        searchQuery={searchQuery}
-                        activeBranch={activeBranch}
-                        selectedGitHubRepo={selectedGitHubRepo}
-                        brandColor={brandColor}
-                        onTreeItemClick={handleTreeItemClick}
-                        onSearchChange={setSearchQuery}
-                        onFolderToggle={toggleFolderExpansion}
-                      />
-                    ) : (
-                      <div className="p-4 text-center">
+                  {/* Modern File Tree with Built-in Resize */}
+                  {fileTree ? (
+                    <FileTreeModern 
+                      fileTree={fileTree}
+                      isLoadingTree={isLoadingTree}
+                      treeError={treeError}
+                      selectedFile={selectedFile}
+                      searchQuery={searchQuery}
+                      activeBranch={activeBranch}
+                      selectedGitHubRepo={selectedGitHubRepo}
+                      brandColor={brandColor}
+                      onTreeItemClick={handleTreeItemClick}
+                      onSearchChange={setSearchQuery}
+                      onFolderToggle={handleFolderToggle}
+                    />
+                  ) : (
+                    <div className="w-80 min-w-[240px] h-full border-r border-gray-200 bg-white flex items-center justify-center">
+                      <div className="text-center">
                         <Loader2 className="h-8 w-8 animate-spin text-[#2AB7A9] mx-auto mb-2" />
                         <p className="text-sm text-gray-600">Loading files...</p>
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                   
                   {/* Right Content Area */}
                   <div className="flex-1 flex flex-col bg-white min-w-0">

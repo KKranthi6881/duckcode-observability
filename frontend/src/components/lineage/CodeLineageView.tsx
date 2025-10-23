@@ -1,6 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import ReactFlow, {
   Background,
+  Controls,
+  MiniMap,
   useNodesState,
   useEdgesState,
   Node,
@@ -8,12 +10,14 @@ import ReactFlow, {
   NodeTypes,
   MarkerType,
   BackgroundVariant,
-  Position
+  Position,
+  useReactFlow,
+  ReactFlowProvider
 } from 'reactflow';
 import dagre from 'dagre';
 import 'reactflow/dist/style.css';
 import { supabase } from '../../config/supabaseClient';
-import { Loader2, AlertCircle, Database } from 'lucide-react';
+import { Loader2, AlertCircle, Database, Maximize2, EyeOff, Maximize, Minimize } from 'lucide-react';
 import ModernModelNode from './ModernModelNode';
 import ExpandNode from './ExpandNode';
 
@@ -82,7 +86,8 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[]) => {
   return { nodes, edges };
 };
 
-export function CodeLineageView({ connectionId, fileName, filePath }: CodeLineageViewProps) {
+function CodeLineageViewContent({ connectionId, fileName, filePath }: CodeLineageViewProps) {
+  const reactFlowInstance = useReactFlow();
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [loading, setLoading] = useState(true);
@@ -93,6 +98,12 @@ export function CodeLineageView({ connectionId, fileName, filePath }: CodeLineag
   const [downstreamLimit, setDownstreamLimit] = useState(2);
   const [lineageMetadata, setLineageMetadata] = useState<any>(null);
   const [isExpanding, setIsExpanding] = useState(false);
+  
+  // Highlighting state for better navigation
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [hoveredColumnPath, setHoveredColumnPath] = useState<string | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const graphContainerRef = useRef<HTMLDivElement>(null);
 
   // Handle node expansion
   const handleExpand = (nodeId: string) => {
@@ -127,6 +138,148 @@ export function CodeLineageView({ connectionId, fileName, filePath }: CodeLineag
     setIsExpanding(true);
     setDownstreamLimit(prev => prev + 5);
   }, []);
+
+  // Clear all highlighting and reset to normal view
+  const clearHighlight = useCallback(() => {
+    setSelectedNodeId(null);
+    setHoveredColumnPath(null);
+    
+    // Reset all edges to default
+    setEdges((eds) =>
+      eds.map((edge) => ({
+        ...edge,
+        animated: false,
+        style: {
+          stroke: '#9ca3af',
+          strokeWidth: 2,
+          opacity: 1
+        },
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          color: '#9ca3af'
+        }
+      }))
+    );
+    
+    // Reset all nodes to default
+    setNodes((nds) =>
+      nds.map((node) => ({
+        ...node,
+        style: {
+          ...node.style,
+          opacity: 1,
+          boxShadow: undefined
+        }
+      }))
+    );
+  }, [setEdges, setNodes]);
+
+  // Fit view to see all nodes
+  const fitToView = useCallback(() => {
+    reactFlowInstance.fitView({ padding: 0.2, duration: 800 });
+  }, [reactFlowInstance]);
+
+  // Toggle fullscreen
+  const toggleFullscreen = useCallback(async () => {
+    if (!graphContainerRef.current) return;
+
+    try {
+      if (!document.fullscreenElement) {
+        await graphContainerRef.current.requestFullscreen();
+        setIsFullscreen(true);
+      } else {
+        await document.exitFullscreen();
+        setIsFullscreen(false);
+      }
+    } catch (err) {
+      console.error('Error toggling fullscreen:', err);
+    }
+  }, []);
+
+  // Listen for fullscreen changes and update nodes
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const isNowFullscreen = !!document.fullscreenElement;
+      setIsFullscreen(isNowFullscreen);
+      
+      // Update all nodes to use new tooltip container (for fullscreen tooltips)
+      setNodes((nds) =>
+        nds.map((node) => ({
+          ...node,
+          data: {
+            ...node.data,
+            tooltipContainer: graphContainerRef.current
+          }
+        }))
+      );
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, [setNodes]);
+
+  // Focus on a specific node with highlighting
+  const focusNode = useCallback((nodeId: string) => {
+    const node = reactFlowInstance.getNode(nodeId);
+    if (node) {
+      // Center on node with animation
+      reactFlowInstance.setCenter(
+        node.position.x + 150,
+        node.position.y + 50,
+        { zoom: 1.2, duration: 800 }
+      );
+      
+      // Set as selected for highlighting
+      setSelectedNodeId(nodeId);
+      
+      // Highlight this node and its direct connections
+      const connectedEdges = new Set<string>();
+      const connectedNodes = new Set<string>();
+      connectedNodes.add(nodeId);
+      
+      setEdges((eds) => {
+        eds.forEach((edge) => {
+          if (edge.source === nodeId || edge.target === nodeId) {
+            connectedEdges.add(edge.id);
+            connectedNodes.add(edge.source);
+            connectedNodes.add(edge.target);
+          }
+        });
+        
+        return eds.map((edge) => {
+          const isConnected = connectedEdges.has(edge.id);
+          return {
+            ...edge,
+            animated: isConnected,
+            style: {
+              ...edge.style,
+              stroke: isConnected ? '#10b981' : '#d1d5db',
+              strokeWidth: isConnected ? 3 : 2,
+              opacity: isConnected ? 1 : 0.3
+            },
+            markerEnd: {
+              type: MarkerType.ArrowClosed,
+              color: isConnected ? '#10b981' : '#d1d5db'
+            }
+          };
+        });
+      });
+      
+      // Highlight connected nodes
+      setNodes((nds) =>
+        nds.map((n) => ({
+          ...n,
+          style: {
+            ...n.style,
+            opacity: connectedNodes.has(n.id) ? 1 : 0.3,
+            boxShadow: n.id === nodeId ? '0 0 0 3px #10b981' : n.style?.boxShadow
+          }
+        }))
+      );
+    }
+  }, [reactFlowInstance, setEdges, setNodes]);
 
   // Extract model name from file path (e.g., "models/customers.sql" -> "customers")
   const getModelName = () => {
@@ -241,6 +394,8 @@ export function CodeLineageView({ connectionId, fileName, filePath }: CodeLineag
             loading: false,
             onExpand: handleExpand,
             onCollapse: handleCollapse,
+            onNodeClick: focusNode,
+            tooltipContainer: graphContainerRef.current,
             columns: columns.map((col: any) => ({
               id: col.id || col.name,
               name: col.name,
@@ -463,6 +618,8 @@ export function CodeLineageView({ connectionId, fileName, filePath }: CodeLineag
             loading: false,
             onExpand: handleExpand,
             onCollapse: handleCollapse,
+            onNodeClick: focusNode,
+            tooltipContainer: graphContainerRef.current,
             columns: columns.map((col: any) => ({
               id: col.id || col.name,
               name: col.name,
@@ -534,7 +691,15 @@ export function CodeLineageView({ connectionId, fileName, filePath }: CodeLineag
   }
 
   return (
-    <div className="h-full w-full bg-white">
+    <div 
+      ref={graphContainerRef}
+      className="h-full w-full"
+      style={{
+        position: 'relative',
+        backgroundColor: isFullscreen ? '#ffffff' : '#ffffff',
+        overflow: 'visible'
+      }}
+    >
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -548,7 +713,73 @@ export function CodeLineageView({ connectionId, fileName, filePath }: CodeLineag
         attributionPosition="bottom-right"
       >
         <Background variant={BackgroundVariant.Dots} gap={16} size={1} color="#e2e8f0" />
+        <Controls showInteractive={false} />
+        <MiniMap 
+          nodeColor={(node) => {
+            if (node.data.isFocal) return '#3b82f6';
+            if (node.type === 'expandButton') return '#e5e7eb';
+            return '#9ca3af';
+          }}
+          maskColor="rgba(0, 0, 0, 0.05)"
+          style={{
+            backgroundColor: '#f9fafb',
+            border: '1px solid #e5e7eb'
+          }}
+        />
+        
+        {/* Custom Control Buttons */}
+        <div className="absolute top-4 right-4 flex flex-col gap-2 z-10">
+          {/* Clear Highlight Button */}
+          {(selectedNodeId || hoveredColumnPath) && (
+            <button
+              onClick={clearHighlight}
+              className="px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-md hover:bg-gray-50 transition-colors flex items-center gap-2 text-sm font-medium text-gray-700"
+              title="Clear highlighting"
+            >
+              <EyeOff className="w-4 h-4" />
+              Clear Highlight
+            </button>
+          )}
+          
+          {/* Fit View Button */}
+          <button
+            onClick={fitToView}
+            className="px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-md hover:bg-gray-50 transition-colors flex items-center gap-2 text-sm font-medium text-gray-700"
+            title="Fit all nodes to view"
+          >
+            <Maximize2 className="w-4 h-4" />
+            Fit View
+          </button>
+          
+          {/* Fullscreen Button */}
+          <button
+            onClick={toggleFullscreen}
+            className="px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-md hover:bg-gray-50 transition-colors flex items-center gap-2 text-sm font-medium text-gray-700"
+            title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+          >
+            {isFullscreen ? (
+              <>
+                <Minimize className="w-4 h-4" />
+                Exit Fullscreen
+              </>
+            ) : (
+              <>
+                <Maximize className="w-4 h-4" />
+                Fullscreen
+              </>
+            )}
+          </button>
+        </div>
       </ReactFlow>
     </div>
+  );
+}
+
+// Wrapper with ReactFlowProvider
+export function CodeLineageView(props: CodeLineageViewProps) {
+  return (
+    <ReactFlowProvider>
+      <CodeLineageViewContent {...props} />
+    </ReactFlowProvider>
   );
 }

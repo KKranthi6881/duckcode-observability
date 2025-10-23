@@ -136,9 +136,9 @@ export const FileTree: React.FC<FileTreeProps> = ({
   };
 
   return (
-    <div className="h-full flex flex-col bg-gray-50 border-r border-gray-200">
+    <div className="h-full flex flex-col bg-white">
       {/* File Tree Header */}
-      <div className="p-3 border-b border-gray-200 bg-gray-50 flex-shrink-0">
+      <div className="p-3 border-b border-gray-200 bg-gray-50 flex-shrink-0 sticky top-0 z-10">
         <div className="flex flex-col gap-2">
           <div className="flex items-center text-xs text-gray-600 overflow-hidden">
             <span className="font-medium text-gray-700 whitespace-nowrap truncate">
@@ -197,43 +197,38 @@ export const FileTree: React.FC<FileTreeProps> = ({
                 <div
                   key={node.id}
                   onClick={() => onTreeItemClick(node)}
-                  className={`flex items-center justify-between px-2 py-1.5 cursor-pointer hover:bg-gray-100 border-b border-gray-50 text-xs ${
-                    selectedFile?.path === node.path ? 'bg-[#2AB7A9] bg-opacity-10 border-[#2AB7A9]' : ''
+                  className={`flex items-center px-2 py-1.5 cursor-pointer hover:bg-gray-100 text-xs group ${
+                    selectedFile?.path === node.path ? 'bg-[#2AB7A9] bg-opacity-10' : ''
                   }`}
-                  style={{ paddingLeft: `${8 + node.level * 12}px` }}
+                  style={{ paddingLeft: `${8 + node.level * 16}px` }}
+                  title={node.path}
                 >
-                  <div className="flex items-center truncate min-w-0">
-                    {node.type === 'folder' && (
-                      <button 
-                        className="mr-1 p-0.5 hover:bg-gray-200 rounded flex-shrink-0"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onFolderToggle(node.path);
-                        }}
-                      >
-                        {node.isExpanded ? (
-                          <ChevronDown className="h-3 w-3 text-gray-500" />
-                        ) : (
-                          <ChevronRight className="h-3 w-3 text-gray-500" />
-                        )}
-                      </button>
-                    )}
-                    {node.type === 'file' && <div className="w-3 mr-1 flex-shrink-0" />}
-                    <div className="flex-shrink-0 mr-1">
-                      {getFileIcon(node.name, node.type)}
-                    </div>
-                    <span 
-                      className={`truncate ${
-                        selectedFile?.path === node.path ? 'text-[#2AB7A9] font-medium' : 'text-gray-800'
-                      }`} 
-                      title={node.name}
+                  {node.type === 'folder' && (
+                    <button 
+                      className="mr-1.5 p-0.5 hover:bg-gray-200 rounded flex-shrink-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onFolderToggle(node.path);
+                      }}
                     >
-                      {node.name}
-                    </span>
+                      {node.isExpanded ? (
+                        <ChevronDown className="h-3.5 w-3.5 text-gray-500" />
+                      ) : (
+                        <ChevronRight className="h-3.5 w-3.5 text-gray-500" />
+                      )}
+                    </button>
+                  )}
+                  {node.type === 'file' && <div className="w-4 mr-1.5 flex-shrink-0" />}
+                  <div className="flex-shrink-0 mr-1.5">
+                    {getFileIcon(node.name, node.type)}
                   </div>
-                  <div className="text-xs text-gray-400 ml-2 flex-shrink-0">
-                    {node.type === 'file' && node.size !== undefined ? `${(node.size / 1024).toFixed(1)}KB` : ''}
-                  </div>
+                  <span 
+                    className={`truncate ${
+                      selectedFile?.path === node.path ? 'text-[#2AB7A9] font-semibold' : 'text-gray-700'
+                    }`}
+                  >
+                    {node.name}
+                  </span>
                 </div>
               ))
             )}
