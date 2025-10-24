@@ -3,8 +3,8 @@
  * Configure options and trigger documentation generation
  */
 
-import React, { useState, useEffect } from 'react';
-import { Zap, DollarSign, AlertCircle, CheckCircle, Loader2, Key } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Zap, AlertCircle, CheckCircle, Loader2, Key } from 'lucide-react';
 import { aiDocumentationService } from '../../../services/aiDocumentationService';
 import { supabase } from '../../../config/supabaseClient';
 
@@ -51,7 +51,6 @@ export function JobConfiguration({ organizationId, selectedObjectIds, onJobCreat
     }
   };
 
-  const costEstimate = aiDocumentationService.calculateEstimatedCost(selectedObjectIds.length);
 
   const handleCreate = async () => {
     if (!hasAPIKey) {
@@ -173,31 +172,6 @@ export function JobConfiguration({ organizationId, selectedObjectIds, onJobCreat
             className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2AB7A9] focus:border-transparent"
           />
           <p className="text-xs text-gray-600 mt-1">Number of retry attempts if generation fails</p>
-        </div>
-      </div>
-
-      {/* Cost Estimate */}
-      <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
-        <div className="flex items-start gap-3">
-          <DollarSign className="h-5 w-5 text-purple-600 flex-shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <h3 className="text-sm font-medium text-purple-900">Estimated Cost</h3>
-            <div className="mt-2 space-y-1">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-purple-700">Objects selected:</span>
-                <span className="font-medium text-purple-900">{selectedObjectIds.length}</span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-purple-700">Cost range:</span>
-                <span className="font-medium text-purple-900">
-                  ${costEstimate.min.toFixed(3)} - ${costEstimate.max.toFixed(3)}
-                </span>
-              </div>
-            </div>
-            <p className="text-xs text-purple-600 mt-2">
-              Using GPT-4o-mini model. Actual cost may vary based on object complexity.
-            </p>
-          </div>
         </div>
       </div>
 

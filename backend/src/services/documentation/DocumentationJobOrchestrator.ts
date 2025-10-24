@@ -435,11 +435,13 @@ export class DocumentationJobOrchestrator extends EventEmitter {
 
   private async updateJobStatus(jobId: string, status: JobStatus, errorDetails?: any): Promise<void> {
     // Use database function for status updates
-    const { error } = await supabaseAdmin.rpc('update_job_status', {
-      p_job_id: jobId,
-      p_status: status,
-      p_error_details: errorDetails || null,
-    });
+    const { error } = await supabaseAdmin
+      .schema('metadata')
+      .rpc('update_job_status', {
+        p_job_id: jobId,
+        p_status: status,
+        p_error_details: errorDetails || null,
+      });
 
     if (error) {
       console.error('[DocOrchestrator] Failed to update job status:', error);
@@ -490,9 +492,11 @@ export class DocumentationJobOrchestrator extends EventEmitter {
 
   private async incrementProcessedObjects(jobId: string): Promise<void> {
     // Use database function for atomic increment
-    const { error } = await supabaseAdmin.rpc('increment_processed_objects', {
-      p_job_id: jobId,
-    });
+    const { error } = await supabaseAdmin
+      .schema('metadata')
+      .rpc('increment_processed_objects', {
+        p_job_id: jobId,
+      });
 
     if (error) {
       console.error('[DocOrchestrator] Failed to increment processed objects:', error);
@@ -501,9 +505,11 @@ export class DocumentationJobOrchestrator extends EventEmitter {
 
   private async incrementFailedObjects(jobId: string): Promise<void> {
     // Use database function for atomic increment
-    const { error } = await supabaseAdmin.rpc('increment_failed_objects', {
-      p_job_id: jobId,
-    });
+    const { error } = await supabaseAdmin
+      .schema('metadata')
+      .rpc('increment_failed_objects', {
+        p_job_id: jobId,
+      });
 
     if (error) {
       console.error('[DocOrchestrator] Failed to increment failed objects:', error);
@@ -512,9 +518,11 @@ export class DocumentationJobOrchestrator extends EventEmitter {
 
   private async updateEstimatedCompletion(jobId: string): Promise<void> {
     // Use database function to calculate estimated completion
-    const { error } = await supabaseAdmin.rpc('update_estimated_completion', {
-      p_job_id: jobId,
-    });
+    const { error } = await supabaseAdmin
+      .schema('metadata')
+      .rpc('update_estimated_completion', {
+        p_job_id: jobId,
+      });
 
     if (error) {
       console.error('[DocOrchestrator] Failed to update estimated completion:', error);
@@ -523,9 +531,11 @@ export class DocumentationJobOrchestrator extends EventEmitter {
 
   private async updateAverageProcessingTime(jobId: string): Promise<void> {
     // Use database function to calculate average time
-    const { error } = await supabaseAdmin.rpc('update_average_processing_time', {
-      p_job_id: jobId,
-    });
+    const { error } = await supabaseAdmin
+      .schema('metadata')
+      .rpc('update_average_processing_time', {
+        p_job_id: jobId,
+      });
 
     if (error) {
       console.error('[DocOrchestrator] Failed to update average processing time:', error);

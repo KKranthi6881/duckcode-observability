@@ -3,12 +3,13 @@
  * Main admin interface for generating and managing AI-powered documentation
  */
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Zap, FileText, HelpCircle, ChevronDown, ChevronUp, Loader2, CheckCircle2, XCircle } from 'lucide-react';
+import { Zap, FileText, ChevronDown, ChevronUp, Loader2, CheckCircle2, XCircle, Sparkles } from 'lucide-react';
 import { ObjectSelector } from './components/ObjectSelector';
 import { JobConfiguration } from './components/JobConfiguration';
 import { DocumentationViewer } from './components/DocumentationViewer';
+import { ObjectProcessingList } from './components/ObjectProcessingList';
 import { aiDocumentationService, Documentation } from '../../services/aiDocumentationService';
 import { supabase } from '../../config/supabaseClient';
 
@@ -19,11 +20,22 @@ export function AIDocumentation() {
   const [organizationId, setOrganizationId] = useState<string>('');
   const [highlightJobId, setHighlightJobId] = useState<string | undefined>();
   const [viewingDoc, setViewingDoc] = useState<{ doc: Documentation; objectName: string; objectId: string } | null>(null);
-  const [loadingDoc, setLoadingDoc] = useState(false);
-  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
   const [jobProgress, setJobProgress] = useState<any>(null);
+  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
+  const intervalRef = React.useRef<NodeJS.Timeout | null>(null);
   const [documentedObjects, setDocumentedObjects] = useState<any[]>([]);
   const [showSelection, setShowSelection] = useState(true);
+  const [loadingDoc, setLoadingDoc] = useState(false);
+
+  // Cleanup interval on unmount
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, []);
 
   // Get job ID from URL if present
   useEffect(() => {
@@ -67,11 +79,30 @@ export function AIDocumentation() {
   };
 
   const handleJobCreated = (jobId: string) => {
+    console.log('[AIDocumentation] Job created:', jobId);
     setCurrentJobId(jobId);
     setHighlightJobId(jobId);
+    
+    // Set optimistic initial state immediately
+    setJobProgress({
+      id: jobId,
+      organization_id: organizationId!,
+      object_ids: selectedObjectIds,
+      status: 'processing',
+      total_objects: selectedObjectIds.length,
+      processed_objects: 0,
+      failed_objects: 0,
+      progress_percentage: 0,
+      total_tokens_used: 0,
+      estimated_cost: 0,
+      actual_cost: 0,
+      created_at: new Date().toISOString(),
+    } as any);
+    
     // Hide selection UI when job starts
     setShowSelection(false);
-    // Stay on generate tab to show progress
+    
+    // Start polling immediately
     pollJobProgress(jobId);
   };
 
@@ -94,13 +125,18 @@ export function AIDocumentation() {
   };
 
   const pollJobProgress = async (jobId: string) => {
-    const interval = setInterval(async () => {
+    // Fetch immediately first time
+    const fetchStatus = async () => {
       try {
         const job = await aiDocumentationService.getJobStatus(jobId);
+        console.log('[AIDocumentation] Job status fetched:', job);
         setJobProgress(job);
         
         if (job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled') {
-          clearInterval(interval);
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+          }
           // Keep final progress for 3 seconds before clearing
           setTimeout(() => {
             setCurrentJobId(null);
@@ -109,12 +145,27 @@ export function AIDocumentation() {
           }, 3000);
           // Refresh documented objects list
           fetchDocumentedObjects();
+          return true; // Job completed
         }
+        return false; // Job still running
       } catch (error) {
         console.error('Error polling job:', error);
-        clearInterval(interval);
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+        return true; // Stop polling on error
       }
-    }, 3000); // Poll every 3 seconds
+    };
+    
+    // Do immediate first fetch
+    const completed = await fetchStatus();
+    if (completed) return;
+    
+    // Then start interval for subsequent fetches
+    intervalRef.current = setInterval(async () => {
+      await fetchStatus();
+    }, 2000); // Poll every 2 seconds for smoother updates
   };
 
   const handleJobComplete = (jobId: string) => {
@@ -168,44 +219,39 @@ export function AIDocumentation() {
   return (
     <div className="max-w-7xl mx-auto">
       {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
+      <div className="mb-6">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="p-2 bg-gradient-to-br from-[#2AB7A9] to-[#1a8f82] rounded-lg shadow-sm">
+            <Sparkles className="h-6 w-6 text-white" />
+          </div>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-              <Zap className="h-8 w-8 text-[#2AB7A9]" />
-              AI Documentation Generation
+            <h1 className="text-2xl font-bold text-gray-900">
+              AI Documentation
             </h1>
-            <p className="mt-2 text-gray-600">
-              Automatically generate comprehensive business documentation for your metadata objects using GPT-4o-mini
+            <p className="text-sm text-gray-500">
+              Generate intelligent documentation for your data objects
             </p>
           </div>
-          <button
-            className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-            title="Help"
-          >
-            <HelpCircle className="h-5 w-5" />
-            <span className="text-sm font-medium">Help</span>
-          </button>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-gray-200 mb-6">
-        <div className="flex gap-1">
+      <div className="mb-6">
+        <div className="inline-flex bg-gray-100 rounded-lg p-1 gap-1">
           {tabs.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               onClick={() => setActiveTab(id)}
               className={`
-                flex items-center gap-2 px-6 py-3 border-b-2 transition-colors
+                flex items-center gap-2 px-4 py-2 rounded-md transition-all font-medium text-sm
                 ${activeTab === id
-                  ? 'border-[#2AB7A9] text-[#2AB7A9]'
-                  : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                  ? 'bg-white text-[#2AB7A9] shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
                 }
               `}
             >
-              <Icon className="h-5 w-5" />
-              <span className="font-medium">{label}</span>
+              <Icon className="h-4 w-4" />
+              <span>{label}</span>
             </button>
           ))}
         </div>
@@ -219,37 +265,39 @@ export function AIDocumentation() {
             {/* PROMINENT PROGRESS BAR - Shows when job is running */}
             {jobProgress && currentJobId && (
               <div className={`
-                rounded-lg shadow-lg border-2 overflow-hidden
+                rounded-xl border overflow-hidden shadow-sm
                 ${jobProgress.status === 'completed' 
-                  ? 'bg-green-50 border-green-500' 
+                  ? 'bg-gradient-to-br from-green-50 to-green-100 border-green-300' 
                   : jobProgress.status === 'failed'
-                  ? 'bg-red-50 border-red-500'
-                  : 'bg-white border-[#2AB7A9]'
+                  ? 'bg-gradient-to-br from-red-50 to-red-100 border-red-300'
+                  : 'bg-white border-gray-200'
                 }
               `}>
                 {/* Header */}
-                <div className={`
-                  px-6 py-4 flex items-center justify-between
-                  ${jobProgress.status === 'completed'
-                    ? 'bg-green-100'
-                    : jobProgress.status === 'failed'
-                    ? 'bg-red-100'
-                    : 'bg-[#2AB7A9]/10'
-                  }
-                `}>
+                <div className="px-6 py-4 flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    {jobProgress.status === 'running' && (
-                      <Loader2 className="h-6 w-6 text-[#2AB7A9] animate-spin" />
-                    )}
-                    {jobProgress.status === 'completed' && (
-                      <CheckCircle2 className="h-6 w-6 text-green-600" />
-                    )}
-                    {jobProgress.status === 'failed' && (
-                      <XCircle className="h-6 w-6 text-red-600" />
-                    )}
+                    <div className={`
+                      p-2 rounded-lg
+                      ${jobProgress.status === 'completed'
+                        ? 'bg-green-100'
+                        : jobProgress.status === 'failed'
+                        ? 'bg-red-100'
+                        : 'bg-[#2AB7A9]/10'
+                      }
+                    `}>
+                      {jobProgress.status === 'processing' && (
+                        <Loader2 className="h-5 w-5 text-[#2AB7A9] animate-spin" />
+                      )}
+                      {jobProgress.status === 'completed' && (
+                        <CheckCircle2 className="h-5 w-5 text-green-600" />
+                      )}
+                      {jobProgress.status === 'failed' && (
+                        <XCircle className="h-5 w-5 text-red-600" />
+                      )}
+                    </div>
                     <div>
-                      <h2 className={`
-                        text-xl font-bold
+                      <h3 className={`
+                        text-base font-semibold
                         ${jobProgress.status === 'completed'
                           ? 'text-green-900'
                           : jobProgress.status === 'failed'
@@ -257,12 +305,12 @@ export function AIDocumentation() {
                           : 'text-gray-900'
                         }
                       `}>
-                        {jobProgress.status === 'running' && 'Generating Documentation...'}
-                        {jobProgress.status === 'completed' && '✓ Generation Complete!'}
+                        {jobProgress.status === 'processing' && 'Generating Documentation'}
+                        {jobProgress.status === 'completed' && 'Generation Complete'}
                         {jobProgress.status === 'failed' && 'Generation Failed'}
-                      </h2>
+                      </h3>
                       <p className={`
-                        text-sm
+                        text-sm mt-0.5
                         ${jobProgress.status === 'completed'
                           ? 'text-green-700'
                           : jobProgress.status === 'failed'
@@ -270,13 +318,13 @@ export function AIDocumentation() {
                           : 'text-gray-600'
                         }
                       `}>
-                        {jobProgress.objects_completed} of {jobProgress.total_objects} objects processed
+                        {jobProgress.processed_objects} of {jobProgress.total_objects} objects
                       </p>
                     </div>
                   </div>
                   <div className="text-right">
                     <div className={`
-                      text-3xl font-bold
+                      text-2xl font-bold
                       ${jobProgress.status === 'completed'
                         ? 'text-green-600'
                         : jobProgress.status === 'failed'
@@ -284,40 +332,45 @@ export function AIDocumentation() {
                         : 'text-[#2AB7A9]'
                       }
                     `}>
-                      {Math.round((jobProgress.objects_completed / jobProgress.total_objects) * 100)}%
+                      {Math.round((jobProgress.processed_objects / jobProgress.total_objects) * 100)}%
                     </div>
-                    <div className="text-xs text-gray-600 mt-1">
-                      ${(jobProgress.total_cost || 0).toFixed(4)} · {Math.round((jobProgress.total_tokens || 0) / 1000)}K tokens
+                    <div className="text-xs text-gray-600 mt-1 space-x-2">
+                      <span>${(jobProgress.actual_cost || 0).toFixed(4)}</span>
+                      <span>·</span>
+                      <span>{Math.round((jobProgress.total_tokens_used || 0) / 1000)}K tokens</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Progress Bar */}
-                <div className="h-3 bg-gray-200">
+                <div className="h-2 bg-gray-200/50">
                   <div
                     className={`
-                      h-3 transition-all duration-500 ease-out
+                      h-2 transition-all duration-500 ease-out
                       ${jobProgress.status === 'completed'
-                        ? 'bg-green-500'
+                        ? 'bg-gradient-to-r from-green-500 to-green-600'
                         : jobProgress.status === 'failed'
-                        ? 'bg-red-500'
-                        : 'bg-[#2AB7A9]'
+                        ? 'bg-gradient-to-r from-red-500 to-red-600'
+                        : 'bg-gradient-to-r from-[#2AB7A9] to-[#1a8f82]'
                       }
                     `}
-                    style={{ width: `${(jobProgress.objects_completed / jobProgress.total_objects) * 100}%` }}
+                    style={{ width: `${(jobProgress.processed_objects / jobProgress.total_objects) * 100}%` }}
                   />
                 </div>
 
                 {/* Current Object Details */}
-                {jobProgress.status === 'running' && jobProgress.current_object && (
-                  <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
+                {jobProgress.status === 'processing' && jobProgress.current_object_name && (
+                  <div className="px-6 py-3 bg-gray-50/50 border-t border-gray-200">
                     <div className="flex items-center gap-2">
-                      <div className="animate-pulse h-2 w-2 bg-[#2AB7A9] rounded-full"></div>
-                      <span className="text-sm text-gray-700">
-                        Currently processing:
+                      <div className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#2AB7A9] opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-[#2AB7A9]"></span>
+                      </div>
+                      <span className="text-xs text-gray-600">
+                        Processing:
                       </span>
-                      <span className="text-sm font-mono font-semibold text-gray-900">
-                        {jobProgress.current_object}
+                      <span className="text-xs font-mono font-medium text-gray-900">
+                        {jobProgress.current_object_name}
                       </span>
                     </div>
                   </div>
@@ -325,28 +378,43 @@ export function AIDocumentation() {
               </div>
             )}
 
+            {/* Object Processing List - Show detailed status for each object */}
+            {jobProgress && currentJobId && (
+              <div className="mt-4">
+                <ObjectProcessingList job={jobProgress} />
+              </div>
+            )}
+
             {/* Selection UI - Collapsible when job is running */}
             {showSelection && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
                 {/* Left: Object Selector */}
-                <div className="lg:col-span-2 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-4">Select Objects</h2>
-                  <ObjectSelector
-                    organizationId={organizationId}
-                    selectedIds={selectedObjectIds}
-                    onSelectionChange={setSelectedObjectIds}
-                    onViewDocumentation={handleViewDocumentation}
-                  />
+                <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 overflow-hidden">
+                  <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
+                    <h2 className="text-base font-semibold text-gray-900">Select Objects</h2>
+                  </div>
+                  <div className="p-6">
+                    <ObjectSelector
+                      organizationId={organizationId}
+                      selectedIds={selectedObjectIds}
+                      onSelectionChange={setSelectedObjectIds}
+                      onViewDocumentation={handleViewDocumentation}
+                    />
+                  </div>
                 </div>
 
                 {/* Right: Configuration */}
-                <div className="lg:col-span-1 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-4">Configuration</h2>
-                  <JobConfiguration
-                    organizationId={organizationId}
-                    selectedObjectIds={selectedObjectIds}
-                    onJobCreated={handleJobCreated}
-                  />
+                <div className="lg:col-span-1 bg-white rounded-xl border border-gray-200 overflow-hidden">
+                  <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
+                    <h2 className="text-base font-semibold text-gray-900">Configuration</h2>
+                  </div>
+                  <div className="p-6">
+                    <JobConfiguration
+                      organizationId={organizationId}
+                      selectedObjectIds={selectedObjectIds}
+                      onJobCreated={handleJobCreated}
+                    />
+                  </div>
                 </div>
               </div>
             )}
@@ -356,7 +424,7 @@ export function AIDocumentation() {
               <div className="flex justify-center">
                 <button
                   onClick={() => setShowSelection(true)}
-                  className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-[#2AB7A9] hover:bg-gray-50 border border-gray-300 rounded-lg transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 hover:text-[#2AB7A9] bg-white hover:bg-gray-50 border border-gray-200 rounded-lg transition-all shadow-sm"
                 >
                   <ChevronDown className="h-4 w-4" />
                   Show Object Selection
@@ -369,7 +437,7 @@ export function AIDocumentation() {
               <div className="flex justify-center">
                 <button
                   onClick={() => setShowSelection(false)}
-                  className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-[#2AB7A9] hover:bg-gray-50 border border-gray-300 rounded-lg transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 hover:text-[#2AB7A9] bg-white hover:bg-gray-50 border border-gray-200 rounded-lg transition-all shadow-sm"
                 >
                   <ChevronUp className="h-4 w-4" />
                   Hide Object Selection
@@ -381,17 +449,17 @@ export function AIDocumentation() {
 
         {/* View Documentation Tab */}
         {activeTab === 'view' && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             {loadingDoc ? (
-              <div className="flex items-center justify-center h-64">
+              <div className="flex items-center justify-center h-64 p-6">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2AB7A9]"></div>
               </div>
             ) : viewingDoc ? (
-              <div>
+              <div className="p-6">
                 {/* Back Button */}
                 <button
                   onClick={() => setViewingDoc(null)}
-                  className="mb-4 flex items-center gap-2 text-sm text-[#2AB7A9] hover:text-[#238F85]"
+                  className="mb-4 flex items-center gap-2 text-sm font-medium text-[#2AB7A9] hover:text-[#238F85] transition-colors"
                 >
                   ← Back to list
                 </button>
@@ -404,74 +472,52 @@ export function AIDocumentation() {
               </div>
             ) : (
               <div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Documented Objects</h2>
+                <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
+                  <h2 className="text-base font-semibold text-gray-900">Documented Objects</h2>
+                </div>
+                <div className="p-6">
                 
-                {documentedObjects.length === 0 ? (
-                  <div className="text-center py-12 text-gray-500">
-                    <FileText className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                    <p className="text-lg font-medium mb-2">No documentation available</p>
-                    <p className="text-sm">
-                      Generate documentation from the Generate tab to see it here
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {documentedObjects.map((item: any) => {
-                      const obj = item.objects;
-                      return (
-                        <div
-                          key={item.object_id}
-                          onClick={() => handleViewDocumentation(item.object_id, obj?.name)}
-                          className="p-4 border border-gray-200 rounded-lg hover:border-[#2AB7A9] hover:bg-[#2AB7A9]/5 cursor-pointer transition-all"
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <h3 className="font-medium text-gray-900">{obj?.name || 'Unknown Object'}</h3>
-                              <p className="text-sm text-gray-600">
-                                {obj?.schema_name} · {obj?.object_type}
-                              </p>
-                            </div>
-                            <div className="text-[#2AB7A9]">
-                              <FileText className="h-5 w-5" />
+                  {documentedObjects.length === 0 ? (
+                    <div className="text-center py-12 text-gray-500">
+                      <FileText className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                      <p className="text-lg font-medium mb-2">No documentation available</p>
+                      <p className="text-sm">
+                        Generate documentation from the Generate tab to see it here
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {documentedObjects.map((item: any) => {
+                        const obj = item.objects;
+                        return (
+                          <div
+                            key={item.object_id}
+                            onClick={() => handleViewDocumentation(item.object_id, obj?.name)}
+                            className="p-4 border border-gray-200 rounded-lg hover:border-[#2AB7A9] hover:bg-[#2AB7A9]/5 cursor-pointer transition-all"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <h3 className="font-medium text-gray-900">{obj?.name || 'Unknown Object'}</h3>
+                                <p className="text-sm text-gray-600">
+                                  {obj?.schema_name} · {obj?.object_type}
+                                </p>
+                              </div>
+                              <div className="text-[#2AB7A9]">
+                                <FileText className="h-5 w-5" />
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
         )}
       </div>
 
-      {/* Info Cards */}
-      {activeTab === 'generate' && (
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h3 className="text-sm font-semibold text-blue-900 mb-2">What is AI Documentation?</h3>
-            <p className="text-xs text-blue-700">
-              Automatically generates 6 layers of business-focused documentation: Executive Summary, Narrative, 
-              Transformation Cards, Code Explanations, Business Rules, and Impact Analysis.
-            </p>
-          </div>
-          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-            <h3 className="text-sm font-semibold text-purple-900 mb-2">Cost Effective</h3>
-            <p className="text-xs text-purple-700">
-              Using GPT-4o-mini model at $0.002-$0.005 per object. Generate documentation for 100 objects 
-              for less than $0.50!
-            </p>
-          </div>
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-            <h3 className="text-sm font-semibold text-green-900 mb-2">Fast Generation</h3>
-            <p className="text-xs text-green-700">
-              Documentation generates in 10-30 seconds per object. Process entire schemas in minutes with 
-              parallel job execution.
-            </p>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
