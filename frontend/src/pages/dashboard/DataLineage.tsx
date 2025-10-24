@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Search, Network, Sparkles, Database, Table2, Columns, Tag, FileCode, TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
+import { Search, Network, Sparkles, Database, Table2, Columns, Tag, FileCode, TrendingUp, TrendingDown, Loader2, FileText, XCircle } from 'lucide-react';
 import FocusedLineageView from '../../components/lineage/FocusedLineageView';
+import { DocumentationViewer } from '../admin/components/DocumentationViewer';
+import { aiDocumentationService, Documentation } from '../../services/aiDocumentationService';
 import { supabase } from '../../config/supabaseClient';
 
 interface SearchResult {
@@ -14,6 +16,7 @@ interface SearchResult {
   downstreamCount?: number;
   confidence?: number;
   tier?: string;
+  hasDocumentation?: boolean;
 }
 
 export function DataLineage() {
@@ -23,6 +26,44 @@ export function DataLineage() {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchType, setSearchType] = useState<'all' | 'models' | 'columns' | 'tables'>('all');
+  const [viewingDoc, setViewingDoc] = useState<{ doc: Documentation; objectName: string; objectId: string; organizationId: string } | null>(null);
+  const [loadingDoc, setLoadingDoc] = useState(false);
+  const [organizationId, setOrganizationId] = useState<string>('');
+
+  // Fetch organization ID
+  useEffect(() => {
+    const fetchOrgId = async () => {
+      try {
+        console.log('[DataLineage] Fetching organization ID...');
+        const { data: { session } } = await supabase.auth.getSession();
+        console.log('[DataLineage] Session:', session?.user?.id);
+        
+        if (!session?.user?.id) {
+          console.log('[DataLineage] ⚠️ No session found');
+          return;
+        }
+
+        const { data, error } = await supabase
+          .schema('enterprise')
+          .from('user_organization_roles')
+          .select('organization_id')
+          .eq('user_id', session.user.id)
+          .single();
+
+        console.log('[DataLineage] Org query result:', { data, error });
+
+        if (!error && data) {
+          setOrganizationId(data.organization_id);
+          console.log('[DataLineage] ✅ Organization ID set:', data.organization_id);
+        } else {
+          console.log('[DataLineage] ⚠️ No organization found or error:', error);
+        }
+      } catch (error) {
+        console.error('[DataLineage] Error fetching organization:', error);
+      }
+    };
+    fetchOrgId();
+  }, []);
 
   // Debounced search
   useEffect(() => {
@@ -92,6 +133,35 @@ export function DataLineage() {
           tier: result.extraction_tier
         };
       });
+
+      // Check which objects have documentation
+      console.log('[DataLineage] Checking documentation for', results.length, 'results, orgId:', organizationId);
+      if (organizationId && results.length > 0) {
+        const objectIds = results.map(r => r.id);
+        console.log('[DataLineage] Object IDs:', objectIds);
+        
+        const { data: docs, error: docsError } = await supabase
+          .schema('metadata')
+          .from('object_documentation')
+          .select('object_id')
+          .eq('organization_id', organizationId)
+          .eq('is_current', true)
+          .in('object_id', objectIds);
+        
+        console.log('[DataLineage] Documentation check result:', { docs, docsError, count: docs?.length });
+        
+        const documentedIds = new Set(docs?.map(d => d.object_id) || []);
+        console.log('[DataLineage] Documented IDs:', Array.from(documentedIds));
+        
+        results.forEach(r => {
+          r.hasDocumentation = documentedIds.has(r.id);
+          if (r.hasDocumentation) {
+            console.log('[DataLineage] ✅ Has documentation:', r.name, r.id);
+          }
+        });
+      } else {
+        console.log('[DataLineage] ⚠️ Skipping documentation check - orgId:', organizationId, 'results:', results.length);
+      }
 
       // Apply search type filter
       const filteredResults = searchType === 'all' 
@@ -181,6 +251,33 @@ export function DataLineage() {
           });
         }
 
+        // Check which objects have documentation (for fallback results)
+        console.log('[DataLineage] [FALLBACK] Checking documentation for', results.length, 'results, orgId:', organizationId);
+        if (organizationId && results.length > 0) {
+          const objectIds = results.map(r => r.id);
+          console.log('[DataLineage] [FALLBACK] Object IDs:', objectIds);
+          
+          const { data: docs, error: docsError } = await supabase
+            .schema('metadata')
+            .from('object_documentation')
+            .select('object_id')
+            .eq('organization_id', organizationId)
+            .eq('is_current', true)
+            .in('object_id', objectIds);
+          
+          console.log('[DataLineage] [FALLBACK] Documentation check result:', { docs, docsError, count: docs?.length });
+          
+          const documentedIds = new Set(docs?.map(d => d.object_id) || []);
+          console.log('[DataLineage] [FALLBACK] Documented IDs:', Array.from(documentedIds));
+          
+          results.forEach(r => {
+            r.hasDocumentation = documentedIds.has(r.id);
+            if (r.hasDocumentation) {
+              console.log('[DataLineage] [FALLBACK] ✅ Has documentation:', r.name, r.id);
+            }
+          });
+        }
+
         if (results.length > 0) {
           setSearchResults(results);
           setIsSearching(false);
@@ -253,6 +350,26 @@ export function DataLineage() {
       case 'table': return Table2;
       case 'tag': return Tag;
       default: return FileCode;
+    }
+  };
+
+  const handleViewDocumentation = async (objectId: string, objectName: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent triggering lineage view
+    
+    try {
+      setLoadingDoc(true);
+      const doc = await aiDocumentationService.getObjectDocumentation(objectId);
+      
+      setViewingDoc({
+        doc,
+        objectName,
+        objectId,
+        organizationId
+      });
+    } catch (error: any) {
+      alert(`Failed to load documentation: ${error.message}`);
+    } finally {
+      setLoadingDoc(false);
     }
   };
 
@@ -491,6 +608,16 @@ export function DataLineage() {
                             </div>
                           )}
                         </div>
+                        {/* View Documentation Button */}
+                        {result.hasDocumentation && (
+                          <button
+                            onClick={(e) => handleViewDocumentation(result.id, result.name, e)}
+                            className="flex-shrink-0 p-2 hover:bg-purple-100 rounded-lg transition-colors group"
+                            title="View AI Documentation"
+                          >
+                            <FileText className="w-5 h-5 text-purple-600 group-hover:text-purple-700" />
+                          </button>
+                        )}
                       </div>
                     </button>
                   );
@@ -519,6 +646,47 @@ export function DataLineage() {
               initialModelId={selectedModel}
               hideHeader={false}
             />
+          </div>
+        </div>
+      )}
+
+      {/* Documentation Viewer Modal */}
+      {viewingDoc && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Modal Header */}
+            <div className="px-6 py-4 bg-gradient-to-r from-purple-50 to-purple-100 border-b border-purple-200 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <FileText className="h-5 w-5 text-purple-600" />
+                <h2 className="text-lg font-semibold text-gray-900">{viewingDoc.objectName}</h2>
+                <span className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded-full font-medium">
+                  AI Documentation
+                </span>
+              </div>
+              <button
+                onClick={() => setViewingDoc(null)}
+                className="p-2 hover:bg-purple-200 rounded-lg transition-colors"
+                aria-label="Close"
+              >
+                <XCircle className="h-5 w-5 text-gray-500" />
+              </button>
+            </div>
+            
+            {/* Modal Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {loadingDoc ? (
+                <div className="flex items-center justify-center h-64">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                </div>
+              ) : (
+                <DocumentationViewer
+                  documentation={viewingDoc.doc}
+                  objectName={viewingDoc.objectName}
+                  objectId={viewingDoc.objectId}
+                  organizationId={viewingDoc.organizationId}
+                />
+              )}
+            </div>
           </div>
         </div>
       )}

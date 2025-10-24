@@ -4,8 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { Zap, FileText, ChevronDown, ChevronUp, Loader2, CheckCircle2, XCircle, Sparkles } from 'lucide-react';
+import { FileText, ChevronDown, ChevronUp, Loader2, CheckCircle2, XCircle, Sparkles } from 'lucide-react';
 import { ObjectSelector } from './components/ObjectSelector';
 import { JobConfiguration } from './components/JobConfiguration';
 import { DocumentationViewer } from './components/DocumentationViewer';
@@ -14,16 +13,12 @@ import { aiDocumentationService, Documentation } from '../../services/aiDocument
 import { supabase } from '../../config/supabaseClient';
 
 export function AIDocumentation() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState<string>('generate');
   const [selectedObjectIds, setSelectedObjectIds] = useState<string[]>([]);
   const [organizationId, setOrganizationId] = useState<string>('');
-  const [highlightJobId, setHighlightJobId] = useState<string | undefined>();
   const [viewingDoc, setViewingDoc] = useState<{ doc: Documentation; objectName: string; objectId: string } | null>(null);
   const [jobProgress, setJobProgress] = useState<any>(null);
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
   const intervalRef = React.useRef<NodeJS.Timeout | null>(null);
-  const [documentedObjects, setDocumentedObjects] = useState<any[]>([]);
   const [showSelection, setShowSelection] = useState(true);
   const [loadingDoc, setLoadingDoc] = useState(false);
 
@@ -37,26 +32,12 @@ export function AIDocumentation() {
     };
   }, []);
 
-  // Get job ID from URL if present
-  useEffect(() => {
-    const jobId = searchParams.get('jobId');
-    if (jobId) {
-      setHighlightJobId(jobId);
-      setActiveTab('jobs');
-    }
-  }, [searchParams]);
 
   // Fetch organization ID from session
   useEffect(() => {
     fetchOrganizationId();
   }, []);
 
-  // Fetch documented objects when organization is set
-  useEffect(() => {
-    if (organizationId) {
-      fetchDocumentedObjects();
-    }
-  }, [organizationId]);
 
   const fetchOrganizationId = async () => {
     try {
@@ -81,7 +62,6 @@ export function AIDocumentation() {
   const handleJobCreated = (jobId: string) => {
     console.log('[AIDocumentation] Job created:', jobId);
     setCurrentJobId(jobId);
-    setHighlightJobId(jobId);
     
     // Set optimistic initial state immediately
     setJobProgress({
@@ -106,23 +86,6 @@ export function AIDocumentation() {
     pollJobProgress(jobId);
   };
 
-  const fetchDocumentedObjects = async () => {
-    try {
-      const { data, error } = await supabase
-        .schema('metadata')
-        .from('object_documentation')
-        .select('object_id, objects(id, name, object_type, schema_name)')
-        .eq('organization_id', organizationId)
-        .eq('is_current', true)
-        .order('objects(name)');
-
-      if (!error && data) {
-        setDocumentedObjects(data);
-      }
-    } catch (error) {
-      console.error('Error fetching documented objects:', error);
-    }
-  };
 
   const pollJobProgress = async (jobId: string) => {
     // Fetch immediately first time
@@ -143,8 +106,6 @@ export function AIDocumentation() {
             setJobProgress(null);
             setShowSelection(true);
           }, 3000);
-          // Refresh documented objects list
-          fetchDocumentedObjects();
           return true; // Job completed
         }
         return false; // Job still running
@@ -168,10 +129,6 @@ export function AIDocumentation() {
     }, 2000); // Poll every 2 seconds for smoother updates
   };
 
-  const handleJobComplete = (jobId: string) => {
-    // Optionally show a notification or update UI
-    console.log('Job completed:', jobId);
-  };
 
   const handleViewDocumentation = async (objectId: string, objectName?: string) => {
     try {
@@ -195,7 +152,7 @@ export function AIDocumentation() {
         objectName: name || 'Unknown Object',
         objectId
       });
-      setActiveTab('view');
+      // Don't switch tabs - show modal instead
     } catch (error: any) {
       alert(`Failed to load documentation: ${error.message}`);
     } finally {
@@ -203,10 +160,6 @@ export function AIDocumentation() {
     }
   };
 
-  const tabs = [
-    { id: 'generate', label: 'Generate', icon: Zap },
-    { id: 'view', label: 'View Documentation', icon: FileText },
-  ];
 
   if (!organizationId) {
     return (
@@ -235,33 +188,8 @@ export function AIDocumentation() {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="mb-6">
-        <div className="inline-flex bg-gray-100 rounded-lg p-1 gap-1">
-          {tabs.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              onClick={() => setActiveTab(id)}
-              className={`
-                flex items-center gap-2 px-4 py-2 rounded-md transition-all font-medium text-sm
-                ${activeTab === id
-                  ? 'bg-white text-[#2AB7A9] shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
-                }
-              `}
-            >
-              <Icon className="h-4 w-4" />
-              <span>{label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Content */}
-      <div>
-        {/* Generate Tab */}
-        {activeTab === 'generate' && (
-          <div className="space-y-6">
+      <div className="space-y-6">
             {/* PROMINENT PROGRESS BAR - Shows when job is running */}
             {jobProgress && currentJobId && (
               <div className={`
@@ -444,80 +372,45 @@ export function AIDocumentation() {
                 </button>
               </div>
             )}
-          </div>
-        )}
 
-        {/* View Documentation Tab */}
-        {activeTab === 'view' && (
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            {loadingDoc ? (
-              <div className="flex items-center justify-center h-64 p-6">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2AB7A9]"></div>
-              </div>
-            ) : viewingDoc ? (
-              <div className="p-6">
-                {/* Back Button */}
+        {/* Documentation Viewer Modal */}
+        {viewingDoc && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+              {/* Modal Header */}
+              <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <FileText className="h-5 w-5 text-[#2AB7A9]" />
+                  <h2 className="text-lg font-semibold text-gray-900">{viewingDoc.objectName}</h2>
+                </div>
                 <button
                   onClick={() => setViewingDoc(null)}
-                  className="mb-4 flex items-center gap-2 text-sm font-medium text-[#2AB7A9] hover:text-[#238F85] transition-colors"
+                  className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+                  aria-label="Close"
                 >
-                  ← Back to list
+                  <XCircle className="h-5 w-5 text-gray-500" />
                 </button>
-                <DocumentationViewer
-                  documentation={viewingDoc.doc}
-                  objectName={viewingDoc.objectName}
-                  objectId={viewingDoc.objectId}
-                  organizationId={organizationId}
-                />
               </div>
-            ) : (
-              <div>
-                <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
-                  <h2 className="text-base font-semibold text-gray-900">Documented Objects</h2>
-                </div>
-                <div className="p-6">
-                
-                  {documentedObjects.length === 0 ? (
-                    <div className="text-center py-12 text-gray-500">
-                      <FileText className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                      <p className="text-lg font-medium mb-2">No documentation available</p>
-                      <p className="text-sm">
-                        Generate documentation from the Generate tab to see it here
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {documentedObjects.map((item: any) => {
-                        const obj = item.objects;
-                        return (
-                          <div
-                            key={item.object_id}
-                            onClick={() => handleViewDocumentation(item.object_id, obj?.name)}
-                            className="p-4 border border-gray-200 rounded-lg hover:border-[#2AB7A9] hover:bg-[#2AB7A9]/5 cursor-pointer transition-all"
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex-1">
-                                <h3 className="font-medium text-gray-900">{obj?.name || 'Unknown Object'}</h3>
-                                <p className="text-sm text-gray-600">
-                                  {obj?.schema_name} · {obj?.object_type}
-                                </p>
-                              </div>
-                              <div className="text-[#2AB7A9]">
-                                <FileText className="h-5 w-5" />
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
+              
+              {/* Modal Content */}
+              <div className="flex-1 overflow-y-auto p-6">
+                {loadingDoc ? (
+                  <div className="flex items-center justify-center h-64">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2AB7A9]"></div>
+                  </div>
+                ) : (
+                  <DocumentationViewer
+                    documentation={viewingDoc.doc}
+                    objectName={viewingDoc.objectName}
+                    objectId={viewingDoc.objectId}
+                    organizationId={organizationId}
+                  />
+                )}
               </div>
-            )}
+            </div>
           </div>
         )}
       </div>
-
     </div>
   );
 }

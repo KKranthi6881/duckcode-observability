@@ -17,11 +17,13 @@ import ReactFlow, {
 import dagre from 'dagre';
 import 'reactflow/dist/style.css';
 import { supabase } from '../../config/supabaseClient';
-import { Loader2, AlertCircle, Target, RefreshCw, Search, X, Maximize2, EyeOff, Maximize, Minimize } from 'lucide-react';
+import { Loader2, AlertCircle, Target, RefreshCw, Search, X, Maximize2, EyeOff, Maximize, Minimize, FileText, XCircle } from 'lucide-react';
 import ModernModelNode from './ModernModelNode';
 import ExpandNode from './ExpandNode';
 import ModelSelector from './ModelSelector';
 import ColumnLineageView from './ColumnLineageView';
+import { DocumentationViewer } from '../../pages/admin/components/DocumentationViewer';
+import { aiDocumentationService, Documentation } from '../../services/aiDocumentationService';
 
 interface ColumnLineage {
   id: string;
@@ -160,6 +162,97 @@ function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate,
   
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  
+  // Documentation viewing state
+  const [viewingDoc, setViewingDoc] = useState<{ doc: Documentation; objectName: string; objectId: string; organizationId: string } | null>(null);
+  const [loadingDoc, setLoadingDoc] = useState(false);
+  const [organizationId, setOrganizationId] = useState<string>('');
+  const [documentedNodeIds, setDocumentedNodeIds] = useState<Set<string>>(new Set());
+  
+  // Fetch organization ID
+  useEffect(() => {
+    const fetchOrgId = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user?.id) return;
+
+        const { data, error } = await supabase
+          .schema('enterprise')
+          .from('user_organization_roles')
+          .select('organization_id')
+          .eq('user_id', session.user.id)
+          .single();
+
+        if (!error && data) {
+          setOrganizationId(data.organization_id);
+        }
+      } catch (error) {
+        console.error('[FocusedLineage] Error fetching organization:', error);
+      }
+    };
+    fetchOrgId();
+  }, []);
+  
+  // Handle viewing documentation
+  const handleViewDocumentation = useCallback(async (nodeId: string, nodeName: string) => {
+    try {
+      setLoadingDoc(true);
+      const doc = await aiDocumentationService.getObjectDocumentation(nodeId);
+      
+      setViewingDoc({
+        doc,
+        objectName: nodeName,
+        objectId: nodeId,
+        organizationId
+      });
+    } catch (error: any) {
+      alert(`Failed to load documentation: ${error.message}`);
+    } finally {
+      setLoadingDoc(false);
+    }
+  }, [organizationId]);
+
+  // Check for documentation when nodes are loaded
+  useEffect(() => {
+    const checkDocumentation = async () => {
+      if (!organizationId || nodes.length === 0) return;
+      
+      const objectIds = nodes
+        .filter(n => n.type === 'expandableModel')
+        .map(n => n.id);
+      
+      if (objectIds.length === 0) return;
+      
+      try {
+        const { data: docs } = await supabase
+          .schema('metadata')
+          .from('object_documentation')
+          .select('object_id')
+          .eq('organization_id', organizationId)
+          .eq('is_current', true)
+          .in('object_id', objectIds);
+        
+        const documentedIds = new Set(docs?.map(d => d.object_id) || []);
+        setDocumentedNodeIds(documentedIds);
+        
+        // Update nodes with documentation status
+        setNodes((nds) =>
+          nds.map((node) => ({
+            ...node,
+            data: {
+              ...node.data,
+              hasDocumentation: documentedIds.has(node.id),
+              onViewDocumentation: handleViewDocumentation
+            }
+          }))
+        );
+      } catch (error) {
+        console.error('[FocusedLineage] Error checking documentation:', error);
+      }
+    };
+    
+    checkDocumentation();
+  }, [organizationId, nodes.length, handleViewDocumentation, setNodes]);
   
   // Highlighting state for better navigation
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -1095,6 +1188,47 @@ function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate,
           lineages={columnLineageView.lineages}
           onClose={() => setColumnLineageView(null)}
         />
+      )}
+
+      {/* Documentation Viewer Modal */}
+      {viewingDoc && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Modal Header */}
+            <div className="px-6 py-4 bg-gradient-to-r from-purple-50 to-purple-100 border-b border-purple-200 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <FileText className="h-5 w-5 text-purple-600" />
+                <h2 className="text-lg font-semibold text-gray-900">{viewingDoc.objectName}</h2>
+                <span className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded-full font-medium">
+                  AI Documentation
+                </span>
+              </div>
+              <button
+                onClick={() => setViewingDoc(null)}
+                className="p-2 hover:bg-purple-200 rounded-lg transition-colors"
+                aria-label="Close"
+              >
+                <XCircle className="h-5 w-5 text-gray-500" />
+              </button>
+            </div>
+            
+            {/* Modal Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {loadingDoc ? (
+                <div className="flex items-center justify-center h-64">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                </div>
+              ) : (
+                <DocumentationViewer
+                  documentation={viewingDoc.doc}
+                  objectName={viewingDoc.objectName}
+                  objectId={viewingDoc.objectId}
+                  organizationId={viewingDoc.organizationId}
+                />
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

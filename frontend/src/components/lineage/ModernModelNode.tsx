@@ -47,6 +47,8 @@ interface ModelNodeData {
   isFocal?: boolean;
   onColumnHover?: (columnId: string | null, lineages: ColumnLineage[]) => void;
   tooltipContainer?: HTMLElement | null;
+  hasDocumentation?: boolean;
+  onViewDocumentation?: (nodeId: string, nodeName: string) => void;
 }
 
 const INITIAL_COLUMNS_SHOWN = 5;
@@ -233,8 +235,21 @@ function ModernModelNode({ data }: NodeProps<ModelNodeData>) {
             )}
           </div>
           
-          {/* Focus Button */}
+          {/* Action Buttons */}
           <div className="flex flex-col items-end gap-1">
+            {data.hasDocumentation && (
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  data.onViewDocumentation?.(data.id, data.name);
+                }}
+                className="text-purple-600 text-xs font-medium hover:text-purple-700 flex items-center gap-1 px-2 py-1 rounded hover:bg-purple-50 transition-colors"
+                title="View AI Documentation"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>Docs</span>
+              </button>
+            )}
             <button 
               onClick={(e) => {
                 e.stopPropagation();
