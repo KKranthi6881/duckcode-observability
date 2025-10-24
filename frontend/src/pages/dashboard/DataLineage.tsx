@@ -29,12 +29,13 @@ export function DataLineage() {
   const [viewingDoc, setViewingDoc] = useState<{ doc: Documentation; objectName: string; objectId: string; organizationId: string } | null>(null);
   const [loadingDoc, setLoadingDoc] = useState(false);
   const [organizationId, setOrganizationId] = useState<string>('');
+  const [organizationName, setOrganizationName] = useState<string>('');
 
-  // Fetch organization ID
+  // Fetch organization ID and name
   useEffect(() => {
-    const fetchOrgId = async () => {
+    const fetchOrgData = async () => {
       try {
-        console.log('[DataLineage] Fetching organization ID...');
+        console.log('[DataLineage] Fetching organization data...');
         const { data: { session } } = await supabase.auth.getSession();
         console.log('[DataLineage] Session:', session?.user?.id);
         
@@ -46,7 +47,12 @@ export function DataLineage() {
         const { data, error } = await supabase
           .schema('enterprise')
           .from('user_organization_roles')
-          .select('organization_id')
+          .select(`
+            organization_id,
+            organizations!inner(
+              display_name
+            )
+          `)
           .eq('user_id', session.user.id)
           .single();
 
@@ -54,7 +60,11 @@ export function DataLineage() {
 
         if (!error && data) {
           setOrganizationId(data.organization_id);
-          console.log('[DataLineage] ✅ Organization ID set:', data.organization_id);
+          // Handle organizations as array (Supabase returns it this way sometimes)
+          const orgData: { display_name: string } | { display_name: string }[] | null = data.organizations as { display_name: string } | { display_name: string }[] | null;
+          const orgName = orgData ? (Array.isArray(orgData) ? orgData[0]?.display_name : orgData?.display_name) || 'Your Organization' : 'Your Organization';
+          setOrganizationName(orgName);
+          console.log('[DataLineage] ✅ Organization set:', data.organization_id, orgName);
         } else {
           console.log('[DataLineage] ⚠️ No organization found or error:', error);
         }
@@ -62,7 +72,7 @@ export function DataLineage() {
         console.error('[DataLineage] Error fetching organization:', error);
       }
     };
-    fetchOrgId();
+    fetchOrgData();
   }, []);
 
   // Debounced search
@@ -234,7 +244,7 @@ export function DataLineage() {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           columns.forEach((col: any) => {
             // Supabase returns objects as a single object (not array) when using foreign key relationship
-            const parentObj = col.objects;
+            const parentObj = col.objects as { name: string } | undefined;
             results.push({
               id: col.id,
               type: 'column' as const,
@@ -506,8 +516,11 @@ export function DataLineage() {
                 <Sparkles className="w-8 h-8 text-white" />
               </div>
             </div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">Data Lineage Intelligence</h1>
-            <p className="text-lg text-gray-600">Search models, columns, tables, and business terms</p>
+            {organizationName && (
+              <p className="text-lg text-gray-500 mb-3">Welcome to {organizationName}</p>
+            )}
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">Code Intelligence</h1>
+            <p className="text-lg text-gray-600">Search, explore lineage, and discover insights across your data platform</p>
           </div>
           )}
 

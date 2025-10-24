@@ -8,10 +8,10 @@ const controller = new WebhookController(orchestrator);
 
 /**
  * GitHub webhook endpoint (no auth - verified by signature)
- * POST /api/webhooks/github
+ * POST /api/webhooks/github/:organizationId
  */
 router.post(
-  '/github',
+  '/github/:organizationId',
   controller.handleGitHubWebhook.bind(controller)
 );
 
@@ -23,6 +23,15 @@ router.post(
   '/github/setup',
   requireAuth,
   controller.setupWebhook.bind(controller)
+);
+
+/**
+ * GitLab webhook endpoint (no auth - verified by token)
+ * POST /api/webhooks/gitlab/:organizationId
+ */
+router.post(
+  '/gitlab/:organizationId',
+  controller.handleGitLabWebhook.bind(controller)
 );
 
 export default router;

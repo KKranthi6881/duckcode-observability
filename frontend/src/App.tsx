@@ -107,7 +107,7 @@ const AppContent = () => {
         {/* Protected Routes - All routes within this element will be guarded */}
         <Route element={<ProtectedRoute />}>
           <Route path="/dashboard" element={<DashboardLayout />}>
-            <Route index element={<CodeBase />} />
+            <Route index element={<DataLineage />} />
             <Route path="code" element={<CodeBase />} />
             <Route path="code/analyze/:owner/:repo" element={<AnalysisSetup />} />
             <Route path="code/status/:owner/:repo" element={<FileProcessingStatus />} />

@@ -1,23 +1,26 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
-  Settings as SettingsIcon, Code, UserCircle, LogOut, BarChart3, Shield, Network 
+  Settings as SettingsIcon, UserCircle, LogOut, BarChart3, Shield, Network 
 } from 'lucide-react';
 import { useAuth } from '../../../features/auth/contexts/AuthContext';
 import { useState, useEffect } from 'react';
 import { supabase } from '../../../config/supabaseClient';
 
-const navigation = [{
-  name: 'Code Base',
-  href: '/dashboard/code',
-  icon: Code
+const navigation = [
+// Temporarily hidden - Code Intelligence provides similar functionality
+// {
+//   name: 'Code Base',
+//   href: '/dashboard/code',
+//   icon: Code
+// }, 
+{
+  name: 'Code Intelligence',
+  href: '/dashboard/lineage',
+  icon: Network
 }, {
   name: 'Cost Analytics',
   href: '/dashboard/analytics',
   icon: BarChart3
-}, {
-  name: 'Data Lineage',
-  href: '/dashboard/lineage',
-  icon: Network
 }];
 
 const bottomNavigation = [{

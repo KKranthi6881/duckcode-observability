@@ -316,7 +316,8 @@ ${profileName}:
 
       // Run dbt deps first (to install public packages like dbt_utils), then dbt parse
       // We filtered packages.yml to only include public packages, so this is safe
-      const dockerCommand = `docker run --rm -v ${projectPath}:/project ${allEnvVars} ${this.dockerImage} sh -c "cd /project && dbt deps && dbt parse --no-partial-parse"`;
+      // Force target-path to be inside /project to avoid artifacts being written outside Docker volume
+      const dockerCommand = `docker run --rm -v ${projectPath}:/project ${allEnvVars} ${this.dockerImage} sh -c "cd /project && dbt deps && dbt parse --no-partial-parse --target-path ./target"`;
 
       console.log(`   Docker command: ${dockerCommand}`);
 
@@ -326,12 +327,19 @@ ${profileName}:
       });
 
       console.log(`✅ dbt parse completed in Docker`);
-      if (stdout) console.log(`   stdout: ${stdout.substring(0, 500)}...`);
-      if (stderr) console.log(`   stderr: ${stderr.substring(0, 500)}...`);
+      if (stdout) console.log(`   stdout: ${stdout}`);
+      if (stderr) console.log(`   stderr: ${stderr}`);
 
       // Check if manifest was generated
       const manifestPath = path.join(projectPath, 'target', 'manifest.json');
-      await fs.access(manifestPath);
+      try {
+        await fs.access(manifestPath);
+      } catch (error) {
+        console.error(`❌ manifest.json not found at: ${manifestPath}`);
+        console.error(`   Full stdout:\n${stdout}`);
+        console.error(`   Full stderr:\n${stderr}`);
+        throw new Error(`dbt parse did not generate manifest.json. Check logs above for dbt errors.`);
+      }
 
       // Read and parse manifest
       const manifestContent = await fs.readFile(manifestPath, 'utf-8');
@@ -353,12 +361,9 @@ ${profileName}:
       };
     } catch (error: any) {
       console.error(`❌ dbt parse failed:`, error.message);
-      if (error.stdout) console.error(`   Docker stdout:`, error.stdout);
-      if (error.stderr) console.error(`   Docker stderr:`, error.stderr);
-      if (error.code) console.error(`   Exit code:`, error.code);
-      
-      errors.push(error.message);
-      if (error.stderr) errors.push(`stderr: ${error.stderr}`);
+      if (error.stdout) console.error(`   stdout: ${error.stdout}`);
+      if (error.stderr) console.error(`   stderr: ${error.stderr}`);
+      errors.push(`dbt parse failed: ${error.message}`);
 
       return {
         success: false,

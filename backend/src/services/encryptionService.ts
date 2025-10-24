@@ -142,11 +142,36 @@ export const validateGitHubToken = (token: string): boolean => {
   return patterns.some(pattern => pattern.test(token));
 };
 
+/**
+ * Encrypt webhook secret
+ * Uses same AES-256-GCM encryption
+ */
+export const encryptWebhookSecret = (secret: string): string => {
+  return encryptApiKey(secret);
+};
+
+/**
+ * Decrypt webhook secret
+ */
+export const decryptWebhookSecret = (encryptedSecret: string): string => {
+  return decryptApiKey(encryptedSecret);
+};
+
+/**
+ * Generate a secure webhook secret
+ */
+export const generateWebhookSecret = (): string => {
+  return crypto.randomBytes(32).toString('hex');
+};
+
 export default {
   encryptApiKey,
   decryptApiKey,
   encryptGitHubToken,
   decryptGitHubToken,
+  encryptWebhookSecret,
+  decryptWebhookSecret,
+  generateWebhookSecret,
   maskApiKey,
   validateApiKeyFormat,
   validateGitHubToken,

@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
-import { supabase } from '../../config/supabase';
-import { MetadataExtractionOrchestrator } from '../../services/metadata/MetadataExtractionOrchestrator';
-import { encryptGitHubToken, validateGitHubToken } from '../../services/encryptionService';
+import { supabase, supabaseAdmin } from '../../config/supabase';
+import { encryptGitHubToken, validateGitHubToken, decryptGitHubToken, generateWebhookSecret, encryptWebhookSecret } from '../../services/encryptionService';
+import { orchestrator } from '../routes/metadata.routes';
 
 /**
  * Admin Metadata Controller
@@ -184,7 +184,7 @@ export class AdminMetadataController {
       if (connError) throw connError;
 
       // Create repository record in metadata schema
-      const { data: repo, error: repoError } = await supabase
+      const { data: repo, error: repoError} = await supabase
         .schema('metadata')
         .from('repositories')
         .insert({
@@ -199,6 +199,92 @@ export class AdminMetadataController {
 
       if (repoError) {
         console.warn('Failed to create repository record:', repoError);
+      }
+
+      // =========================================================================
+      // AUTOMATIC WEBHOOK CREATION (ONLY FOR GITHUB)
+      // =========================================================================
+      if (provider === 'github') {
+        try {
+          console.log(`🪝 [Webhook] Creating webhook for ${owner}/${name}...`);
+          
+          // 1. Generate webhook secret
+          const webhookSecret = generateWebhookSecret();
+          
+          // 2. Create webhook via GitHub API
+          const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
+          const webhookUrl = `${backendUrl}/api/webhooks/github/${organizationId}`;
+          
+          const webhookResponse = await fetch(
+            `https://api.github.com/repos/${owner}/${name}/hooks`,
+            {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Accept': 'application/vnd.github+json',
+                'Content-Type': 'application/json',
+                'X-GitHub-Api-Version': '2022-11-28'
+              },
+              body: JSON.stringify({
+                name: 'web',
+                active: true,
+                events: ['push'],
+                config: {
+                  url: webhookUrl,
+                  content_type: 'json',
+                  secret: webhookSecret, // Plain text to GitHub
+                  insecure_ssl: '0'
+                }
+              })
+            }
+          );
+
+          if (webhookResponse.ok) {
+            const webhook: any = await webhookResponse.json();
+            
+            // 3. Encrypt and store webhook secret
+            const encryptedSecret = encryptWebhookSecret(webhookSecret);
+            
+            await supabaseAdmin
+              .schema('enterprise')
+              .from('github_connections')
+              .update({
+                webhook_id: webhook.id.toString(),
+                webhook_secret: encryptedSecret,
+                webhook_configured: true,
+                webhook_configured_at: new Date().toISOString()
+              })
+              .eq('id', connection.id);
+            
+            console.log(`✅ [Webhook] Successfully created webhook ID: ${webhook.id} for ${owner}/${name}`);
+            console.log(`   Webhook URL: ${webhookUrl}`);
+          } else {
+            const errorData: any = await webhookResponse.json();
+            console.error(`⚠️  [Webhook] Failed to create webhook:`, errorData);
+            
+            // Store error but don't fail the connection
+            await supabaseAdmin
+              .schema('enterprise')
+              .from('github_connections')
+              .update({
+                webhook_configured: false,
+                webhook_last_error: errorData.message || 'Failed to create webhook'
+              })
+              .eq('id', connection.id);
+          }
+        } catch (webhookError: any) {
+          console.error('⚠️  [Webhook] Error creating webhook:', webhookError.message);
+          
+          // Store error but don't fail the connection
+          await supabaseAdmin
+            .schema('enterprise')
+            .from('github_connections')
+            .update({
+              webhook_configured: false,
+              webhook_last_error: webhookError.message || 'Unknown error'
+            })
+            .eq('id', connection.id);
+        }
       }
 
       res.json({ 
@@ -308,9 +394,8 @@ export class AdminMetadataController {
         .eq('id', connectionId);
 
       // Start orchestration in background
-      const orchestrator = MetadataExtractionOrchestrator.getInstance();
-      orchestrator.startExtraction(job.id).catch(error => {
-        console.error(`Extraction job ${job.id} failed:`, error);
+      orchestrator.startExtraction(connectionId).catch((error: any) => {
+        console.error(`Extraction job ${connectionId} failed:`, error);
       });
 
       res.json({ 
