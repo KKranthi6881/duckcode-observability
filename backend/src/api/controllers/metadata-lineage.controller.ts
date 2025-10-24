@@ -754,27 +754,45 @@ export async function getLineageByFilePath(req: AuthenticatedRequest, res: Respo
     const upLimit = parseInt(upstreamLimit as string, 10);
     const downLimit = parseInt(downstreamLimit as string, 10);
 
-    // Step 0: Get the metadata repository_id from the connection_id
-    const { data: metadataRepo, error: repoError } = await supabase
+    // Step 0: Determine if connectionId is a repository_id or connection_id
+    let repositoryId = connectionId;
+    
+    // First, try using it directly as a repository_id
+    const { data: directRepo, error: directError } = await supabase
       .schema('metadata')
       .from('repositories')
       .select('id')
-      .eq('connection_id', connectionId)
+      .eq('id', connectionId)
       .eq('organization_id', organizationId)
       .single();
 
-    if (repoError || !metadataRepo) {
-      console.log(`[FileLineage] ❌ Metadata repository not found for connection: ${connectionId}`);
-      console.log(`[FileLineage] Error:`, repoError);
-      return res.status(404).json({ 
-        error: 'Repository not found in metadata',
-        message: 'This repository has not been processed for metadata extraction yet.',
-        connectionId 
-      });
-    }
+    if (directRepo) {
+      // It's already a repository_id
+      repositoryId = directRepo.id;
+      console.log(`[FileLineage] ✅ Using connectionId as repository_id: ${repositoryId}`);
+    } else {
+      // Try looking it up by connection_id
+      const { data: metadataRepo, error: repoError } = await supabase
+        .schema('metadata')
+        .from('repositories')
+        .select('id')
+        .eq('connection_id', connectionId)
+        .eq('organization_id', organizationId)
+        .single();
 
-    const repositoryId = metadataRepo.id;
-    console.log(`[FileLineage] ✅ Found metadata repository ID: ${repositoryId}`);
+      if (repoError || !metadataRepo) {
+        console.log(`[FileLineage] ❌ Metadata repository not found for connection: ${connectionId}`);
+        console.log(`[FileLineage] Error:`, repoError);
+        return res.status(404).json({ 
+          error: 'Repository not found in metadata',
+          message: 'This repository has not been processed for metadata extraction yet.',
+          connectionId 
+        });
+      }
+
+      repositoryId = metadataRepo.id;
+      console.log(`[FileLineage] ✅ Found metadata repository ID via connection_id: ${repositoryId}`);
+    }
 
     // Step 1: Find the file in metadata
     // Try exact match first

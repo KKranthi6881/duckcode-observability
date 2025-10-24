@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { 
   ChevronRight, 
   Search,
@@ -31,6 +31,7 @@ const brandColor = "#2AB7A9";
 
 export function CodeBase() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { session, isLoading: isAuthLoading } = useAuth();
   const { processingStatuses, clearStatus } = useProcessingStatus();
 
@@ -73,7 +74,7 @@ export function CodeBase() {
 
     fetchRepositories();
   }, [session]);
-  
+
   const { copyToClipboard, isTextCopied } = useCopyToClipboard();
 
   // File tree state
@@ -394,6 +395,38 @@ export function CodeBase() {
     // TODO: Implement documentation fetching
     console.log('Fetching summary for:', owner, repo, filePath);
   };
+
+  // Handle URL parameters - auto-select repo and file
+  useEffect(() => {
+    const repoId = searchParams.get('repo');
+    
+    if (repoId && repositories.length > 0 && !selectedGitHubRepo) {
+      console.log('[CodeBase] Auto-selecting repo from URL:', repoId);
+      const repo = repositories.find(r => r.id === repoId);
+      if (repo) {
+        console.log('[CodeBase] Found repo:', repo);
+        handleRepositorySelect(repo);
+      } else {
+        console.warn('[CodeBase] Repo not found:', repoId);
+      }
+    }
+  }, [searchParams, repositories, selectedGitHubRepo, handleRepositorySelect]);
+
+  // Auto-select file when tree is loaded
+  useEffect(() => {
+    const filePath = searchParams.get('file');
+    if (filePath && fileTree && !selectedFile) {
+      console.log('[CodeBase] Auto-selecting file from URL:', filePath);
+      // Find the file in the tree
+      const file = fileTree.find((item: any) => item.path === filePath);
+      if (file) {
+        console.log('[CodeBase] Found file, selecting:', file);
+        handleTreeItemClick(file);
+      } else {
+        console.warn('[CodeBase] File not found in tree:', filePath);
+      }
+    }
+  }, [searchParams, fileTree, selectedFile, handleTreeItemClick]);
 
   // UI State
   const [view, setView] = useState<'repos' | 'browser'>('repos');

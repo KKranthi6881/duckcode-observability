@@ -315,7 +315,7 @@ function CodeLineageViewContent({ connectionId, fileName, filePath }: CodeLineag
       console.log('============================================================');
       
       const response = await fetch(
-        `http://localhost:3001/api/metadata/lineage/by-file/${connectionId}?filePath=${encodeURIComponent(dbtRelativePath)}&upstreamLimit=${upstreamLimit}&downstreamLimit=${downstreamLimit}`,
+        `/api/metadata/lineage/by-file/${connectionId}?filePath=${encodeURIComponent(dbtRelativePath)}&upstreamLimit=${upstreamLimit}&downstreamLimit=${downstreamLimit}`,
         {
           headers: {
             'Authorization': `Bearer ${accessToken}`,
@@ -349,7 +349,7 @@ function CodeLineageViewContent({ connectionId, fileName, filePath }: CodeLineag
         let columns = [];
         try {
           const columnsResponse = await fetch(
-            `http://localhost:3001/api/metadata/lineage/columns/${node.id}?limit=100`,
+            `/api/metadata/lineage/columns/${node.id}?limit=100`,
             {
               headers: {
                 'Authorization': `Bearer ${accessToken}`,
@@ -472,10 +472,22 @@ function CodeLineageViewContent({ connectionId, fileName, filePath }: CodeLineag
       // Apply dagre layout
       const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(allNodes, flowEdges);
       
+      console.log('[CodeLineageView] 🎨 Setting nodes and edges:');
+      console.log('  - Nodes:', layoutedNodes.length, layoutedNodes);
+      console.log('  - Edges:', layoutedEdges.length, layoutedEdges);
+      
       setNodes(layoutedNodes);
       setEdges(layoutedEdges);
       setLoading(false);
       setIsExpanding(false);
+      
+      // Fit view after a short delay to ensure nodes are rendered
+      setTimeout(() => {
+        if (reactFlowInstance) {
+          reactFlowInstance.fitView({ padding: 0.2, duration: 400 });
+          console.log('[CodeLineageView] ✅ Fit view called');
+        }
+      }, 100);
     } catch (err: any) {
       console.error('Error fetching file-specific lineage:', err);
       setError(err.message || 'Failed to load lineage data');
@@ -515,7 +527,7 @@ function CodeLineageViewContent({ connectionId, fileName, filePath }: CodeLineag
       
       // Fetch all models
       const allModelsResponse = await fetch(
-        `http://localhost:3001/api/metadata/lineage/model/${connectionId}`,
+        `/api/metadata/lineage/model/${connectionId}`,
         {
           headers: {
             'Authorization': `Bearer ${session.access_token}`,
@@ -546,7 +558,7 @@ function CodeLineageViewContent({ connectionId, fileName, filePath }: CodeLineag
       if (currentModel) {
         // Fetch focused lineage for this specific model
         const focusedResponse = await fetch(
-          `http://localhost:3001/api/metadata/lineage/focused/${connectionId}/${currentModel.id}?upstreamLimit=10&downstreamLimit=10`,
+          `/api/metadata/lineage/focused/${connectionId}/${currentModel.id}?upstreamLimit=10&downstreamLimit=10`,
           {
             headers: {
               'Authorization': `Bearer ${session.access_token}`,
@@ -574,7 +586,7 @@ function CodeLineageViewContent({ connectionId, fileName, filePath }: CodeLineag
         let columns = [];
         try {
           const columnsResponse = await fetch(
-            `http://localhost:3001/api/metadata/lineage/columns/${node.id}?limit=100`,
+            `/api/metadata/lineage/columns/${node.id}?limit=100`,
             {
               headers: {
                 'Authorization': `Bearer ${session.access_token}`,

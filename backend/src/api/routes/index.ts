@@ -8,6 +8,8 @@ import metadataProcessingRoutes from './metadata-processing.routes'; // NEW: Com
 import sequentialProcessingRoutes from './sequential-processing.routes'; // NEW: Sequential processing
 import chatAnalyticsRoutes from './chat-analytics.routes'; // NEW: Chat analytics
 import waitlistRoutes from './waitlist.routes'; // NEW: Waitlist onboarding
+import aiDocumentationRoutes from './ai-documentation.routes'; // NEW: AI Documentation Generation
+import metadataObjectsRoutes from './metadata-objects.routes'; // NEW: Metadata objects for docs
 
 const router = Router();
 
@@ -34,5 +36,11 @@ router.use('/chat-analytics', chatAnalyticsRoutes);
 
 // NEW: Mount waitlist routes
 router.use('/waitlist', waitlistRoutes);
+
+// NEW: Mount AI documentation generation routes
+router.use('/ai-documentation', aiDocumentationRoutes);
+
+// NEW: Mount metadata objects routes
+router.use('/metadata-objects', metadataObjectsRoutes);
 
 export default router;

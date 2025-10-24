@@ -37,6 +37,7 @@ import {
   SettingsPage as AdminSettings,
   MetadataExtraction as AdminMetadata,
   SearchPage as AdminSearch,
+  AIDocumentation as AdminAIDocumentation,
 } from './pages/admin';
 import LineagePage from './pages/lineage/LineagePage';
 
@@ -124,6 +125,7 @@ const AppContent = () => {
             <Route path="api-keys" element={<AdminApiKeys />} />
             <Route path="members" element={<AdminMembers />} />
             <Route path="metadata" element={<AdminMetadata />} />
+            <Route path="ai-documentation" element={<AdminAIDocumentation />} />
             <Route path="lineage/:connectionId" element={<LineagePage />} />
             <Route path="search" element={<AdminSearch />} />
             <Route path="settings" element={<AdminSettings />} />

@@ -11,6 +11,7 @@ export { Members } from './Members';
 export { SettingsPage } from './Settings';
 export { MetadataExtraction } from './MetadataExtraction';
 export { SearchPage } from './Search';
+export { AIDocumentation } from './AIDocumentation';
 
 // Export types for convenience
 export type { Organization, Team, TeamType } from '../../types/enterprise';
