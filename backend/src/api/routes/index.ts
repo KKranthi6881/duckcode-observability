@@ -10,6 +10,7 @@ import chatAnalyticsRoutes from './chat-analytics.routes'; // NEW: Chat analytic
 import waitlistRoutes from './waitlist.routes'; // NEW: Waitlist onboarding
 import aiDocumentationRoutes from './ai-documentation.routes'; // NEW: AI Documentation Generation
 import metadataObjectsRoutes from './metadata-objects.routes'; // NEW: Metadata objects for docs
+import metadataSyncRoutes from './metadata-sync.routes'; // NEW: IDE Metadata Sync
 
 const router = Router();
 
@@ -42,5 +43,8 @@ router.use('/ai-documentation', aiDocumentationRoutes);
 
 // NEW: Mount metadata objects routes
 router.use('/metadata-objects', metadataObjectsRoutes);
+
+// NEW: Mount metadata sync routes
+router.use('/metadata-sync', metadataSyncRoutes);
 
 export default router;
