@@ -243,13 +243,14 @@ ${profileName}:
   }
 
   /**
-   * Run dbt parse using Docker container
+   * Run dbt compile using Docker container
+   * Uses 'dbt compile' instead of 'dbt parse' to generate compiled_code field for column lineage
    */
   async runDbtParse(projectPath: string): Promise<DbtRunResult> {
     const startTime = Date.now();
     const errors: string[] = [];
 
-    console.log(`🐳 Running dbt parse in Docker container...`);
+    console.log(`🐳 Running dbt compile in Docker container (generates compiled SQL for lineage)...`);
 
     try {
       // Create dummy profile
@@ -314,10 +315,12 @@ ${profileName}:
 
       console.log(`   Providing ${baseEnvVars.length + discoveredEnvVars.length} environment variables`);
 
-      // Run dbt deps first (to install public packages like dbt_utils), then dbt parse
+      // Run dbt deps first (to install public packages like dbt_utils), then dbt compile
+      // CRITICAL: Use 'dbt compile' instead of 'dbt parse' to generate compiled_code field
+      // compiled_code has Jinja resolved ({{ ref(...) }} → actual table names), enabling column lineage extraction
       // We filtered packages.yml to only include public packages, so this is safe
       // Force target-path to be inside /project to avoid artifacts being written outside Docker volume
-      const dockerCommand = `docker run --rm -v ${projectPath}:/project ${allEnvVars} ${this.dockerImage} sh -c "cd /project && dbt deps && dbt parse --no-partial-parse --target-path ./target"`;
+      const dockerCommand = `docker run --rm -v ${projectPath}:/project ${allEnvVars} ${this.dockerImage} sh -c "cd /project && dbt deps && dbt compile --no-partial-parse --target-path ./target"`;
 
       console.log(`   Docker command: ${dockerCommand}`);
 
@@ -326,7 +329,7 @@ ${profileName}:
         maxBuffer: 10 * 1024 * 1024 // 10MB buffer
       });
 
-      console.log(`✅ dbt parse completed in Docker`);
+      console.log(`✅ dbt compile completed in Docker`);
       if (stdout) console.log(`   stdout: ${stdout}`);
       if (stderr) console.log(`   stderr: ${stderr}`);
 
@@ -338,7 +341,7 @@ ${profileName}:
         console.error(`❌ manifest.json not found at: ${manifestPath}`);
         console.error(`   Full stdout:\n${stdout}`);
         console.error(`   Full stderr:\n${stderr}`);
-        throw new Error(`dbt parse did not generate manifest.json. Check logs above for dbt errors.`);
+        throw new Error(`dbt compile did not generate manifest.json. Check logs above for dbt errors.`);
       }
 
       // Read and parse manifest
@@ -360,10 +363,10 @@ ${profileName}:
         errors
       };
     } catch (error: any) {
-      console.error(`❌ dbt parse failed:`, error.message);
+      console.error(`❌ dbt compile failed:`, error.message);
       if (error.stdout) console.error(`   stdout: ${error.stdout}`);
       if (error.stderr) console.error(`   stderr: ${error.stderr}`);
-      errors.push(`dbt parse failed: ${error.message}`);
+      errors.push(`dbt compile failed: ${error.message}`);
 
       return {
         success: false,
