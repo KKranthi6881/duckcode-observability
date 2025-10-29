@@ -55,6 +55,42 @@ export class ExtractionOrchestrator extends EventEmitter {
   }
 
   /**
+   * Normalize table name by removing quotes but preserving schema/database prefixes
+   * Returns multiple lookup keys to try:
+   * Examples:
+   *   "dummy"."main"."stg_transaction" -> ["dummy.main.stg_transaction", "main.stg_transaction", "stg_transaction"]
+   *   dummy.main.stg_transaction -> ["dummy.main.stg_transaction", "main.stg_transaction", "stg_transaction"]
+   *   __corporation_industry -> ["__corporation_industry"]
+   */
+  private getTableNameVariants(tableName: string): string[] {
+    // Remove all quotes
+    const cleaned = tableName.replace(/"/g, '');
+    
+    // Split by dots
+    const parts = cleaned.split('.');
+    
+    if (parts.length === 1) {
+      // Simple name: "stg_transaction"
+      return [cleaned.trim()];
+    } else if (parts.length === 2) {
+      // Schema.table: "main.stg_transaction"
+      return [
+        cleaned.trim(),           // "main.stg_transaction"
+        parts[1].trim()          // "stg_transaction"
+      ];
+    } else if (parts.length >= 3) {
+      // Database.schema.table: "dummy.main.stg_transaction"
+      return [
+        cleaned.trim(),                        // "dummy.main.stg_transaction"
+        `${parts[parts.length - 2]}.${parts[parts.length - 1]}`.trim(),  // "main.stg_transaction"
+        parts[parts.length - 1].trim()        // "stg_transaction"
+      ];
+    }
+    
+    return [cleaned.trim()];
+  }
+
+  /**
    * Start metadata extraction for a connection
    */
   async startExtraction(connectionId: string): Promise<ExtractionResult> {
@@ -580,8 +616,21 @@ export class ExtractionOrchestrator extends EventEmitter {
         if (uniqueId) {
           objectMapByUniqueId.set(uniqueId, obj.id);
         }
-        // Map by name for lineage extraction
+        
+        // Map by name for lineage extraction (with schema support)
+        // Add multiple lookup keys for better matching:
+        // 1. Simple name: "stg_transaction"
         objectMapByName.set(obj.name, obj.id);
+        
+        // 2. Schema-qualified: "main.stg_transaction"
+        if (obj.schema_name) {
+          objectMapByName.set(`${obj.schema_name}.${obj.name}`, obj.id);
+        }
+        
+        // 3. Database-qualified (if available): "dummy.main.stg_transaction"
+        if (obj.database_name && obj.schema_name) {
+          objectMapByName.set(`${obj.database_name}.${obj.schema_name}.${obj.name}`, obj.id);
+        }
       }
     }
 
@@ -729,6 +778,9 @@ export class ExtractionOrchestrator extends EventEmitter {
     console.log(`🔍 Parsing compiled SQL for additional column lineage...`);
     console.log(`   Using Python SQLGlot AST parser (95% accuracy)\n`);
     
+    // Track stored columns to avoid duplicates
+    const storedColumns = new Set<string>();
+    
     // Check if Python service is available
     const pythonServiceAvailable = await this.pythonParser.healthCheck();
     
@@ -798,14 +850,69 @@ export class ExtractionOrchestrator extends EventEmitter {
           }
 
           for (const source of lineage.source_columns) {
-            const sourceObjectId = objectMap.get(source.table);
+            // Try multiple table name variants for better matching
+            const tableVariants = this.getTableNameVariants(source.table);
+            let sourceObjectId: string | undefined;
+            
+            // Try each variant until we find a match
+            for (const variant of tableVariants) {
+              sourceObjectId = objectMap.get(variant);
+              if (sourceObjectId) {
+                break;
+              }
+            }
+            
             if (!sourceObjectId) {
-              console.log(`      ⚠️  Source table '${source.table}' not found in object map`);
+              console.log(`      ⚠️  Source table '${source.table}' (tried: [${tableVariants.join(', ')}]) not found in object map`);
               skipped++;
               continue;
             }
 
-            // Store in database
+            // Store source and target columns if not already stored
+            const sourceKey = `${sourceObjectId}:${source.column}`;
+            const targetKey = `${targetObjectId}:${lineage.target_column}`;
+            
+            if (!storedColumns.has(sourceKey)) {
+              await supabase
+                .schema('metadata')
+                .from('columns')
+                .upsert({
+                  object_id: sourceObjectId,
+                  organization_id: organizationId,
+                  name: source.column,
+                  data_type: 'unknown',
+                  is_nullable: true,
+                  metadata: {
+                    discovered_from: 'sql_parsing',
+                    extracted_at: new Date().toISOString()
+                  }
+                }, {
+                  onConflict: 'object_id,name'
+                });
+              storedColumns.add(sourceKey);
+            }
+            
+            if (!storedColumns.has(targetKey)) {
+              await supabase
+                .schema('metadata')
+                .from('columns')
+                .upsert({
+                  object_id: targetObjectId,
+                  organization_id: organizationId,
+                  name: lineage.target_column,
+                  data_type: 'unknown',
+                  is_nullable: true,
+                  metadata: {
+                    discovered_from: 'sql_parsing',
+                    extracted_at: new Date().toISOString()
+                  }
+                }, {
+                  onConflict: 'object_id,name'
+                });
+              storedColumns.add(targetKey);
+            }
+
+            // Store lineage relationship
             const { error } = await supabase
               .schema('metadata')
               .from('columns_lineage')
@@ -848,9 +955,10 @@ export class ExtractionOrchestrator extends EventEmitter {
     console.log(`\n${'='.repeat(60)}`);
     console.log(`📊 COLUMN LINEAGE SUMMARY`);
     console.log(`${'='.repeat(60)}`);
-    console.log(`   Extracted: ${totalExtracted}`);
-    console.log(`   Stored:    ${totalStored}`);
-    console.log(`   Skipped:   ${skipped}`);
+    console.log(`   Lineages Extracted: ${totalExtracted}`);
+    console.log(`   Lineages Stored:    ${totalStored}`);
+    console.log(`   Lineages Skipped:   ${skipped}`);
+    console.log(`   Columns Discovered: ${storedColumns.size}`);
     console.log(`${'='.repeat(60)}\n`);
   }
 
