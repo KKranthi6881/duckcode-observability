@@ -1,224 +1,467 @@
-import React from 'react';
 import { Link } from 'react-router-dom';
-import { Download, ArrowRight, Zap, Building, Code2, Wrench, Key, Shield, Users, Bot, Search, MessageCircle, ExternalLink, Video, FileText } from 'lucide-react';
-import { CodeIntegration } from './CodeIntegration';
+import { ArrowRight, Sparkles, Database, Network, GitBranch, BarChart3, Shield, Zap, Code2, Bot, CheckCircle2 } from 'lucide-react';
 
 export function Hero() {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-white">
-      {/* Modern AI-focused animated background */}
+    <div className="relative min-h-screen overflow-hidden bg-black">
+      {/* Gradient background effects */}
       <div className="absolute inset-0 z-0">
-        {/* Subtle grid pattern */}
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cGF0dGVybiBpZD0iZ3JpZCIgd2lkdGg9IjYwIiBoZWlnaHQ9IjYwIiBwYXR0ZXJuVW5pdHM9InVzZXJTcGFjZU9uVXNlIj48cGF0aCBkPSJNIDYwIDAgTCAwIDAgMCA2MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZTJlOGYwIiBzdHJva2Utd2lkdGg9IjEiIG9wYWNpdHk9IjAuNSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNncmlkKSIvPjwvc3ZnPg==')] opacity-30" />
-        
-        {/* Animated gradient orbs */}
-        <div className="absolute -top-40 -left-40 w-96 h-96 bg-gradient-to-r from-blue-400/20 to-cyan-400/20 rounded-full filter blur-3xl animate-blob" />
-        <div className="absolute top-20 -right-40 w-80 h-80 bg-gradient-to-r from-purple-400/20 to-pink-400/20 rounded-full filter blur-3xl animate-blob animation-delay-2000" />
-        <div className="absolute -bottom-40 left-20 w-72 h-72 bg-gradient-to-r from-[#2AB7A9]/20 to-emerald-400/20 rounded-full filter blur-3xl animate-blob animation-delay-4000" />
-        <div className="absolute top-1/2 right-1/3 w-64 h-64 bg-gradient-to-r from-[#F5B72F]/20 to-yellow-400/20 rounded-full filter blur-3xl animate-blob animation-delay-6000" />
-        
-        {/* AI circuit pattern overlay */}
-        <div className="absolute inset-0 opacity-5">
-          <svg className="w-full h-full" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <pattern id="circuit" x="0" y="0" width="100" height="100" patternUnits="userSpaceOnUse">
-                <path d="M20 20h60v60h-60z" fill="none" stroke="#2AB7A9" strokeWidth="1" opacity="0.3"/>
-                <circle cx="20" cy="20" r="3" fill="#F5B72F" opacity="0.6"/>
-                <circle cx="80" cy="20" r="3" fill="#2AB7A9" opacity="0.6"/>
-                <circle cx="20" cy="80" r="3" fill="purple" opacity="0.6"/>
-                <circle cx="80" cy="80" r="3" fill="#F5B72F" opacity="0.6"/>
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#circuit)"/>
-          </svg>
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#2AB7A9]/20 rounded-full filter blur-[128px]" />
+        <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-purple-500/20 rounded-full filter blur-[128px]" />
+        <div className="absolute bottom-0 left-1/2 w-96 h-96 bg-[#F5B72F]/10 rounded-full filter blur-[128px]" />
+      </div>
+      
+      {/* Hero Section */}
+      <div className="relative container mx-auto px-4 pt-32 pb-20 sm:px-6 lg:px-8">
+        <div className="max-w-6xl mx-auto text-center">
+          {/* Badge */}
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#2AB7A9]/10 border border-[#2AB7A9]/20 mb-8">
+            <Sparkles className="w-4 h-4 text-[#2AB7A9]" />
+            <span className="text-sm font-medium text-gray-300">Enterprise AI IDE + Data Observability Platform</span>
+          </div>
+
+          {/* Main Headline */}
+          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-white mb-6 leading-tight">
+            AI-Powered IDE for{' '}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#2AB7A9] via-[#F5B72F] to-purple-500">
+              Data Engineering Teams
+            </span>
+          </h1>
+
+          {/* Subheadline */}
+          <p className="text-xl sm:text-2xl text-gray-400 mb-8 max-w-4xl mx-auto leading-relaxed">
+            Build, test, and monitor data pipelines with AI-assisted development. 
+            <span className="text-white font-semibold"> Auto-generate code, docs, and tests</span> while maintaining 
+            <span className="text-[#2AB7A9]"> enterprise-grade security</span> and team collaboration.
+          </p>
+
+          {/* Key Benefits */}
+          <div className="flex flex-wrap items-center justify-center gap-6 mb-12 text-sm text-gray-400">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-[#2AB7A9]" />
+              <span>Offline Lineage Tracking</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-[#2AB7A9]" />
+              <span>Auto Documentation</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-[#2AB7A9]" />
+              <span>AI Code Generation</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-[#2AB7A9]" />
+              <span>Enterprise Team Sync</span>
+            </div>
+          </div>
+
+          {/* CTA Buttons */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
+            <Link
+              to="/register"
+              className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-[#2AB7A9] to-[#F5B72F] text-black font-semibold rounded-lg hover:opacity-90 transition-opacity shadow-lg shadow-[#2AB7A9]/20"
+            >
+              Start Free Trial
+              <ArrowRight className="w-5 h-5" />
+            </Link>
+            <a
+              href="#demo"
+              className="inline-flex items-center gap-2 px-8 py-4 bg-transparent border-2 border-gray-700 text-white font-semibold rounded-lg hover:border-[#2AB7A9] transition-colors"
+            >
+              Watch Demo
+              <Bot className="w-5 h-5" />
+            </a>
+          </div>
+
+          {/* Integration Logos */}
+          <p className="text-sm text-gray-500 mb-6 uppercase tracking-wider">
+            Works with your data stack
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-8 opacity-60">
+            {[
+              { name: 'dbt', icon: Database },
+              { name: 'Snowflake', icon: Database },
+              { name: 'Databricks', icon: Database },
+              { name: 'Airflow', icon: Network },
+              { name: 'Redshift', icon: Database },
+              { name: 'Azure SQL', icon: Database },
+              { name: 'MySQL', icon: Database }
+            ].map((integration) => (
+              <div key={integration.name} className="flex items-center gap-2 text-gray-500 hover:text-gray-300 transition-colors">
+                <integration.icon className="w-5 h-5" />
+                <span className="text-sm font-medium">{integration.name}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
-      <div className="relative container mx-auto px-4 py-20 sm:px-6 lg:px-8 min-h-screen flex items-center">
-        <div className="max-w-7xl mx-auto text-center w-full">
-          {/* Hero content */}
-          <div className="animate-fade-in space-y-16">
-            {/* AI Badge */}
-            <div className="flex justify-center">
-              <div className="relative group">
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full blur opacity-30 animate-pulse group-hover:opacity-50 transition-opacity"></div>
-                <div className="relative inline-flex items-center px-8 py-4 bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-200/50 rounded-full backdrop-blur-sm hover:scale-105 transition-transform duration-300">
-                  <Bot className="w-6 h-6 mr-3 text-blue-600 animate-bounce" />
-                  <span className="text-base font-bold text-gray-700">THE SMARTEST AI IDE FOR DATA TEAMS</span>
+
+      {/* IDE Preview Section */}
+      <div className="relative container mx-auto px-4 py-20 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="relative rounded-2xl overflow-hidden border border-gray-800 shadow-2xl">
+            {/* Gradient border effect */}
+            <div className="absolute inset-0 bg-gradient-to-br from-[#2AB7A9]/20 via-purple-500/20 to-[#F5B72F]/20 blur-xl" />
+            
+            {/* IDE mockup */}
+            <div className="relative bg-[#1e1e1e] p-1">
+              <div className="bg-[#252526] rounded-lg overflow-hidden">
+                {/* IDE Header */}
+                <div className="flex items-center justify-between px-4 py-3 bg-[#323233] border-b border-gray-800">
+                  <div className="flex items-center gap-2">
+                    <div className="flex gap-2">
+                      <div className="w-3 h-3 rounded-full bg-red-500" />
+                      <div className="w-3 h-3 rounded-full bg-yellow-500" />
+                      <div className="w-3 h-3 rounded-full bg-green-500" />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Bot className="w-4 h-4 text-[#F5B72F]" />
+                    <span className="text-xs text-gray-400">DuckCode AI Active</span>
+                  </div>
+                </div>
+                
+                {/* IDE Content */}
+                <div className="p-6 font-mono text-sm">
+                  <div className="text-gray-400 mb-4">-- AI-generated SQL query</div>
+                  <div className="text-purple-400">SELECT</div>
+                  <div className="text-gray-300 ml-4">customer_id,</div>
+                  <div className="text-gray-300 ml-4">customer_name,</div>
+                  <div className="text-gray-300 ml-4">
+                    <span className="text-blue-400">SUM</span>(order_amount) 
+                    <span className="text-purple-400"> AS </span>
+                    total_revenue
+                  </div>
+                  <div className="text-purple-400 mt-2">FROM</div>
+                  <div className="text-gray-300 ml-4">customers</div>
+                  <div className="text-purple-400 mt-2">JOIN</div>
+                  <div className="text-gray-300 ml-4">orders <span className="text-purple-400">ON</span> customers.id = orders.customer_id</div>
+                  <div className="text-purple-400 mt-2">GROUP BY</div>
+                  <div className="text-gray-300 ml-4">customer_id, customer_name</div>
+                  <div className="text-purple-400 mt-2">ORDER BY</div>
+                  <div className="text-gray-300 ml-4">total_revenue <span className="text-purple-400">DESC</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Core Features Section */}
+      <div className="relative container mx-auto px-4 py-32 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          {/* Section Header */}
+          <div className="text-center mb-20">
+            <h2 className="text-4xl sm:text-5xl font-bold text-white mb-6">
+              Everything you need to build data products
+            </h2>
+            <p className="text-xl text-gray-400 max-w-3xl mx-auto">
+              From development to production monitoring, DuckCode provides enterprise-grade tools for modern data teams
+            </p>
+          </div>
+
+          {/* Feature Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-12">
+            {/* AI Code Generation */}
+            <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-8 border border-gray-800 hover:border-[#2AB7A9]/50 transition-all group">
+              <div className="w-14 h-14 bg-gradient-to-br from-[#2AB7A9] to-[#F5B72F] rounded-xl flex items-center justify-center mb-6">
+                <Bot className="w-8 h-8 text-black" />
+              </div>
+              <h3 className="text-2xl font-bold text-white mb-4">AI Code Generation</h3>
+              <p className="text-gray-400 mb-6">
+                Generate SQL, dbt models, and data transformations with AI. Context-aware suggestions based on your schema and business logic.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <span className="text-xs px-3 py-1 bg-gray-800 text-gray-400 rounded-full">SQL</span>
+                <span className="text-xs px-3 py-1 bg-gray-800 text-gray-400 rounded-full">dbt</span>
+                <span className="text-xs px-3 py-1 bg-gray-800 text-gray-400 rounded-full">Python</span>
+              </div>
+            </div>
+
+            {/* Offline Lineage */}
+            <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-8 border border-gray-800 hover:border-[#2AB7A9]/50 transition-all group">
+              <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl flex items-center justify-center mb-6">
+                <GitBranch className="w-8 h-8 text-white" />
+              </div>
+              <h3 className="text-2xl font-bold text-white mb-4">Offline Lineage Tracking</h3>
+              <p className="text-gray-400 mb-6">
+                Visualize column-level lineage without connecting to your warehouse. Trace data flow from source to dashboard instantly.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <span className="text-xs px-3 py-1 bg-gray-800 text-gray-400 rounded-full">Column-level</span>
+                <span className="text-xs px-3 py-1 bg-gray-800 text-gray-400 rounded-full">Impact Analysis</span>
+              </div>
+            </div>
+
+            {/* Auto Documentation */}
+            <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-8 border border-gray-800 hover:border-[#2AB7A9]/50 transition-all group">
+              <div className="w-14 h-14 bg-gradient-to-br from-[#F5B72F] to-orange-500 rounded-xl flex items-center justify-center mb-6">
+                <Code2 className="w-8 h-8 text-black" />
+              </div>
+              <h3 className="text-2xl font-bold text-white mb-4">Auto Documentation</h3>
+              <p className="text-gray-400 mb-6">
+                AI-generated documentation for tables, columns, and transformations. Keep your data catalog always up-to-date.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <span className="text-xs px-3 py-1 bg-gray-800 text-gray-400 rounded-full">Schema Docs</span>
+                <span className="text-xs px-3 py-1 bg-gray-800 text-gray-400 rounded-full">Auto-sync</span>
+              </div>
+            </div>
+
+            {/* Auto Testing */}
+            <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-8 border border-gray-800 hover:border-[#2AB7A9]/50 transition-all group">
+              <div className="w-14 h-14 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl flex items-center justify-center mb-6">
+                <CheckCircle2 className="w-8 h-8 text-white" />
+              </div>
+              <h3 className="text-2xl font-bold text-white mb-4">Automated Testing</h3>
+              <p className="text-gray-400 mb-6">
+                Generate data quality tests automatically. Catch issues before they reach production with AI-powered validation.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <span className="text-xs px-3 py-1 bg-gray-800 text-gray-400 rounded-full">Data Quality</span>
+                <span className="text-xs px-3 py-1 bg-gray-800 text-gray-400 rounded-full">CI/CD</span>
+              </div>
+            </div>
+
+            {/* Enterprise Team Sync */}
+            <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-8 border border-gray-800 hover:border-[#2AB7A9]/50 transition-all group">
+              <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center mb-6">
+                <Network className="w-8 h-8 text-white" />
+              </div>
+              <h3 className="text-2xl font-bold text-white mb-4">Enterprise Team Sync</h3>
+              <p className="text-gray-400 mb-6">
+                Real-time collaboration with version control. Share context, review changes, and maintain consistency across teams.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <span className="text-xs px-3 py-1 bg-gray-800 text-gray-400 rounded-full">Git Integration</span>
+                <span className="text-xs px-3 py-1 bg-gray-800 text-gray-400 rounded-full">Code Review</span>
+              </div>
+            </div>
+
+            {/* Security & Compliance */}
+            <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-8 border border-gray-800 hover:border-[#2AB7A9]/50 transition-all group">
+              <div className="w-14 h-14 bg-gradient-to-br from-red-500 to-pink-500 rounded-xl flex items-center justify-center mb-6">
+                <Shield className="w-8 h-8 text-white" />
+              </div>
+              <h3 className="text-2xl font-bold text-white mb-4">Enterprise Security</h3>
+              <p className="text-gray-400 mb-6">
+                100% local processing. Your code and data never leave your infrastructure. SOC 2 compliant with SSO and RBAC.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <span className="text-xs px-3 py-1 bg-gray-800 text-gray-400 rounded-full">SOC 2</span>
+                <span className="text-xs px-3 py-1 bg-gray-800 text-gray-400 rounded-full">SSO</span>
+                <span className="text-xs px-3 py-1 bg-gray-800 text-gray-400 rounded-full">RBAC</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* How It Works Section */}
+      <div className="relative container mx-auto px-4 py-32 sm:px-6 lg:px-8 bg-gradient-to-b from-black to-gray-950">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-20">
+            <h2 className="text-4xl sm:text-5xl font-bold text-white mb-6">
+              Ship data products 10x faster
+            </h2>
+            <p className="text-xl text-gray-400 max-w-3xl mx-auto">
+              From idea to production in minutes, not weeks. AI-powered development with enterprise-grade observability.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Step 1 */}
+            <div className="relative">
+              <div className="absolute -top-4 -left-4 w-12 h-12 bg-gradient-to-br from-[#2AB7A9] to-[#F5B72F] rounded-full flex items-center justify-center text-black font-bold text-xl">
+                1
+              </div>
+              <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-8 border border-gray-800 h-full">
+                <h3 className="text-2xl font-bold text-white mb-4 mt-4">Connect Your Stack</h3>
+                <p className="text-gray-400 mb-6">
+                  Integrate with dbt, Snowflake, Databricks, Airflow, and more. DuckCode understands your entire data ecosystem.
+                </p>
+                <div className="bg-gray-950 rounded-lg p-4 font-mono text-xs text-gray-400">
+                  <div className="text-[#2AB7A9]">✓ Connected to Snowflake</div>
+                  <div className="text-[#2AB7A9]">✓ dbt project synced</div>
+                  <div className="text-[#2AB7A9]">✓ Lineage extracted</div>
                 </div>
               </div>
             </div>
 
-            {/* Main Headline */}
-            <div className="space-y-6">
-              <h1 className="text-6xl sm:text-7xl md:text-6xl lg:text-6xl font-black tracking-tight leading-[0.85]">
-                <div className="text-transparent bg-clip-text bg-gradient-to-r from-gray-900 via-blue-600 to-purple-600 animate-gradient-text">
-                  Pipeline : Transform : Analyze : Deploy
+            {/* Step 2 */}
+            <div className="relative">
+              <div className="absolute -top-4 -left-4 w-12 h-12 bg-gradient-to-br from-[#2AB7A9] to-[#F5B72F] rounded-full flex items-center justify-center text-black font-bold text-xl">
+                2
+              </div>
+              <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-8 border border-gray-800 h-full">
+                <h3 className="text-2xl font-bold text-white mb-4 mt-4">Build with AI</h3>
+                <p className="text-gray-400 mb-6">
+                  Generate code, tests, and documentation automatically. AI understands your schema, business logic, and best practices.
+                </p>
+                <div className="bg-gray-950 rounded-lg p-4 font-mono text-xs">
+                  <div className="text-gray-500 mb-2">// AI Generated</div>
+                  <div className="text-purple-400">SELECT</div>
+                  <div className="text-gray-300 ml-2">customer_id,</div>
+                  <div className="text-gray-300 ml-2">SUM(revenue)</div>
                 </div>
-                <div className="text-transparent bg-clip-text bg-gradient-to-r from-[#2AB7A9] via-blue-500 to-purple-600 animate-gradient-text font-light">
-                  In Minutes ...
+              </div>
+            </div>
+
+            {/* Step 3 */}
+            <div className="relative">
+              <div className="absolute -top-4 -left-4 w-12 h-12 bg-gradient-to-br from-[#2AB7A9] to-[#F5B72F] rounded-full flex items-center justify-center text-black font-bold text-xl">
+                3
+              </div>
+              <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-8 border border-gray-800 h-full">
+                <h3 className="text-2xl font-bold text-white mb-4 mt-4">Monitor & Optimize</h3>
+                <p className="text-gray-400 mb-6">
+                  Real-time observability with automated alerts. Catch breaking changes before they impact stakeholders.
+                </p>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm">
+                    <div className="w-2 h-2 rounded-full bg-green-500" />
+                    <span className="text-gray-400">All tests passing</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <div className="w-2 h-2 rounded-full bg-green-500" />
+                    <span className="text-gray-400">No breaking changes</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <div className="w-2 h-2 rounded-full bg-green-500" />
+                    <span className="text-gray-400">Quality checks OK</span>
+                  </div>
                 </div>
-              </h1>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Observability Section */}
+      <div className="relative container mx-auto px-4 py-32 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-20">
+            <h2 className="text-4xl sm:text-5xl font-bold text-white mb-6">
+              Enterprise-grade observability
+            </h2>
+            <p className="text-xl text-gray-400 max-w-3xl mx-auto">
+              Catch issues before they reach production. Full visibility into your data pipelines with real-time monitoring and automated alerts.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
+            {/* Lineage Visualization */}
+            <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-8 border border-gray-800">
+              <div className="flex items-center gap-3 mb-6">
+                <GitBranch className="w-8 h-8 text-[#2AB7A9]" />
+                <h3 className="text-2xl font-bold text-white">Impact Analysis</h3>
+              </div>
+              <p className="text-gray-400 mb-6">
+                Understand downstream impact of any change. Visualize column-level lineage across your entire data stack.
+              </p>
+              <div className="bg-gray-950 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm text-gray-400">users.customer_id</span>
+                  <ArrowRight className="w-4 h-4 text-gray-600" />
+                  <span className="text-sm text-gray-400">orders.customer_id</span>
+                </div>
+                <div className="text-xs text-[#2AB7A9]">→ Impacts 12 downstream models</div>
+              </div>
+            </div>
+
+            {/* Data Quality */}
+            <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-8 border border-gray-800">
+              <div className="flex items-center gap-3 mb-6">
+                <Shield className="w-8 h-8 text-[#F5B72F]" />
+                <h3 className="text-2xl font-bold text-white">Data Quality Checks</h3>
+              </div>
+              <p className="text-gray-400 mb-6">
+                Automated testing for schema changes, null values, duplicates, and custom business rules.
+              </p>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <CheckCircle2 className="w-4 h-4 text-green-500" />
+                  <span className="text-gray-400">Schema validation passed</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <CheckCircle2 className="w-4 h-4 text-green-500" />
+                  <span className="text-gray-400">No null values in key columns</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <CheckCircle2 className="w-4 h-4 text-green-500" />
+                  <span className="text-gray-400">Freshness checks OK</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Alerts & Monitoring */}
+            <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-8 border border-gray-800">
+              <div className="flex items-center gap-3 mb-6">
+                <BarChart3 className="w-8 h-8 text-purple-500" />
+                <h3 className="text-2xl font-bold text-white">Smart Alerts</h3>
+              </div>
+              <p className="text-gray-400 mb-6">
+                Get notified about breaking changes, performance issues, and data anomalies before they impact users.
+              </p>
+              <div className="bg-gray-950 rounded-lg p-4">
+                <div className="text-xs text-gray-500 mb-2">Recent Alerts</div>
+                <div className="text-sm text-gray-400">✓ All systems operational</div>
+              </div>
+            </div>
+
+            {/* Version Control */}
+            <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-8 border border-gray-800">
+              <div className="flex items-center gap-3 mb-6">
+                <Code2 className="w-8 h-8 text-blue-500" />
+                <h3 className="text-2xl font-bold text-white">Git Integration</h3>
+              </div>
+              <p className="text-gray-400 mb-6">
+                Full version control with pull request reviews, automated testing, and deployment workflows.
+              </p>
+              <div className="bg-gray-950 rounded-lg p-4 font-mono text-xs">
+                <div className="text-gray-500">git commit -m "Add customer metrics"</div>
+                <div className="text-[#2AB7A9] mt-2">✓ Tests passed • Ready to merge</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Final CTA */}
+      <div className="relative container mx-auto px-4 py-32 sm:px-6 lg:px-8">
+        <div className="max-w-5xl mx-auto">
+          <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl p-12 border border-gray-800 text-center relative overflow-hidden">
+            {/* Background gradient effect */}
+            <div className="absolute inset-0 bg-gradient-to-br from-[#2AB7A9]/10 via-purple-500/10 to-[#F5B72F]/10" />
+            
+            <div className="relative z-10">
+              <h2 className="text-4xl sm:text-5xl font-bold text-white mb-6">
+                Ready to transform your data workflow?
+              </h2>
+              <p className="text-xl text-gray-400 mb-12 max-w-2xl mx-auto">
+                Join leading data teams using DuckCode to build, test, and monitor data products faster than ever.
+              </p>
               
-              <p className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-700 animate-fade-in animation-delay-200">
-                <span className="text-blue-600">⚡  faster & more accurate</span> <span className="font-light text-gray-500">than GitHub Copilot, Cursor & Windsurf</span>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
+                <Link
+                  to="/register"
+                  className="inline-flex items-center gap-2 px-10 py-5 bg-gradient-to-r from-[#2AB7A9] to-[#F5B72F] text-black font-bold rounded-lg hover:opacity-90 transition-opacity text-lg shadow-lg shadow-[#2AB7A9]/20"
+                >
+                  Start Free Trial
+                  <ArrowRight className="w-6 h-6" />
+                </Link>
+                <a
+                  href="mailto:sales@duckcode.ai"
+                  className="inline-flex items-center gap-2 px-10 py-5 bg-transparent border-2 border-gray-700 text-white font-bold rounded-lg hover:border-[#2AB7A9] transition-colors text-lg"
+                >
+                  Talk to Sales
+                </a>
+              </div>
+              
+              <p className="text-sm text-gray-500">
+                14-day free trial • No credit card required • Enterprise support available
               </p>
             </div>
-
-            {/* CodeIntegration Component */}
-            <div className="mt-16 animate-fade-in animation-delay-400">
-              <CodeIntegration />
-            </div>
-            
-            {/* AI Agents Showcase */}
-            <div className="mt-16 animate-fade-in animation-delay-600">
-              <div className="text-center mb-12">
-                <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-                  Meet Our <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-blue-600">Advanced</span> AI Agents
-                </h2>
-                <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                  Our specialized agents with deep domain expertise to handle every aspect of your data workflow
-                </p>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-                {/* Data Architect Agent */}
-                <div className="group bg-gradient-to-br from-purple-50 to-blue-50 rounded-3xl p-8 border border-purple-200/50 hover:scale-105 transition-all duration-300 hover:shadow-xl">
-                  <div className="flex items-center justify-center w-20 h-20 bg-gradient-to-br from-purple-500 to-blue-600 rounded-2xl mb-6 mx-auto animate-float group-hover:scale-110 transition-transform duration-300">
-                    <Building className="w-10 h-10 text-white" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-gray-900 text-center mb-4">Data Architect</h3>
-                  <p className="text-gray-600 text-center leading-relaxed">
-                    Designs optimal data models, schemas, and warehouse architectures. Understands business requirements and translates them into scalable data solutions.
-                  </p>
-                </div>
-                
-                {/* Data Developer Agent */}
-                <div className="group bg-gradient-to-br from-teal-50 to-emerald-50 rounded-3xl p-8 border border-teal-200/50 hover:scale-105 transition-all duration-300 hover:shadow-xl">
-                  <div className="flex items-center justify-center w-20 h-20 bg-gradient-to-br from-[#2AB7A9] to-emerald-600 rounded-2xl mb-6 mx-auto animate-float animation-delay-2000 group-hover:scale-110 transition-transform duration-300">
-                    <Code2 className="w-10 h-10 text-white" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-gray-900 text-center mb-4">Data Developer</h3>
-                  <p className="text-gray-600 text-center leading-relaxed">
-                    Writes efficient SQL, builds ETL pipelines, and optimizes data transformations. Expert in all SQL dialects and modern data stack tools.
-                  </p>
-                </div>
-                
-                {/* Data Troubleshooter Agent */}
-                <div className="group bg-gradient-to-br from-yellow-50 to-orange-50 rounded-3xl p-8 border border-yellow-200/50 hover:scale-105 transition-all duration-300 hover:shadow-xl">
-                  <div className="flex items-center justify-center w-20 h-20 bg-gradient-to-br from-[#F5B72F] to-orange-500 rounded-2xl mb-6 mx-auto animate-float animation-delay-4000 group-hover:scale-110 transition-transform duration-300">
-                    <Wrench className="w-10 h-10 text-white" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-gray-900 text-center mb-4">Data Troubleshooter</h3>
-                  <p className="text-gray-600 text-center leading-relaxed">
-                    Debugs complex data issues, identifies performance bottlenecks, and resolves pipeline failures with deep analytical expertise.
-                  </p>
-                </div>
-              </div>
-              
-              {/* CTA Section */}
-              <div className="mt-16 text-center">
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
-                  <a href="https://marketplace.visualstudio.com/items?itemName=Duckcode.duck-code" 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    className="group relative inline-flex items-center px-12 py-6 text-xl font-bold rounded-2xl text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-2xl hover:shadow-3xl hover:scale-110 transition-all duration-300 glow-effect">
-                    <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl blur opacity-75 group-hover:opacity-100 transition-opacity"></div>
-                    <Download className="relative mr-4 h-7 w-7 group-hover:animate-bounce" />
-                    <span className="relative">Get Started Free</span>
-                    <Zap className="relative ml-4 h-7 w-7 group-hover:animate-bounce" />
-                  </a>
-                  
-                  <Link 
-                    to="/docs" 
-                    className="group inline-flex items-center px-10 py-5 border-2 border-gray-300 text-lg font-semibold rounded-2xl text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-300 hover:scale-105 hover:shadow-lg">
-                    View Docs
-                    <ArrowRight className="ml-3 h-6 w-6 group-hover:translate-x-1 transition-transform" />
-                  </Link>
-                </div>
-              </div>
-            </div>
-
-            
-            {/* Enterprise Features */}
-            <div className="mt-20 sm:mt-24 bg-gradient-to-br from-gray-50 to-blue-50 rounded-3xl p-12 border border-gray-200 max-w-6xl mx-auto shadow-xl">
-              <div className="text-center mb-16">
-                <h3 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-6">Enterprise-Ready Features</h3>
-                <p className="text-xl text-gray-600">Built for security, privacy, and business intelligence</p>
-              </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="group bg-white/50 backdrop-blur-sm rounded-2xl p-6 text-center hover:scale-105 transition-all duration-300 hover:shadow-lg border border-gray-200/50">
-                  <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl mb-4 mx-auto group-hover:scale-110 transition-transform duration-300 shadow-md">
-                    <Key className="w-8 h-8 text-white" />
-                  </div>
-                  <h4 className="text-lg font-bold text-gray-900 mb-3 group-hover:text-blue-600 transition-colors">Bring Your Own API</h4>
-                  <p className="text-gray-600 text-xs leading-relaxed">Use your own API keys for complete control</p>
-                </div>
-                
-                <div className="group bg-white/50 backdrop-blur-sm rounded-2xl p-6 text-center hover:scale-105 transition-all duration-300 hover:shadow-lg border border-gray-200/50">
-                  <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl mb-4 mx-auto group-hover:scale-110 transition-transform duration-300 shadow-md">
-                    <Shield className="w-8 h-8 text-white" />
-                  </div>
-                  <h4 className="text-lg font-bold text-gray-900 mb-3 group-hover:text-green-600 transition-colors">100% Local Privacy</h4>
-                  <p className="text-gray-600 text-xs leading-relaxed">No data leaves your laptop. Complete privacy</p>
-                </div>
-                
-                <div className="group bg-white/50 backdrop-blur-sm rounded-2xl p-6 text-center hover:scale-105 transition-all duration-300 hover:shadow-lg border border-gray-200/50">
-                  <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-br from-purple-500 to-violet-600 rounded-xl mb-4 mx-auto group-hover:scale-110 transition-transform duration-300 shadow-md">
-                    <Search className="w-8 h-8 text-white" />
-                  </div>
-                  <h4 className="text-lg font-bold text-gray-900 mb-3 group-hover:text-purple-600 transition-colors">Business Intelligence</h4>
-                  <p className="text-gray-600 text-xs leading-relaxed">AI understands your business context</p>
-                </div>
-                
-                <div className="group bg-white/50 backdrop-blur-sm rounded-2xl p-6 text-center hover:scale-105 transition-all duration-300 hover:shadow-lg border border-gray-200/50">
-                  <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl mb-4 mx-auto group-hover:scale-110 transition-transform duration-300 shadow-md">
-                    <FileText className="w-8 h-8 text-white" />
-                  </div>
-                  <h4 className="text-lg font-bold text-gray-900 mb-3 group-hover:text-orange-600 transition-colors">Custom Prompts</h4>
-                  <p className="text-gray-600 text-xs leading-relaxed">Configure with your coding standards</p>
-                </div>
-              </div>
-            </div>
-            
-
-            
-            {/* Community Links */}
-            <div className="mt-16 sm:mt-20">
-              <p className="text-center text-gray-700 mb-8 font-semibold text-xl">Join Our Growing Community</p>
-              <div className="flex items-center justify-center gap-6 flex-wrap">
-                <a href="https://discord.gg/aHM9jZB9" 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  className="group flex items-center px-6 py-3 bg-white border border-gray-200 hover:border-[#5865F2] rounded-2xl transition-all duration-300 hover:scale-105 shadow-md hover:shadow-lg">
-                  <MessageCircle className="w-5 h-5 text-[#5865F2] mr-3 group-hover:animate-pulse" />
-                  <span className="text-gray-700 group-hover:text-[#5865F2] font-semibold transition-colors">Discord</span>
-                  <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-[#5865F2] ml-2 opacity-0 group-hover:opacity-100 transition-all" />
-                </a>
-                
-                <a href="https://www.youtube.com/@duckcodeai" 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  className="group flex items-center px-6 py-3 bg-white border border-gray-200 hover:border-red-500 rounded-2xl transition-all duration-300 hover:scale-105 shadow-md hover:shadow-lg">
-                  <Video className="w-5 h-5 text-red-500 mr-3 group-hover:animate-pulse" />
-                  <span className="text-gray-700 group-hover:text-red-500 font-semibold transition-colors">YouTube</span>
-                  <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-red-500 ml-2 opacity-0 group-hover:opacity-100 transition-all" />
-                </a>
-                
-                <a href="https://reddit.com/r/duckcode" 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  className="group flex items-center px-6 py-3 bg-white border border-gray-200 hover:border-orange-500 rounded-2xl transition-all duration-300 hover:scale-105 shadow-md hover:shadow-lg">
-                  <Users className="w-5 h-5 text-orange-500 mr-3 group-hover:animate-pulse" />
-                  <span className="text-gray-700 group-hover:text-orange-500 font-semibold transition-colors">Reddit</span>
-                  <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-orange-500 ml-2 opacity-0 group-hover:opacity-100 transition-all" />
-                </a>
-              </div>
-            </div>
-
-            {/* Enhanced Stats */}
-            
-        
           </div>
         </div>
       </div>
