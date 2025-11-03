@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { Users, Shield, Key, Mail, TrendingUp, Activity } from 'lucide-react';
+import { TrendingUp, MoreHorizontal, Calendar, ChevronRight, Link as LinkIcon, ExternalLink } from 'lucide-react';
 import type { Organization, OrganizationWithStats } from '../../types/enterprise';
 import { organizationService } from '../../services/enterpriseService';
 
@@ -14,11 +14,13 @@ export const Dashboard: React.FC = () => {
   const { selectedOrg } = useOutletContext<AdminContext>();
   const [stats, setStats] = useState<OrganizationWithStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('Overview');
 
   useEffect(() => {
     if (selectedOrg) {
       loadStats();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedOrg]);
 
   const loadStats = async () => {
@@ -38,174 +40,228 @@ export const Dashboard: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
       </div>
     );
   }
 
-  const statCards = [
-    {
-      name: 'Total Members',
-      value: stats?.member_count || 0,
-      icon: Users,
-      color: 'blue',
-      change: '+12%',
-      changeType: 'increase' as const,
-    },
-    {
-      name: 'Teams',
-      value: stats?.team_count || 0,
-      icon: Shield,
-      color: 'green',
-      change: '+3',
-      changeType: 'increase' as const,
-    },
-    {
-      name: 'API Keys',
-      value: stats?.api_key_count || 0,
-      icon: Key,
-      color: 'purple',
-      change: '2 active',
-      changeType: 'neutral' as const,
-    },
-    {
-      name: 'Pending Invites',
-      value: 0,
-      icon: Mail,
-      color: 'orange',
-      change: 'None',
-      changeType: 'neutral' as const,
-    },
-  ];
+  const tabs = ['Overview', 'Calendar', 'Tasks', 'Activity'];
 
   return (
-    <div className="p-8">
+    <div className="h-full bg-gray-50">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">
-          {stats?.display_name || 'Organization Dashboard'}
-        </h1>
-        <p className="mt-2 text-gray-600">
-          Overview of your organization's activity and resources
-        </p>
+      <div className="bg-white border-b border-gray-200 px-8 py-6">
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
+          <div className="flex items-center gap-3">
+            <button className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+              <ExternalLink className="h-4 w-4" />
+              View careers site
+            </button>
+            <button className="flex items-center gap-2 px-4 py-2 text-sm text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors">
+              + New job
+            </button>
+            <button className="p-2 text-gray-400 hover:text-gray-600 transition-colors">
+              <MoreHorizontal className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex items-center gap-8 border-b border-gray-200 -mb-px">
+          {tabs.map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`pb-3 text-sm font-medium transition-colors relative ${
+                activeTab === tab
+                  ? 'text-indigo-600'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {tab}
+              {activeTab === tab && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600" />
+              )}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {statCards.map((stat) => {
-          const Icon = stat.icon;
-          const colorClasses = {
-            blue: 'bg-blue-50 text-blue-600',
-            green: 'bg-green-50 text-green-600',
-            purple: 'bg-purple-50 text-purple-600',
-            orange: 'bg-orange-50 text-orange-600',
-          };
+      {/* Main Content */}
+      <div className="p-8">
+        {/* Analytics Report Section */}
+        <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-semibold text-gray-900">Analytics report</h2>
+            <div className="flex items-center gap-3">
+              <button className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+                <Calendar className="h-4 w-4" />
+                Today
+              </button>
+              <span className="text-sm text-gray-500">compared to</span>
+              <button className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+                Previous period
+              </button>
+            </div>
+          </div>
 
-          return (
-            <div key={stat.name} className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center justify-between">
-                <div className={`p-3 rounded-lg ${colorClasses[stat.color as keyof typeof colorClasses]}`}>
-                  <Icon className="h-6 w-6" />
-                </div>
-                {stat.changeType === 'increase' && (
-                  <div className="flex items-center text-green-600 text-sm">
-                    <TrendingUp className="h-4 w-4 mr-1" />
-                    {stat.change}
+          {/* Stats Cards */}
+          <div className="grid grid-cols-4 gap-6 mb-8">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-sm text-gray-600">New candidates</span>
+                <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
+                  <TrendingUp className="h-3 w-3" />
+                  +4
+                </span>
+              </div>
+              <div className="text-3xl font-semibold text-gray-900">{stats?.member_count || 35}</div>
+              <div className="text-xs text-gray-500 mt-1">in last 7 days</div>
+            </div>
+
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-sm text-gray-600">Job applications</span>
+                <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
+                  <TrendingUp className="h-3 w-3" />
+                  +7
+                </span>
+              </div>
+              <div className="text-3xl font-semibold text-gray-900">{stats?.team_count || 49}</div>
+              <div className="text-xs text-gray-500 mt-1">in last 7 days</div>
+            </div>
+
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-sm text-gray-600">Total candidates</span>
+                <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
+                  <TrendingUp className="h-3 w-3" />
+                  +25
+                </span>
+              </div>
+              <div className="text-3xl font-semibold text-gray-900">587</div>
+              <div className="text-xs text-gray-500 mt-1">for the entire period</div>
+            </div>
+
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-sm text-gray-600">Employees</span>
+                <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
+                  <TrendingUp className="h-3 w-3" />
+                  +3
+                </span>
+              </div>
+              <div className="text-3xl font-semibold text-gray-900">{stats?.api_key_count || 20}</div>
+              <div className="text-xs text-gray-500 mt-1">for the entire period</div>
+            </div>
+          </div>
+
+          {/* Chart Area */}
+          <div className="relative h-64 bg-gradient-to-b from-indigo-50/50 to-transparent rounded-lg p-4">
+            <svg className="w-full h-full" viewBox="0 0 800 200" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="chartGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stopColor="rgb(99, 102, 241)" stopOpacity="0.2" />
+                  <stop offset="100%" stopColor="rgb(99, 102, 241)" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              <path
+                d="M 0 120 Q 50 80, 100 100 T 200 90 T 300 110 T 400 70 T 500 100 T 600 60 T 700 90 T 800 50"
+                fill="url(#chartGradient)"
+                stroke="rgb(99, 102, 241)"
+                strokeWidth="2"
+              />
+            </svg>
+            <div className="absolute bottom-2 left-0 right-0 flex justify-between px-4 text-xs text-gray-400">
+              <span>17/11</span>
+              <span>18/11</span>
+              <span>19/11</span>
+              <span>20/11</span>
+              <span>21/11</span>
+              <span>22/11</span>
+              <span>23/11</span>
+              <span>24/11</span>
+              <span>25/11</span>
+              <span>26/11</span>
+              <span>27/11</span>
+              <span>28/11</span>
+              <span>29/11</span>
+              <span>30/11</span>
+              <span>Today</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom Section */}
+        <div className="grid grid-cols-2 gap-6">
+          {/* Upcoming Interviews */}
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Upcoming interviews</h3>
+              <ChevronRight className="h-5 w-5 text-gray-400" />
+            </div>
+            <div className="space-y-4">
+              {[24, 25, 26].map((day, idx) => (
+                <div key={day} className="flex items-start gap-4 pb-4 border-b border-gray-100 last:border-0">
+                  <div className="text-center">
+                    <div className="text-2xl font-semibold text-gray-900">{day}</div>
+                    <div className="text-xs text-gray-500">{idx === 0 ? 'Mon' : idx === 1 ? 'Tue' : 'Wed'}</div>
                   </div>
-                )}
-              </div>
-              <div className="mt-4">
-                <p className="text-sm font-medium text-gray-600">{stat.name}</p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">{stat.value}</p>
-              </div>
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-gray-900">Ivan Serthin (10:30 - 12:00)</div>
+                    <div className="text-xs text-gray-500">Product Designer phone screening</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button className="p-1.5 text-gray-400 hover:text-gray-600">
+                      <LinkIcon className="h-4 w-4" />
+                    </button>
+                    <button className="p-1.5 text-gray-400 hover:text-gray-600">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
-          );
-        })}
-      </div>
-
-      {/* Organization Details */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Organization Info */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            Organization Details
-          </h2>
-          <div className="space-y-3">
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-600">Name</span>
-              <span className="text-sm font-medium text-gray-900">{stats?.name}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-600">Plan Type</span>
-              <span className="text-sm font-medium text-gray-900 capitalize">
-                {stats?.plan_type}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-600">Status</span>
-              <span className={`text-sm font-medium capitalize ${
-                stats?.status === 'active' ? 'text-green-600' : 'text-gray-600'
-              }`}>
-                {stats?.status}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-600">Max Users</span>
-              <span className="text-sm font-medium text-gray-900">
-                {stats?.member_count} / {stats?.max_users}
-              </span>
-            </div>
-            {stats?.domain && (
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Domain</span>
-                <span className="text-sm font-medium text-gray-900">{stats.domain}</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Recent Activity */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-            <Activity className="h-5 w-5 mr-2 text-blue-600" />
-            Recent Activity
-          </h2>
-          <div className="space-y-4">
-            <div className="flex items-start space-x-3">
-              <div className="h-2 w-2 rounded-full bg-blue-600 mt-2"></div>
-              <div className="flex-1">
-                <p className="text-sm text-gray-900">Organization created</p>
-                <p className="text-xs text-gray-500">
-                  {new Date(stats?.created_at || '').toLocaleDateString()}
-                </p>
-              </div>
-            </div>
-            <div className="text-center py-8 text-gray-400 text-sm">
-              No recent activity
+            <div className="mt-4 text-center">
+              <button className="text-sm text-indigo-600 hover:text-indigo-700 font-medium">
+                Join with Google Meet
+              </button>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Quick Actions */}
-      <div className="mt-8 bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <button className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors text-center">
-            <Users className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-            <p className="text-sm font-medium text-gray-900">Invite Members</p>
-            <p className="text-xs text-gray-500 mt-1">Add users to your organization</p>
-          </button>
-          <button className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors text-center">
-            <Shield className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-            <p className="text-sm font-medium text-gray-900">Create Team</p>
-            <p className="text-xs text-gray-500 mt-1">Organize members into teams</p>
-          </button>
-          <button className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors text-center">
-            <Key className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-            <p className="text-sm font-medium text-gray-900">Add API Key</p>
-            <p className="text-xs text-gray-500 mt-1">Configure LLM provider keys</p>
-          </button>
+          {/* Applications to Review */}
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Applications to review</h3>
+              <ChevronRight className="h-5 w-5 text-gray-400" />
+            </div>
+            <div className="space-y-4">
+              {[
+                { title: 'Senior .NET Developer', date: 'Nov 26 2020', count: 4 },
+                { title: 'Senior Java Developer', date: 'Nov 25 2020', count: 10 },
+                { title: 'UI/UX Designer', date: 'Nov 24 2020', count: 7 }
+              ].map((app, idx) => (
+                <div key={idx} className="flex items-center justify-between pb-4 border-b border-gray-100 last:border-0">
+                  <div>
+                    <div className="text-sm font-medium text-gray-900">{app.title}</div>
+                    <div className="text-xs text-gray-500">{app.date}</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex -space-x-2">
+                      {[...Array(Math.min(3, app.count))].map((_, i) => (
+                        <div
+                          key={i}
+                          className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-400 to-purple-400 border-2 border-white"
+                        />
+                      ))}
+                    </div>
+                    <span className="text-xs text-gray-500">+{app.count}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>

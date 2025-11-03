@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import {
   TrendingUp,
@@ -157,7 +157,7 @@ export const Analytics: React.FC = () => {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto mb-4" />
+          <Loader2 className="h-12 w-12 animate-spin text-indigo-600 mx-auto mb-4" />
           <p className="text-gray-600">Loading analytics...</p>
         </div>
       </div>
@@ -165,13 +165,13 @@ export const Analytics: React.FC = () => {
   }
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <div className="h-full bg-gray-50">
       {/* Page Header */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-6">
+      <div className="bg-white border-b border-gray-200 px-8 py-6">
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Analytics Dashboard</h1>
-            <p className="text-sm text-gray-600 mt-1">{selectedOrg?.display_name}</p>
+            <h1 className="text-2xl font-semibold text-gray-900">Cost Analytics</h1>
+            <p className="text-sm text-gray-500 mt-1">{selectedOrg?.display_name}</p>
           </div>
           <div className="flex items-center gap-3">
             {/* Time Range Selector */}
@@ -182,7 +182,7 @@ export const Analytics: React.FC = () => {
                   onClick={() => setTimeRange(days)}
                   className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
                     timeRange === days
-                      ? 'bg-blue-600 text-white shadow-sm'
+                      ? 'bg-indigo-600 text-white shadow-sm'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                   }`}
                 >
@@ -195,7 +195,7 @@ export const Analytics: React.FC = () => {
             <select
               value={selectedUser}
               onChange={(e) => setSelectedUser(e.target.value)}
-              className="px-3 py-2 border border-gray-200 rounded-lg bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+              className="px-3 py-2 border border-gray-200 rounded-lg bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
             >
               <option value="">All Users</option>
               {users?.users?.map((user: any) => {
@@ -212,7 +212,7 @@ export const Analytics: React.FC = () => {
             <select
               value={selectedModel}
               onChange={(e) => setSelectedModel(e.target.value)}
-              className="px-3 py-2 border border-gray-200 rounded-lg bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+              className="px-3 py-2 border border-gray-200 rounded-lg bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
             >
               <option value="">All Models</option>
               {models?.models?.map((model: any) => (
@@ -226,7 +226,7 @@ export const Analytics: React.FC = () => {
             {hasActiveFilters && (
               <button
                 onClick={clearFilters}
-                className="flex items-center gap-1 px-3 py-2 text-sm text-blue-600 hover:text-blue-700 font-medium"
+                className="flex items-center gap-1 px-3 py-2 text-sm text-indigo-600 hover:text-indigo-700 font-medium"
               >
                 <X className="h-4 w-4" />
                 Clear
@@ -236,22 +236,23 @@ export const Analytics: React.FC = () => {
             {/* Export */}
             <button
               onClick={handleExport}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm shadow-sm"
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium text-sm shadow-sm"
             >
               <Download className="h-4 w-4" />
               Export
             </button>
           </div>
         </div>
-
       </div>
 
-      {/* Summary Cards - Clean Enterprise Style */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-        {/* Total Cost */}
-        <Card className="p-6 bg-white hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between mb-3">
-            <DollarSign className="h-5 w-5 text-blue-600" />
+      {/* Main Content */}
+      <div className="p-8">
+        {/* Summary Cards - Clean Enterprise Style */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+          {/* Total Cost */}
+          <Card className="p-6 bg-white border border-gray-200 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between mb-3">
+              <DollarSign className="h-5 w-5 text-indigo-600" />
           </div>
           <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Total Cost</p>
           <p className="text-3xl font-bold text-gray-900">
@@ -260,10 +261,10 @@ export const Analytics: React.FC = () => {
           <p className="text-xs text-gray-400 mt-2">
             ${((filteredTotals.total_cost || 0) / (filteredTotals.conversations || 1)).toFixed(3)} per conversation
           </p>
-        </Card>
+          </Card>
 
-        {/* Conversations */}
-        <Card className="p-6 bg-white hover:shadow-md transition-shadow">
+          {/* Conversations */}
+          <Card className="p-6 bg-white border border-gray-200 hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-3">
             <MessageSquare className="h-5 w-5 text-purple-600" />
           </div>
@@ -274,10 +275,10 @@ export const Analytics: React.FC = () => {
           <p className="text-xs text-gray-400 mt-2">
             ${((filteredTotals.total_cost || 0) / (filteredTotals.conversations || 1)).toFixed(3)} avg
           </p>
-        </Card>
+          </Card>
 
-        {/* Active Users */}
-        <Card className="p-6 bg-white hover:shadow-md transition-shadow">
+          {/* Active Users */}
+          <Card className="p-6 bg-white border border-gray-200 hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-3">
             <Users className="h-5 w-5 text-green-600" />
           </div>
@@ -288,12 +289,12 @@ export const Analytics: React.FC = () => {
           <p className="text-xs text-gray-400 mt-2">
             ${((filteredTotals.total_cost || 0) / (users?.users?.length || 1)).toFixed(2)} per user
           </p>
-        </Card>
-      </div>
+          </Card>
+        </div>
 
-      {/* Cost Trend Chart - Full Width */}
-      <div className="mb-4">
-        <Card className="p-4">
+        {/* Cost Trend Chart - Full Width */}
+        <div className="mb-6">
+          <Card className="p-6 border border-gray-200">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-sm font-semibold text-gray-900">Cost Trend</h3>
@@ -329,13 +330,13 @@ export const Analytics: React.FC = () => {
               />
             </BarChart>
           </ResponsiveContainer>
-        </Card>
-      </div>
+          </Card>
+        </div>
 
-      {/* Bottom Row - User Leaderboard & Provider Breakdown */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* User Leaderboard */}
-        <Card className="p-4">
+        {/* Bottom Row - User Leaderboard & Provider Breakdown */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* User Leaderboard */}
+          <Card className="p-6 border border-gray-200">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-sm font-semibold text-gray-900">Top Users</h3>
@@ -373,10 +374,10 @@ export const Analytics: React.FC = () => {
               );
             })}
           </div>
-        </Card>
+          </Card>
 
-        {/* Top Models */}
-        <Card className="p-4">
+          {/* Top Models */}
+          <Card className="p-6 border border-gray-200">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-sm font-semibold text-gray-900">Top Models</h3>
@@ -431,7 +432,8 @@ export const Analytics: React.FC = () => {
               </tbody>
             </table>
           </div>
-        </Card>
+          </Card>
+        </div>
       </div>
     </div>
   );

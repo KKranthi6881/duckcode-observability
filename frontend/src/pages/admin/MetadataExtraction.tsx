@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -240,22 +240,26 @@ export const MetadataExtraction: React.FC = () => {
 
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="h-full bg-gray-50">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Metadata Extraction</h1>
-          <p className="text-muted-foreground mt-1">
-            Connect repositories and extract metadata
+      <div className="bg-white border-b border-gray-200 px-8 py-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-900">Metadata Extraction</h1>
+            <p className="text-sm text-gray-500 mt-1">
+              Connect repositories and extract metadata
           </p>
         </div>
-        <Button onClick={() => setShowAddDialog(true)} size="lg">
-          <Plus className="w-4 h-4 mr-2" />
-          Add Repository
-        </Button>
+          <Button onClick={() => setShowAddDialog(true)} size="lg">
+            <Plus className="w-4 h-4 mr-2" />
+            Add Repository
+          </Button>
+        </div>
       </div>
 
-      {/* Modal for adding repository */}
+      {/* Main Content */}
+      <div className="p-8">
+        {/* Modal for adding repository */}
       {showAddDialog && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
@@ -336,8 +340,8 @@ export const MetadataExtraction: React.FC = () => {
         </div>
       )}
 
-      {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {/* Stats Overview */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -534,8 +538,8 @@ export const MetadataExtraction: React.FC = () => {
             );
           })
         )}
+        </div>
       </div>
-
     </div>
   );
 };

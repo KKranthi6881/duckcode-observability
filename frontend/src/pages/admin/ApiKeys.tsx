@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { Plus, Key, Trash2, Star, AlertTriangle } from 'lucide-react';
 import type { Organization, OrganizationApiKey, ProviderType } from '../../types/enterprise';
@@ -133,31 +133,33 @@ export const ApiKeys: React.FC = () => {
   }
 
   return (
-    <div className="p-8">
+    <div className="h-full bg-gray-50">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">API Keys</h1>
-          <p className="mt-2 text-gray-600">
-            Manage LLM provider API keys for your organization
-          </p>
+      <div className="bg-white border-b border-gray-200 px-8 py-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-900">API Keys</h1>
+            <p className="text-sm text-gray-500 mt-1">Manage LLM provider API keys for your organization</p>
+          </div>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium text-sm"
+          >
+            <Plus className="h-4 w-4" />
+            Add API Key
+          </button>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          <Plus className="h-5 w-5" />
-          <span>Add API Key</span>
-        </button>
       </div>
 
-      {/* Security Notice */}
-      <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div className="flex items-start space-x-3">
-          <Key className="h-5 w-5 text-blue-600 mt-0.5" />
-          <div>
-            <h3 className="font-medium text-blue-900 mb-1">Secure API Key Storage</h3>
-            <p className="text-sm text-blue-700">
+      {/* Main Content */}
+      <div className="p-8">
+        {/* Security Notice */}
+        <div className="mb-6 bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+          <div className="flex items-start space-x-3">
+            <Key className="h-5 w-5 text-indigo-600 mt-0.5" />
+            <div>
+              <h3 className="font-medium text-indigo-900 mb-1">Secure API Key Storage</h3>
+              <p className="text-sm text-indigo-700">
               All API keys are encrypted with AES-256-GCM before storage. Only organization admins can view and manage keys.
             </p>
           </div>
@@ -176,7 +178,7 @@ export const ApiKeys: React.FC = () => {
           </p>
           <button
             onClick={() => setShowAddModal(true)}
-            className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="inline-flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
           >
             <Plus className="h-5 w-5" />
             <span>Add API Key</span>
@@ -364,6 +366,7 @@ export const ApiKeys: React.FC = () => {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };

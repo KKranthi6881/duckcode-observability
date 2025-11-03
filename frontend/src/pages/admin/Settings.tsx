@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { Building2, AlertTriangle, Save, Trash2, Users, CreditCard, Globe } from 'lucide-react';
 import type { Organization } from '../../types/enterprise';
@@ -61,14 +61,19 @@ export const SettingsPage: React.FC = () => {
   };
 
   return (
-    <div className="p-8 max-w-4xl">
+    <div className="h-full bg-gray-50">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Organization Settings</h1>
-        <p className="mt-2 text-gray-600">
-          Manage your organization's configuration and preferences
-        </p>
+      <div className="bg-white border-b border-gray-200 px-8 py-6">
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900">Organization Settings</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Manage your organization's configuration and preferences
+          </p>
+        </div>
       </div>
+
+      {/* Main Content */}
+      <div className="p-8 max-w-4xl">
 
       {/* General Settings */}
       <div className="bg-white rounded-lg shadow mb-6">
@@ -290,6 +295,7 @@ export const SettingsPage: React.FC = () => {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };
