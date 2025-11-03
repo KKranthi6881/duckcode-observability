@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { MetadataController } from '../controllers/metadata.controller';
+import { uploadManifest, getExtractionError } from '../controllers/manifest-upload.controller';
 import { requireAuth } from '../middlewares/auth.middleware';
 import { ExtractionOrchestrator } from '../../services/metadata/extraction/ExtractionOrchestrator';
 
@@ -64,6 +65,24 @@ router.get(
 router.get(
   '/connections/:id/stats',
   controller.getStats.bind(controller)
+);
+
+/**
+ * Upload manifest.json manually
+ * POST /api/metadata/connections/:connectionId/upload-manifest
+ */
+router.post(
+  '/connections/:connectionId/upload-manifest',
+  uploadManifest
+);
+
+/**
+ * Get extraction error details with guidance
+ * GET /api/metadata/connections/:connectionId/error
+ */
+router.get(
+  '/connections/:connectionId/error',
+  getExtractionError
 );
 
 export default router;

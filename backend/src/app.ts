@@ -20,6 +20,7 @@ import metadataLineageRoutes from './api/routes/metadata-lineage.routes'; // Lin
 import webhookRoutes from './api/routes/webhook.routes'; // Import second (uses orchestrator)
 import repositoryRoutes from './api/routes/repository.routes'; // Organization repositories (admin-connected)
 import universalRepositoryRoutes from './api/routes/universal-repository.routes'; // Universal repository API (GitHub + GitLab)
+import connectorsRoutes from './api/routes/connectors.routes';
 
 // Load environment variables
 dotenv.config();
@@ -74,6 +75,7 @@ app.use('/api/metadata/lineage', metadataLineageRoutes); // Lineage visualizatio
 app.use('/api/webhooks', webhookRoutes); // GitHub webhooks for auto-extraction
 app.use('/api/repositories', repositoryRoutes); // Organization repositories (all users can view)
 app.use('/api/repos', universalRepositoryRoutes); // Universal repository API (GitHub + GitLab)
+app.use('/api/connectors', connectorsRoutes); // Connectors (Snowflake, etc.)
 
 // --- Error Handling Middleware (example) ---
 // This should be defined after all other app.use() and routes calls

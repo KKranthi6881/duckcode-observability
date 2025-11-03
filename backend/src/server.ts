@@ -1,4 +1,5 @@
 import app from './app';
+import { startConnectorSyncJob } from './jobs/connectorSync';
 // No need to import dotenv here if app.ts already does it,
 // but ensure environment variables (like PORT) are loaded before this runs.
 
@@ -7,6 +8,7 @@ const PORT = process.env.PORT || 3001;
 const server = app.listen(PORT, () => {
   console.log(`Backend server is running on http://localhost:${PORT}`);
   console.log('Press CTRL-C to stop\n');
+  startConnectorSyncJob();
 });
 
 // Graceful shutdown (optional but good practice)

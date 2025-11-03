@@ -84,6 +84,7 @@ export const AdminLayout: React.FC = () => {
     // { name: 'Admin Dashboard', path: '/admin', icon: LayoutDashboard }, // Hidden - not needed currently
     { name: 'Cost Analytics', path: '/admin/analytics', icon: BarChart3 },
     { name: 'Metadata Extraction', path: '/admin/metadata', icon: Database },
+    { name: 'Connectors', path: '/admin/connectors', icon: Database },
     // { name: 'AI Documentation', path: '/admin/ai-documentation', icon: Zap }, // Hidden - changed plan for document generation process
     // { name: 'Search', path: '/admin/search', icon: Search }, // Hidden - for future search tool intelligence
     { name: 'API Keys', path: '/admin/api-keys', icon: Key },

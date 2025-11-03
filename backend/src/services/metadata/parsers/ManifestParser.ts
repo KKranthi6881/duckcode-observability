@@ -82,6 +82,12 @@ export interface ParsedManifestResult {
   sources: ParsedSource[];
   dependencies: ParsedDependency[];
   columnLineage: ParsedColumnLineage[];
+  warnings?: {
+    models_without_columns?: number;
+    total_models?: number;
+    models_without_columns_list?: string[];
+    message?: string;
+  };
 }
 
 export interface ParsedModel {
@@ -145,7 +151,7 @@ export class ManifestParser {
     console.log(`📦 Parsing manifest.json - dbt v${manifest.metadata.dbt_version}`);
     console.log(`   Adapter: ${manifest.metadata.adapter_type}`);
     
-    const models = this.extractModels(manifest);
+    const { models, warnings } = this.extractModels(manifest);
     const sources = this.extractSources(manifest);
     const dependencies = this.extractDependencies(manifest);
     const columnLineage = this.extractColumnLineage(manifest);
@@ -160,15 +166,21 @@ export class ManifestParser {
       models,
       sources,
       dependencies,
-      columnLineage
+      columnLineage,
+      warnings
     };
   }
   
   /**
    * Extract models from manifest
    */
-  private extractModels(manifest: DBTManifest): ParsedModel[] {
+  private extractModels(manifest: DBTManifest): { 
+    models: ParsedModel[]; 
+    warnings?: ParsedManifestResult['warnings'] 
+  } {
     const models: ParsedModel[] = [];
+    let modelsWithoutColumns = 0;
+    const modelsWithoutColumnsList: string[] = [];
     
     for (const [uniqueId, node] of Object.entries(manifest.nodes)) {
       // Only process models, seeds, snapshots
@@ -182,6 +194,13 @@ export class ManifestParser {
         description: col.description || '',
         position: idx + 1
       }));
+      
+      // Track models without columns
+      if (columns.length === 0) {
+        modelsWithoutColumns++;
+        modelsWithoutColumnsList.push(node.name);
+        console.warn(`⚠️  Model '${node.name}' has 0 columns defined in manifest`);
+      }
       
       models.push({
         name: node.name,
@@ -197,7 +216,37 @@ export class ManifestParser {
       });
     }
     
-    return models;
+    // Show critical warning if many models lack column information
+    if (modelsWithoutColumns > 0) {
+      console.warn(`\n${'='.repeat(70)}`);
+      console.warn(`⚠️  CRITICAL: ${modelsWithoutColumns}/${models.length} models have NO columns defined!`);
+      console.warn(`${'='.repeat(70)}`);
+      console.warn(`\n   WHY: Columns are not defined in schema.yml files.`);
+      console.warn(`   IMPACT: Column lineage will be INCOMPLETE or EMPTY.`);
+      console.warn(`\n   📋 HOW TO FIX:`);
+      console.warn(`   1. Run 'dbt docs generate' locally (creates catalog.json)`);
+      console.warn(`   2. Upload BOTH manifest.json AND catalog.json`);
+      console.warn(`   OR define columns in your dbt project schema.yml files`);
+      console.warn(`\n   Models without columns:`);
+      modelsWithoutColumnsList.slice(0, 10).forEach(name => {
+        console.warn(`      - ${name}`);
+      });
+      if (modelsWithoutColumnsList.length > 10) {
+        console.warn(`      ... and ${modelsWithoutColumnsList.length - 10} more`);
+      }
+      console.warn(`${'='.repeat(70)}\n`);
+    }
+    
+    // Return models and warnings
+    return {
+      models,
+      warnings: modelsWithoutColumns > 0 ? {
+        models_without_columns: modelsWithoutColumns,
+        total_models: models.length,
+        models_without_columns_list: modelsWithoutColumnsList,
+        message: `${modelsWithoutColumns} of ${models.length} models have no column information. Column lineage may be incomplete.`
+      } : undefined
+    };
   }
   
   /**

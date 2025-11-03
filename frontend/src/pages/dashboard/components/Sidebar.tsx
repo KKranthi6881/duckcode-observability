@@ -7,19 +7,28 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../../config/supabaseClient';
 
 const navigation = [
-{
-  name: 'Code Intelligence',
-  href: '/dashboard/lineage',
-  icon: Network
-}, {
-  name: 'Cost Analytics',
-  href: '/dashboard/analytics',
-  icon: BarChart3
-}, {
-  name: 'Settings',
-  href: '/dashboard/settings',
-  icon: SettingsIcon
-}];
+  {
+    name: 'Code Intelligence',
+    href: '/dashboard/lineage',
+    icon: Network
+  }, {
+    name: 'Cost Analytics',
+    href: '/dashboard/analytics',
+    icon: BarChart3
+  }, {
+    name: 'Snowflake Costs',
+    href: '/dashboard/snowflake-costs',
+    icon: BarChart3
+  }, {
+    name: 'Snowflake Metadata',
+    href: '/dashboard/snowflake-metadata',
+    icon: Network
+  }, {
+    name: 'Settings',
+    href: '/dashboard/settings',
+    icon: SettingsIcon
+  }
+];
 
 export function Sidebar() {
   const location = useLocation();

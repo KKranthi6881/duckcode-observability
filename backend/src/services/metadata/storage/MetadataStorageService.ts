@@ -5,6 +5,22 @@ import { supabase } from '../../../config/supabase';
  * Handles all writes to Supabase metadata schema
  */
 export class MetadataStorageService {
+  async storeRepository(repoData: any): Promise<any> {
+    const { data, error } = await supabase
+      .schema('metadata')
+      .from('repositories')
+      .upsert(repoData, {
+        onConflict: 'organization_id,path'
+      })
+      .select()
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  }
   
   async storeFile(fileData: any): Promise<any> {
     const { data, error } = await supabase

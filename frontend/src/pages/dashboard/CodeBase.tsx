@@ -24,6 +24,8 @@ import { EnhancedCodeViewer } from '../../components/EnhancedCodeViewer';
 import { DocumentationViewer } from '../../components/DocumentationViewer';
 import { RepositoryGrid } from '../../components/RepositoryGrid';
 import { CodeLineageView } from '../../components/lineage/CodeLineageView';
+import { ExtractionStatus } from '../../components/metadata/ExtractionStatus';
+import { ManifestUploadModal } from '../../components/metadata/ManifestUploadModal';
 
 import { useProcessingStatus } from '../../context/ProcessingStatusContext';
 
@@ -432,6 +434,10 @@ export function CodeBase() {
   const [view, setView] = useState<'repos' | 'browser'>('repos');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'code' | 'documentation' | 'code-lineage'>('code');
+  
+  // Metadata extraction state
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
   
   // State has been moved to AnalysisSetup.tsx or is no longer needed here
   const [repoSummaryStatus, setRepoSummaryStatus] = useState<Record<string, { hasSummaries: boolean; summaryCount: number; lastSummaryDate?: string }>>({});
@@ -1074,26 +1080,66 @@ export function CodeBase() {
                 {/* Repository Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {repositories.map((repo) => (
-                    <div
-                      key={repo.id}
-                      onClick={() => handleRepositorySelect(repo)}
-                      className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow cursor-pointer border border-gray-200 hover:border-blue-300"
-                    >
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center space-x-3">
-                          <div className="p-2 bg-blue-100 rounded-lg">
-                            <Database className="h-5 w-5 text-blue-600" />
-                          </div>
-                          <div>
-                            <h3 className="font-semibold text-gray-900">{repo.repository_name}</h3>
-                            <p className="text-sm text-gray-500">{repo.repository_owner}</p>
+                    <div key={repo.id} className="space-y-3">
+                      {/* Repository Card */}
+                      <div
+                        onClick={() => handleRepositorySelect(repo)}
+                        className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow cursor-pointer border border-gray-200 hover:border-blue-300"
+                      >
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center space-x-3">
+                            <div className="p-2 bg-blue-100 rounded-lg">
+                              <Database className="h-5 w-5 text-blue-600" />
+                            </div>
+                            <div>
+                              <h3 className="font-semibold text-gray-900">{repo.repository_name}</h3>
+                              <p className="text-sm text-gray-500">{repo.repository_owner}</p>
+                            </div>
                           </div>
                         </div>
+                        <div className="flex items-center justify-between text-sm text-gray-600">
+                          <span>{repo.total_objects || 0} objects</span>
+                          <span>{repo.total_files || 0} files</span>
+                        </div>
                       </div>
-                      <div className="flex items-center justify-between text-sm text-gray-600">
-                        <span>{repo.total_objects || 0} objects</span>
-                        <span>{repo.total_files || 0} files</span>
-                      </div>
+                      
+                      {/* Extraction Status */}
+                      <ExtractionStatus
+                        connection={{
+                          id: repo.id,
+                          repository_name: repo.repository_name,
+                          status: (repo.status as any) || 'connected',
+                          error_message: repo.error_message,
+                          manifest_uploaded: repo.manifest_uploaded,
+                          extraction_tier: (repo.extraction_tier as any),
+                          models_count: repo.models_count,
+                          sources_count: repo.sources_count,
+                          column_lineage_count: repo.column_lineage_count
+                        }}
+                        onUploadManifest={(connectionId) => {
+                          setSelectedConnectionId(connectionId);
+                          setUploadModalOpen(true);
+                        }}
+                        onRetry={async (connectionId) => {
+                          try {
+                            const response = await fetch(
+                              `/api/metadata/extract/${connectionId}`,
+                              {
+                                method: 'POST',
+                                credentials: 'include'
+                              }
+                            );
+                            if (response.ok) {
+                              const repos = await getOrganizationRepositories(session?.access_token || '');
+                              setRepositories(repos);
+                            } else {
+                              console.error('Extraction retry failed');
+                            }
+                          } catch (error) {
+                            console.error('Retry extraction error:', error);
+                          }
+                        }}
+                      />
                     </div>
                   ))}
                 </div>
@@ -1222,6 +1268,27 @@ export function CodeBase() {
             )}
           </>
         )}
+        
+        {/* Manifest Upload Modal */}
+        <ManifestUploadModal
+          connectionId={selectedConnectionId || ''}
+          repositoryName={
+            repositories.find(r => r.id === selectedConnectionId)?.repository_name || ''
+          }
+          isOpen={uploadModalOpen}
+          onClose={() => {
+            setUploadModalOpen(false);
+            setSelectedConnectionId(null);
+          }}
+          onSuccess={async () => {
+            try {
+              const repos = await getOrganizationRepositories(session?.access_token || '');
+              setRepositories(repos);
+            } catch (error) {
+              console.error('Failed to refresh repositories:', error);
+            }
+          }}
+        />
       </div>
   );
-} 
+}
