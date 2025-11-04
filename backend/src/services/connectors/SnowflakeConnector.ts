@@ -1,5 +1,6 @@
 import { IConnector, ConnectorConfig, ConnectionTestResult, ExtractionResult, ExtractedObject } from './IConnector';
 import { promisify } from 'util';
+import snowflakeCostExtractor from './SnowflakeCostExtractor';
 
 const snowflake = require('snowflake-sdk');
 
@@ -9,10 +10,14 @@ export class SnowflakeConnector implements IConnector {
   version = '1.0.0';
   private config: ConnectorConfig = {};
   private connection: any;
+  private connectorId?: string;
+  private organizationId?: string;
 
-  constructor(name: string, config: ConnectorConfig) {
+  constructor(name: string, config: ConnectorConfig, connectorId?: string, organizationId?: string) {
     this.name = name;
     this.config = config || {};
+    this.connectorId = connectorId;
+    this.organizationId = organizationId;
   }
 
   async configure(config: ConnectorConfig): Promise<void> {
@@ -210,20 +215,31 @@ export class SnowflakeConnector implements IConnector {
       
       console.log(`[SNOWFLAKE] Retrieved constraints: ${constraints.length}`);
 
-      // Build view definitions using GET_DDL for accuracy
+      // Build view definitions - SHOW VIEWS includes the 'text' column with view SQL
       const viewDefMap = new Map<string, string>();
       for (const v of viewsShow) {
         const dbName = this.safeUpper(v.database_name || v.DATABASE_NAME || targetDb || '');
         const schemaName = this.safeUpper(v.schema_name || v.SCHEMA_NAME || targetSchema || '');
         const name = this.safeUpper(v.name || v.NAME);
         const key = `${dbName}.${schemaName}.${name}`;
-        try {
-          const ddlRows = await this.exec(`SELECT GET_DDL('VIEW', ${this.fqName(dbName, schemaName, name)}) AS DDL`);
-          const ddl = ddlRows?.[0]?.DDL || ddlRows?.[0]?.ddl || '';
-          viewDefMap.set(key, ddl);
-        } catch (e: any) {
-          console.warn('[SNOWFLAKE] GET_DDL failed for view', key, e?.message || e);
-          viewDefMap.set(key, '');
+        
+        // SHOW VIEWS returns 'text' column with the view definition
+        const viewText = v.text || v.TEXT || '';
+        if (viewText) {
+          viewDefMap.set(key, viewText);
+          console.log(`[SNOWFLAKE] View ${name} definition extracted from SHOW VIEWS (${viewText.length} chars)`);
+          console.log(`[SNOWFLAKE] View ${name} SQL preview:`, viewText.substring(0, 150));
+        } else {
+          // Fallback to GET_DDL if text is not available
+          try {
+            const ddlRows = await this.exec(`SELECT GET_DDL('VIEW', '${dbName}.${schemaName}.${name}') AS DDL`);
+            const ddl = ddlRows?.[0]?.DDL || ddlRows?.[0]?.ddl || '';
+            viewDefMap.set(key, ddl);
+            console.log(`[SNOWFLAKE] View ${name} definition extracted from GET_DDL (${ddl.length} chars)`);
+          } catch (e: any) {
+            console.warn('[SNOWFLAKE] GET_DDL failed for view', key, e?.message || e);
+            viewDefMap.set(key, '');
+          }
         }
       }
 
@@ -376,10 +392,312 @@ export class SnowflakeConnector implements IConnector {
         }
       };
 
+      // Extract and store cost data (Phase 1)
+      console.log(`[SNOWFLAKE] Cost extraction check: connectorId=${this.connectorId}, organizationId=${this.organizationId}`);
+      if (this.connectorId && this.organizationId) {
+        console.log('[SNOWFLAKE] ✅ Starting cost and storage data extraction...');
+        try {
+          await this.extractAndStoreCostData(this.connectorId, this.organizationId);
+          console.log('[SNOWFLAKE] ✅ Cost extraction complete!');
+        } catch (e: any) {
+          console.error('[SNOWFLAKE] ❌ Cost extraction failed (non-fatal):', e?.message || e);
+          console.error('[SNOWFLAKE] Error stack:', e?.stack);
+          // Don't fail the whole extraction if cost data fails
+        }
+      } else {
+        console.log('[SNOWFLAKE] ⚠️  Skipping cost extraction - connectorId or organizationId not provided');
+      }
+
       return result;
     } finally {
       await this.disconnect();
     }
+  }
+
+  /**
+   * Extract cost, storage, and waste data and store in database
+   */
+  private async extractAndStoreCostData(connectorId: string, organizationId: string): Promise<void> {
+    try {
+      console.log('[SNOWFLAKE] Getting connection for cost extraction...');
+      await this.getConnection();
+
+      // 1. Extract cost metrics (last 30 days)
+      console.log('[SNOWFLAKE] 📊 Step 1/4: Extracting cost metrics...');
+      const costData = await this.extractCostMetrics();
+      console.log(`[SNOWFLAKE] Found cost data: ${costData.total_credits} credits`);
+      await snowflakeCostExtractor.storeCostMetrics({
+        connectorId,
+        organizationId,
+        ...costData
+      });
+      console.log('[SNOWFLAKE] ✅ Cost metrics stored');
+
+      // 2. Extract storage usage
+      console.log('[SNOWFLAKE] 💾 Step 2/4: Extracting storage usage...');
+      const storageData = await this.extractStorageData();
+      console.log(`[SNOWFLAKE] Found ${storageData.length} tables with storage data`);
+      
+      // Debug: Log first row to see what we're getting
+      if (storageData.length > 0) {
+        console.log('[SNOWFLAKE] First storage row sample:', JSON.stringify(storageData[0], null, 2));
+        
+        await snowflakeCostExtractor.storeStorageUsage(
+          storageData.map(s => ({ connectorId, organizationId, ...s }))
+        );
+        console.log('[SNOWFLAKE] ✅ Storage usage stored');
+      } else {
+        console.log('[SNOWFLAKE] ⚠️  No storage data found');
+      }
+
+      // 3. Extract warehouse metrics
+      console.log('[SNOWFLAKE] 🏭 Step 3/4: Extracting warehouse metrics...');
+      const warehouseMetrics = await this.extractWarehouseMetrics();
+      console.log(`[SNOWFLAKE] Found ${warehouseMetrics.length} warehouses`);
+      if (warehouseMetrics.length > 0) {
+        await snowflakeCostExtractor.storeWarehouseMetrics(
+          warehouseMetrics.map(w => ({ connectorId, organizationId, ...w }))
+        );
+        console.log('[SNOWFLAKE] ✅ Warehouse metrics stored');
+      } else {
+        console.log('[SNOWFLAKE] ⚠️  No warehouse metrics found');
+      }
+
+      // 4. Detect waste opportunities
+      console.log('[SNOWFLAKE] 🔍 Step 4/4: Detecting waste opportunities...');
+      const wasteOpportunities = await this.detectWasteOpportunities();
+      console.log(`[SNOWFLAKE] Found ${wasteOpportunities.length} waste opportunities`);
+      if (wasteOpportunities.length > 0) {
+        await snowflakeCostExtractor.storeWasteOpportunities(
+          wasteOpportunities.map(w => ({ connectorId, organizationId, ...w }))
+        );
+        console.log('[SNOWFLAKE] ✅ Waste opportunities stored');
+      } else {
+        console.log('[SNOWFLAKE] ⚠️  No waste opportunities found');
+      }
+
+      console.log('[SNOWFLAKE] 🎉 Cost extraction complete!');
+    } catch (e: any) {
+      console.error('[SNOWFLAKE] Cost extraction error:', e?.message || e);
+      throw e;
+    }
+  }
+
+  /**
+   * Extract cost metrics for last 30 days
+   */
+  private async extractCostMetrics(): Promise<{ compute_credits: number; storage_credits: number; total_credits: number }> {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 30);
+    const start = startDate.toISOString().slice(0, 19);
+
+    // Get compute costs
+    const computeSql = `
+      SELECT COALESCE(SUM(CREDITS_USED_COMPUTE + CREDITS_USED_CLOUD_SERVICES), 0) AS TOTAL_CREDITS
+      FROM SNOWFLAKE.ACCOUNT_USAGE.WAREHOUSE_METERING_HISTORY
+      WHERE START_TIME >= '${start}'
+    `;
+    const computeRows = await this.exec(computeSql);
+    const computeCredits = Number(computeRows?.[0]?.TOTAL_CREDITS || 0);
+
+    // Get storage costs (approximate)
+    const storageSql = `
+      SELECT AVG(STORAGE_BYTES + STAGE_BYTES + FAILSAFE_BYTES) AS AVG_BYTES
+      FROM SNOWFLAKE.ACCOUNT_USAGE.STORAGE_USAGE
+      WHERE USAGE_DATE >= DATEADD(day, -30, CURRENT_DATE())
+    `;
+    const storageRows = await this.exec(storageSql);
+    const avgBytes = Number(storageRows?.[0]?.AVG_BYTES || 0);
+    const storageCredits = (avgBytes / 1099511627776) * 23 / 3; // TB to credits
+
+    return {
+      compute_credits: computeCredits,
+      storage_credits: storageCredits,
+      total_credits: computeCredits + storageCredits
+    };
+  }
+
+  /**
+   * Extract storage usage for all tables
+   * Using actual TABLE_STORAGE_METRICS schema from Snowflake ACCOUNT_USAGE
+   */
+  private async extractStorageData(): Promise<any[]> {
+    const sql = `
+      SELECT 
+        TABLE_CATALOG,
+        TABLE_SCHEMA,
+        TABLE_NAME,
+        ACTIVE_BYTES,
+        TIME_TRAVEL_BYTES,
+        FAILSAFE_BYTES,
+        RETAINED_FOR_CLONE_BYTES,
+        IS_TRANSIENT,
+        TABLE_CREATED,
+        TABLE_DROPPED
+      FROM SNOWFLAKE.ACCOUNT_USAGE.TABLE_STORAGE_METRICS
+      WHERE DELETED = FALSE
+        AND ACTIVE_BYTES > 0
+        AND TABLE_CATALOG IS NOT NULL
+        AND TABLE_SCHEMA IS NOT NULL
+        AND TABLE_NAME IS NOT NULL
+      ORDER BY ACTIVE_BYTES DESC NULLS LAST
+      LIMIT 1000
+    `;
+    
+    const rows = await this.exec(sql);
+    
+    // Map Snowflake column names (uppercase) to our schema (lowercase)
+    return rows.map((row: any) => ({
+      database_name: row.TABLE_CATALOG,
+      schema_name: row.TABLE_SCHEMA,
+      table_name: row.TABLE_NAME,
+      table_type: 'TABLE',
+      storage_bytes: row.ACTIVE_BYTES || 0,
+      row_count: null,
+      is_transient: row.IS_TRANSIENT === 'YES',
+      retention_days: row.IS_TRANSIENT === 'YES' ? 0 : 1,
+      last_altered: row.TABLE_DROPPED || row.TABLE_CREATED,
+      last_accessed: null,
+      days_since_access: null,
+      time_travel_bytes: row.TIME_TRAVEL_BYTES || 0,
+      failsafe_bytes: row.FAILSAFE_BYTES || 0,
+      retained_for_clone_bytes: row.RETAINED_FOR_CLONE_BYTES || 0
+    }));
+  }
+
+  /**
+   * Extract warehouse performance metrics (last 7 days)
+   * Combines query stats from QUERY_HISTORY and credits from WAREHOUSE_METERING_HISTORY
+   */
+  private async extractWarehouseMetrics(): Promise<any[]> {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 7);
+    const start = startDate.toISOString().slice(0, 19);
+
+    const sql = `
+      WITH query_aggregates AS (
+        SELECT 
+          WAREHOUSE_NAME,
+          COUNT(*) AS TOTAL_QUERIES,
+          SUM(TOTAL_ELAPSED_TIME) AS TOTAL_EXECUTION_TIME_MS
+        FROM SNOWFLAKE.ACCOUNT_USAGE.QUERY_HISTORY
+        WHERE START_TIME >= '${start}'
+          AND WAREHOUSE_NAME IS NOT NULL
+        GROUP BY WAREHOUSE_NAME
+      ),
+      warehouse_sizes AS (
+        SELECT DISTINCT
+          WAREHOUSE_NAME,
+          FIRST_VALUE(WAREHOUSE_SIZE) OVER (PARTITION BY WAREHOUSE_NAME ORDER BY START_TIME DESC) AS WAREHOUSE_SIZE
+        FROM SNOWFLAKE.ACCOUNT_USAGE.QUERY_HISTORY
+        WHERE START_TIME >= '${start}'
+          AND WAREHOUSE_NAME IS NOT NULL
+      ),
+      credit_usage AS (
+        SELECT 
+          WAREHOUSE_NAME,
+          SUM(CREDITS_USED_COMPUTE + CREDITS_USED_CLOUD_SERVICES) AS CREDITS_USED
+        FROM SNOWFLAKE.ACCOUNT_USAGE.WAREHOUSE_METERING_HISTORY
+        WHERE START_TIME >= '${start}'
+        GROUP BY WAREHOUSE_NAME
+      )
+      SELECT 
+        COALESCE(qa.WAREHOUSE_NAME, cu.WAREHOUSE_NAME) AS WAREHOUSE_NAME,
+        COALESCE(qa.TOTAL_QUERIES, 0) AS TOTAL_QUERIES,
+        COALESCE(qa.TOTAL_EXECUTION_TIME_MS, 0) AS TOTAL_EXECUTION_TIME_MS,
+        COALESCE(cu.CREDITS_USED, 0) AS CREDITS_USED,
+        NULL AS UTILIZATION_PERCENT,
+        ws.WAREHOUSE_SIZE
+      FROM query_aggregates qa
+      FULL OUTER JOIN credit_usage cu ON qa.WAREHOUSE_NAME = cu.WAREHOUSE_NAME
+      LEFT JOIN warehouse_sizes ws ON COALESCE(qa.WAREHOUSE_NAME, cu.WAREHOUSE_NAME) = ws.WAREHOUSE_NAME
+    `;
+    
+    const rows = await this.exec(sql);
+    
+    // Map Snowflake column names (uppercase) to our schema (lowercase)
+    return rows.map((row: any) => ({
+      warehouse_name: row.WAREHOUSE_NAME,
+      total_queries: row.TOTAL_QUERIES || 0,
+      total_execution_time_ms: row.TOTAL_EXECUTION_TIME_MS || 0,
+      credits_used: row.CREDITS_USED || 0,
+      utilization_percent: row.UTILIZATION_PERCENT,
+      warehouse_size: row.WAREHOUSE_SIZE
+    }));
+  }
+
+  /**
+   * Detect waste opportunities
+   */
+  private async detectWasteOpportunities(): Promise<any[]> {
+    const opportunities: any[] = [];
+
+    // Detect unused tables (>90 days no access, >1GB)
+    const unusedTablesSql = `
+      WITH table_storage AS (
+        SELECT 
+          TABLE_CATALOG,
+          TABLE_SCHEMA,
+          TABLE_NAME,
+          ACTIVE_BYTES,
+          COALESCE(TABLE_DROPPED, TABLE_CREATED) AS LAST_MODIFIED
+        FROM SNOWFLAKE.ACCOUNT_USAGE.TABLE_STORAGE_METRICS
+        WHERE DELETED = FALSE 
+          AND ACTIVE_BYTES > 1073741824
+          AND TABLE_CATALOG IS NOT NULL
+      ),
+      table_access AS (
+        SELECT 
+          obj.value:objectName::STRING AS TABLE_NAME,
+          obj.value:objectDomain::STRING AS OBJECT_DOMAIN,
+          MAX(QUERY_START_TIME) AS LAST_ACCESS
+        FROM SNOWFLAKE.ACCOUNT_USAGE.ACCESS_HISTORY,
+        LATERAL FLATTEN(input => DIRECT_OBJECTS_ACCESSED) obj
+        WHERE QUERY_START_TIME >= DATEADD(day, -90, CURRENT_TIMESTAMP())
+          AND obj.value:objectDomain::STRING = 'Table'
+        GROUP BY obj.value:objectName::STRING, obj.value:objectDomain::STRING
+      )
+      SELECT 
+        ts.TABLE_CATALOG AS DATABASE_NAME,
+        ts.TABLE_SCHEMA AS SCHEMA_NAME,
+        ts.TABLE_NAME,
+        ts.ACTIVE_BYTES AS STORAGE_BYTES,
+        ts.LAST_MODIFIED,
+        ta.LAST_ACCESS,
+        DATEDIFF(day, COALESCE(ta.LAST_ACCESS, ts.LAST_MODIFIED), CURRENT_TIMESTAMP()) AS DAYS_SINCE_ACCESS
+      FROM table_storage ts
+      LEFT JOIN table_access ta ON ts.TABLE_NAME = ta.TABLE_NAME
+      WHERE COALESCE(ta.LAST_ACCESS, ts.LAST_MODIFIED) < DATEADD(day, -90, CURRENT_TIMESTAMP())
+      ORDER BY ts.ACTIVE_BYTES DESC
+      LIMIT 50
+    `;
+
+    try {
+      const unusedTables = await this.exec(unusedTablesSql);
+      for (const table of unusedTables) {
+        const bytes = Number(table.STORAGE_BYTES || 0);
+        const monthlyCost = (bytes / 1099511627776) * 23;
+        opportunities.push({
+          opportunity_type: 'unused_table',
+          severity: monthlyCost > 100 ? 'high' : 'medium',
+          resource_type: 'TABLE',
+          resource_name: table.TABLE_NAME,
+          database_name: table.DATABASE_NAME,
+          schema_name: table.SCHEMA_NAME,
+          current_monthly_cost: monthlyCost,
+          potential_monthly_savings: monthlyCost,
+          savings_confidence: 90,
+          title: `Unused table: ${table.TABLE_NAME}`,
+          description: `Table has not been accessed in ${table.DAYS_SINCE_ACCESS} days`,
+          recommendation: `Archive or delete this table to save $${monthlyCost.toFixed(2)}/month`,
+          evidence: { bytes, days_since_access: table.DAYS_SINCE_ACCESS }
+        });
+      }
+    } catch (e) {
+      console.warn('[SNOWFLAKE] Failed to detect unused tables:', e);
+    }
+
+    return opportunities;
   }
 
   async disconnect(): Promise<void> {

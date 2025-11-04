@@ -103,10 +103,10 @@ export default function SnowflakeCostDashboard() {
           snowflakeCostService.getCostByTags(connectorId, start, end),
           snowflakeCostService.getTopQueries(connectorId, start, end, { warehouse: selectedWarehouse || undefined, user: selectedUser || undefined, includeText: showQueryText }),
         ]);
-        setDaily(d);
-        setWarehouses(w);
-        setTags(t);
-        setQueries(q);
+        setDaily(Array.isArray(d) ? d : []);
+        setWarehouses(Array.isArray(w) ? w : []);
+        setTags(Array.isArray(t) ? t : []);
+        setQueries(Array.isArray(q) ? q : []);
         setError(null);
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : 'Failed to load cost data';
@@ -123,9 +123,16 @@ export default function SnowflakeCostDashboard() {
       if (!connectorId) return;
       try {
         const f = await snowflakeCostService.getFilters(connectorId, start, end);
-        setFilters(f);
+        // Ensure filters always have array properties
+        setFilters({
+          warehouses: Array.isArray(f?.warehouses) ? f.warehouses : [],
+          tags: Array.isArray(f?.tags) ? f.tags : [],
+          users: Array.isArray(f?.users) ? f.users : []
+        });
       } catch (e) {
         console.warn('Failed to load filters', e);
+        // Set empty arrays on error
+        setFilters({ warehouses: [], tags: [], users: [] });
       }
     };
     loadFilters();
@@ -148,10 +155,29 @@ export default function SnowflakeCostDashboard() {
     loadBudgets();
   }, [connectorId]);
 
-  const dailyData = useMemo(() => daily.map(r => ({
-    date: format(new Date(r.DAY), 'yyyy-MM-dd'),
-    credits: Number(r.CREDITS || 0)
-  })), [daily]);
+  const dailyData = useMemo(() => {
+    if (!daily || !Array.isArray(daily)) return [];
+    return daily
+      .filter(r => r.DAY) // Filter out entries without DAY field
+      .map(r => {
+        try {
+          const date = new Date(r.DAY);
+          // Check if date is valid
+          if (isNaN(date.getTime())) {
+            console.warn('Invalid date value:', r.DAY);
+            return null;
+          }
+          return {
+            date: format(date, 'yyyy-MM-dd'),
+            credits: Number(r.CREDITS || 0)
+          };
+        } catch (error) {
+          console.warn('Error formatting date:', r.DAY, error);
+          return null;
+        }
+      })
+      .filter(Boolean) as { date: string; credits: number }[];
+  }, [daily]);
 
   return (
     <div className="p-6 space-y-6">
@@ -388,7 +414,14 @@ export default function SnowflakeCostDashboard() {
                   </td>
                   <td className="py-2 pr-4">{q.BYTES_SCANNED?.toLocaleString() || '-'}</td>
                   <td className="py-2 pr-4">{q.EXECUTION_TIME ?? q.TOTAL_ELAPSED_TIME ?? '-'}</td>
-                  <td className="py-2">{format(new Date(q.START_TIME), 'yyyy-MM-dd HH:mm')}</td>
+                  <td className="py-2">{(() => {
+                    try {
+                      const date = new Date(q.START_TIME);
+                      return !isNaN(date.getTime()) ? format(date, 'yyyy-MM-dd HH:mm') : '-';
+                    } catch {
+                      return '-';
+                    }
+                  })()}</td>
                   {showQueryText && <td className="py-2 font-mono text-xs whitespace-pre-wrap max-w-xl">{q.QUERY_TEXT || ''}</td>}
                   <td className="py-2 pr-4">
                     <Link className="text-blue-600 hover:underline mr-3" to={`/dashboard/snowflake-metadata?schema=${encodeURIComponent(q.SCHEMA_NAME || '')}`}>Open Metadata</Link>
