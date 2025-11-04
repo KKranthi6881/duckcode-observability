@@ -223,9 +223,18 @@ export async function testConnector(req: Request, res: Response) {
     await instance.configure(config);
     const result = await instance.testConnection();
 
-    return res.json({ result });
-  } catch (e) {
-    return res.status(500).json({ error: 'Internal error' });
+    // Return appropriate HTTP status based on test result
+    if (result.success) {
+      return res.json({ result });
+    } else {
+      return res.status(400).json({ 
+        error: 'Connection test failed', 
+        message: result.message,
+        details: result.details 
+      });
+    }
+  } catch (e: any) {
+    return res.status(500).json({ error: 'Internal error', details: e?.message });
   }
 }
 
@@ -248,9 +257,135 @@ export async function extractConnector(req: Request, res: Response) {
 
     const { data: roleRow, error: roleErr } = await ensureAdmin(userId, connector.organization_id);
     if (roleErr || !roleRow) return res.status(403).json({ error: 'Forbidden' });
-    const stats = await orchestrator.extract(connector.id, userId);
-    return res.json({ success: true, stats });
+    
+    // Run extraction asynchronously
+    orchestrator.extract(connector.id, userId).catch(err => {
+      console.error('[Extract] Background extraction failed:', err);
+    });
+    
+    return res.json({ success: true, message: 'Extraction started' });
   } catch (e: any) {
     return res.status(500).json({ error: 'Extraction failed', details: e?.message || String(e) });
+  }
+}
+
+export async function deleteConnector(req: Request, res: Response) {
+  try {
+    const userId = (req.user as any)?.id;
+    if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+
+    const { id } = req.params;
+
+    const { data: connector, error } = await supabaseAdmin
+      .schema('enterprise')
+      .from('connectors')
+      .select('id, organization_id')
+      .eq('id', id)
+      .single();
+
+    if (error || !connector) return res.status(404).json({ error: 'Not found' });
+
+    const { data: roleRow, error: roleErr } = await ensureAdmin(userId, connector.organization_id);
+    if (roleErr || parseRoleName(roleRow) !== 'Admin') return res.status(403).json({ error: 'Forbidden' });
+
+    // Delete connector (cascades to history and metadata)
+    const { error: deleteErr } = await supabaseAdmin
+      .schema('enterprise')
+      .from('connectors')
+      .delete()
+      .eq('id', id);
+
+    if (deleteErr) return res.status(500).json({ error: 'Failed to delete connector' });
+
+    return res.json({ success: true });
+  } catch (e: any) {
+    return res.status(500).json({ error: 'Internal error', details: e?.message || String(e) });
+  }
+}
+
+export async function updateConnector(req: Request, res: Response) {
+  try {
+    const userId = (req.user as any)?.id;
+    if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+
+    const { id } = req.params;
+    const { name, config } = req.body as { name?: string; config?: any };
+
+    const { data: connector, error } = await supabaseAdmin
+      .schema('enterprise')
+      .from('connectors')
+      .select('id, organization_id')
+      .eq('id', id)
+      .single();
+
+    if (error || !connector) return res.status(404).json({ error: 'Not found' });
+
+    const { data: roleRow, error: roleErr } = await ensureAdmin(userId, connector.organization_id);
+    if (roleErr || parseRoleName(roleRow) !== 'Admin') return res.status(403).json({ error: 'Forbidden' });
+
+    const updates: any = { updated_at: new Date().toISOString() };
+    if (name) updates.name = name;
+    if (config) {
+      const { encryptedKey, iv, authTag } = encryptAPIKey(JSON.stringify(config));
+      updates.config_encrypted = encryptedKey;
+      updates.config_iv = iv;
+      updates.config_auth_tag = authTag;
+    }
+
+    const { data: updated, error: upErr } = await supabaseAdmin
+      .schema('enterprise')
+      .from('connectors')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (upErr) return res.status(500).json({ error: 'Failed to update connector' });
+
+    return res.json({ connector: updated });
+  } catch (e: any) {
+    return res.status(500).json({ error: 'Internal error', details: e?.message || String(e) });
+  }
+}
+
+export async function getExtractionStatus(req: Request, res: Response) {
+  try {
+    const userId = (req.user as any)?.id;
+    if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+
+    const { id } = req.params;
+
+    const { data: connector, error } = await supabaseAdmin
+      .schema('enterprise')
+      .from('connectors')
+      .select('id, organization_id')
+      .eq('id', id)
+      .single();
+
+    if (error || !connector) return res.status(404).json({ error: 'Not found' });
+
+    const { data: roleRow, error: roleErr } = await ensureAdmin(userId, connector.organization_id);
+    if (roleErr || !roleRow) return res.status(403).json({ error: 'Forbidden' });
+
+    // Get latest running or most recent job
+    const { data: latestJob, error: jobErr } = await supabaseAdmin
+      .schema('enterprise')
+      .from('connector_sync_history')
+      .select('*')
+      .eq('connector_id', id)
+      .order('started_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (jobErr && jobErr.code !== 'PGRST116') {
+      return res.status(500).json({ error: 'Failed to get status' });
+    }
+
+    return res.json({ 
+      status: latestJob?.status || 'idle',
+      job: latestJob || null
+    });
+  } catch (e: any) {
+    return res.status(500).json({ error: 'Internal error', details: e?.message || String(e) });
   }
 }

@@ -18,6 +18,7 @@ export class ConnectorExtractionOrchestrator {
       throw new Error('Connector not found');
     }
 
+    console.log(`[EXTRACT] Starting extraction for connector ${connectorId}`);
     // Decrypt config
     const configStr = decryptAPIKey(
       connector.config_encrypted,
@@ -25,6 +26,16 @@ export class ConnectorExtractionOrchestrator {
       connector.config_auth_tag
     );
     const config = JSON.parse(configStr || '{}');
+    
+    // Debug: Log password length (NOT the actual password)
+    console.log('[EXTRACT] Decrypted config:', {
+      account: config.account,
+      username: config.username,
+      passwordLength: config.password?.length || 0,
+      hasPassword: !!config.password,
+      role: config.role,
+      warehouse: config.warehouse
+    });
 
     // Create history row
     const { data: historyRow } = await supabaseAdmin
@@ -39,10 +50,34 @@ export class ConnectorExtractionOrchestrator {
     try {
       const instance = ConnectorFactory.create(connector.type, connector.name, config);
       await instance.configure(config);
-
-      const result = await instance.extractMetadata();
+      
+      // Test connection before extraction
+      console.log('[EXTRACT] Testing connection before extraction...');
+      const testResult = await instance.testConnection();
+      if (!testResult.success) {
+        throw new Error(`Connection test failed: ${testResult.message}`);
+      }
+      console.log('[EXTRACT] Connection test passed:', testResult.message);
+      
+      console.log('[EXTRACT] Calling extractMetadata()');
+      const result = await this.withTimeout(instance.extractMetadata(), 120000, 'extractMetadata');
+      console.log(`[EXTRACT] extractMetadata() done. objects=${result.objects.length}`);
 
       const storage = new MetadataStorageService();
+
+      // Idempotency: clean existing objects for this connector (cascades to columns & lineage)
+      try {
+        console.log('[EXTRACT] Cleaning previous objects for connector');
+        await supabaseAdmin
+          .schema('metadata')
+          .from('objects')
+          .delete()
+          .eq('connector_id', connector.id);
+      } catch (e: any) {
+        console.warn('[EXTRACT] Cleanup warning (non-fatal):', e?.message || e);
+      }
+
+      console.log(`[EXTRACT] Storing repository ${result.repository.path}`);
       const repo = await storage.storeRepository({
         organization_id: connector.organization_id,
         path: result.repository.path,
@@ -55,6 +90,7 @@ export class ConnectorExtractionOrchestrator {
       const objectIdByKey = new Map<string, string>();
       const viewObjects: Array<{ id: string; name: string; schema?: string | null; database?: string | null; definition?: string }>=[];
 
+      console.log(`[EXTRACT] Storing ${result.objects.length} objects`);
       for (const obj of result.objects) {
         const schemaName = (obj.schema_name || 'PUBLIC').toUpperCase();
         if (!schemaFileMap.has(schemaName)) {
@@ -88,10 +124,13 @@ export class ConnectorExtractionOrchestrator {
         });
 
         if (obj.columns && obj.columns.length) {
+          console.log(`[EXTRACT] Storing ${obj.columns.length} columns for ${obj.name}`);
           await storage.storeColumns(inserted.id, obj.columns, connector.organization_id);
+        } else {
+          console.log(`[EXTRACT] No columns to store for ${obj.name} (columns: ${obj.columns?.length || 0})`);
         }
 
-        // Build object map for lineage resolution
+        // Build object map for lineage resolution (needed before storing constraints)
         const fullKey = `${(obj.database_name||'').toUpperCase()}.${(obj.schema_name||'').toUpperCase()}.${(obj.name||'').toUpperCase()}`;
         objectIdByKey.set(fullKey, inserted.id);
         if (obj.schema_name) {
@@ -104,15 +143,33 @@ export class ConnectorExtractionOrchestrator {
         }
       }
 
+      // Second pass: Store constraints (after all objects are stored so we have all IDs)
+      console.log(`[EXTRACT] Storing constraints for ${result.objects.length} objects`);
+      for (const obj of result.objects) {
+        if (!obj.constraints || obj.constraints.length === 0) continue;
+        
+        const fullKey = `${(obj.database_name||'').toUpperCase()}.${(obj.schema_name||'').toUpperCase()}.${(obj.name||'').toUpperCase()}`;
+        const objectId = objectIdByKey.get(fullKey);
+        if (!objectId) {
+          console.warn(`[EXTRACT] Could not find object ID for ${fullKey} to store constraints`);
+          continue;
+        }
+
+        console.log(`[EXTRACT] Storing ${obj.constraints.length} constraints for ${obj.name}`);
+        await storage.storeConstraints(objectId, obj.constraints, connector.organization_id, objectIdByKey);
+      }
+
       // Column-level lineage extraction for views using Python SQLGlot (Snowflake dialect)
       try {
         const python = new PythonSQLGlotParser();
         const healthy = await python.healthCheck();
+        console.log(`[EXTRACT] Lineage: service healthy=${healthy}, views=${viewObjects.length}`);
         if (healthy && viewObjects.length > 0) {
           for (const v of viewObjects) {
             if (!v.definition) continue;
             const targetFull = [v.database, v.schema, v.name].filter(Boolean).join('.');
-            const lineage = await python.extractColumnLineage(v.definition, targetFull || v.name, { dialect: 'snowflake' });
+            const selectSql = this.extractSelectFromDDL(v.definition) || v.definition || '';
+            const lineage = await python.extractColumnLineage(selectSql, targetFull || v.name, { dialect: 'snowflake' });
             if (!lineage || lineage.length === 0) continue;
 
             for (const rel of lineage) {
@@ -239,5 +296,35 @@ export class ConnectorExtractionOrchestrator {
     const type = this.classifyTransformation(expression);
     const map: Record<string, number> = { direct: 0.95, cast: 0.93, aggregation: 0.9, window_function: 0.88, case_expression: 0.8, calculation: 0.82, string_function: 0.83 };
     return map[type] ?? 0.8;
+  }
+
+  private withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      const t = setTimeout(() => {
+        reject(new Error(`${label} timed out after ${ms}ms`));
+      }, ms);
+      p.then((v) => {
+        clearTimeout(t);
+        resolve(v);
+      }).catch((e) => {
+        clearTimeout(t);
+        reject(e);
+      });
+    });
+  }
+
+  private extractSelectFromDDL(ddl?: string | null): string | null {
+    if (!ddl) return null;
+    const s = ddl.trim();
+    const upper = s.toUpperCase();
+    const asIdx = upper.indexOf(' AS ');
+    if (asIdx === -1) return s; // Already SELECT or unknown format
+    let body = s.substring(asIdx + 4).trim();
+    if (body.endsWith(';')) body = body.slice(0, -1).trim();
+    // Remove wrapping parentheses e.g., AS (SELECT ...)
+    if (body.startsWith('(') && body.endsWith(')')) {
+      body = body.slice(1, -1).trim();
+    }
+    return body;
   }
 }

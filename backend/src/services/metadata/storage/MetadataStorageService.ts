@@ -40,13 +40,40 @@ export class MetadataStorageService {
     return data;
   }
 
+  /**
+   * Build Fully Qualified Name (FQN) for cross-source matching
+   * Format: DATABASE.SCHEMA.TABLE (uppercase normalized)
+   */
+  private buildFQN(database?: string | null, schema?: string | null, name?: string): string {
+    return [database, schema, name]
+      .filter(Boolean)
+      .map(s => String(s).toUpperCase())
+      .join('.');
+  }
+
   async storeObject(objectData: any): Promise<any> {
     console.log(`[STORAGE] Attempting to insert object: ${objectData.name}`);
+    
+    // Build FQN for cross-source matching
+    const fqn = this.buildFQN(
+      objectData.database_name,
+      objectData.schema_name,
+      objectData.name
+    );
+    
+    // Determine source type based on connector_id vs connection_id
+    const source_type = objectData.connector_id ? 'snowflake' : 'dbt';
+    
+    console.log(`[STORAGE] FQN: ${fqn}, source_type: ${source_type}`);
     
     const { data, error } = await supabase
       .schema('metadata')
       .from('objects')
-      .insert(objectData)
+      .insert({
+        ...objectData,
+        fqn,
+        source_type
+      })
       .select()
       .single();
 
@@ -93,6 +120,46 @@ export class MetadataStorageService {
     }
     
     console.log(`✅ Stored ${columns.length} columns for object ${objectId}`);
+  }
+
+  async storeConstraints(objectId: string, constraints: any[], organizationId: string, objectsMap: Map<string, string>): Promise<void> {
+    if (!constraints || constraints.length === 0) return;
+
+    const constraintsData = constraints.map(c => {
+      // Try to resolve referenced_object_id from the map
+      let referencedObjectId = null;
+      if (c.referenced_table && c.referenced_schema) {
+        const refKey = `${c.referenced_schema}.${c.referenced_table}`.toUpperCase();
+        referencedObjectId = objectsMap.get(refKey) || null;
+      }
+
+      return {
+        object_id: objectId,
+        organization_id: organizationId,
+        constraint_name: c.constraint_name,
+        constraint_type: c.constraint_type?.toLowerCase().replace(' ', '_'), // 'PRIMARY KEY' -> 'primary_key'
+        columns: JSON.stringify(c.columns || []),
+        referenced_object_id: referencedObjectId,
+        referenced_columns: c.referenced_columns?.length ? JSON.stringify(c.referenced_columns) : null,
+        metadata: JSON.stringify({
+          update_rule: c.update_rule,
+          delete_rule: c.delete_rule
+        })
+      };
+    });
+
+    const { error } = await supabase
+      .schema('metadata')
+      .from('constraints')
+      .insert(constraintsData);
+
+    if (error) {
+      console.error('Error storing constraints:', error);
+      console.error('Constraints data:', constraintsData);
+      throw error;
+    }
+    
+    console.log(`✅ Stored ${constraints.length} constraints for object ${objectId}`);
   }
 
   async storeDependency(depData: any): Promise<void> {

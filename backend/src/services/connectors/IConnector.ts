@@ -15,6 +15,19 @@ export interface ExtractedObjectColumn {
   data_type?: string;
   is_nullable?: boolean;
   position?: number;
+  is_primary_key?: boolean;
+  is_foreign_key?: boolean;
+}
+
+export interface ExtractedConstraint {
+  constraint_name: string;
+  constraint_type: 'PRIMARY KEY' | 'FOREIGN KEY' | 'UNIQUE' | 'CHECK';
+  columns: string[];
+  referenced_table?: string;
+  referenced_schema?: string;
+  referenced_columns?: string[];
+  update_rule?: string;
+  delete_rule?: string;
 }
 
 export interface ExtractedObject {
@@ -24,6 +37,7 @@ export interface ExtractedObject {
   object_type: 'table' | 'view' | 'function' | 'procedure';
   definition?: string;
   columns?: ExtractedObjectColumn[];
+  constraints?: ExtractedConstraint[];
 }
 
 export interface ExtractionResult {

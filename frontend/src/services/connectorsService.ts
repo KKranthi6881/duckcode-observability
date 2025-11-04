@@ -5,6 +5,7 @@ export interface ConnectorItem {
   name: string;
   type: string;
   organization_id: string;
+  config?: Record<string, unknown>;
   status?: string;
   created_at?: string;
   last_sync_at?: string | null;
@@ -35,6 +36,7 @@ export interface CreateSnowflakeRequest {
     warehouse?: string;
     database?: string;
     schema?: string;
+    passcode?: string;
   };
 }
 
@@ -81,14 +83,16 @@ class ConnectorsService {
     return json.connector as ConnectorItem;
   }
 
-  async test(id: string): Promise<{ success: boolean }> {
+  async test(id: string): Promise<void> {
     const t = await this.token();
     const res = await fetch(`${this.baseUrl}/api/connectors/${id}/test`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${t}` },
     });
-    if (!res.ok) throw new Error('Test failed');
-    return { success: true };
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.message || error.error || 'Test failed');
+    }
   }
 
   async extract(id: string): Promise<{ success: boolean }> {
@@ -109,6 +113,36 @@ class ConnectorsService {
     if (!res.ok) throw new Error('Failed to load history');
     const json = await res.json();
     return (json.history || []) as ConnectorHistoryRow[];
+  }
+
+  async delete(id: string): Promise<void> {
+    const t = await this.token();
+    const res = await fetch(`${this.baseUrl}/api/connectors/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${t}` },
+    });
+    if (!res.ok) throw new Error('Failed to delete connector');
+  }
+
+  async update(id: string, data: { name?: string; config?: any }): Promise<ConnectorItem> {
+    const t = await this.token();
+    const res = await fetch(`${this.baseUrl}/api/connectors/${id}`, {
+      method: 'PATCH',
+      headers: { 'Authorization': `Bearer ${t}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error('Failed to update connector');
+    const json = await res.json();
+    return json.connector as ConnectorItem;
+  }
+
+  async getStatus(id: string): Promise<{ status: string; job: ConnectorHistoryRow | null }> {
+    const t = await this.token();
+    const res = await fetch(`${this.baseUrl}/api/connectors/${id}/status`, {
+      headers: { 'Authorization': `Bearer ${t}` },
+    });
+    if (!res.ok) throw new Error('Failed to get status');
+    return await res.json();
   }
 }
 
