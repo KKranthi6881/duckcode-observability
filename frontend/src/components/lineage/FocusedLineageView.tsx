@@ -47,6 +47,8 @@ interface FocusedLineageViewProps {
   initialModelId?: string;
   onDataUpdate?: (data: { nodes: Node[]; edges: Edge[]; columnLineages: ColumnLineage[] }) => void;
   hideHeader?: boolean;
+  useUnifiedApi?: boolean;
+  organizationId?: string;
 }
 
 const nodeTypes: NodeTypes = {
@@ -89,14 +91,16 @@ interface FocusedLineageApiResponse {
   edges: FocusedApiEdge[];
 }
 
-// Layout with dagre
+// Layout with dagre - Compact layout for better fit
 const getLayoutedElements = (nodes: Node[], edges: Edge[]) => {
   const dagreGraph = new dagre.graphlib.Graph();
   dagreGraph.setDefaultEdgeLabel(() => ({}));
-  dagreGraph.setGraph({ rankdir: 'LR', ranksep: 200, nodesep: 80 });
+  // Reduced spacing: ranksep 120 (was 200), nodesep 50 (was 80)
+  dagreGraph.setGraph({ rankdir: 'LR', ranksep: 120, nodesep: 50 });
 
   nodes.forEach((node) => {
-    dagreGraph.setNode(node.id, { width: 300, height: 100 });
+    // Smaller node dimensions: 250x80 (was 300x100)
+    dagreGraph.setNode(node.id, { width: 250, height: 80 });
   });
 
   edges.forEach((edge) => {
@@ -111,8 +115,8 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[]) => {
     node.targetPosition = Position.Left;
     node.sourcePosition = Position.Right;
     node.position = {
-      x: nodeWithPosition.x - 150,
-      y: nodeWithPosition.y - 50,
+      x: nodeWithPosition.x - 125, // Adjusted for smaller width
+      y: nodeWithPosition.y - 40,  // Adjusted for smaller height
     };
   });
 
@@ -120,7 +124,7 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[]) => {
 };
 
 // Inner component with ReactFlow context
-function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate, hideHeader }: FocusedLineageViewProps) {
+function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate, hideHeader, useUnifiedApi, organizationId: propOrganizationId }: FocusedLineageViewProps) {
   const reactFlowInstance = useReactFlow();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -426,8 +430,12 @@ function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate,
   // Fetch columns for a model
   const fetchColumns = useCallback(async (nodeId: string) => {
     try {
+      console.log('[FocusedLineage] Fetching columns for node:', nodeId);
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
+      if (!session) {
+        console.error('[FocusedLineage] No session found');
+        return;
+      }
 
       const response = await fetch(
         `${import.meta.env.VITE_API_URL}/api/metadata/lineage/columns/${nodeId}?limit=50`,
@@ -439,8 +447,11 @@ function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate,
         }
       );
 
+      console.log('[FocusedLineage] Column fetch response status:', response.status);
+
       if (response.ok) {
         const data: { columns: Column[]; columnLineages: ColumnLineage[] } = await response.json();
+        console.log('[FocusedLineage] Fetched columns:', data.columns?.length, 'lineages:', data.columnLineages?.length);
         
         const columnsWithLineages: Column[] = data.columns.map((column: Column) => {
           const columnLineages = data.columnLineages.filter((lineage: ColumnLineage) => 
@@ -470,9 +481,44 @@ function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate,
               : node
           )
         );
+      } else {
+        const errorText = await response.text();
+        console.error('[FocusedLineage] Failed to fetch columns:', response.status, errorText);
+        // Still mark as expanded but with no columns
+        setNodes((nds) =>
+          nds.map((node) =>
+            node.id === nodeId
+              ? {
+                  ...node,
+                  data: {
+                    ...node.data,
+                    columns: [],
+                    expanded: true,
+                    loading: false
+                  }
+                }
+              : node
+          )
+        );
       }
     } catch (err) {
-      console.error('Error fetching columns:', err);
+      console.error('[FocusedLineage] Error fetching columns:', err);
+      // Still mark as expanded but with no columns
+      setNodes((nds) =>
+        nds.map((node) =>
+          node.id === nodeId
+            ? {
+                ...node,
+                data: {
+                  ...node.data,
+                  columns: [],
+                  expanded: true,
+                  loading: false
+                }
+              }
+            : node
+        )
+      );
     }
   }, [setNodes]);
 
@@ -672,23 +718,57 @@ function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate,
         return;
       }
 
-      console.log(`[FocusedLineage] Fetching with limits: upstream=${upstreamLimit}, downstream=${downstreamLimit}`);
+      console.log(`[FocusedLineage] Fetching with limits: upstream=${upstreamLimit}, downstream=${downstreamLimit}, useUnifiedApi=${useUnifiedApi}`);
 
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/metadata/lineage/focused/${connectionId}/${modelId}?upstreamLimit=${upstreamLimit}&downstreamLimit=${downstreamLimit}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json'
-          }
+      // Use unified API for Snowflake/connector objects, or GitHub API for dbt
+      const apiUrl = useUnifiedApi
+        ? `${import.meta.env.VITE_API_URL}/api/lineage/unified/${modelId}?depth=3&direction=both`
+        : `${import.meta.env.VITE_API_URL}/api/metadata/lineage/focused/${connectionId}/${modelId}?upstreamLimit=${upstreamLimit}&downstreamLimit=${downstreamLimit}`;
+
+      const response = await fetch(apiUrl, {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
         }
-      );
+      });
 
       if (!response.ok) {
         throw new Error('Failed to fetch focused lineage');
       }
 
-      const data: FocusedLineageApiResponse & { metadata?: any } = await response.json();
+      let data: FocusedLineageApiResponse & { metadata?: any };
+      
+      if (useUnifiedApi) {
+        // Transform unified API response to FocusedLineageApiResponse format
+        const unifiedData = await response.json();
+        console.log('[FocusedLineage] Unified API response:', unifiedData);
+        
+        data = {
+          nodes: unifiedData.nodes.map((node: any) => ({
+            id: node.id,
+            name: node.name,
+            type: node.type,
+            source: node.source, // Primary source: 'dbt', 'snowflake', etc.
+            sources: node.sources || [node.source], // All sources if multiple
+            description: node.metadata?.description || '',
+            filePath: node.fqn,
+            metadata: node.metadata || {},
+            stats: {
+              upstreamCount: 0,
+              downstreamCount: 0
+            },
+            isFocal: node.id === modelId
+          })),
+          edges: unifiedData.edges.map((edge: any) => ({
+            id: edge.id || `${edge.source}-${edge.target}`,
+            source: edge.source,
+            target: edge.target,
+            type: edge.relationship_type || 'dependency' // FK, dependency, etc.
+          }))
+        };
+      } else {
+        data = await response.json();
+      }
       
       // Store metadata for expand buttons
       if (data.metadata) {
@@ -860,6 +940,11 @@ function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate,
       if (focal) {
         handleExpand(focal.id);
       }
+
+      // Auto-fit view after layout
+      setTimeout(() => {
+        reactFlowInstance.fitView({ padding: 0.2, duration: 400 });
+      }, 100);
 
     } catch (err) {
       console.error('[FocusedLineage] Error:', err);

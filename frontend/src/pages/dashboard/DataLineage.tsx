@@ -22,7 +22,7 @@ interface SearchResult {
 export function DataLineage() {
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [connectionId, setConnectionId] = useState<string>('');
+  const [connectionId, setConnectionId] = useState<string | null>(null);
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchType, setSearchType] = useState<'all' | 'models' | 'columns' | 'tables'>('all');
@@ -405,40 +405,47 @@ export function DataLineage() {
       try {
         console.log('Fetching connection ID for model:', result.id);
         
-        // Query the object to get repository_id, then get connection_id from repository
+        // Query the object to get repository_id and source_type
         const { data: objectData, error: objError } = await supabase
           .schema('metadata')
           .from('objects')
-          .select('repository_id')
+          .select('repository_id, source_type')
           .eq('id', result.id)
           .single();
 
-        if (objError || !objectData?.repository_id) {
-          console.error('Failed to get repository_id:', objError);
-          alert('Could not find repository for this model');
+        if (objError) {
+          console.error('Failed to get object data:', objError);
+          alert('Could not find object metadata');
           setSelectedModel(null);
           return;
         }
 
-        console.log('Repository ID:', objectData.repository_id);
+        console.log('Object data:', objectData);
 
-        // Get connection_id from repository
-        const { data: repoData, error: repoError } = await supabase
-          .schema('metadata')
-          .from('repositories')
-          .select('connection_id')
-          .eq('id', objectData.repository_id)
-          .single();
+        // For Snowflake/connector objects, connection_id is optional
+        if (objectData.source_type === 'snowflake' || !objectData.repository_id) {
+          console.log('Snowflake object detected - showing lineage without connection_id');
+          setConnectionId(null); // Lineage will work without connection_id
+          // Continue to show lineage
+        } else {
+          // For GitHub/dbt objects, get connection_id from repository
+          const { data: repoData, error: repoError } = await supabase
+            .schema('metadata')
+            .from('repositories')
+            .select('connection_id')
+            .eq('id', objectData.repository_id)
+            .single();
 
-        if (repoError || !repoData?.connection_id) {
-          console.error('Failed to get connection_id:', repoError);
-          alert('Could not find connection for this repository');
-          setSelectedModel(null);
-          return;
+          if (repoError || !repoData?.connection_id) {
+            console.error('Failed to get connection_id:', repoError);
+            alert('Could not find connection for this repository');
+            setSelectedModel(null);
+            return;
+          }
+
+          console.log('Connection ID:', repoData.connection_id);
+          setConnectionId(repoData.connection_id);
         }
-
-        console.log('Connection ID:', repoData.connection_id);
-        setConnectionId(repoData.connection_id);
         
       } catch (error) {
         console.error('Error fetching connection:', error);
@@ -458,12 +465,13 @@ export function DataLineage() {
           return;
         }
         
-        // Query to get the parent object's repository_id
+        // Query to get the parent object's repository_id and organization_id
         const { data: parentObject, error: parentError } = await supabase
           .schema('metadata')
           .from('objects')
-          .select('id, repository_id')
+          .select('id, repository_id, organization_id')
           .eq('id', objectId)
+          .eq('organization_id', organizationId)
           .single();
 
         if (parentError || !parentObject) {
@@ -472,27 +480,35 @@ export function DataLineage() {
           return;
         }
 
-        console.log('Parent model found:', parentObject.id);
+        console.log('Parent model found:', parentObject.id, 'repository_id:', parentObject.repository_id);
 
-        // Get connection_id from repository
-        const { data: repoData, error: repoError } = await supabase
-          .schema('metadata')
-          .from('repositories')
-          .select('connection_id')
-          .eq('id', parentObject.repository_id)
-          .single();
+        // Check if this is a Snowflake object (no repository_id)
+        if (!parentObject.repository_id) {
+          console.log('Snowflake column detected - showing lineage without connection_id');
+          setSelectedModel(parentObject.id);
+          setConnectionId(null);
+        } else {
+          // Get connection_id from repository for GitHub objects
+          console.log('GitHub object detected - fetching connection_id from repository:', parentObject.repository_id);
+          const { data: repoData, error: repoError } = await supabase
+            .schema('metadata')
+            .from('repositories')
+            .select('connection_id')
+            .eq('id', parentObject.repository_id)
+            .single();
 
-        if (repoError || !repoData?.connection_id) {
-          console.error('Failed to get connection_id:', repoError);
-          alert('Could not find connection for this repository');
-          return;
+          if (repoError || !repoData?.connection_id) {
+            console.error('Failed to get connection_id:', repoError);
+            alert('Could not find connection for this repository');
+            return;
+          }
+
+          console.log('Connection ID:', repoData.connection_id);
+          
+          // Set the parent model as selected to show its lineage
+          setSelectedModel(parentObject.id);
+          setConnectionId(repoData.connection_id);
         }
-
-        console.log('Connection ID:', repoData.connection_id);
-        
-        // Set the parent model as selected to show its lineage
-        setSelectedModel(parentObject.id);
-        setConnectionId(repoData.connection_id);
         
       } catch (error) {
         console.error('Error loading column lineage:', error);
@@ -505,7 +521,7 @@ export function DataLineage() {
     <div className="h-screen flex flex-col bg-gradient-to-br from-gray-50 to-gray-100">
       {/* AI-Style Central Search - Always visible */}
       <div className={`flex-shrink-0 flex items-center justify-center px-6 transition-all duration-300 ${
-        selectedModel && connectionId ? 'py-4' : 'py-12'
+        selectedModel ? 'py-4' : 'py-12'
       }`}>
         <div className="w-full max-w-4xl">
           {/* Header - Only show when no lineage */}
@@ -651,13 +667,15 @@ export function DataLineage() {
       </div>
 
       {/* Lineage View */}
-      {selectedModel && connectionId && (
+      {selectedModel && (
         <div className="flex-1 overflow-hidden px-6 pb-6">
           <div className="h-full bg-white rounded-2xl shadow-xl overflow-hidden">
             <FocusedLineageView 
-              connectionId={connectionId}
+              connectionId={connectionId || 'unified'}
               initialModelId={selectedModel}
               hideHeader={false}
+              useUnifiedApi={!connectionId}
+              organizationId={organizationId}
             />
           </div>
         </div>

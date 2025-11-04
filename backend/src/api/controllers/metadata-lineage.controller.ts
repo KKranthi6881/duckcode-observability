@@ -287,8 +287,8 @@ export async function getColumnLineage(req: AuthenticatedRequest, res: Response)
     });
 
   } catch (error: any) {
-    console.error('[ColumnLineage] ❌ Error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('[ColumnLineage] Error:', error);
+    res.status(500).json({ error: 'Failed to fetch column lineage' });
   }
 }
 
@@ -1087,5 +1087,124 @@ export async function getLineageByFilePath(req: AuthenticatedRequest, res: Respo
       error: 'Internal server error',
       message: error.message 
     });
+  }
+}
+
+/**
+ * Get unified lineage graph (both dbt and Snowflake sources)
+ * Returns nodes and edges for all sources in the organization
+ */
+export async function getUnifiedLineage(req: AuthenticatedRequest, res: Response) {
+  try {
+    const organizationId = req.user.organization_id;
+    const { sourceFilter } = req.query; // Optional: 'dbt', 'snowflake', or 'all'
+
+    console.log(`[UnifiedLineage] Fetching for org: ${organizationId}, filter: ${sourceFilter || 'all'}`);
+
+    // Build query with optional source filter
+    let query = supabase
+      .schema('metadata')
+      .from('objects')
+      .select(`
+        id,
+        name,
+        schema_name,
+        database_name,
+        object_type,
+        source_type,
+        fqn,
+        description,
+        metadata,
+        connection_id,
+        connector_id
+      `)
+      .eq('organization_id', organizationId);
+
+    // Apply source filter if specified
+    if (sourceFilter && sourceFilter !== 'all') {
+      query = query.eq('source_type', sourceFilter);
+    }
+
+    const { data: objects, error: objectsError } = await query.order('name');
+
+    if (objectsError) {
+      console.error('[UnifiedLineage] Error fetching objects:', objectsError);
+      return res.status(500).json({ error: 'Failed to fetch objects' });
+    }
+
+    // Get all dependencies for this organization
+    const { data: dependencies, error: depsError } = await supabase
+      .schema('metadata')
+      .from('dependencies')
+      .select(`
+        id,
+        source_object_id,
+        target_object_id,
+        dependency_type,
+        confidence,
+        metadata
+      `)
+      .eq('organization_id', organizationId);
+
+    if (depsError) {
+      console.error('[UnifiedLineage] Error fetching dependencies:', depsError);
+      return res.status(500).json({ error: 'Failed to fetch dependencies' });
+    }
+
+    // Build nodes with source type badges
+    const nodes = (objects || []).map(obj => ({
+      id: obj.id,
+      name: obj.name,
+      schema: obj.schema_name,
+      database: obj.database_name,
+      type: obj.object_type,
+      source: obj.source_type || 'dbt',
+      fqn: obj.fqn,
+      description: obj.description,
+      metadata: obj.metadata,
+      connectionId: obj.connection_id,
+      connectorId: obj.connector_id,
+      stats: {
+        upstreamCount: (dependencies || []).filter(d => d.target_object_id === obj.id).length,
+        downstreamCount: (dependencies || []).filter(d => d.source_object_id === obj.id).length
+      }
+    }));
+
+    // Build edges
+    const edges = (dependencies || []).map(dep => ({
+      id: dep.id,
+      source: dep.source_object_id,
+      target: dep.target_object_id,
+      type: dep.dependency_type,
+      confidence: dep.confidence,
+      metadata: dep.metadata
+    }));
+
+    // Calculate statistics by source type
+    const stats = {
+      total: nodes.length,
+      bySource: {
+        dbt: nodes.filter(n => n.source === 'dbt').length,
+        snowflake: nodes.filter(n => n.source === 'snowflake').length,
+        other: nodes.filter(n => n.source && n.source !== 'dbt' && n.source !== 'snowflake').length
+      },
+      dependencies: edges.length,
+      crossSourceDeps: edges.filter(e => {
+        const sourceNode = nodes.find(n => n.id === e.source);
+        const targetNode = nodes.find(n => n.id === e.target);
+        return sourceNode && targetNode && sourceNode.source !== targetNode.source;
+      }).length
+    };
+
+    console.log(`[UnifiedLineage] ✅ Found ${nodes.length} objects (dbt: ${stats.bySource.dbt}, snowflake: ${stats.bySource.snowflake}), ${edges.length} dependencies (cross-source: ${stats.crossSourceDeps})`);
+
+    res.json({
+      nodes,
+      edges,
+      stats
+    });
+  } catch (error) {
+    console.error('[UnifiedLineage] Error:', error);
+    res.status(500).json({ error: 'Failed to fetch unified lineage' });
   }
 }

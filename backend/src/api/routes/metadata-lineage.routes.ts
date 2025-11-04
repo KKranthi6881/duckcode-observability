@@ -1,18 +1,24 @@
-import express, { Request, Response } from 'express';
-import {
-  getModelLineage,
+import { Router } from 'express';
+import { requireAuth } from '../middlewares/auth.middleware';
+import { 
+  getModelLineage, 
   getModelColumns,
   getColumnLineage,
-  getLineageStats,
-  getFocusedLineage,
-  getLineageByFilePath
+  getLineageByFilePath,
+  getUnifiedLineage
 } from '../controllers/metadata-lineage.controller';
-import { requireAuth } from '../middlewares/auth.middleware';
 
-const router = express.Router();
+const router = Router();
 
 // Apply authentication to all routes
 router.use(requireAuth);
+
+/**
+ * @route GET /api/metadata/lineage/unified
+ * @desc Unified lineage (both dbt and Snowflake sources)
+ * @access Private
+ */
+router.get('/unified', getUnifiedLineage as any);
 
 /**
  * @route GET /api/metadata/lineage/by-file/:connectionId
@@ -23,41 +29,24 @@ router.use(requireAuth);
 router.get('/by-file/:connectionId', getLineageByFilePath as any);
 
 /**
- * @route GET /api/metadata/lineage/model/:connectionId
- * @desc Get model-level lineage graph (nodes + edges)
+ * @route GET /api/metadata/lineage/:connectionId
+ * @desc Model-level lineage for a connection
  * @access Private
  */
-router.get('/model/:connectionId', getModelLineage as any);
-
-/**
- * @route GET /api/metadata/lineage/focused/:connectionId/:modelId
- * @desc Get focused lineage for a specific model with upstream/downstream
- * @query upstreamLimit, downstreamLimit - Number of models to fetch in each direction (default: 5)
- * @access Private
- */
-router.get('/focused/:connectionId/:modelId', getFocusedLineage as any);
+router.get('/:connectionId', getModelLineage as any);
 
 /**
  * @route GET /api/metadata/lineage/columns/:objectId
- * @desc Get columns for a model (for expansion)
- * @query limit, offset - Pagination
+ * @desc Get columns for a specific object (for expansion)
  * @access Private
  */
 router.get('/columns/:objectId', getModelColumns as any);
 
 /**
- * @route GET /api/metadata/lineage/column/:objectId/:columnName
- * @desc Get full column lineage path
- * @query direction - upstream, downstream, both
+ * @route GET /api/metadata/lineage/:connectionId/columns/:objectId/:columnName
+ * @desc Column-level lineage for a specific object and column
  * @access Private
  */
-router.get('/column/:objectId/:columnName', getColumnLineage as any);
-
-/**
- * @route GET /api/metadata/lineage/stats/:connectionId
- * @desc Get lineage statistics
- * @access Private
- */
-router.get('/stats/:connectionId', getLineageStats as any);
+router.get('/:connectionId/columns/:objectId/:columnName', getColumnLineage as any);
 
 export default router;

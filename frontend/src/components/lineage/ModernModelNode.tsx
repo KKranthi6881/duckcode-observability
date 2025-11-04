@@ -1,7 +1,7 @@
 import { memo, useState, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Handle, Position, NodeProps } from 'reactflow';
-import { ChevronDown, Loader2, Database, Table2, FileText, Focus } from 'lucide-react';
+import { ChevronDown, Loader2, Database, Table2, FileText, Focus, Cloud, GitBranch } from 'lucide-react';
 import { ModelTooltip } from './ModelTooltip';
 
 interface ColumnLineage {
@@ -25,6 +25,11 @@ interface ModelNodeData {
   id: string;
   name: string;
   type: string;
+  source?: 'dbt' | 'snowflake' | string; // Primary source type for unified lineage
+  sources?: string[]; // All sources if object exists in multiple systems
+  schema?: string;
+  database?: string;
+  fqn?: string;
   description?: string;
   filePath?: string;
   updatedAt?: string;
@@ -158,7 +163,7 @@ function ModernModelNode({ data }: NodeProps<ModelNodeData>) {
     <div
       ref={nodeRef}
       className={`
-        bg-white rounded-lg transition-all duration-200 min-w-[320px] max-w-[400px] relative
+        bg-white rounded-lg transition-all duration-200 min-w-[240px] max-w-[280px] relative
         ${data.isFocal ? 'shadow-lg border-2 border-blue-400' : 'shadow-md hover:shadow-lg border-2 border-gray-200'}
       `}
     >
@@ -199,23 +204,45 @@ function ModernModelNode({ data }: NodeProps<ModelNodeData>) {
       
       {/* Model Header - tooltip only shows when hovering this area */}
       <div
-        className="p-4 cursor-pointer transition-all duration-200 hover:bg-gray-50 rounded-t-lg border-b border-gray-200"
+        className="p-2.5 cursor-pointer transition-all duration-200 hover:bg-gray-50 rounded-t-lg border-b border-gray-200"
         onClick={handleToggle}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           {/* Icon */}
-          <div className={`${typeConfig.bgColor} p-2 rounded-md flex items-center justify-center`}>
-            <Icon className="w-4 h-4 text-white" />
+          <div className={`${typeConfig.bgColor} p-1.5 rounded-md flex items-center justify-center`}>
+            <Icon className="w-3.5 h-3.5 text-white" />
           </div>
           
           {/* Content */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="font-semibold text-sm text-gray-900 truncate">
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <div className="font-semibold text-xs text-gray-900 truncate">
                 {data.name}
               </div>
+              {/* Source Type Badge with Icon(s) - Shows multiple sources if available */}
+              {(data.sources && data.sources.length > 0 ? data.sources : data.source ? [data.source] : []).length > 0 && (
+                <div className="flex-shrink-0 flex items-center gap-1">
+                  {(data.sources && data.sources.length > 0 ? data.sources : [data.source!]).map((src, idx) => (
+                    <div 
+                      key={idx}
+                      className={`flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${
+                        src === 'snowflake' 
+                          ? 'bg-cyan-50 text-cyan-700 border border-cyan-200' 
+                          : src === 'dbt'
+                          ? 'bg-orange-50 text-orange-700 border border-orange-200'
+                          : 'bg-gray-100 text-gray-700 border border-gray-200'
+                      }`}
+                      title={`Source: ${src.toUpperCase()}`}
+                    >
+                      {src === 'snowflake' && <Cloud className="w-3 h-3" />}
+                      {src === 'dbt' && <GitBranch className="w-3 h-3" />}
+                      <span className="text-[9px]">{src.toUpperCase()}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
               {data.isFocal && (
                 <div className="flex-shrink-0 bg-blue-500 text-white text-[10px] px-2 py-0.5 rounded-full font-semibold">
                   ✓
@@ -267,25 +294,25 @@ function ModernModelNode({ data }: NodeProps<ModelNodeData>) {
 
       {/* Expanded Columns */}
       {data.expanded && (
-        <div className="p-4">
+        <div className="p-2.5">
           {data.loading ? (
-            <div className="flex items-center justify-center py-6">
-              <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
-              <span className="ml-3 text-sm text-gray-600 font-medium">Loading columns...</span>
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
+              <span className="ml-2 text-xs text-gray-600 font-medium">Loading columns...</span>
             </div>
           ) : columns.length === 0 ? (
-            <div className="text-sm text-gray-500 text-center py-4 font-medium">
+            <div className="text-xs text-gray-500 text-center py-3 font-medium">
               No columns found
             </div>
           ) : (
             <>
-              <div className="mb-3">
-                <div className="text-xs font-semibold text-gray-600 mb-2">
+              <div className="mb-2">
+                <div className="text-[10px] font-semibold text-gray-600 mb-1.5">
                   {columns.length} columns
                 </div>
               </div>
               
-              <div className="space-y-2 max-h-[450px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+              <div className="space-y-1.5 max-h-[300px] overflow-y-auto pr-1.5 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
                 {visibleColumns.map((column) => {
                   const lineageType = getColumnLineageType(column);
                   const isHovered = hoveredColumn === column.id;
@@ -296,7 +323,7 @@ function ModernModelNode({ data }: NodeProps<ModelNodeData>) {
                       onMouseEnter={() => handleColumnHover(column.id, column.lineages || [])}
                       onMouseLeave={() => handleColumnHover(null)}
                       className={`
-                        relative p-2.5 rounded border transition-all duration-200 cursor-pointer
+                        relative p-1.5 rounded border transition-all duration-200 cursor-pointer
                         ${isHovered 
                           ? 'bg-blue-50 border-blue-300' 
                           : 'bg-white border-gray-200 hover:border-gray-300'
