@@ -164,17 +164,15 @@ const RegisterPage: React.FC = () => {
 
   if (redirecting) {
     return (
-      <div style={{ maxWidth: '400px', margin: '0 auto', padding: '40px 20px' }}>
-        <div style={{ backgroundColor: 'white', borderRadius: '8px', padding: '24px', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)', textAlign: 'center' }}>
-          <div style={{ marginBottom: '16px' }}>
-            <div style={{ display: 'inline-block', width: '48px', height: '48px', border: '4px solid #f3f3f3', borderTop: '4px solid #2AB7A9', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
-          </div>
-          <h2 style={{ fontSize: '20px', fontWeight: 'bold', color: '#333', marginBottom: '8px' }}>Success! Redirecting to IDE...</h2>
-          <p style={{ fontSize: '14px', color: '#666', marginBottom: '16px' }}>
+      <div className="min-h-screen bg-[#f5f1e9] flex items-center justify-center px-4 py-12">
+        <div className="w-full max-w-md rounded-[32px] border-2 border-[#e1dcd3] bg-white p-8 shadow-xl text-center">
+          <div className="mb-6 inline-flex items-center justify-center w-16 h-16 rounded-full border-4 border-[#f8f4ec] border-t-[#ff6a3c] animate-spin"></div>
+          <h2 className="text-2xl font-bold text-[#0d0c0a] mb-3">Success! Redirecting to IDE...</h2>
+          <p className="text-base text-[#59544c] mb-6">
             Your browser will ask to open VS Code. Click "Open" to complete authentication.
           </p>
-          <div style={{ padding: '12px', backgroundColor: '#f0f9ff', borderRadius: '4px', border: '1px solid #bfdbfe' }}>
-            <p style={{ fontSize: '12px', color: '#1e40af', margin: 0 }}>
+          <div className="p-4 rounded-2xl bg-blue-50 border-2 border-blue-200">
+            <p className="text-sm text-blue-700">
               💡 If nothing happens, make sure VS Code is running and try clicking "Sign In" from the IDE.
             </p>
           </div>
@@ -184,210 +182,181 @@ const RegisterPage: React.FC = () => {
   }
 
   return (
-    <div style={{ maxWidth: '400px', margin: '0 auto', padding: '40px 20px' }}>
-      <div style={{ backgroundColor: 'white', borderRadius: '8px', padding: '24px', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)' }}>
-        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-          <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#333', marginBottom: '8px' }}>Create your account</h2>
-          <p style={{ fontSize: '14px', color: '#666' }}>{isIdeFlow ? 'Sign up to use DuckCode IDE' : 'Get started with DuckCode'}</p>
+    <div className="min-h-screen bg-[#f5f1e9] flex items-center justify-center px-4 py-12">
+      <div className="w-full max-w-md">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-r from-[#ff6a3c] to-[#d94a1e] mb-4 shadow-lg">
+            <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
+            </svg>
+          </div>
+          <h2 className="text-4xl font-bold text-[#0d0c0a] mb-2">Create your account</h2>
+          <p className="text-base text-[#59544c]">{isIdeFlow ? 'Sign up to use DuckCode IDE' : 'Get started with DuckCode'}</p>
         </div>
+
+        {/* Form Card */}
+        <div className="rounded-[32px] border-2 border-[#e1dcd3] bg-white p-8 shadow-xl">
         
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: '16px' }}>
-            <label htmlFor="fullName" style={{ fontSize: '14px', fontWeight: '500', color: '#333', display: 'block', marginBottom: '6px' }}>
-              Full name
-            </label>
-            <input
-              type="text"
-              id="fullName"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              required
-              style={{ 
-                width: '100%', 
-                padding: '8px 12px',
-                borderRadius: '4px',
-                border: '1px solid #ddd',
-                fontSize: '14px'
-              }}
-              placeholder="Jane Doe"
-            />
-          </div>
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label htmlFor="fullName" className="block text-sm font-semibold text-[#161413] mb-2">
+                Full name
+              </label>
+              <input
+                type="text"
+                id="fullName"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                required
+                className="w-full px-4 py-3 rounded-2xl border-2 border-[#d6d2c9] bg-white text-base text-[#161413] transition focus:border-[#ff6a3c] focus:outline-none focus:ring-4 focus:ring-[#ff6a3c]/20"
+                placeholder="Jane Doe"
+              />
+            </div>
 
-          <div style={{ marginBottom: '16px' }}>
-            <label htmlFor="organizationName" style={{ fontSize: '14px', fontWeight: '500', color: '#333', display: 'block', marginBottom: '6px' }}>
-              Organization name
-            </label>
-            <input
-              type="text"
-              id="organizationName"
-              value={organizationName}
-              onChange={(e) => setOrganizationName(e.target.value)}
-              required
-              style={{ 
-                width: '100%', 
-                padding: '8px 12px',
-                borderRadius: '4px',
-                border: '1px solid #ddd',
-                fontSize: '14px'
-              }}
-              placeholder="Acme Inc"
-            />
-            <p style={{ fontSize: '12px', color: '#6B7280', marginTop: '4px', marginBottom: 0 }}>
-              This will be your workspace name
-            </p>
-          </div>
+            <div>
+              <label htmlFor="organizationName" className="block text-sm font-semibold text-[#161413] mb-2">
+                Organization name
+              </label>
+              <input
+                type="text"
+                id="organizationName"
+                value={organizationName}
+                onChange={(e) => setOrganizationName(e.target.value)}
+                required
+                className="w-full px-4 py-3 rounded-2xl border-2 border-[#d6d2c9] bg-white text-base text-[#161413] transition focus:border-[#ff6a3c] focus:outline-none focus:ring-4 focus:ring-[#ff6a3c]/20"
+                placeholder="Acme Inc"
+              />
+              <p className="text-xs text-[#7b7469] mt-2">
+                This will be your workspace name
+              </p>
+            </div>
 
-          <div style={{ marginBottom: '16px' }}>
-            <label htmlFor="email" style={{ fontSize: '14px', fontWeight: '500', color: '#333', display: 'block', marginBottom: '6px' }}>
-              Email address
-            </label>
-            <input
-              type="email"
-              id="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              style={{ 
-                width: '100%', 
-                padding: '8px 12px',
-                borderRadius: '4px',
-                border: '1px solid #ddd',
-                fontSize: '14px'
-              }}
-              placeholder="name@example.com"
-            />
-          </div>
+            <div>
+              <label htmlFor="email" className="block text-sm font-semibold text-[#161413] mb-2">
+                Email address
+              </label>
+              <input
+                type="email"
+                id="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="w-full px-4 py-3 rounded-2xl border-2 border-[#d6d2c9] bg-white text-base text-[#161413] transition focus:border-[#ff6a3c] focus:outline-none focus:ring-4 focus:ring-[#ff6a3c]/20"
+                placeholder="name@example.com"
+              />
+            </div>
 
-          <div style={{ marginBottom: '16px' }}>
-            <label htmlFor="password" style={{ fontSize: '14px', fontWeight: '500', color: '#333', display: 'block', marginBottom: '6px' }}>
-              Password
-            </label>
-            <input
-              type="password"
-              id="password"
-              value={password}
-              onChange={handlePasswordChange}
-              required
-              minLength={12}
-              style={{ 
-                width: '100%', 
-                padding: '8px 12px',
-                borderRadius: '4px',
-                border: passwordErrors.length > 0 && password.length > 0 ? '1px solid #EF4444' : '1px solid #ddd',
-                fontSize: '14px'
-              }}
-              placeholder="Enter a strong password"
-            />
-            
-            {/* Password requirements checklist */}
-            <div style={{ marginTop: '8px', fontSize: '12px' }}>
-              <div style={{ fontWeight: '500', color: '#374151', marginBottom: '4px' }}>Password must include:</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ color: password.length >= 12 ? '#10B981' : '#9CA3AF' }}>
-                    {password.length >= 12 ? '✓' : '○'}
-                  </span>
-                  <span style={{ color: password.length >= 12 ? '#10B981' : '#6B7280' }}>
-                    At least 12 characters
-                  </span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ color: /[A-Z]/.test(password) ? '#10B981' : '#9CA3AF' }}>
-                    {/[A-Z]/.test(password) ? '✓' : '○'}
-                  </span>
-                  <span style={{ color: /[A-Z]/.test(password) ? '#10B981' : '#6B7280' }}>
-                    One uppercase letter (A-Z)
-                  </span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ color: /[a-z]/.test(password) ? '#10B981' : '#9CA3AF' }}>
-                    {/[a-z]/.test(password) ? '✓' : '○'}
-                  </span>
-                  <span style={{ color: /[a-z]/.test(password) ? '#10B981' : '#6B7280' }}>
-                    One lowercase letter (a-z)
-                  </span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ color: /[0-9]/.test(password) ? '#10B981' : '#9CA3AF' }}>
-                    {/[0-9]/.test(password) ? '✓' : '○'}
-                  </span>
-                  <span style={{ color: /[0-9]/.test(password) ? '#10B981' : '#6B7280' }}>
-                    One number (0-9)
-                  </span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ color: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password) ? '#10B981' : '#9CA3AF' }}>
-                    {/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password) ? '✓' : '○'}
-                  </span>
-                  <span style={{ color: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password) ? '#10B981' : '#6B7280' }}>
-                    One special character (!@#$%^&*...)
-                  </span>
+            <div>
+              <label htmlFor="password" className="block text-sm font-semibold text-[#161413] mb-2">
+                Password
+              </label>
+              <input
+                type="password"
+                id="password"
+                value={password}
+                onChange={handlePasswordChange}
+                required
+                minLength={12}
+                className={`w-full px-4 py-3 rounded-2xl border-2 bg-white text-base text-[#161413] transition focus:outline-none focus:ring-4 focus:ring-[#ff6a3c]/20 ${
+                  passwordErrors.length > 0 && password.length > 0 
+                    ? 'border-red-400 focus:border-red-500' 
+                    : 'border-[#d6d2c9] focus:border-[#ff6a3c]'
+                }`}
+                placeholder="Enter a strong password"
+              />
+              
+              {/* Password requirements checklist */}
+              <div className="mt-3 space-y-2 text-xs">
+                <div className="font-semibold text-[#161413] mb-2">Password must include:</div>
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <span className={password.length >= 12 ? 'text-green-600' : 'text-gray-400'}>
+                      {password.length >= 12 ? '✓' : '○'}
+                    </span>
+                    <span className={password.length >= 12 ? 'text-green-600 font-medium' : 'text-[#7b7469]'}>
+                      At least 12 characters
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={/[A-Z]/.test(password) ? 'text-green-600' : 'text-gray-400'}>
+                      {/[A-Z]/.test(password) ? '✓' : '○'}
+                    </span>
+                    <span className={/[A-Z]/.test(password) ? 'text-green-600 font-medium' : 'text-[#7b7469]'}>
+                      One uppercase letter (A-Z)
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={/[a-z]/.test(password) ? 'text-green-600' : 'text-gray-400'}>
+                      {/[a-z]/.test(password) ? '✓' : '○'}
+                    </span>
+                    <span className={/[a-z]/.test(password) ? 'text-green-600 font-medium' : 'text-[#7b7469]'}>
+                      One lowercase letter (a-z)
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={/[0-9]/.test(password) ? 'text-green-600' : 'text-gray-400'}>
+                      {/[0-9]/.test(password) ? '✓' : '○'}
+                    </span>
+                    <span className={/[0-9]/.test(password) ? 'text-green-600 font-medium' : 'text-[#7b7469]'}>
+                      One number (0-9)
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password) ? 'text-green-600' : 'text-gray-400'}>
+                      {/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password) ? '✓' : '○'}
+                    </span>
+                    <span className={/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password) ? 'text-green-600 font-medium' : 'text-[#7b7469]'}>
+                      One special character (!@#$%^&*...)
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <div style={{ marginBottom: '16px' }}>
-            <label htmlFor="confirmPassword" style={{ fontSize: '14px', fontWeight: '500', color: '#333', display: 'block', marginBottom: '6px' }}>
-              Confirm password
-            </label>
-            <input
-              type="password"
-              id="confirmPassword"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              minLength={6}
-              style={{ 
-                width: '100%', 
-                padding: '8px 12px',
-                borderRadius: '4px',
-                border: '1px solid #ddd',
-                fontSize: '14px'
-              }}
-              placeholder="Confirm your password"
-            />
-          </div>
-          
-          {error && (
-            <div style={{ padding: '10px', marginBottom: '16px', backgroundColor: '#FEE2E2', border: '1px solid #FECACA', borderRadius: '4px' }}>
-              <p style={{ color: '#DC2626', fontSize: '14px', margin: 0 }}>{error}</p>
+            <div>
+              <label htmlFor="confirmPassword" className="block text-sm font-semibold text-[#161413] mb-2">
+                Confirm password
+              </label>
+              <input
+                type="password"
+                id="confirmPassword"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                minLength={6}
+                className="w-full px-4 py-3 rounded-2xl border-2 border-[#d6d2c9] bg-white text-base text-[#161413] transition focus:border-[#ff6a3c] focus:outline-none focus:ring-4 focus:ring-[#ff6a3c]/20"
+                placeholder="Confirm your password"
+              />
             </div>
-          )}
+            
+            {error && (
+              <div className="p-4 rounded-2xl bg-red-50 border-2 border-red-200">
+                <p className="text-sm font-medium text-red-600">{error}</p>
+              </div>
+            )}
+            
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full px-6 py-4 rounded-2xl bg-gradient-to-r from-[#ff6a3c] to-[#d94a1e] text-base font-bold text-white shadow-lg transition-all duration-300 hover:scale-[1.02] hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+            >
+              {isLoading ? 'Creating account...' : 'Create account'}
+            </button>
+          </form>
           
-          <button
-            type="submit"
-            disabled={isLoading}
-            style={{
-              width: '100%',
-              padding: '10px',
-              backgroundColor: '#2AB7A9',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              fontSize: '14px',
-              fontWeight: '500',
-              cursor: isLoading ? 'not-allowed' : 'pointer',
-              opacity: isLoading ? 0.7 : 1,
-              marginBottom: '16px'
-            }}
-          >
-            {isLoading ? 'Creating account...' : 'Create account'}
-          </button>
-        </form>
-        
-        <div style={{ textAlign: 'center', marginTop: '16px' }}>
-          <p style={{ fontSize: '14px', color: '#6B7280' }}>
-            Already have an account?{' '}
-            <Link to="/login" style={{ color: '#2AB7A9', textDecoration: 'none', fontWeight: '500' }}>
-              Sign in
-            </Link>
-          </p>
+          <div className="mt-6 text-center">
+            <p className="text-sm text-[#7b7469]">
+              Already have an account?{' '}
+              <Link to="/login" className="font-semibold text-[#ff6a3c] hover:text-[#d94a1e] transition">
+                Sign in
+              </Link>
+            </p>
+          </div>
         </div>
       </div>
     </div>
   );
-}
-;
+};
 
 export default RegisterPage;

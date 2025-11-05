@@ -146,144 +146,106 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    <div style={{ maxWidth: '400px', margin: '0 auto', padding: '40px 20px' }}>
-      <div style={{ backgroundColor: 'white', borderRadius: '8px', padding: '24px', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)' }}>
-        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-          <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#333', marginBottom: '8px' }}>Welcome Back</h2>
-          <p style={{ fontSize: '14px', color: '#666' }}>Sign in to your account</p>
-        </div>
-        
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: '16px' }}>
-            <label htmlFor="email" style={{ fontSize: '14px', fontWeight: '500', color: '#333', display: 'block', marginBottom: '6px' }}>
-              Email address
-            </label>
-            <input
-              type="email"
-              id="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              style={{ 
-                width: '100%', 
-                padding: '8px 12px',
-                borderRadius: '4px',
-                border: '1px solid #ddd',
-                fontSize: '14px'
-              }}
-              placeholder="name@example.com"
-            />
+    <div className="min-h-screen bg-[#f5f1e9] flex items-center justify-center px-4 py-12">
+      <div className="w-full max-w-md">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-r from-[#ff6a3c] to-[#d94a1e] mb-4 shadow-lg">
+            <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
+            </svg>
           </div>
-          
-          <div style={{ marginBottom: '16px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-              <label htmlFor="password" style={{ fontSize: '14px', fontWeight: '500', color: '#333' }}>
-                Password
+          <h2 className="text-4xl font-bold text-[#0d0c0a] mb-2">Welcome Back</h2>
+          <p className="text-base text-[#59544c]">Sign in to continue to DuckCode</p>
+        </div>
+
+        {/* Form Card */}
+        <div className="rounded-[32px] border-2 border-[#e1dcd3] bg-white p-8 shadow-xl">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label htmlFor="email" className="block text-sm font-semibold text-[#161413] mb-2">
+                Email address
               </label>
-              <Link to="/forgot-password" style={{ fontSize: '14px', color: '#2AB7A9', textDecoration: 'none' }}>
-                Forgot password?
+              <input
+                type="email"
+                id="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="w-full px-4 py-3 rounded-2xl border-2 border-[#d6d2c9] bg-white text-base text-[#161413] transition focus:border-[#ff6a3c] focus:outline-none focus:ring-4 focus:ring-[#ff6a3c]/20"
+                placeholder="name@example.com"
+              />
+            </div>
+            
+            <div>
+              <div className="flex justify-between items-center mb-2">
+                <label htmlFor="password" className="block text-sm font-semibold text-[#161413]">
+                  Password
+                </label>
+                <Link to="/forgot-password" className="text-sm font-medium text-[#ff6a3c] hover:text-[#d94a1e] transition">
+                  Forgot password?
+                </Link>
+              </div>
+              <input
+                type="password"
+                id="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="w-full px-4 py-3 rounded-2xl border-2 border-[#d6d2c9] bg-white text-base text-[#161413] transition focus:border-[#ff6a3c] focus:outline-none focus:ring-4 focus:ring-[#ff6a3c]/20"
+                placeholder="••••••••"
+              />
+            </div>
+            
+            {error && (
+              <div className="p-4 rounded-2xl bg-red-50 border-2 border-red-200">
+                <p className="text-sm font-medium text-red-600">{error}</p>
+              </div>
+            )}
+            
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full px-6 py-4 rounded-2xl bg-gradient-to-r from-[#ff6a3c] to-[#d94a1e] text-base font-bold text-white shadow-lg transition-all duration-300 hover:scale-[1.02] hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+            >
+              {isLoading ? 'Logging in...' : 'Sign in'}
+            </button>
+          </form>
+          
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-[#e1dcd3]"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-4 bg-white text-[#7b7469] font-medium">Or continue with</span>
+            </div>
+          </div>
+          
+          <div className="space-y-3">
+            <button
+              onClick={handleGitHubSignIn}
+              disabled={isLoading}
+              className="w-full px-6 py-3 rounded-2xl bg-white border-2 border-[#d6d2c9] text-base font-semibold text-[#161413] transition-all duration-300 hover:border-[#ff6a3c] hover:bg-[#fff4ee] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Sign in with GitHub
+            </button>
+            
+            <button
+              disabled={true}
+              className="w-full px-6 py-3 rounded-2xl bg-white border-2 border-[#e1dcd3] text-base font-semibold text-[#7b7469] cursor-not-allowed opacity-50"
+            >
+              Sign in with SSO (Coming soon)
+            </button>
+          </div>
+          
+          <div className="mt-6 text-center">
+            <p className="text-sm text-[#7b7469]">
+              Need an account?{' '}
+              <Link to="/register" className="font-semibold text-[#ff6a3c] hover:text-[#d94a1e] transition">
+                Sign up
               </Link>
-            </div>
-            <input
-              type="password"
-              id="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              style={{ 
-                width: '100%', 
-                padding: '8px 12px',
-                borderRadius: '4px',
-                border: '1px solid #ddd',
-                fontSize: '14px'
-              }}
-              placeholder="••••••••"
-            />
+            </p>
           </div>
-          
-          {error && (
-            <div style={{ padding: '10px', marginBottom: '16px', backgroundColor: '#FEE2E2', border: '1px solid #FECACA', borderRadius: '4px' }}>
-              <p style={{ color: '#DC2626', fontSize: '14px', margin: 0 }}>{error}</p>
-            </div>
-          )}
-          
-          <button
-            type="submit"
-            disabled={isLoading}
-            style={{
-              width: '100%',
-              padding: '10px',
-              backgroundColor: '#2AB7A9',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              fontSize: '14px',
-              fontWeight: '500',
-              cursor: isLoading ? 'not-allowed' : 'pointer',
-              opacity: isLoading ? 0.7 : 1
-            }}
-          >
-            {isLoading ? 'Logging in...' : 'Sign in'}
-          </button>
-        </form>
-        
-        <div style={{ position: 'relative', margin: '24px 0' }}>
-          <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: '1px', backgroundColor: '#e5e7eb' }}></div>
-          <div style={{ textAlign: 'center' }}>
-            <span style={{ backgroundColor: 'white', padding: '0 8px', position: 'relative', fontSize: '14px', color: '#6B7280' }}>
-              Or continue with
-            </span>
-          </div>
-        </div>
-        
-        <div style={{ display: 'grid', gap: '12px' }}>
-          <button
-            onClick={handleGitHubSignIn}
-            disabled={isLoading}
-            style={{
-              width: '100%',
-              padding: '10px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: 'white',
-              border: '1px solid #ddd',
-              borderRadius: '4px',
-              fontSize: '14px',
-              cursor: isLoading ? 'not-allowed' : 'pointer',
-              opacity: isLoading ? 0.7 : 1
-            }}
-          >
-            <span>Sign in with GitHub</span>
-          </button>
-          
-          <button
-            disabled={true}
-            style={{
-              width: '100%',
-              padding: '10px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: 'white',
-              border: '1px solid #ddd',
-              borderRadius: '4px',
-              fontSize: '14px',
-              cursor: 'not-allowed',
-              opacity: 0.7
-            }}
-          >
-            <span>Sign in with SSO</span>
-          </button>
-        </div>
-        
-        <div style={{ textAlign: 'center', marginTop: '16px' }}>
-          <p style={{ fontSize: '14px', color: '#6B7280' }}>
-            Need an account?{' '}
-            <Link to="/register" style={{ color: '#2AB7A9', textDecoration: 'none', fontWeight: '500' }}>
-              Sign up
-            </Link>
-          </p>
         </div>
       </div>
     </div>

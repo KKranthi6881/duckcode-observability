@@ -2,15 +2,6 @@ import { useState } from 'react';
 import { Menu, X, PlayCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-const NAV_LINKS = [
-  { label: 'Lineage', href: '#lineage' },
-  { label: 'Auto Architecture', href: '#architecture' },
-  { label: 'Auto Docs', href: '#documentation' },
-  { label: 'Snowflake + dbt', href: '#snowflake' },
-  { label: 'Why Duckcode', href: '#cta' },
-  { label: 'Resources', href: '#resources' }
-];
-
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -22,18 +13,9 @@ export function Header() {
           <span className="text-lg font-semibold text-slate-900">Duckcode.ai</span>
         </Link>
 
-        <nav className="hidden items-center gap-6 md:flex">
-          {NAV_LINKS.map(({ label, href }) => (
-            <a
-              key={label}
-              href={href}
-              className="text-sm font-medium text-[#5f594f] transition hover:text-[#161413]"
-            >
-              {label}
-            </a>
-          ))}
+        <nav className="hidden items-center gap-4 md:flex">
           <a
-            href="#lineage"
+            href="#demo"
             className="inline-flex items-center gap-2 rounded-full border border-[#bfb8ac] px-4 py-2 text-sm font-medium text-[#161413] transition hover:border-[#ff6a3c]"
           >
             <PlayCircle className="h-4 w-4" />
@@ -59,18 +41,8 @@ export function Header() {
       {isMenuOpen && (
         <div className="border-b border-[#e1dcd3] bg-[#f5f1e9] md:hidden">
           <div className="space-y-3 px-4 py-4">
-            {NAV_LINKS.map(({ label, href }) => (
-              <a
-                key={label}
-                href={href}
-                className="block rounded-lg px-3 py-2 text-base font-medium text-[#5f594f] transition hover:bg-[#f0ede5] hover:text-[#161413]"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                {label}
-              </a>
-            ))}
             <a
-              href="#lineage"
+              href="#demo"
               className="flex items-center justify-between rounded-lg border border-[#d6d2c9] px-3 py-2 text-base font-medium text-[#161413] transition hover:border-[#ff6a3c]"
               onClick={() => setIsMenuOpen(false)}
             >
