@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { requireAuth } from '../middlewares/auth.middleware';
+import { cacheMiddleware, invalidateCacheMiddleware } from '../../middlewares/cache.middleware';
 import { 
   createConnector, 
   listConnectors, 
@@ -79,18 +80,20 @@ router.post('/:id/extract', extractConnector);
 router.patch('/:id/schedule', updateConnectorSchedule);
 
 // Snowflake cost analysis endpoints (database-first with real-time fallback)
-router.get('/:id/cost/daily-credits', getDailyCredits); // Legacy: daily credits
-router.get('/:id/cost/overview', getCostOverviewFromDB); // Phase 1 - Complete overview from DB
-router.get('/:id/cost/warehouses', getWarehouseCosts);
-router.get('/:id/cost/tags', getCostByTags);
-router.get('/:id/cost/top-queries', getTopQueries);
-router.get('/:id/cost/filters', getFilters);
+// Cache for 5 minutes (300 seconds) for most queries, 10 minutes for expensive ones
+router.get('/:id/cost/overview', cacheMiddleware(300), getCostOverviewFromDB);
+router.get('/:id/cost/daily-credits', cacheMiddleware(300), getDailyCredits);
+router.get('/:id/cost/warehouses', cacheMiddleware(300), getWarehouseCosts);
+router.get('/:id/cost/tags', cacheMiddleware(300), getCostByTags);
+router.get('/:id/cost/top-queries', cacheMiddleware(180), getTopQueries); // 3 min cache
+router.get('/:id/cost/filters', cacheMiddleware(300), getFilters);
 
 // Phase 1: Storage & Waste Detection (database-first)
-router.get('/:id/cost/storage-usage', getStorageUsageFromDB); // Table-level storage from DB
-router.get('/:id/cost/storage-costs', getStorageCosts); // Historical storage costs
-router.get('/:id/cost/waste-detection', getWasteDetectionFromDB); // Waste opportunities from DB
-router.get('/:id/cost/data-transfer', getDataTransferCosts); // Data egress costs
+// Cache for 10 minutes (600 seconds) - expensive queries
+router.get('/:id/cost/storage-usage', cacheMiddleware(600), getStorageUsageFromDB); // Table-level storage from DB
+router.get('/:id/cost/storage-costs', cacheMiddleware(600), getStorageCosts); // Historical storage costs
+router.get('/:id/cost/waste-detection', cacheMiddleware(600), getWasteDetectionFromDB); // Waste opportunities from DB - EXPENSIVE!
+router.get('/:id/cost/data-transfer', cacheMiddleware(300), getDataTransferCosts); // Data egress costs
 
 // Budgets & Alerts
 router.get('/:id/budgets', listBudgets);
