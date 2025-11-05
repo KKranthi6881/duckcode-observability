@@ -11,6 +11,7 @@ import waitlistRoutes from './waitlist.routes'; // NEW: Waitlist onboarding
 import aiDocumentationRoutes from './ai-documentation.routes'; // NEW: AI Documentation Generation
 import metadataObjectsRoutes from './metadata-objects.routes'; // NEW: Metadata objects for docs
 import metadataSyncRoutes from './metadata-sync.routes'; // NEW: IDE Metadata Sync
+import snowflakeRecommendationsRoutes from './snowflake-recommendations.routes'; // NEW: Snowflake recommendations
 
 const router = Router();
 
@@ -46,5 +47,8 @@ router.use('/metadata-objects', metadataObjectsRoutes);
 
 // NEW: Mount metadata sync routes
 router.use('/metadata-sync', metadataSyncRoutes);
+
+// NEW: Mount Snowflake recommendations routes
+router.use('/connectors', snowflakeRecommendationsRoutes);
 
 export default router;

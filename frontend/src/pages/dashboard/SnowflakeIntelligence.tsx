@@ -1,21 +1,27 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ReactECharts from 'echarts-for-react';
-import { TrendingUp, Database, Server, DollarSign, AlertCircle, CheckCircle, Loader2, RefreshCw, Calendar, Target, Activity, Zap, Archive, Filter } from 'lucide-react';
+import { TrendingUp, Database, Server, DollarSign, AlertCircle, CheckCircle, Loader2, RefreshCw, Calendar, Target, Activity, Zap, Archive, Filter, Lightbulb, BarChart3 } from 'lucide-react';
 import snowflakeCostPhase1Service, { CostOverview, StorageUsageRow, WasteDetectionData } from '../../services/snowflakeCostPhase1Service';
 import enterpriseService from '../../services/enterpriseService';
 import { snowflakeCostService, ConnectorItem, DailyCreditRow, WarehouseCostRow, TagCostRow, TopQueryRow } from '../../services/snowflakeCostService';
 import { snowflakeBudgetsService, SnowflakeBudget } from '../../services/snowflakeBudgetsService';
+import RecommendationsView from '../../components/snowflake/RecommendationsView';
+import ROITrackerView from '../../components/snowflake/ROITrackerView';
+import QueryPerformanceView from '../../components/snowflake/QueryPerformanceView';
 
 interface ConnectorWithOrg extends ConnectorItem { organization_id: string; }
 interface Recommendation { id: string; type: string; priority: 'high' | 'medium' | 'low'; status: string; title: string; description: string; estimated_monthly_savings_usd: number; confidence_score: number; effort_level: string; }
 interface RecommendationsSummary { by_status: { pending: number; applied: number; dismissed: number }; by_priority: { high: number; medium: number; low: number }; total_potential_savings: number; applied_savings: number; }
+
+type TabType = 'overview' | 'recommendations' | 'roi' | 'performance';
 
 export default function SnowflakeIntelligence() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [organizations, setOrganizations] = useState<{ id: string; name: string }[]>([]);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [connectors, setConnectors] = useState<ConnectorWithOrg[]>([]);
@@ -389,8 +395,63 @@ export default function SnowflakeIntelligence() {
 
       {error && (<div className="mx-6 mt-6 p-4 bg-red-900/20 border border-red-500/50 rounded-lg flex items-center gap-3 text-red-400"><AlertCircle className="w-5 h-5" /><span>{error}</span></div>)}
 
+      {/* Tab Navigation */}
+      <div className="border-b border-[#2d2a27] bg-[#0d0c0a]">
+        <div className="px-6">
+          <nav className="flex gap-1 overflow-x-auto">
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={`px-6 py-4 text-sm font-medium transition-colors flex items-center gap-2 whitespace-nowrap border-b-2 ${
+                activeTab === 'overview'
+                  ? 'text-[#ff6a3c] border-[#ff6a3c]'
+                  : 'text-[#8d857b] border-transparent hover:text-white'
+              }`}
+            >
+              <BarChart3 className="w-4 h-4" />
+              Overview
+            </button>
+            <button
+              onClick={() => setActiveTab('recommendations')}
+              className={`px-6 py-4 text-sm font-medium transition-colors flex items-center gap-2 whitespace-nowrap border-b-2 ${
+                activeTab === 'recommendations'
+                  ? 'text-[#ff6a3c] border-[#ff6a3c]'
+                  : 'text-[#8d857b] border-transparent hover:text-white'
+              }`}
+            >
+              <Lightbulb className="w-4 h-4" />
+              Recommendations
+            </button>
+            <button
+              onClick={() => setActiveTab('roi')}
+              className={`px-6 py-4 text-sm font-medium transition-colors flex items-center gap-2 whitespace-nowrap border-b-2 ${
+                activeTab === 'roi'
+                  ? 'text-[#ff6a3c] border-[#ff6a3c]'
+                  : 'text-[#8d857b] border-transparent hover:text-white'
+              }`}
+            >
+              <Target className="w-4 h-4" />
+              ROI Tracker
+            </button>
+            <button
+              onClick={() => setActiveTab('performance')}
+              className={`px-6 py-4 text-sm font-medium transition-colors flex items-center gap-2 whitespace-nowrap border-b-2 ${
+                activeTab === 'performance'
+                  ? 'text-[#ff6a3c] border-[#ff6a3c]'
+                  : 'text-[#8d857b] border-transparent hover:text-white'
+              }`}
+            >
+              <Activity className="w-4 h-4" />
+              Query Performance
+            </button>
+          </nav>
+        </div>
+      </div>
+
       <div className="p-6 space-y-6">
-        {costOverview && (
+        {/* Overview Tab */}
+        {activeTab === 'overview' && (
+          <>
+            {costOverview && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
             <div className="bg-gradient-to-br from-[#ff6a3c] to-[#d94a1e] rounded-xl p-6 shadow-2xl"><div className="flex items-center justify-between mb-3"><DollarSign className="w-10 h-10 text-white/80" /><span className="text-xs font-semibold text-white/70 uppercase tracking-wider">Total Cost</span></div><div className="text-4xl font-bold text-white mb-1">{formatCurrency(costOverview.total_cost)}</div><div className="text-sm text-white/80">Last {timePeriod} days</div></div>
             <div className="bg-[#161413] border-2 border-[#1f1d1b] rounded-xl p-6 hover:border-[#ff6a3c]/30 transition"><div className="flex items-center justify-between mb-3"><Server className="w-8 h-8 text-blue-400" /><span className="text-xs font-semibold text-[#8d857b] uppercase tracking-wider">Compute</span></div><div className="text-3xl font-bold text-white mb-1">{formatCurrency(costOverview.compute_credits * 3)}</div><div className="flex items-center justify-between text-sm"><span className="text-[#8d857b]">{costOverview.compute_credits.toFixed(1)} credits</span><span className="text-blue-400 font-semibold">{((costOverview.compute_credits / costOverview.total_credits) * 100).toFixed(0)}%</span></div></div>
@@ -737,6 +798,23 @@ export default function SnowflakeIntelligence() {
             </div>
           )}
         </div>
+        </>
+        )}
+
+        {/* Recommendations Tab */}
+        {activeTab === 'recommendations' && connectorId && (
+          <RecommendationsView connectorId={connectorId} />
+        )}
+
+        {/* ROI Tracker Tab */}
+        {activeTab === 'roi' && connectorId && (
+          <ROITrackerView connectorId={connectorId} />
+        )}
+
+        {/* Query Performance Tab */}
+        {activeTab === 'performance' && connectorId && (
+          <QueryPerformanceView connectorId={connectorId} />
+        )}
       </div>
     </div>
   );

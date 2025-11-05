@@ -13,7 +13,7 @@ import { DataLineage } from './pages/dashboard/DataLineage';
 import AnalyticsDashboard from './pages/AnalyticsDashboard';
 import SnowflakeCostDashboard from './pages/dashboard/SnowflakeCostDashboard';
 import SnowflakeRecommendations from './pages/dashboard/SnowflakeRecommendations';
-import SnowflakeIntelligence from './pages/dashboard/SnowflakeIntelligence';
+import SnowflakeIntelligence from './pages/dashboard/SnowflakeIntelligence'; // Using old working version temporarily
 import { FileProcessingStatus } from './components/FileProcessingStatus';
 import { UserAnalytics } from './pages/user/UserAnalytics';
 import { ThemeProvider } from './contexts/ThemeContext';
