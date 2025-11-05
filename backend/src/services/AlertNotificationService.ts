@@ -462,11 +462,11 @@ View details in DuckCode Observability Dashboard.
    * Get notification recipients for a budget
    */
   private async getNotificationRecipients(budgetId: string): Promise<{ emails: string[] }> {
-    // Get budget creator and organization admins
+    // Get budget with custom alert_emails
     const { data: budget } = await this.supabase
       .schema('enterprise')
       .from('snowflake_budgets')
-      .select('created_by, organization_id')
+      .select('alert_emails, created_by, organization_id')
       .eq('id', budgetId)
       .single();
 
@@ -474,7 +474,15 @@ View details in DuckCode Observability Dashboard.
       return { emails: [] };
     }
 
-    // Get organization admin emails
+    // If custom alert emails are provided, use those
+    if (budget.alert_emails && budget.alert_emails.length > 0) {
+      console.log(`[AlertNotification] Using custom alert emails for budget ${budgetId}:`, budget.alert_emails);
+      return { emails: budget.alert_emails };
+    }
+
+    // Otherwise, fall back to organization admins
+    console.log(`[AlertNotification] No custom emails, falling back to organization admins for budget ${budgetId}`);
+    
     const { data: admins } = await this.supabase
       .schema('enterprise')
       .from('user_organization_roles')
@@ -486,8 +494,8 @@ View details in DuckCode Observability Dashboard.
     
     if (admins) {
       for (const admin of admins) {
-        if (admin.users && admin.users.email) {
-          emails.push(admin.users.email);
+        if (admin.users && (admin.users as any).email) {
+          emails.push((admin.users as any).email);
         }
       }
     }

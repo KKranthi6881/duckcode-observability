@@ -23,8 +23,9 @@ export default function BudgetGuardrailsView({ connectorId }: Props) {
     alert_threshold_2: 90,
     alert_threshold_3: 100,
     email_alerts: true,
+    alert_emails: '',  // Comma-separated email addresses
     slack_webhook_url: '',
-    auto_suspend_at_limit: false,
+    auto_suspend_at_limit: false,  // DISABLED - dangerous feature
   });
 
   const loadData = useCallback(async () => {
@@ -74,6 +75,7 @@ export default function BudgetGuardrailsView({ connectorId }: Props) {
         alert_threshold_2: 90,
         alert_threshold_3: 100,
         email_alerts: true,
+        alert_emails: '',
         slack_webhook_url: '',
         auto_suspend_at_limit: false,
       });
@@ -340,39 +342,74 @@ export default function BudgetGuardrailsView({ connectorId }: Props) {
                 </div>
               </div>
 
-              {/* Notifications */}
-              <div className="space-y-3">
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={formData.email_alerts}
-                    onChange={(e) => setFormData({ ...formData, email_alerts: e.target.checked })}
-                    className="w-4 h-4 rounded border-[#2d2a27] bg-[#0d0c0a] text-[#ff6a3c] focus:ring-[#ff6a3c]"
-                  />
-                  <span className="text-white text-sm">Enable email alerts</span>
-                </label>
+              {/* Notification Settings */}
+              <div className="border border-[#2d2a27] rounded-lg p-4 space-y-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Bell className="w-5 h-5 text-[#ff6a3c]" />
+                  <h4 className="text-white font-medium">Notification Settings</h4>
+                </div>
 
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={formData.auto_suspend_at_limit}
-                    onChange={(e) => setFormData({ ...formData, auto_suspend_at_limit: e.target.checked })}
-                    className="w-4 h-4 rounded border-[#2d2a27] bg-[#0d0c0a] text-[#ff6a3c] focus:ring-[#ff6a3c]"
-                  />
-                  <span className="text-white text-sm">Auto-suspend warehouses at 100%</span>
-                </label>
-              </div>
+                {/* Email Alerts */}
+                <div>
+                  <label className="flex items-center gap-2 mb-3">
+                    <input
+                      type="checkbox"
+                      checked={formData.email_alerts}
+                      onChange={(e) => setFormData({ ...formData, email_alerts: e.target.checked })}
+                      className="w-4 h-4 rounded border-[#2d2a27] bg-[#0d0c0a] text-[#ff6a3c] focus:ring-[#ff6a3c]"
+                    />
+                    <span className="text-white text-sm font-medium">Enable email alerts</span>
+                  </label>
 
-              {/* Slack Webhook */}
-              <div>
-                <label className="block text-sm font-medium text-white mb-2">Slack Webhook URL (Optional)</label>
-                <input
-                  type="text"
-                  value={formData.slack_webhook_url}
-                  onChange={(e) => setFormData({ ...formData, slack_webhook_url: e.target.value })}
-                  placeholder="https://hooks.slack.com/services/..."
-                  className="w-full bg-[#0d0c0a] border border-[#2d2a27] rounded-lg px-4 py-2 text-white focus:border-[#ff6a3c] focus:outline-none"
-                />
+                  {formData.email_alerts && (
+                    <div>
+                      <label className="block text-sm font-medium text-white mb-2">
+                        Alert Recipients (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.alert_emails}
+                        onChange={(e) => setFormData({ ...formData, alert_emails: e.target.value })}
+                        placeholder="email1@company.com, email2@company.com"
+                        className="w-full bg-[#0d0c0a] border border-[#2d2a27] rounded-lg px-4 py-2 text-white text-sm focus:border-[#ff6a3c] focus:outline-none"
+                      />
+                      <p className="text-xs text-[#8d857b] mt-1">
+                        Enter email addresses separated by commas. Leave empty to send to all organization admins.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Slack Webhook */}
+                <div>
+                  <label className="block text-sm font-medium text-white mb-2">
+                    Slack Webhook URL (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.slack_webhook_url}
+                    onChange={(e) => setFormData({ ...formData, slack_webhook_url: e.target.value })}
+                    placeholder="https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXX"
+                    className="w-full bg-[#0d0c0a] border border-[#2d2a27] rounded-lg px-4 py-2 text-white text-sm focus:border-[#ff6a3c] focus:outline-none"
+                  />
+                  <div className="mt-2 text-xs text-[#8d857b] space-y-1">
+                    <p>💡 Get your webhook URL:</p>
+                    <ol className="list-decimal list-inside ml-2 space-y-0.5">
+                      <li>Go to <a href="https://api.slack.com/apps" target="_blank" rel="noopener noreferrer" className="text-[#ff6a3c] hover:underline">api.slack.com/apps</a></li>
+                      <li>Create New App → From scratch</li>
+                      <li>Enable "Incoming Webhooks"</li>
+                      <li>Add webhook to workspace</li>
+                      <li>Copy webhook URL and paste here</li>
+                    </ol>
+                  </div>
+                </div>
+
+                {/* Safety Note */}
+                <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
+                  <p className="text-xs text-blue-300">
+                    ℹ️ <strong>Safety First:</strong> We don't automatically modify your Snowflake resources. You'll receive alerts via email/Slack when thresholds are reached, allowing you to take appropriate action.
+                  </p>
+                </div>
               </div>
 
               {/* Action Buttons */}
@@ -469,6 +506,7 @@ export default function BudgetGuardrailsView({ connectorId }: Props) {
                           alert_threshold_2: budget.alert_threshold_2,
                           alert_threshold_3: budget.alert_threshold_3,
                           email_alerts: budget.email_alerts,
+                          alert_emails: (budget as any).alert_emails?.join(', ') || '',
                           slack_webhook_url: budget.slack_webhook_url || '',
                           auto_suspend_at_limit: budget.auto_suspend_at_limit,
                         });
