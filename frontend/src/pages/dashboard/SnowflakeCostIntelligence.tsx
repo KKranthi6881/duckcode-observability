@@ -244,99 +244,99 @@ export default function SnowflakeCostIntelligence() {
       {costOverview && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
           {/* Total Cost */}
-          <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl shadow-lg p-5 text-white">
+          <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-5">
             <div className="flex items-center justify-between mb-2">
-              <DollarSign className="w-8 h-8 opacity-80" />
-              <span className="text-indigo-100 text-xs font-medium">TOTAL COST</span>
+              <DollarSign className="w-8 h-8 text-indigo-400" />
+              <span className="text-[#8d857b] text-xs font-bold uppercase">Total Cost</span>
             </div>
-            <div className="text-3xl font-bold">{formatCurrency(costOverview.total_cost)}</div>
-            <div className="text-indigo-100 text-sm mt-1">Last {timePeriod} days</div>
+            <div className="text-3xl font-bold text-white">{formatCurrency(costOverview.total_cost)}</div>
+            <div className="text-[#8d857b] text-sm mt-1">Last {timePeriod} days</div>
           </div>
 
           {/* Compute Cost */}
-          <div className="bg-white rounded-xl shadow-md p-5 border border-gray-200">
+          <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-5">
             <div className="flex items-center justify-between mb-2">
-              <Server className="w-6 h-6 text-blue-500" />
-              <span className="text-gray-500 text-xs font-medium">COMPUTE</span>
+              <Server className="w-6 h-6 text-blue-400" />
+              <span className="text-[#8d857b] text-xs font-bold uppercase">Compute</span>
             </div>
-            <div className="text-2xl font-bold text-gray-900">
+            <div className="text-2xl font-bold text-white">
               {formatCurrency(costOverview.compute_credits * 3)}
             </div>
-            <div className="text-sm text-gray-500 mt-1">
+            <div className="text-sm text-[#8d857b] mt-1">
               {costOverview.compute_credits.toFixed(1)} credits
             </div>
-            <div className="mt-2 text-xs text-blue-600 font-medium">
+            <div className="mt-2 text-xs text-blue-400 font-medium">
               {((costOverview.compute_credits / costOverview.total_credits) * 100).toFixed(0)}% of total
             </div>
           </div>
 
           {/* Storage Cost */}
-          <div className="bg-white rounded-xl shadow-md p-5 border border-gray-200">
+          <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-5">
             <div className="flex items-center justify-between mb-2">
-              <Database className="w-6 h-6 text-green-500" />
-              <span className="text-gray-500 text-xs font-medium">STORAGE</span>
+              <Database className="w-6 h-6 text-green-400" />
+              <span className="text-[#8d857b] text-xs font-bold uppercase">Storage</span>
             </div>
-            <div className="text-2xl font-bold text-gray-900">
+            <div className="text-2xl font-bold text-white">
               {formatCurrency(costOverview.storage_credits * 3)}
             </div>
-            <div className="text-sm text-gray-500 mt-1">
+            <div className="text-sm text-[#8d857b] mt-1">
               {costOverview.storage_credits.toFixed(1)} credits
             </div>
-            <div className="mt-2 text-xs text-green-600 font-medium">
+            <div className="mt-2 text-xs text-green-400 font-medium">
               {((costOverview.storage_credits / costOverview.total_credits) * 100).toFixed(0)}% of total
             </div>
           </div>
 
           {/* Potential Savings */}
           {wasteData && (
-            <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-lg p-5 text-white">
+            <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-5">
               <div className="flex items-center justify-between mb-2">
-                <TrendingUp className="w-8 h-8 opacity-80" />
-                <span className="text-orange-100 text-xs font-medium">POTENTIAL SAVINGS</span>
+                <TrendingUp className="w-8 h-8 text-orange-400" />
+                <span className="text-[#8d857b] text-xs font-bold uppercase">Potential Savings</span>
               </div>
-              <div className="text-3xl font-bold">
+              <div className="text-3xl font-bold text-white">
                 {formatCurrency(wasteData.summary.total_potential_savings)}
               </div>
-              <div className="text-orange-100 text-sm mt-1">
+              <div className="text-[#8d857b] text-sm mt-1">
                 {wasteData.summary.total_opportunities} opportunities
               </div>
             </div>
           )}
 
           {/* Total Queries */}
-          <div className="bg-white rounded-xl shadow-md p-5 border border-gray-200">
+          <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-5">
             <div className="flex items-center justify-between mb-2">
-              <TrendingUp className="w-6 h-6 text-purple-500" />
-              <span className="text-gray-500 text-xs font-medium">QUERIES</span>
+              <TrendingUp className="w-6 h-6 text-purple-400" />
+              <span className="text-[#8d857b] text-xs font-bold uppercase">Queries</span>
             </div>
-            <div className="text-2xl font-bold text-gray-900">
+            <div className="text-2xl font-bold text-white">
               {formatNumber(costOverview.total_queries)}
             </div>
-            <div className="text-sm text-gray-500 mt-1">
+            <div className="text-sm text-[#8d857b] mt-1">
               Total executed
             </div>
-            <div className="mt-2 text-xs text-purple-600 font-medium">
+            <div className="mt-2 text-xs text-purple-400 font-medium">
               {(costOverview.total_queries / timePeriod).toFixed(0)}/day avg
             </div>
           </div>
 
           {/* Failed Queries */}
-          <div className="bg-white rounded-xl shadow-md p-5 border border-gray-200">
+          <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-5">
             <div className="flex items-center justify-between mb-2">
               {Number(costOverview.failure_rate) > 5 ? (
-                <AlertCircle className="w-6 h-6 text-red-500" />
+                <AlertCircle className="w-6 h-6 text-red-400" />
               ) : (
-                <CheckCircle className="w-6 h-6 text-green-500" />
+                <CheckCircle className="w-6 h-6 text-green-400" />
               )}
-              <span className="text-gray-500 text-xs font-medium">FAILURES</span>
+              <span className="text-[#8d857b] text-xs font-bold uppercase">Failures</span>
             </div>
-            <div className="text-2xl font-bold text-gray-900">
+            <div className="text-2xl font-bold text-white">
               {costOverview.failure_rate}%
             </div>
-            <div className="text-sm text-gray-500 mt-1">
+            <div className="text-sm text-[#8d857b] mt-1">
               {formatNumber(costOverview.failed_queries)} failed
             </div>
-            <div className={`mt-2 text-xs font-medium ${Number(costOverview.failure_rate) > 5 ? 'text-red-600' : 'text-green-600'}`}>
+            <div className={`mt-2 text-xs font-medium ${Number(costOverview.failure_rate) > 5 ? 'text-red-400' : 'text-green-400'}`}>
               {Number(costOverview.failure_rate) > 5 ? '⚠️ High failure rate' : '✓ Healthy'}
             </div>
           </div>

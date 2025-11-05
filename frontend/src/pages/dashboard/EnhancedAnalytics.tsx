@@ -225,57 +225,57 @@ export function EnhancedAnalytics() {
         {/* KPI Cards - 4 Column Layout */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Total Cost */}
-          <div className="bg-gradient-to-br from-orange-600 to-orange-700 rounded-xl p-5 shadow-lg">
+          <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-5">
             <div className="flex items-center justify-between mb-2">
-              <DollarSign className="w-8 h-8 text-white/90" />
-              <span className="text-xs font-bold text-white/70 uppercase">Total Cost</span>
+              <DollarSign className="w-8 h-8 text-orange-400" />
+              <span className="text-xs font-bold text-[#8d857b] uppercase">Total Cost</span>
             </div>
             <div className="text-3xl font-bold text-white mb-1">
               ${(summary?.totalCost || 0).toFixed(2)}
             </div>
-            <div className="text-xs text-white/80">
+            <div className="text-xs text-[#8d857b]">
               ${((summary?.totalCost || 0) / (summary?.totalConversations || 1)).toFixed(4)} per session
             </div>
           </div>
 
           {/* Conversations */}
-          <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl p-5 shadow-lg">
+          <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-5">
             <div className="flex items-center justify-between mb-2">
-              <BarChart3 className="w-8 h-8 text-white/90" />
-              <span className="text-xs font-bold text-white/70 uppercase">Sessions</span>
+              <BarChart3 className="w-8 h-8 text-blue-400" />
+              <span className="text-xs font-bold text-[#8d857b] uppercase">Sessions</span>
             </div>
             <div className="text-3xl font-bold text-white mb-1">
               {(summary?.totalConversations || 0).toLocaleString()}
             </div>
-            <div className="text-xs text-white/80">
+            <div className="text-xs text-[#8d857b]">
               Total conversations
             </div>
           </div>
 
           {/* Total Tokens */}
-          <div className="bg-gradient-to-br from-purple-600 to-purple-700 rounded-xl p-5 shadow-lg">
+          <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-5">
             <div className="flex items-center justify-between mb-2">
-              <Zap className="w-8 h-8 text-white/90" />
-              <span className="text-xs font-bold text-white/70 uppercase">Tokens</span>
+              <Zap className="w-8 h-8 text-purple-400" />
+              <span className="text-xs font-bold text-[#8d857b] uppercase">Tokens</span>
             </div>
             <div className="text-3xl font-bold text-white mb-1">
               {((summary?.totalTokens || 0) / 1000000).toFixed(2)}M
             </div>
-            <div className="text-xs text-white/80">
+            <div className="text-xs text-[#8d857b]">
               {summary?.avgTokensPerConversation ? Math.round(summary.avgTokensPerConversation).toLocaleString() : 0} avg/session
             </div>
           </div>
 
           {/* Avg Cost */}
-          <div className="bg-gradient-to-br from-green-600 to-green-700 rounded-xl p-5 shadow-lg">
+          <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-5">
             <div className="flex items-center justify-between mb-2">
-              <TrendingUp className="w-8 h-8 text-white/90" />
-              <span className="text-xs font-bold text-white/70 uppercase">Avg Cost</span>
+              <TrendingUp className="w-8 h-8 text-green-400" />
+              <span className="text-xs font-bold text-[#8d857b] uppercase">Avg Cost</span>
             </div>
             <div className="text-3xl font-bold text-white mb-1">
               ${(summary?.avgCostPerConversation || 0).toFixed(3)}
             </div>
-            <div className="text-xs text-white/80">
+            <div className="text-xs text-[#8d857b]">
               Per conversation
             </div>
           </div>

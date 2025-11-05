@@ -236,46 +236,46 @@ export const Analytics: React.FC = () => {
           </div>
         </div>
 
-        {/* Summary Cards - Gradient Dark Theme */}
+        {/* Summary Cards - Clean Bordered Style */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Total Cost */}
-          <div className="bg-gradient-to-br from-orange-600 to-orange-700 rounded-xl p-6 shadow-2xl">
+          <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-6">
             <div className="flex items-center justify-between mb-2">
-              <DollarSign className="w-10 h-10 text-white/90" />
-              <span className="text-xs font-bold text-white/70 uppercase">Total Cost</span>
+              <DollarSign className="w-10 h-10 text-orange-400" />
+              <span className="text-xs font-bold text-[#8d857b] uppercase">Total Cost</span>
             </div>
             <div className="text-4xl font-bold text-white mb-1">
               ${(filteredTotals.total_cost || 0).toFixed(2)}
             </div>
-            <div className="text-sm text-white/80">
+            <div className="text-sm text-[#8d857b]">
               ${((filteredTotals.total_cost || 0) / (filteredTotals.conversations || 1)).toFixed(4)} per conversation
             </div>
           </div>
 
           {/* Conversations */}
-          <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl p-6 shadow-2xl">
+          <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-6">
             <div className="flex items-center justify-between mb-2">
-              <MessageSquare className="w-10 h-10 text-white/90" />
-              <span className="text-xs font-bold text-white/70 uppercase">Sessions</span>
+              <MessageSquare className="w-10 h-10 text-blue-400" />
+              <span className="text-xs font-bold text-[#8d857b] uppercase">Sessions</span>
             </div>
             <div className="text-4xl font-bold text-white mb-1">
               {(filteredTotals.conversations || 0).toLocaleString()}
             </div>
-            <div className="text-sm text-white/80">
+            <div className="text-sm text-[#8d857b]">
               ${((filteredTotals.total_cost || 0) / (filteredTotals.conversations || 1)).toFixed(3)} avg cost
             </div>
           </div>
 
           {/* Active Users */}
-          <div className="bg-gradient-to-br from-green-600 to-green-700 rounded-xl p-6 shadow-2xl">
+          <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-6">
             <div className="flex items-center justify-between mb-2">
-              <Users className="w-10 h-10 text-white/90" />
-              <span className="text-xs font-bold text-white/70 uppercase">Team Members</span>
+              <Users className="w-10 h-10 text-green-400" />
+              <span className="text-xs font-bold text-[#8d857b] uppercase">Team Members</span>
             </div>
             <div className="text-4xl font-bold text-white mb-1">
               {(users?.users?.length || 0).toLocaleString()}
             </div>
-            <div className="text-sm text-white/80">
+            <div className="text-sm text-[#8d857b]">
               ${((filteredTotals.total_cost || 0) / (users?.users?.length || 1)).toFixed(2)} per user
             </div>
           </div>

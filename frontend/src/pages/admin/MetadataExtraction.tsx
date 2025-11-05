@@ -240,105 +240,104 @@ export const MetadataExtraction: React.FC = () => {
 
 
   return (
-    <div className="h-full bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-8 py-6">
-        <div className="flex justify-between items-center">
+    <div className="min-h-screen bg-[#0d0c0c] p-6">
+      <div className="max-w-[1600px] mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold text-gray-900">Metadata Extraction</h1>
-            <p className="text-sm text-gray-500 mt-1">
-              Connect repositories and extract metadata
-          </p>
-        </div>
-          <Button onClick={() => setShowAddDialog(true)} size="lg">
-            <Plus className="w-4 h-4 mr-2" />
+            <p className="text-[#8d857b]">Extract schemas, tables, and columns from your repositories</p>
+          </div>
+          <button
+            onClick={() => setShowAddDialog(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-[#ff6a3c] text-white rounded-lg hover:bg-[#d94a1e] transition-colors font-medium text-sm shadow-lg"
+          >
+            <Plus className="w-4 h-4" />
             Add Repository
-          </Button>
+          </button>
         </div>
-      </div>
 
-      {/* Main Content */}
-      <div className="p-8">
         {/* Modal for adding repository */}
-      {showAddDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">Add Repository</h2>
+        {showAddDialog && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-6 w-full max-w-md shadow-2xl">
+              <h2 className="text-xl font-bold text-white mb-4">Add Repository</h2>
             <div className="space-y-4">
-              <div>
-                <label htmlFor="provider" className="block text-sm font-medium mb-1">
-                  Provider
-                </label>
-                <select
-                  id="provider"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
-                  value={newRepo.provider}
-                  onChange={(e) => setNewRepo({ ...newRepo, provider: e.target.value as 'github' | 'gitlab' })}
-                >
-                  <option value="github">GitHub</option>
-                  <option value="gitlab">GitLab</option>
-                </select>
-              </div>
-              <div>
-                <label htmlFor="repo-url" className="block text-sm font-medium mb-1">
-                  Repository URL
-                </label>
-                <input
-                  id="repo-url"
-                  type="text"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
-                  placeholder={newRepo.provider === 'github' ? 'https://github.com/owner/repo' : 'https://gitlab.com/owner/repo'}
-                  value={newRepo.url}
-                  onChange={(e) => setNewRepo({ ...newRepo, url: e.target.value })}
-                />
-              </div>
-              <div>
-                <label htmlFor="branch" className="block text-sm font-medium mb-1">
-                  Branch
-                </label>
-                <input
-                  id="branch"
-                  type="text"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
-                  placeholder="main"
-                  value={newRepo.branch}
-                  onChange={(e) => setNewRepo({ ...newRepo, branch: e.target.value })}
-                />
-              </div>
-              <div>
-                <label htmlFor="token" className="block text-sm font-medium mb-1">
-                  {newRepo.provider === 'github' ? 'GitHub' : 'GitLab'} Access Token
-                </label>
-                <input
-                  id="token"
-                  type="password"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
-                  placeholder={newRepo.provider === 'github' ? 'ghp_...' : 'glpat-...'}
-                  value={newRepo.accessToken}
-                  onChange={(e) => setNewRepo({ ...newRepo, accessToken: e.target.value })}
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  {newRepo.provider === 'github' 
-                    ? "Token needs 'repo' scope to read repository contents"
-                    : "Token needs 'read_repository' scope to read repository contents"}
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <Button onClick={connectRepository} className="flex-1">
-                  Add
-                </Button>
-                <Button 
-                  onClick={() => setShowAddDialog(false)} 
-                  variant="outline"
-                  className="flex-1"
-                >
-                  Cancel
-                </Button>
+                <div>
+                  <label htmlFor="provider" className="block text-sm font-medium text-white mb-1">
+                    Provider
+                  </label>
+                  <select
+                    id="provider"
+                    className="w-full px-3 py-2 bg-[#1f1d1b] border border-[#2d2a27] text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#ff6a3c]/50"
+                    value={newRepo.provider}
+                    onChange={(e) => setNewRepo({ ...newRepo, provider: e.target.value as 'github' | 'gitlab' })}
+                  >
+                    <option value="github">GitHub</option>
+                    <option value="gitlab">GitLab</option>
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="repo-url" className="block text-sm font-medium text-white mb-1">
+                    Repository URL
+                  </label>
+                  <input
+                    id="repo-url"
+                    type="text"
+                    className="w-full px-3 py-2 bg-[#1f1d1b] border border-[#2d2a27] text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#ff6a3c]/50"
+                    placeholder={newRepo.provider === 'github' ? 'https://github.com/owner/repo' : 'https://gitlab.com/owner/repo'}
+                    value={newRepo.url}
+                    onChange={(e) => setNewRepo({ ...newRepo, url: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="branch" className="block text-sm font-medium text-white mb-1">
+                    Branch
+                  </label>
+                  <input
+                    id="branch"
+                    type="text"
+                    className="w-full px-3 py-2 bg-[#1f1d1b] border border-[#2d2a27] text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#ff6a3c]/50"
+                    placeholder="main"
+                    value={newRepo.branch}
+                    onChange={(e) => setNewRepo({ ...newRepo, branch: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="token" className="block text-sm font-medium text-white mb-1">
+                    {newRepo.provider === 'github' ? 'GitHub' : 'GitLab'} Access Token
+                  </label>
+                  <input
+                    id="token"
+                    type="password"
+                    className="w-full px-3 py-2 bg-[#1f1d1b] border border-[#2d2a27] text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#ff6a3c]/50"
+                    placeholder={newRepo.provider === 'github' ? 'ghp_...' : 'glpat-...'}
+                    value={newRepo.accessToken}
+                    onChange={(e) => setNewRepo({ ...newRepo, accessToken: e.target.value })}
+                  />
+                  <p className="text-xs text-[#8d857b] mt-1">
+                    {newRepo.provider === 'github' 
+                      ? "Token needs 'repo' scope to read repository contents"
+                      : "Token needs 'read_repository' scope to read repository contents"}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={connectRepository}
+                    className="flex-1 px-4 py-2 bg-[#ff6a3c] text-white rounded-lg hover:bg-[#d94a1e] transition font-medium"
+                  >
+                    Add
+                  </button>
+                  <button
+                    onClick={() => setShowAddDialog(false)}
+                    className="flex-1 px-4 py-2 bg-[#1f1d1b] border border-[#2d2a27] text-white rounded-lg hover:bg-[#2d2a27] transition font-medium"
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">

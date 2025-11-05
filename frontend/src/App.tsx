@@ -15,7 +15,6 @@ import SnowflakeCostDashboard from './pages/dashboard/SnowflakeCostDashboard';
 import SnowflakeRecommendations from './pages/dashboard/SnowflakeRecommendations';
 import SnowflakeMetadataView from './pages/dashboard/SnowflakeMetadataView';
 import SnowflakeIntelligence from './pages/dashboard/SnowflakeIntelligence';
-import ConnectorsAdmin from './pages/admin/ConnectorsAdmin';
 import { FileProcessingStatus } from './components/FileProcessingStatus';
 import { UserAnalytics } from './pages/user/UserAnalytics';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -40,9 +39,9 @@ import {
   ApiKeys as AdminApiKeys,
   Members as AdminMembers,
   SettingsPage as AdminSettings,
-  MetadataExtraction as AdminMetadata,
   SearchPage as AdminSearch,
   AIDocumentation as AdminAIDocumentation,
+  ConnectorsHub,
 } from './pages/admin';
 import LineagePage from './pages/lineage/LineagePage';
 
@@ -133,8 +132,8 @@ const AppContent = () => {
             <Route path="analytics" element={<AdminAnalytics />} />
             <Route path="api-keys" element={<AdminApiKeys />} />
             <Route path="members" element={<AdminMembers />} />
-            <Route path="metadata" element={<AdminMetadata />} />
-            <Route path="connectors" element={<ConnectorsAdmin />} />
+            <Route path="metadata" element={<ConnectorsHub />} />
+            <Route path="connectors" element={<ConnectorsHub />} />
             <Route path="ai-documentation" element={<AdminAIDocumentation />} />
             <Route path="lineage/:connectionId" element={<LineagePage />} />
             <Route path="search" element={<AdminSearch />} />
