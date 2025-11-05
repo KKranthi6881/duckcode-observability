@@ -108,6 +108,8 @@ class BudgetService {
 
   async getCurrentSpend(budgetId: string): Promise<BudgetSpend> {
     const t = await this.token();
+    // Note: This needs the connectorId, but we'll use a workaround for now
+    // In production, pass connectorId from the component
     const res = await fetch(`${this.baseUrl}/api/budgets/${budgetId}/spend`, {
       headers: { 'Authorization': `Bearer ${t}` }
     });
@@ -116,9 +118,9 @@ class BudgetService {
     return json.data;
   }
 
-  async getAlerts(budgetId: string): Promise<BudgetAlert[]> {
+  async getAlerts(connectorId: string, budgetId: string): Promise<BudgetAlert[]> {
     const t = await this.token();
-    const res = await fetch(`${this.baseUrl}/api/budgets/${budgetId}/alerts`, {
+    const res = await fetch(`${this.baseUrl}/api/connectors/${connectorId}/budgets/${budgetId}/alerts`, {
       headers: { 'Authorization': `Bearer ${t}` }
     });
     if (!res.ok) throw new Error('Failed to fetch alerts');
@@ -126,9 +128,9 @@ class BudgetService {
     return json.alerts || [];
   }
 
-  async checkAlerts(budgetId: string): Promise<BudgetAlert[]> {
+  async checkAlerts(connectorId: string, budgetId: string): Promise<BudgetAlert[]> {
     const t = await this.token();
-    const res = await fetch(`${this.baseUrl}/api/budgets/${budgetId}/check`, {
+    const res = await fetch(`${this.baseUrl}/api/connectors/${connectorId}/budgets/${budgetId}/check`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${t}` }
     });

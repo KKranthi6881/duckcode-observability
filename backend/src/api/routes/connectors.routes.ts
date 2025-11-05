@@ -12,7 +12,7 @@ import {
   updateConnector,
   getExtractionStatus
 } from '../controllers/connectors.controller';
-import { listBudgets, createOrUpdateBudget, deleteBudget, listBudgetAlerts, checkBudget } from '../controllers/budgets.controller';
+import { listBudgets, createBudget, updateBudget, deleteBudget, getBudgetCurrentSpend, getBudgetAlerts, checkBudgetAlerts } from '../controllers/budgets.controller';
 import { 
   getDailyCredits, 
   getWarehouseCosts, 
@@ -82,10 +82,12 @@ router.get('/:id/cost/data-transfer', getDataTransferCosts); // Data egress cost
 
 // Budgets & Alerts
 router.get('/:id/budgets', listBudgets);
-router.post('/:id/budgets', createOrUpdateBudget); // use ?upsert=1 and body.id to update
+router.post('/:id/budgets', createBudget);
+router.put('/:id/budgets/:budgetId', updateBudget);
 router.delete('/:id/budgets/:budgetId', deleteBudget);
-router.get('/:id/budgets/:budgetId/check', checkBudget);
-router.get('/:id/budgets/alerts', listBudgetAlerts);
+router.get('/:id/budgets/:budgetId/spend', getBudgetCurrentSpend);
+router.get('/:id/budgets/:budgetId/alerts', getBudgetAlerts);
+router.post('/:id/budgets/:budgetId/check', checkBudgetAlerts);
 
 // Phase 2: Smart Recommendations & ROI
 router.get('/:id/recommendations', listRecommendations); // List all recommendations
