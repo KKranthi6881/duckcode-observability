@@ -46,6 +46,7 @@ import {
   getPermissionIssues,
   getSecuritySummary,
 } from '../controllers/security-monitoring.controller';
+import SnowflakeCostTrackingController from '../controllers/snowflake-cost-tracking.controller';
 
 const router = Router();
 
@@ -107,6 +108,13 @@ router.post('/:id/recommendations/generate', generateRecommendations); // Manual
 router.post('/:id/recommendations/:recommendationId/apply', applyRecommendation); // Apply recommendation
 router.put('/:id/recommendations/:recommendationId/dismiss', dismissRecommendation); // Dismiss recommendation
 router.get('/:id/roi', getROI); // ROI tracking
+
+// Cost Tracking (for Budget calculations)
+router.post('/:id/costs', SnowflakeCostTrackingController.upsertDailyCost.bind(SnowflakeCostTrackingController)); // Add/update daily cost
+router.get('/:id/costs', SnowflakeCostTrackingController.getDailyCosts.bind(SnowflakeCostTrackingController)); // Get cost history
+router.get('/:id/costs/summary', SnowflakeCostTrackingController.getCostSummary.bind(SnowflakeCostTrackingController)); // Cost summary
+router.get('/:id/costs/current-month', SnowflakeCostTrackingController.getCurrentMonthCosts.bind(SnowflakeCostTrackingController)); // Current month total
+router.post('/:id/costs/bulk', SnowflakeCostTrackingController.bulkInsertCosts.bind(SnowflakeCostTrackingController)); // Bulk insert
 
 // Security & Access Monitoring
 router.get('/:id/security/summary', getSecuritySummary); // Security overview

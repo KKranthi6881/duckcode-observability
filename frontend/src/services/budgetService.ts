@@ -106,11 +106,9 @@ class BudgetService {
     if (!res.ok) throw new Error('Failed to delete budget');
   }
 
-  async getCurrentSpend(budgetId: string): Promise<BudgetSpend> {
+  async getCurrentSpend(connectorId: string, budgetId: string): Promise<BudgetSpend> {
     const t = await this.token();
-    // Note: This needs the connectorId, but we'll use a workaround for now
-    // In production, pass connectorId from the component
-    const res = await fetch(`${this.baseUrl}/api/budgets/${budgetId}/spend`, {
+    const res = await fetch(`${this.baseUrl}/api/connectors/${connectorId}/budgets/${budgetId}/spend`, {
       headers: { 'Authorization': `Bearer ${t}` }
     });
     if (!res.ok) throw new Error('Failed to fetch current spend');

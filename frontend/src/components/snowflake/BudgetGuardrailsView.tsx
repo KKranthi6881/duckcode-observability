@@ -40,7 +40,7 @@ export default function BudgetGuardrailsView({ connectorId }: Props) {
       await Promise.all(
         budgetsList.map(async (budget) => {
           try {
-            const spend = await budgetService.getCurrentSpend(budget.id);
+            const spend = await budgetService.getCurrentSpend(connectorId, budget.id);
             spendsMap.set(budget.id, spend);
           } catch (err) {
             console.error(`Error loading spend for budget ${budget.id}:`, err);

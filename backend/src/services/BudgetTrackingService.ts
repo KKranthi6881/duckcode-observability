@@ -196,6 +196,7 @@ export class BudgetTrackingService {
    */
   async getCurrentSpend(budgetId: string): Promise<BudgetSpend> {
     const { data, error } = await this.supabase
+      .schema('enterprise')
       .rpc('get_budget_current_spend', { p_budget_id: budgetId });
 
     if (error) {
@@ -251,6 +252,7 @@ export class BudgetTrackingService {
    */
   async checkBudgetAlerts(budgetId: string): Promise<BudgetAlert[]> {
     const { data, error } = await this.supabase
+      .schema('enterprise')
       .rpc('check_budget_alerts', { p_budget_id: budgetId });
 
     if (error) {

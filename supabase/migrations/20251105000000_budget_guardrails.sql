@@ -1,6 +1,10 @@
 -- Budget Guardrails Schema
 -- Allows setting budgets at organization, connector, or warehouse level
 
+-- Drop old table if exists (from previous migration)
+DROP TABLE IF EXISTS enterprise.snowflake_budget_alerts CASCADE;
+DROP TABLE IF EXISTS enterprise.snowflake_budgets CASCADE;
+
 -- Budget definitions table
 CREATE TABLE IF NOT EXISTS enterprise.snowflake_budgets (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -150,13 +154,13 @@ BEGIN
           AND usage_date <= v_budget.current_period_end;
           
     ELSIF v_budget.budget_type = 'warehouse' THEN
-        -- Sum warehouse-specific costs
+        -- Sum warehouse-specific costs (using metric_date from existing table)
         SELECT COALESCE(SUM(credits_used * 3), 0) INTO v_current_spend
         FROM enterprise.snowflake_warehouse_metrics
         WHERE connector_id = v_budget.connector_id
           AND warehouse_name = v_budget.warehouse_name
-          AND measurement_time >= v_budget.current_period_start::TIMESTAMPTZ
-          AND measurement_time <= v_budget.current_period_end::TIMESTAMPTZ;
+          AND metric_date >= v_budget.current_period_start
+          AND metric_date <= v_budget.current_period_end;
     END IF;
     
     RETURN v_current_spend;
