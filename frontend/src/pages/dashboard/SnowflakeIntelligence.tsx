@@ -415,12 +415,12 @@ export default function SnowflakeIntelligence() {
           )}
         </div>
 
-        {costOverview && (
+        {costOverview && costOverview.total_queries > 0 && (
           <div className="bg-[#161413] border border-[#1f1d1b] rounded-xl p-6">
             <div className="flex items-center gap-3 mb-4"><Activity className="w-5 h-5 text-[#ff6a3c]" /><h3 className="text-lg font-semibold text-white">Query Activity</h3></div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="text-center"><div className="text-4xl font-bold text-blue-400 mb-2">{formatNumber(costOverview.total_queries)}</div><div className="text-sm text-[#8d857b]">Total Queries</div><div className="text-xs text-[#7b7469] mt-1">{(costOverview.total_queries / timePeriod).toFixed(0)} per day</div></div>
-              <div className="text-center"><div className="text-4xl font-bold text-green-400 mb-2">{formatNumber(costOverview.total_queries - costOverview.failed_queries)}</div><div className="text-sm text-[#8d857b]">Successful</div><div className="text-xs text-[#7b7469] mt-1">{((costOverview.total_queries - costOverview.failed_queries) / costOverview.total_queries * 100).toFixed(1)}% success rate</div></div>
+              <div className="text-center"><div className="text-4xl font-bold text-green-400 mb-2">{formatNumber(costOverview.total_queries - costOverview.failed_queries)}</div><div className="text-sm text-[#8d857b]">Successful</div><div className="text-xs text-[#7b7469] mt-1">{costOverview.total_queries > 0 ? ((costOverview.total_queries - costOverview.failed_queries) / costOverview.total_queries * 100).toFixed(1) : '0.0'}% success rate</div></div>
               <div className="text-center"><div className="text-4xl font-bold text-red-400 mb-2">{formatNumber(costOverview.failed_queries)}</div><div className="text-sm text-[#8d857b]">Failed</div><div className="text-xs text-[#7b7469] mt-1">{costOverview.failure_rate}% failure rate</div></div>
             </div>
           </div>

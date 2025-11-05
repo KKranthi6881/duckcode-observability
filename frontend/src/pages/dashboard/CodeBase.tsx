@@ -962,12 +962,12 @@ export function CodeBase() {
   // Basic loading state
   if (isLoadingConnection) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 flex items-center justify-center">
-        <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8 max-w-md w-full mx-4">
+      <div className="min-h-screen bg-[#0d0c0c] flex items-center justify-center">
+        <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-8 max-w-md w-full mx-4">
           <div className="flex flex-col items-center text-center">
-            <Loader2 className="h-12 w-12 animate-spin text-[#2AB7A9] mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Loading GitHub Connection</h3>
-            <p className="text-gray-600">Checking your repository access...</p>
+            <Loader2 className="h-12 w-12 animate-spin text-[#ff6a3c] mb-4" />
+            <h3 className="text-lg font-semibold text-white mb-2">Loading GitHub Connection</h3>
+            <p className="text-[#8d857b]">Checking your repository access...</p>
           </div>
         </div>
       </div>
@@ -977,23 +977,23 @@ export function CodeBase() {
   // Error state
   if (connectionError) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 flex items-center justify-center p-6">
-        <div className="bg-white rounded-xl shadow-lg border border-red-200 p-8 max-w-2xl w-full">
+      <div className="min-h-screen bg-[#0d0c0c] flex items-center justify-center p-6">
+        <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-8 max-w-2xl w-full">
           <div className="flex items-start space-x-4">
             <div className="flex-shrink-0">
-              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                <AlertTriangle className="h-6 w-6 text-red-600" />
+              <div className="w-12 h-12 bg-red-600/20 border border-red-600/30 rounded-full flex items-center justify-center">
+                <AlertTriangle className="h-6 w-6 text-red-400" />
               </div>
             </div>
             <div className="flex-1">
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Failed to Load Repositories</h3>
-              <p className="text-gray-700 mb-4">{connectionError}</p>
-              <p className="text-gray-600 text-sm mb-6">
+              <h3 className="text-xl font-bold text-white mb-2">Failed to Load Repositories</h3>
+              <p className="text-[#8d857b] mb-4">{connectionError}</p>
+              <p className="text-[#8d857b] text-sm mb-6">
                 Contact your administrator if repositories should be available.
               </p>
               <button
                 onClick={() => window.location.reload()}
-                className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors shadow-sm"
+                className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
               >
                 <Settings className="h-4 w-4 mr-2" />
                 Retry
@@ -1008,22 +1008,22 @@ export function CodeBase() {
   // Empty state - no repositories connected
   if (repositories.length === 0 && !isLoadingConnection) {
      return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 flex items-center justify-center p-6">
-        <div className="bg-white rounded-xl shadow-lg border border-blue-200 p-8 max-w-2xl w-full">
+      <div className="min-h-screen bg-[#0d0c0c] flex items-center justify-center p-6">
+        <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-8 max-w-2xl w-full">
           <div className="flex items-start space-x-4">
             <div className="flex-shrink-0">
-              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                <Database className="h-6 w-6 text-blue-600" />
+              <div className="w-12 h-12 bg-blue-600/20 border border-blue-600/30 rounded-full flex items-center justify-center">
+                <Database className="h-6 w-6 text-blue-400" />
               </div>
             </div>
             <div className="flex-1">
-              <h3 className="text-xl font-bold text-gray-900 mb-2">No Repositories Connected</h3>
-              <p className="text-gray-700 mb-6">
+              <h3 className="text-xl font-bold text-white mb-2">No Repositories Connected</h3>
+              <p className="text-[#8d857b] mb-6">
                 Your organization hasn't connected any GitHub repositories yet. Contact your administrator to add repositories.
               </p>
               <button
                 onClick={() => navigate('/admin')}
-                className="inline-flex items-center px-5 py-2.5 bg-[#2AB7A9] text-white rounded-lg hover:bg-[#24a497] transition-colors shadow-sm"
+                className="inline-flex items-center px-5 py-2.5 bg-[#ff6a3c] text-white rounded-lg hover:bg-[#d94a1e] transition-colors"
               >
                 <Settings className="h-4 w-4 mr-2" />
                 Go to Admin Page
@@ -1038,27 +1038,27 @@ export function CodeBase() {
   // Connected State
   return (
 
-      <div className="space-y-6">
+      <div className="min-h-screen bg-[#0d0c0c] p-6 space-y-6">
         {isAuthLoading ? (
           <div className="flex items-center justify-center h-96">
-            <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8">
+            <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-8">
               <div className="flex flex-col items-center text-center">
-                <Loader2 className="h-8 w-8 animate-spin text-[#2AB7A9] mb-4" />
-                <span className="text-gray-600 font-medium">Loading...</span>
+                <Loader2 className="h-8 w-8 animate-spin text-[#ff6a3c] mb-4" />
+                <span className="text-white font-medium">Loading...</span>
               </div>
             </div>
           </div>
         ) : !session ? (
           <div className="flex items-center justify-center h-96">
-            <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8 text-center max-w-md">
-              <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <AlertTriangle className="h-6 w-6 text-orange-600" />
+            <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-8 text-center max-w-md">
+              <div className="w-12 h-12 bg-orange-600/20 border border-orange-600/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                <AlertTriangle className="h-6 w-6 text-orange-400" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Authentication Required</h3>
-              <p className="text-gray-600 mb-6">Please log in to access your repositories.</p>
+              <h3 className="text-lg font-semibold text-white mb-2">Authentication Required</h3>
+              <p className="text-[#8d857b] mb-6">Please log in to access your repositories.</p>
               <button
                 onClick={() => navigate('/auth/signin')}
-                className="inline-flex items-center px-6 py-2.5 bg-[#2AB7A9] text-white rounded-lg hover:bg-[#24a497] transition-colors shadow-sm"
+                className="inline-flex items-center px-6 py-2.5 bg-[#ff6a3c] text-white rounded-lg hover:bg-[#d94a1e] transition-colors"
               >
                 Sign In
               </button>
@@ -1072,8 +1072,8 @@ export function CodeBase() {
                 {/* Header */}
                 <div className="flex justify-between items-center">
                   <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Repositories</h1>
-                    <p className="text-gray-600">Browse and analyze your connected repositories</p>
+                    <h1 className="text-2xl font-bold text-white">Code Intelligence</h1>
+                    <p className="text-[#8d857b]">Browse and analyze your connected repositories</p>
                   </div>
                 </div>
 
@@ -1084,20 +1084,20 @@ export function CodeBase() {
                       {/* Repository Card */}
                       <div
                         onClick={() => handleRepositorySelect(repo)}
-                        className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow cursor-pointer border border-gray-200 hover:border-blue-300"
+                        className="bg-[#161413] border border-[#2d2a27] rounded-xl p-6 hover:border-[#ff6a3c]/50 transition-all cursor-pointer"
                       >
                         <div className="flex items-center justify-between mb-4">
                           <div className="flex items-center space-x-3">
-                            <div className="p-2 bg-blue-100 rounded-lg">
-                              <Database className="h-5 w-5 text-blue-600" />
+                            <div className="p-2 bg-blue-600/20 border border-blue-600/30 rounded-lg">
+                              <Database className="h-5 w-5 text-blue-400" />
                             </div>
                             <div>
-                              <h3 className="font-semibold text-gray-900">{repo.repository_name}</h3>
-                              <p className="text-sm text-gray-500">{repo.repository_owner}</p>
+                              <h3 className="font-semibold text-white">{repo.repository_name}</h3>
+                              <p className="text-sm text-[#8d857b]">{repo.repository_owner}</p>
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center justify-between text-sm text-gray-600">
+                        <div className="flex items-center justify-between text-sm text-[#8d857b]">
                           <span>{repo.total_objects || 0} objects</span>
                           <span>{repo.total_files || 0} files</span>
                         </div>
@@ -1148,7 +1148,7 @@ export function CodeBase() {
 
             {/* Browser View - Full Code Browser */}
             {view === 'browser' && selectedGitHubRepo && (
-              <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden" style={{ height: 'calc(100vh - 40px)' }}>
+              <div className="bg-[#161413] border border-[#2d2a27] rounded-xl overflow-hidden" style={{ height: 'calc(100vh - 40px)' }}>
                 <div className="flex h-full w-full">
                   {/* Modern File Tree with Built-in Resize */}
                   {fileTree ? (

@@ -189,24 +189,24 @@ export function Settings() {
   }, [location]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+    <div className="min-h-screen bg-[#0d0c0c]">
       {/* Modern Header */}
-      <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-sm">
+      <div className="bg-[#161413] border-b border-[#2d2a27]">
         <div className="max-w-7xl mx-auto px-6 py-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Settings</h1>
-              <p className="text-gray-600 dark:text-gray-400 mt-1">Manage your account preferences and integrations</p>
+              <h1 className="text-3xl font-bold text-white">Settings</h1>
+              <p className="text-[#8d857b] mt-1">Manage your account preferences and integrations</p>
             </div>
           </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="bg-[#161413] rounded-xl border border-[#2d2a27] overflow-hidden">
           
           {/* Modern Tab Navigation */}
-          <div className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+          <div className="border-b border-[#2d2a27] bg-[#1f1d1b]">
             <nav className="flex space-x-8 px-6" aria-label="Tabs">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
@@ -216,9 +216,9 @@ export function Settings() {
                     onClick={() => setActiveTab(tab.id)}
                     className={`${
                       activeTab === tab.id
-                        ? 'border-[#2AB7A9] text-[#2AB7A9] bg-white dark:bg-gray-900'
-                        : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
-                    } flex items-center space-x-2 whitespace-nowrap py-4 px-3 border-b-2 font-medium text-sm transition-all duration-200 ease-in-out rounded-t-lg -mb-px`}
+                        ? 'border-[#ff6a3c] text-[#ff6a3c]'
+                        : 'border-transparent text-[#8d857b] hover:text-white hover:border-[#2d2a27]'
+                    } flex items-center space-x-2 whitespace-nowrap py-4 px-3 border-b-2 font-medium text-sm transition-all duration-200 -mb-px`}
                   >
                     <Icon className="h-4 w-4" />
                     <span>{tab.label}</span>
@@ -234,8 +234,8 @@ export function Settings() {
             {activeTab === 'profile' && (
               <div className="space-y-8">
                 <div>
-                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Profile Information</h3>
-                  <p className="text-gray-600 dark:text-gray-400 mt-1">
+                  <h3 className="text-xl font-bold text-white">Profile Information</h3>
+                  <p className="text-[#8d857b] mt-1">
                     Update your personal details and account information
                   </p>
                 </div>
@@ -244,15 +244,15 @@ export function Settings() {
                   {/* Profile Photo Section */}
                   <div className="space-y-6">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                      <label className="block text-sm font-semibold text-white mb-3">
                         Profile Photo
                       </label>
                       <div className="flex flex-col items-center space-y-4">
-                        <div className="h-24 w-24 rounded-full bg-gray-100 dark:bg-gray-800 border-4 border-gray-200 dark:border-gray-700 flex items-center justify-center overflow-hidden">
+                        <div className="h-24 w-24 rounded-full bg-[#1f1d1b] border-4 border-[#2d2a27] flex items-center justify-center overflow-hidden">
                           {profileImage ? (
                             <img src={profileImage} alt="Profile" className="h-full w-full object-cover" />
                           ) : (
-                            <User className="h-10 w-10 text-gray-400" />
+                            <User className="h-10 w-10 text-[#8d857b]" />
                           )}
                         </div>
                         <input
@@ -264,7 +264,7 @@ export function Settings() {
                         />
                         <label
                           htmlFor="profile-upload"
-                          className="cursor-pointer px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-sm font-medium"
+                          className="cursor-pointer px-4 py-2 bg-[#1f1d1b] border border-[#2d2a27] text-white rounded-lg hover:bg-[#2d2a27] transition-colors text-sm font-medium"
                         >
                           Change Photo
                         </label>
@@ -276,62 +276,62 @@ export function Settings() {
                   <div className="lg:col-span-2 space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        <label className="block text-sm font-semibold text-white mb-2">
                           Full Name
                         </label>
                         <input
                           type="text"
                           value={form.fullName}
                           onChange={(e) => setForm({ ...form, fullName: e.target.value })}
-                          className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-[#2AB7A9] focus:border-transparent text-gray-900 dark:text-white"
+                          className="w-full px-4 py-3 bg-[#1f1d1b] border border-[#2d2a27] rounded-lg focus:ring-2 focus:ring-[#ff6a3c]/50 focus:border-transparent text-white placeholder-[#8d857b]"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        <label className="block text-sm font-semibold text-white mb-2">
                           Email Address
                         </label>
                         <input
                           type="email"
                           value={form.email}
                           onChange={(e) => setForm({ ...form, email: e.target.value })}
-                          className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-[#2AB7A9] focus:border-transparent text-gray-900 dark:text-white"
+                          className="w-full px-4 py-3 bg-[#1f1d1b] border border-[#2d2a27] rounded-lg focus:ring-2 focus:ring-[#ff6a3c]/50 focus:border-transparent text-white placeholder-[#8d857b]"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        <label className="block text-sm font-semibold text-white mb-2">
                           Company
                         </label>
                         <input
                           type="text"
                           value={form.company}
                           onChange={(e) => setForm({ ...form, company: e.target.value })}
-                          className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-[#2AB7A9] focus:border-transparent text-gray-900 dark:text-white"
+                          className="w-full px-4 py-3 bg-[#1f1d1b] border border-[#2d2a27] rounded-lg focus:ring-2 focus:ring-[#ff6a3c]/50 focus:border-transparent text-white placeholder-[#8d857b]"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        <label className="block text-sm font-semibold text-white mb-2">
                           Role
                         </label>
                         <input
                           type="text"
                           value={form.role}
                           onChange={(e) => setForm({ ...form, role: e.target.value })}
-                          className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-[#2AB7A9] focus:border-transparent text-gray-900 dark:text-white"
+                          className="w-full px-4 py-3 bg-[#1f1d1b] border border-[#2d2a27] rounded-lg focus:ring-2 focus:ring-[#ff6a3c]/50 focus:border-transparent text-white placeholder-[#8d857b]"
                         />
                       </div>
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="flex space-x-4 pt-6 border-t border-gray-200 dark:border-gray-700">
+                    <div className="flex space-x-4 pt-6 border-t border-[#2d2a27]">
                       <button
                         onClick={handleSaveProfile}
-                        className="px-6 py-3 bg-[#2AB7A9] text-white rounded-lg hover:bg-[#2AB7A9]/90 font-medium transition-colors"
+                        className="px-6 py-3 bg-[#ff6a3c] text-white rounded-lg hover:bg-[#ff8c66] font-semibold transition-colors"
                       >
                         Save Changes
                       </button>
                       <button
                         onClick={handleChangePassword}
-                        className="px-6 py-3 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 font-medium transition-colors flex items-center space-x-2"
+                        className="px-6 py-3 bg-[#1f1d1b] border border-[#2d2a27] text-white rounded-lg hover:bg-[#2d2a27] font-medium transition-colors flex items-center space-x-2"
                       >
                         <Lock className="h-4 w-4" />
                         <span>Change Password</span>
@@ -346,8 +346,8 @@ export function Settings() {
             {activeTab === 'notifications' && (
               <div className="space-y-8">
                 <div>
-                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Notification Preferences</h3>
-                  <p className="text-gray-600 dark:text-gray-400 mt-1">
+                  <h3 className="text-xl font-bold text-white">Notification Preferences</h3>
+                  <p className="text-[#8d857b] mt-1">
                     Choose what notifications you want to receive
                   </p>
                 </div>
@@ -359,15 +359,15 @@ export function Settings() {
                     { key: 'weekly', label: 'Weekly Summary', description: 'Weekly digest of your data insights' },
                     { key: 'marketing', label: 'Marketing Communications', description: 'Updates about new features and tips' }
                   ].map((notification) => (
-                    <div key={notification.key} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                    <div key={notification.key} className="flex items-center justify-between p-4 bg-[#1f1d1b] border border-[#2d2a27] rounded-lg">
                       <div>
-                        <h4 className="text-sm font-medium text-gray-900 dark:text-white">{notification.label}</h4>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">{notification.description}</p>
+                        <h4 className="text-sm font-semibold text-white">{notification.label}</h4>
+                        <p className="text-sm text-[#8d857b]">{notification.description}</p>
                       </div>
                       <button
                         onClick={() => setNotifications({ ...notifications, [notification.key]: !notifications[notification.key] })}
                         className={`${
-                          notifications[notification.key] ? 'bg-[#2AB7A9]' : 'bg-gray-200 dark:bg-gray-700'
+                          notifications[notification.key] ? 'bg-[#ff6a3c]' : 'bg-[#2d2a27]'
                         } relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none`}
                       >
                         <span
@@ -386,42 +386,42 @@ export function Settings() {
             {activeTab === 'billing' && (
               <div className="space-y-8">
                 <div>
-                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Billing & Subscription</h3>
-                  <p className="text-gray-600 dark:text-gray-400 mt-1">
+                  <h3 className="text-xl font-bold text-white">Billing & Subscription</h3>
+                  <p className="text-[#8d857b] mt-1">
                     Manage your subscription plan and payment methods
                   </p>
                 </div>
 
                 {/* Current Plan Overview */}
-                <div className="bg-gradient-to-r from-[#2AB7A9]/10 to-blue-500/10 rounded-xl p-6 border border-[#2AB7A9]/20">
+                <div className="bg-[#1f1d1b] rounded-xl p-6 border-2 border-[#ff6a3c]/30">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="text-lg font-semibold text-gray-900 dark:text-white">Current Plan: Free</h4>
-                      <p className="text-gray-600 dark:text-gray-400">You're currently on the Free plan</p>
+                      <h4 className="text-lg font-bold text-white">Current Plan: Free</h4>
+                      <p className="text-[#8d857b]">You're currently on the Free plan</p>
                     </div>
                     <div className="text-right">
-                      <div className="text-2xl font-bold text-gray-900 dark:text-white">$0</div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">per month</div>
+                      <div className="text-2xl font-bold text-[#ff6a3c]">$0</div>
+                      <div className="text-sm text-[#8d857b]">per month</div>
                     </div>
                   </div>
                 </div>
 
                 {/* Available Plans */}
                 <div>
-                  <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Available Plans</h4>
+                  <h4 className="text-lg font-bold text-white mb-6">Available Plans</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {plans.map((plan) => (
                       <div
                         key={plan.name}
-                        className={`relative rounded-xl border-2 p-6 transition-all ${
+                        className={`relative rounded-xl border-2 p-6 transition-all bg-[#1f1d1b] ${
                           plan.current
-                            ? 'border-[#2AB7A9] bg-[#2AB7A9]/5 shadow-lg'
-                            : 'border-gray-200 dark:border-gray-700 hover:border-[#2AB7A9]/50 hover:shadow-md'
+                            ? 'border-[#ff6a3c] shadow-lg shadow-[#ff6a3c]/20'
+                            : 'border-[#2d2a27] hover:border-[#ff6a3c]/50 hover:shadow-md'
                         }`}
                       >
                         {plan.popular && (
                           <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                            <span className="inline-flex items-center rounded-full bg-gradient-to-r from-[#2AB7A9] to-blue-500 px-3 py-1 text-xs font-medium text-white shadow-lg">
+                            <span className="inline-flex items-center rounded-full bg-[#ff6a3c] px-3 py-1 text-xs font-bold text-white shadow-lg">
                               <Star className="h-3 w-3 mr-1" />
                               Most Popular
                             </span>
@@ -429,19 +429,19 @@ export function Settings() {
                         )}
                         
                         <div className="text-center">
-                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{plan.name}</h3>
+                          <h3 className="text-lg font-bold text-white">{plan.name}</h3>
                           <div className="mt-3">
-                            <span className="text-3xl font-bold text-gray-900 dark:text-white">{plan.price}</span>
-                            <span className="text-gray-600 dark:text-gray-400 text-sm">/{plan.period}</span>
+                            <span className="text-3xl font-bold text-white">{plan.price}</span>
+                            <span className="text-[#8d857b] text-sm">/{plan.period}</span>
                           </div>
-                          <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">{plan.description}</p>
+                          <p className="mt-3 text-sm text-[#8d857b]">{plan.description}</p>
                         </div>
 
                         <ul className="mt-6 space-y-3">
                           {plan.features.map((feature) => (
                             <li key={feature} className="flex items-start text-sm">
-                              <Check className="h-4 w-4 text-[#2AB7A9] mr-3 flex-shrink-0 mt-0.5" />
-                              <span className="text-gray-700 dark:text-gray-300">{feature}</span>
+                              <Check className="h-4 w-4 text-[#ff6a3c] mr-3 flex-shrink-0 mt-0.5" />
+                              <span className="text-white">{feature}</span>
                             </li>
                           ))}
                         </ul>
@@ -449,12 +449,12 @@ export function Settings() {
                         <button
                           onClick={() => !plan.current && handleUpdatePayment(plan)}
                           disabled={plan.current}
-                          className={`mt-6 w-full rounded-lg px-4 py-3 text-sm font-medium transition-all ${
+                          className={`mt-6 w-full rounded-lg px-4 py-3 text-sm font-semibold transition-all ${
                             plan.current
-                              ? 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                              ? 'bg-[#2d2a27] text-[#8d857b] cursor-not-allowed'
                               : plan.popular
-                              ? 'bg-gradient-to-r from-[#2AB7A9] to-blue-500 text-white hover:shadow-lg hover:scale-105'
-                              : 'bg-[#2AB7A9] text-white hover:bg-[#2AB7A9]/90 hover:shadow-md'
+                              ? 'bg-[#ff6a3c] text-white hover:bg-[#ff8c66] hover:shadow-lg hover:scale-105'
+                              : 'bg-[#ff6a3c] text-white hover:bg-[#ff8c66] hover:shadow-md'
                           }`}
                         >
                           {plan.current ? 'Current Plan' : 'Upgrade'}
@@ -465,20 +465,20 @@ export function Settings() {
                 </div>
 
                 {/* Payment Method Section */}
-                <div className="border-t border-gray-200 dark:border-gray-700 pt-8">
-                  <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Payment Method</h4>
-                  <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-6">
+                <div className="border-t border-[#2d2a27] pt-8">
+                  <h4 className="text-lg font-bold text-white mb-6">Payment Method</h4>
+                  <div className="bg-[#1f1d1b] border border-[#2d2a27] rounded-xl p-6">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-4">
-                        <div className="h-12 w-12 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-                          <CreditCard className="h-6 w-6 text-gray-400" />
+                        <div className="h-12 w-12 bg-[#2d2a27] rounded-lg flex items-center justify-center">
+                          <CreditCard className="h-6 w-6 text-[#8d857b]" />
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">No payment method added</p>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">Add a payment method to upgrade your plan</p>
+                          <p className="text-sm font-semibold text-white">No payment method added</p>
+                          <p className="text-sm text-[#8d857b]">Add a payment method to upgrade your plan</p>
                         </div>
                       </div>
-                      <button className="px-4 py-2 bg-[#2AB7A9] text-white rounded-lg hover:bg-[#2AB7A9]/90 font-medium transition-colors">
+                      <button className="px-4 py-2 bg-[#ff6a3c] text-white rounded-lg hover:bg-[#ff8c66] font-semibold transition-colors">
                         Add Payment Method
                       </button>
                     </div>

@@ -46,6 +46,7 @@ interface FocusedLineageViewProps {
   connectionId: string;
   initialModelId?: string;
   onDataUpdate?: (data: { nodes: Node[]; edges: Edge[]; columnLineages: ColumnLineage[] }) => void;
+  onNodeClick?: (nodeId: string, nodeName: string) => void;
   hideHeader?: boolean;
   useUnifiedApi?: boolean;
   organizationId?: string;
@@ -124,7 +125,13 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[]) => {
 };
 
 // Inner component with ReactFlow context
-function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate, hideHeader, useUnifiedApi, organizationId: propOrganizationId }: FocusedLineageViewProps) {
+function FocusedLineageViewContent({ connectionId, 
+  initialModelId,
+  onDataUpdate,
+  onNodeClick,
+  hideHeader = false,
+  useUnifiedApi = false,
+  organizationId: propOrganizationId }: FocusedLineageViewProps) {
   const reactFlowInstance = useReactFlow();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -370,6 +377,11 @@ function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate,
       // Set as selected for highlighting
       setSelectedNodeId(nodeId);
       
+      // Notify parent component about node click
+      if (onNodeClick && node.data?.name) {
+        onNodeClick(nodeId, node.data.name);
+      }
+      
       // Highlight this node and its direct connections
       const connectedEdges = new Set<string>();
       const connectedNodes = new Set<string>();
@@ -415,7 +427,7 @@ function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate,
         }))
       );
     }
-  }, [reactFlowInstance, setEdges, setNodes]);
+  }, [reactFlowInstance, setEdges, setNodes, onNodeClick]);
 
   // Filter nodes by search (only filter model nodes, not expand buttons)
   const filteredNodes = searchTerm
@@ -525,14 +537,19 @@ function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate,
   // Generate column edges based on columnLineages
   const generateColumnEdges = useCallback((nodes: Node[]) => {
     const columnEdges: Edge[] = [];
+    const edgeIds = new Set<string>(); // Track unique edges to prevent duplicates
     
     nodes.forEach((node) => {
       if (node.data.expanded && node.data.columns) {
+        // Only create edges where this node is the SOURCE to avoid duplicates
         const lineages = allColumnLineages.filter(
-          l => l.source_object_id === node.id || l.target_object_id === node.id
+          l => l.source_object_id === node.id
         );
         
         lineages.forEach((lineage: ColumnLineage) => {
+          // Skip if we've already added this edge
+          if (edgeIds.has(lineage.id)) return;
+          edgeIds.add(lineage.id);
           const sourceHandle = `${lineage.source_object_id}-${lineage.source_column}-source`;
           const targetHandle = `${lineage.target_object_id}-${lineage.target_column}-target`;
           
@@ -849,8 +866,13 @@ function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate,
           n.type !== 'expandButton'
         );
         
+        // Deduplicate edges - keep existing edges and only add new unique ones
+        const existingEdgeIds = new Set(edges.map(e => e.id));
+        const newUniqueEdges = flowEdges.filter(e => !existingEdgeIds.has(e.id));
+        const mergedEdges = [...edges, ...newUniqueEdges];
+        
         // Layout only the new nodes relative to existing
-        const layouted = getLayoutedElements([...nodesWithoutExpandButtons, ...newNodes], [...edges, ...flowEdges]);
+        const layouted = getLayoutedElements([...nodesWithoutExpandButtons, ...newNodes], mergedEdges);
         finalNodes = layouted.nodes;
         finalEdges = layouted.edges;
       } else {
@@ -1070,16 +1092,16 @@ function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate,
   }
 
   return (
-    <div className="w-full h-full flex flex-col bg-gray-50">
+    <div className="w-full h-full flex flex-col bg-[#0d0c0c]">
       {/* Header */}
       {!hideHeader && (
-      <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+      <div className="bg-[#161413] border-b border-[#2d2a27] px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <Target className="w-5 h-5 text-blue-600" />
+            <Target className="w-5 h-5 text-[#ff6a3c]" />
             <div>
-              <div className="text-sm font-semibold text-gray-900">{selectedModelName}</div>
-              <div className="text-xs text-gray-500">
+              <div className="text-sm font-semibold text-white">{selectedModelName}</div>
+              <div className="text-xs text-[#8d857b]">
                 Showing {nodes.length} models ({nodes.filter(n => n.data.isFocal).length} focal)
               </div>
             </div>
@@ -1089,18 +1111,18 @@ function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate,
         <div className="flex items-center gap-3">
           {/* Search */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8d857b]" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search models..."
-              className="w-64 pl-9 pr-9 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-64 pl-9 pr-9 py-1.5 text-sm bg-[#1f1d1b] border border-[#2d2a27] text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#ff6a3c]/50 placeholder-[#8d857b]"
             />
             {searchTerm && (
               <button
                 onClick={() => setSearchTerm('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8d857b] hover:text-white"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1113,9 +1135,9 @@ function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate,
                   className="fixed inset-0 z-10"
                   onClick={() => setSearchTerm('')}
                 />
-                <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl border border-gray-200 z-20 max-h-96 overflow-y-auto">
-                  <div className="px-3 py-2 bg-gray-50 border-b border-gray-200">
-                    <div className="text-xs font-semibold text-gray-600 uppercase">
+                <div className="absolute right-0 mt-2 w-80 bg-[#161413] border border-[#2d2a27] rounded-lg z-20 max-h-96 overflow-y-auto">
+                  <div className="px-3 py-2 bg-[#1f1d1b] border-b border-[#2d2a27]">
+                    <div className="text-xs font-semibold text-[#8d857b] uppercase">
                       {filteredNodes.length} model{filteredNodes.length !== 1 ? 's' : ''} found
                     </div>
                   </div>
@@ -1127,16 +1149,16 @@ function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate,
                         setSearchTerm(''); // Clear search to hide dropdown
                         setTimeout(() => focusNode(node.id), 0); // Focus after state update
                       }}
-                      className="w-full px-4 py-2.5 text-left hover:bg-blue-50 flex items-center justify-between group"
+                      className="w-full px-4 py-2.5 text-left hover:bg-[#1f1d1b] flex items-center justify-between group"
                     >
                       <div className="flex-1">
-                        <div className="text-sm font-semibold text-gray-900 group-hover:text-blue-700">
+                        <div className="text-sm font-semibold text-white group-hover:text-[#ff6a3c]">
                           {node.data.name}
                         </div>
-                        <div className="text-xs text-gray-500 mt-0.5 capitalize">{node.data.type}</div>
+                        <div className="text-xs text-[#8d857b] mt-0.5 capitalize">{node.data.type}</div>
                       </div>
                       {node.data.isFocal && (
-                        <div className="bg-blue-600 text-white text-xs px-2 py-1 rounded-full font-medium">
+                        <div className="bg-[#ff6a3c] text-white text-xs px-2 py-1 rounded-full font-medium">
                           FOCAL
                         </div>
                       )}
@@ -1149,7 +1171,7 @@ function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate,
 
           <button
             onClick={() => fetchFocusedLineage(selectedModel)}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+            className="flex items-center gap-2 px-3 py-1.5 text-sm text-white bg-[#161413] border border-[#2d2a27] rounded-lg hover:bg-[#1f1d1b]"
           >
             <RefreshCw className="w-4 h-4" />
             Refresh
@@ -1164,7 +1186,7 @@ function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate,
         className="flex-1"
         style={{
           position: 'relative',
-          backgroundColor: isFullscreen ? '#ffffff' : undefined,
+          backgroundColor: isFullscreen ? '#0d0c0c' : undefined,
           overflow: 'visible'
         }}
       >
@@ -1225,7 +1247,7 @@ function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate,
             {(selectedNodeId || hoveredColumnPath) && (
               <button
                 onClick={clearHighlight}
-                className="px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-md hover:bg-gray-50 transition-colors flex items-center gap-2 text-sm font-medium text-gray-700"
+                className="px-3 py-2 bg-[#161413] border border-[#2d2a27] rounded-lg hover:bg-[#1f1d1b] transition-colors flex items-center gap-2 text-sm font-medium text-white"
                 title="Clear highlighting"
               >
                 <EyeOff className="w-4 h-4" />
@@ -1236,7 +1258,7 @@ function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate,
             {/* Fit View Button */}
             <button
               onClick={fitToView}
-              className="px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-md hover:bg-gray-50 transition-colors flex items-center gap-2 text-sm font-medium text-gray-700"
+              className="px-3 py-2 bg-[#161413] border border-[#2d2a27] rounded-lg hover:bg-[#1f1d1b] transition-colors flex items-center gap-2 text-sm font-medium text-white"
               title="Fit all nodes to view"
             >
               <Maximize2 className="w-4 h-4" />
@@ -1246,7 +1268,7 @@ function FocusedLineageViewContent({ connectionId, initialModelId, onDataUpdate,
             {/* Fullscreen Button */}
             <button
               onClick={toggleFullscreen}
-              className="px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-md hover:bg-gray-50 transition-colors flex items-center gap-2 text-sm font-medium text-gray-700"
+              className="px-3 py-2 bg-[#161413] border border-[#2d2a27] rounded-lg hover:bg-[#1f1d1b] transition-colors flex items-center gap-2 text-sm font-medium text-white"
               title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
             >
               {isFullscreen ? (

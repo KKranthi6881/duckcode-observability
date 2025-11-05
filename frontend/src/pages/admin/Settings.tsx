@@ -61,12 +61,12 @@ export const SettingsPage: React.FC = () => {
   };
 
   return (
-    <div className="h-full bg-gray-50">
+    <div className="h-full bg-[#0d0c0c]">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-8 py-6">
+      <div className="bg-[#161413] border-b border-[#2d2a27] px-8 py-6">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Organization Settings</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-2xl font-bold text-white">Organization Settings</h1>
+          <p className="text-sm text-[#8d857b] mt-1">
             Manage your organization's configuration and preferences
           </p>
         </div>
@@ -76,56 +76,56 @@ export const SettingsPage: React.FC = () => {
       <div className="p-8 max-w-4xl">
 
       {/* General Settings */}
-      <div className="bg-white rounded-lg shadow mb-6">
-        <div className="p-6 border-b border-gray-200">
+      <div className="bg-[#161413] border border-[#2d2a27] rounded-lg mb-6">
+        <div className="p-6 border-b border-[#2d2a27]">
           <div className="flex items-center space-x-2 mb-4">
-            <Building2 className="h-5 w-5 text-gray-600" />
-            <h2 className="text-lg font-semibold text-gray-900">General Information</h2>
+            <Building2 className="h-5 w-5 text-[#ff6a3c]" />
+            <h2 className="text-lg font-bold text-white">General Information</h2>
           </div>
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-white mb-2">
                 Organization Name
               </label>
               <input
                 type="text"
                 value={formData.display_name}
                 onChange={(e) => setFormData({ ...formData, display_name: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 bg-[#1f1d1b] border border-[#2d2a27] text-white placeholder-[#8d857b] rounded-lg focus:ring-2 focus:ring-[#ff6a3c]/50 focus:border-transparent"
               />
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-[#8d857b]">
                 This is the display name shown to all members
               </p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-white mb-2">
                 Organization ID
               </label>
-              <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
-                <code className="text-sm text-gray-600">{selectedOrg?.name}</code>
+              <div className="px-3 py-2 bg-[#1f1d1b] border border-[#2d2a27] rounded-lg">
+                <code className="text-sm text-[#8d857b]">{selectedOrg?.name}</code>
               </div>
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-[#8d857b]">
                 Read-only identifier for API integrations
               </p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-white mb-2">
                 Email Domain
               </label>
               <div className="flex items-center space-x-2">
-                <Globe className="h-5 w-5 text-gray-400" />
+                <Globe className="h-5 w-5 text-[#8d857b]" />
                 <input
                   type="text"
                   value={formData.domain}
                   onChange={(e) => setFormData({ ...formData, domain: e.target.value })}
                   placeholder="example.com"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="flex-1 px-3 py-2 bg-[#1f1d1b] border border-[#2d2a27] text-white placeholder-[#8d857b] rounded-lg focus:ring-2 focus:ring-[#ff6a3c]/50 focus:border-transparent"
                 />
               </div>
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-[#8d857b]">
                 Auto-verify users with this email domain
               </p>
             </div>
@@ -136,7 +136,7 @@ export const SettingsPage: React.FC = () => {
           <button
             onClick={handleSave}
             disabled={loading}
-            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            className="flex items-center space-x-2 px-4 py-2 bg-[#ff6a3c] text-white rounded-lg hover:bg-[#ff8c66] disabled:opacity-50 font-semibold"
           >
             <Save className="h-4 w-4" />
             <span>{loading ? 'Saving...' : 'Save Changes'}</span>
@@ -145,36 +145,36 @@ export const SettingsPage: React.FC = () => {
       </div>
 
       {/* Plan & Billing */}
-      <div className="bg-white rounded-lg shadow mb-6">
-        <div className="p-6 border-b border-gray-200">
+      <div className="bg-[#161413] border border-[#2d2a27] rounded-lg mb-6">
+        <div className="p-6 border-b border-[#2d2a27]">
           <div className="flex items-center space-x-2 mb-4">
-            <CreditCard className="h-5 w-5 text-gray-600" />
-            <h2 className="text-lg font-semibold text-gray-900">Plan & Billing</h2>
+            <CreditCard className="h-5 w-5 text-[#ff6a3c]" />
+            <h2 className="text-lg font-bold text-white">Plan & Billing</h2>
           </div>
 
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center justify-between p-4 bg-blue-600/10 border border-blue-600/20 rounded-lg">
               <div>
-                <p className="font-medium text-blue-900 capitalize">
+                <p className="font-bold text-blue-300 capitalize">
                   {selectedOrg?.plan_type} Plan
                 </p>
-                <p className="text-sm text-blue-700 mt-1">
-                  Status: <span className="font-medium capitalize">{selectedOrg?.status}</span>
+                <p className="text-sm text-blue-400/80 mt-1">
+                  Status: <span className="font-semibold capitalize">{selectedOrg?.status}</span>
                 </p>
               </div>
-              <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+              <button className="px-4 py-2 bg-[#ff6a3c] text-white rounded-lg hover:bg-[#ff8c66] font-semibold">
                 Upgrade Plan
               </button>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">
+              <label className="block text-sm font-semibold text-white mb-3">
                 Plan Features
               </label>
               <div className="space-y-2">
                 {planFeatures[selectedOrg?.plan_type || 'trial'].map((feature, index) => (
-                  <div key={index} className="flex items-center space-x-2 text-sm text-gray-700">
-                    <div className="h-1.5 w-1.5 rounded-full bg-blue-600"></div>
+                  <div key={index} className="flex items-center space-x-2 text-sm text-white">
+                    <div className="h-1.5 w-1.5 rounded-full bg-[#ff6a3c]"></div>
                     <span>{feature}</span>
                   </div>
                 ))}
@@ -182,20 +182,20 @@ export const SettingsPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-white mb-2">
                 User Limit
               </label>
               <div className="flex items-center space-x-4">
-                <Users className="h-5 w-5 text-gray-400" />
+                <Users className="h-5 w-5 text-[#8d857b]" />
                 <div className="flex-1">
                   <input
                     type="number"
                     value={formData.max_users}
                     onChange={(e) => setFormData({ ...formData, max_users: parseInt(e.target.value) })}
                     min="1"
-                    className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-32 px-3 py-2 bg-[#1f1d1b] border border-[#2d2a27] text-white rounded-lg focus:ring-2 focus:ring-[#ff6a3c]/50 focus:border-transparent"
                   />
-                  <p className="mt-1 text-xs text-gray-500">
+                  <p className="mt-1 text-xs text-[#8d857b]">
                     Maximum number of users allowed
                   </p>
                 </div>
@@ -206,25 +206,25 @@ export const SettingsPage: React.FC = () => {
       </div>
 
       {/* Danger Zone */}
-      <div className="bg-white rounded-lg shadow border-2 border-red-200">
+      <div className="bg-[#161413] border-2 border-red-600/30 rounded-lg">
         <div className="p-6">
           <div className="flex items-center space-x-2 mb-4">
-            <AlertTriangle className="h-5 w-5 text-red-600" />
-            <h2 className="text-lg font-semibold text-red-900">Danger Zone</h2>
+            <AlertTriangle className="h-5 w-5 text-red-400" />
+            <h2 className="text-lg font-bold text-red-400">Danger Zone</h2>
           </div>
 
           <div className="space-y-4">
-            <div className="p-4 border border-red-200 rounded-lg">
+            <div className="p-4 border border-red-600/20 bg-red-600/5 rounded-lg">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="font-medium text-gray-900">Delete Organization</h3>
-                  <p className="text-sm text-gray-600 mt-1">
+                  <h3 className="font-semibold text-white">Delete Organization</h3>
+                  <p className="text-sm text-[#8d857b] mt-1">
                     Permanently delete this organization and all associated data. This action cannot be undone.
                   </p>
                 </div>
                 <button
                   onClick={() => setShowDeleteModal(true)}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-semibold"
                 >
                   Delete
                 </button>
@@ -236,25 +236,25 @@ export const SettingsPage: React.FC = () => {
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-[#161413] border border-[#2d2a27] rounded-lg p-6 max-w-md w-full mx-4">
             <div className="flex items-center space-x-3 mb-4">
-              <div className="p-3 bg-red-100 rounded-full">
-                <AlertTriangle className="h-6 w-6 text-red-600" />
+              <div className="p-3 bg-red-600/20 border border-red-600/30 rounded-full">
+                <AlertTriangle className="h-6 w-6 text-red-400" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900">
+              <h3 className="text-lg font-bold text-white">
                 Delete Organization
               </h3>
             </div>
 
             <div className="mb-6">
-              <p className="text-gray-700 mb-4">
-                Are you absolutely sure you want to delete <strong>{selectedOrg?.display_name}</strong>?
+              <p className="text-white mb-4">
+                Are you absolutely sure you want to delete <strong className="text-red-400">{selectedOrg?.display_name}</strong>?
               </p>
-              <p className="text-sm text-gray-600 mb-4">
+              <p className="text-sm text-[#8d857b] mb-4">
                 This will permanently delete:
               </p>
-              <ul className="text-sm text-gray-600 space-y-1 mb-4">
+              <ul className="text-sm text-[#8d857b] space-y-1 mb-4">
                 <li>• All organization data</li>
                 <li>• All team configurations</li>
                 <li>• All API keys</li>
@@ -262,20 +262,20 @@ export const SettingsPage: React.FC = () => {
                 <li>• All metadata and lineage</li>
               </ul>
               
-              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                <p className="text-sm text-red-800 font-medium">
+              <div className="bg-red-600/10 border border-red-600/30 rounded-lg p-3">
+                <p className="text-sm text-red-400 font-semibold">
                   ⚠️ This action is irreversible and cannot be undone!
                 </p>
               </div>
 
               <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Type <code className="bg-gray-100 px-1 py-0.5 rounded">{selectedOrg?.name}</code> to confirm
+                <label className="block text-sm font-semibold text-white mb-2">
+                  Type <code className="bg-[#1f1d1b] px-1 py-0.5 rounded text-[#ff6a3c]">{selectedOrg?.name}</code> to confirm
                 </label>
                 <input
                   type="text"
                   placeholder={selectedOrg?.name}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                  className="w-full px-3 py-2 bg-[#1f1d1b] border border-[#2d2a27] text-white placeholder-[#8d857b] rounded-lg focus:ring-2 focus:ring-red-500/50 focus:border-transparent"
                 />
               </div>
             </div>
@@ -283,11 +283,11 @@ export const SettingsPage: React.FC = () => {
             <div className="flex justify-end space-x-3">
               <button
                 onClick={() => setShowDeleteModal(false)}
-                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                className="px-4 py-2 text-white bg-[#1f1d1b] border border-[#2d2a27] rounded-lg hover:bg-[#2d2a27] font-medium"
               >
                 Cancel
               </button>
-              <button className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+              <button className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-semibold">
                 <Trash2 className="h-4 w-4" />
                 <span>Delete Organization</span>
               </button>

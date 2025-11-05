@@ -1,8 +1,6 @@
-import { memo, useState, useCallback, useRef } from 'react';
-import { createPortal } from 'react-dom';
+import { memo, useState, useCallback } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 import { ChevronDown, Loader2, Database, Table2, FileText, Focus, Cloud, GitBranch } from 'lucide-react';
-import { ModelTooltip } from './ModelTooltip';
 
 interface ColumnLineage {
   id: string;
@@ -91,10 +89,6 @@ const getTypeConfig = (type: string) => {
 function ModernModelNode({ data }: NodeProps<ModelNodeData>) {
   const [showingMore, setShowingMore] = useState(false);
   const [hoveredColumn, setHoveredColumn] = useState<string | null>(null);
-  const [showTooltip, setShowTooltip] = useState(false);
-  const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null);
-  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
-  const nodeRef = useRef<HTMLDivElement>(null);
   
   const columns = data.columns || [];
   const visibleColumns = showingMore ? columns : columns.slice(0, INITIAL_COLUMNS_SHOWN);
@@ -102,39 +96,6 @@ function ModernModelNode({ data }: NodeProps<ModelNodeData>) {
   
   const typeConfig = getTypeConfig(data.type);
   const Icon = typeConfig.icon;
-  
-  // Get upstream/downstream counts from either direct props or stats object
-  const upstreamCount = data.upstreamCount ?? data.stats?.upstreamCount ?? 0;
-  const downstreamCount = data.downstreamCount ?? data.stats?.downstreamCount ?? 0;
-
-  // Handle mouse enter with slight delay for better UX
-  const handleMouseEnter = useCallback(() => {
-    const timeout = setTimeout(() => {
-      // Calculate tooltip position relative to viewport
-      if (nodeRef.current) {
-        const rect = nodeRef.current.getBoundingClientRect();
-        console.log('[Tooltip] Node rect:', rect);
-        setTooltipPosition({
-          x: rect.right + 16, // 16px margin to the right of node
-          y: rect.top + (rect.height / 2) // Vertically centered
-        });
-        console.log('[Tooltip] Position set to:', { x: rect.right + 16, y: rect.top + (rect.height / 2) });
-      } else {
-        console.log('[Tooltip] nodeRef.current is null!');
-      }
-      setShowTooltip(true);
-      console.log('[Tooltip] showTooltip set to true');
-    }, 300); // 300ms delay (reduced from 500ms for better responsiveness)
-    setHoverTimeout(timeout);
-  }, []);
-
-  const handleMouseLeave = useCallback(() => {
-    if (hoverTimeout) {
-      clearTimeout(hoverTimeout);
-      setHoverTimeout(null);
-    }
-    setShowTooltip(false);
-  }, [hoverTimeout]);
 
   const handleToggle = useCallback(() => {
     if (data.expanded) {
@@ -161,53 +122,21 @@ function ModernModelNode({ data }: NodeProps<ModelNodeData>) {
 
   return (
     <div
-      ref={nodeRef}
       className={`
-        bg-white rounded-lg transition-all duration-200 min-w-[240px] max-w-[280px] relative
-        ${data.isFocal ? 'shadow-lg border-2 border-blue-400' : 'shadow-md hover:shadow-lg border-2 border-gray-200'}
+        bg-[#161413] rounded-lg transition-all duration-200 min-w-[240px] max-w-[280px] relative
+        ${data.isFocal ? 'border-2 border-[#ff6a3c]' : 'border-2 border-[#2d2a27] hover:border-[#ff6a3c]/50'}
       `}
     >
-      {/* Tooltip - rendered to fullscreen container if available, otherwise document.body */}
-      {showTooltip && tooltipPosition.x > 0 && createPortal(
-        <div 
-          className="pointer-events-none"
-          style={{
-            position: data.tooltipContainer ? 'absolute' : 'fixed',
-            zIndex: 999999,
-            left: `${tooltipPosition.x}px`,
-            top: `${tooltipPosition.y}px`,
-            transform: 'translateY(-50%)'
-          }}
-        >
-          <ModelTooltip
-            model={{
-              name: data.name,
-              type: data.type,
-              description: data.description,
-              filePath: data.filePath,
-              updatedAt: data.updatedAt,
-              upstreamCount,
-              downstreamCount,
-              extractionTier: data.extractionTier,
-              confidence: data.confidence,
-              metadata: data.metadata
-            }}
-          />
-        </div>,
-        data.tooltipContainer || document.body
-      )}
       <Handle 
         type="target" 
         position={Position.Left} 
         className="w-3 h-3 !bg-blue-500 border-2 border-white"
       />
       
-      {/* Model Header - tooltip only shows when hovering this area */}
+      {/* Model Header */}
       <div
-        className="p-2.5 cursor-pointer transition-all duration-200 hover:bg-gray-50 rounded-t-lg border-b border-gray-200"
+        className="p-2.5 cursor-pointer transition-all duration-200 hover:bg-[#1f1d1b] rounded-t-lg border-b border-[#2d2a27]"
         onClick={handleToggle}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
       >
         <div className="flex items-center gap-2">
           {/* Icon */}
@@ -218,7 +147,7 @@ function ModernModelNode({ data }: NodeProps<ModelNodeData>) {
           {/* Content */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 mb-0.5">
-              <div className="font-semibold text-xs text-gray-900 truncate">
+              <div className="font-semibold text-xs text-white truncate">
                 {data.name}
               </div>
               {/* Source Type Badge with Icon(s) - Shows multiple sources if available */}
@@ -232,7 +161,7 @@ function ModernModelNode({ data }: NodeProps<ModelNodeData>) {
                           ? 'bg-cyan-50 text-cyan-700 border border-cyan-200' 
                           : src === 'dbt'
                           ? 'bg-orange-50 text-orange-700 border border-orange-200'
-                          : 'bg-gray-100 text-gray-700 border border-gray-200'
+                          : 'bg-gray-600/20 border border-gray-600/30 text-gray-400'
                       }`}
                       title={`Source: ${src.toUpperCase()}`}
                     >
@@ -244,13 +173,13 @@ function ModernModelNode({ data }: NodeProps<ModelNodeData>) {
                 </div>
               )}
               {data.isFocal && (
-                <div className="flex-shrink-0 bg-blue-500 text-white text-[10px] px-2 py-0.5 rounded-full font-semibold">
+                <div className="flex-shrink-0 bg-[#ff6a3c] text-white text-[10px] px-2 py-0.5 rounded-full font-semibold">
                   ✓
                 </div>
               )}
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-[11px] text-gray-500 flex items-center gap-1">
+              <span className="text-[11px] text-[#8d857b] flex items-center gap-1">
                 <Database className="w-3 h-3" />
                 <span className="font-medium">Table in {data.type.replace('_', ' ')}</span>
               </span>
@@ -298,16 +227,16 @@ function ModernModelNode({ data }: NodeProps<ModelNodeData>) {
           {data.loading ? (
             <div className="flex items-center justify-center py-4">
               <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
-              <span className="ml-2 text-xs text-gray-600 font-medium">Loading columns...</span>
+              <span className="ml-2 text-xs text-[#8d857b] font-medium">Loading columns...</span>
             </div>
           ) : columns.length === 0 ? (
-            <div className="text-xs text-gray-500 text-center py-3 font-medium">
+            <div className="text-xs text-[#8d857b] text-center py-3 font-medium">
               No columns found
             </div>
           ) : (
             <>
               <div className="mb-2">
-                <div className="text-[10px] font-semibold text-gray-600 mb-1.5">
+                <div className="text-[10px] font-semibold text-[#8d857b] mb-1.5">
                   {columns.length} columns
                 </div>
               </div>
@@ -325,8 +254,8 @@ function ModernModelNode({ data }: NodeProps<ModelNodeData>) {
                       className={`
                         relative p-1.5 rounded border transition-all duration-200 cursor-pointer
                         ${isHovered 
-                          ? 'bg-blue-50 border-blue-300' 
-                          : 'bg-white border-gray-200 hover:border-gray-300'
+                          ? 'bg-[#1f1d1b] border-[#ff6a3c]/50' 
+                          : 'bg-[#0d0c0c] border-[#2d2a27] hover:border-[#2d2a27]'
                         }
                       `}
                     >
@@ -374,11 +303,11 @@ function ModernModelNode({ data }: NodeProps<ModelNodeData>) {
                           {lineageType ? (
                             <span className="text-yellow-500 text-sm">🔑</span>
                           ) : (
-                            <span className="text-gray-400 text-sm">A</span>
+                            <span className="text-[#8d857b] text-sm">A</span>
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="text-xs font-medium text-gray-900 truncate">
+                          <div className="text-xs font-medium text-white truncate">
                             {column.name}
                           </div>
                         </div>
@@ -409,7 +338,7 @@ function ModernModelNode({ data }: NodeProps<ModelNodeData>) {
                         e.stopPropagation();
                         setShowingMore(false);
                       }}
-                      className="w-full py-2.5 text-xs font-bold text-gray-600 hover:text-gray-700 bg-gradient-to-r from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-200 rounded-lg border-2 border-gray-300 hover:border-gray-400 transition-all flex items-center justify-center gap-2"
+                      className="w-full py-2.5 text-xs font-bold text-white hover:text-[#ff6a3c] bg-[#1f1d1b] hover:bg-[#2d2a27] rounded-lg border-2 border-[#2d2a27] hover:border-[#ff6a3c]/50 transition-all flex items-center justify-center gap-2"
                     >
                       <ChevronDown className="w-4 h-4 rotate-180" />
                       Show less

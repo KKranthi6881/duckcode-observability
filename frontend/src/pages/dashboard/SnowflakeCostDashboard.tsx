@@ -410,7 +410,7 @@ export default function SnowflakeCostDashboard() {
                   <td className="py-2 pr-4">{q.USER_NAME}</td>
                   <td className="py-2 pr-4">{q.WAREHOUSE_NAME}</td>
                   <td className="py-2 pr-4">
-                    <Link className="text-blue-600 hover:underline" to={`/dashboard/snowflake-metadata?schema=${encodeURIComponent(q.SCHEMA_NAME || '')}`}>{[q.DATABASE_NAME, q.SCHEMA_NAME].filter(Boolean).join('.')}</Link>
+                    <Link className="text-blue-600 hover:underline" to={`/dashboard/lineage`}>{[q.DATABASE_NAME, q.SCHEMA_NAME].filter(Boolean).join('.')}</Link>
                   </td>
                   <td className="py-2 pr-4">{q.BYTES_SCANNED?.toLocaleString() || '-'}</td>
                   <td className="py-2 pr-4">{q.EXECUTION_TIME ?? q.TOTAL_ELAPSED_TIME ?? '-'}</td>
@@ -424,8 +424,7 @@ export default function SnowflakeCostDashboard() {
                   })()}</td>
                   {showQueryText && <td className="py-2 font-mono text-xs whitespace-pre-wrap max-w-xl">{q.QUERY_TEXT || ''}</td>}
                   <td className="py-2 pr-4">
-                    <Link className="text-blue-600 hover:underline mr-3" to={`/dashboard/snowflake-metadata?schema=${encodeURIComponent(q.SCHEMA_NAME || '')}`}>Open Metadata</Link>
-                    <Link className="text-blue-600 hover:underline" to={`/dashboard/lineage`}>Open Lineage</Link>
+                    <Link className="text-blue-600 hover:underline" to={`/dashboard/lineage`}>View Lineage</Link>
                   </td>
                 </tr>
               ))}

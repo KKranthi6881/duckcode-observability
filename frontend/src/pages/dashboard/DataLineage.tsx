@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Network, Sparkles, Database, Table2, Columns, Tag, FileCode, TrendingUp, TrendingDown, Loader2, FileText, XCircle } from 'lucide-react';
+import { Search, Network, Sparkles, Database, Table2, Columns, Tag, FileCode, TrendingUp, TrendingDown, Loader2, FileText, XCircle, ChevronRight, ChevronLeft, Info } from 'lucide-react';
 import FocusedLineageView from '../../components/lineage/FocusedLineageView';
 import { DocumentationViewer } from '../admin/components/DocumentationViewer';
 import { aiDocumentationService, Documentation } from '../../services/aiDocumentationService';
@@ -19,6 +19,13 @@ interface SearchResult {
   hasDocumentation?: boolean;
 }
 
+interface MetadataColumn {
+  name: string;
+  data_type: string;
+  is_nullable: boolean;
+  position: number;
+}
+
 export function DataLineage() {
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -30,6 +37,17 @@ export function DataLineage() {
   const [loadingDoc, setLoadingDoc] = useState(false);
   const [organizationId, setOrganizationId] = useState<string>('');
   const [organizationName, setOrganizationName] = useState<string>('');
+  
+  // Metadata panel state
+  const [showMetadata, setShowMetadata] = useState(true);
+  const [metadataColumns, setMetadataColumns] = useState<MetadataColumn[]>([]);
+  const [metadataLoading, setMetadataLoading] = useState(false);
+  const [selectedModelInfo, setSelectedModelInfo] = useState<{
+    name: string;
+    type: string;
+    schema?: string;
+    source?: string;
+  } | null>(null);
 
   // Fetch organization ID and name
   useEffect(() => {
@@ -89,6 +107,60 @@ export function DataLineage() {
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery, searchType]);
+
+  // Fetch metadata columns when a model is selected
+  useEffect(() => {
+    const fetchMetadata = async () => {
+      if (!selectedModel) {
+        setMetadataColumns([]);
+        setSelectedModelInfo(null);
+        return;
+      }
+
+      try {
+        setMetadataLoading(true);
+        
+        // Fetch object info
+        const { data: objectInfo } = await supabase
+          .schema('metadata')
+          .from('objects')
+          .select('name, object_type, schema_name, source_type')
+          .eq('id', selectedModel)
+          .single();
+
+        if (objectInfo) {
+          setSelectedModelInfo({
+            name: objectInfo.name,
+            type: objectInfo.object_type,
+            schema: objectInfo.schema_name,
+            source: objectInfo.source_type
+          });
+        }
+        
+        // Fetch columns for the selected model
+        const { data: columns, error } = await supabase
+          .schema('metadata')
+          .from('columns')
+          .select('name, data_type, is_nullable, position')
+          .eq('object_id', selectedModel)
+          .order('position', { ascending: true });
+
+        if (error) {
+          console.error('Error fetching metadata columns:', error);
+          setMetadataColumns([]);
+        } else {
+          setMetadataColumns(columns || []);
+        }
+      } catch (error) {
+        console.error('Error fetching metadata:', error);
+        setMetadataColumns([]);
+      } finally {
+        setMetadataLoading(false);
+      }
+    };
+
+    fetchMetadata();
+  }, [selectedModel]);
 
   const handleSearch = async () => {
     setIsSearching(true);
@@ -455,60 +527,62 @@ export function DataLineage() {
     } else if (result.type === 'column') {
       // For columns, we need to find the parent model and show its lineage
       try {
-        console.log('Column clicked:', result.name, 'Parent:', result.parentModel);
+        console.log('Column clicked:', result.name, 'Parent:', result.parentModel, 'ObjectId:', result.filePath);
         
         // Get the object_id (stored in filePath temporarily)
         const objectId = result.filePath;
         
         if (!objectId) {
+          console.error('No object_id found for column');
           alert('Could not find parent model for this column');
           return;
         }
         
-        // Query to get the parent object's repository_id and organization_id
+        // Query to get the parent object's repository_id
+        // Don't filter by organization_id here since the object_id is already unique
         const { data: parentObject, error: parentError } = await supabase
           .schema('metadata')
           .from('objects')
-          .select('id, repository_id, organization_id')
+          .select('id, repository_id, organization_id, source_type')
           .eq('id', objectId)
-          .eq('organization_id', organizationId)
           .single();
 
         if (parentError || !parentObject) {
-          console.error('Failed to find parent model:', parentError);
-          alert('Could not find parent model for this column');
+          console.error('Failed to find parent model:', parentError, 'ObjectId:', objectId);
+          alert(`Could not find parent model for this column. Object ID: ${objectId}`);
           return;
         }
 
-        console.log('Parent model found:', parentObject.id, 'repository_id:', parentObject.repository_id);
+        console.log('Parent model found:', parentObject.id, 'repository_id:', parentObject.repository_id, 'source_type:', parentObject.source_type);
 
-        // Check if this is a Snowflake object (no repository_id)
-        if (!parentObject.repository_id) {
+        // Check if this is a Snowflake object (no repository_id or source_type is snowflake)
+        if (!parentObject.repository_id || parentObject.source_type === 'snowflake') {
           console.log('Snowflake column detected - showing lineage without connection_id');
           setSelectedModel(parentObject.id);
           setConnectionId(null);
-        } else {
-          // Get connection_id from repository for GitHub objects
-          console.log('GitHub object detected - fetching connection_id from repository:', parentObject.repository_id);
-          const { data: repoData, error: repoError } = await supabase
-            .schema('metadata')
-            .from('repositories')
-            .select('connection_id')
-            .eq('id', parentObject.repository_id)
-            .single();
-
-          if (repoError || !repoData?.connection_id) {
-            console.error('Failed to get connection_id:', repoError);
-            alert('Could not find connection for this repository');
-            return;
-          }
-
-          console.log('Connection ID:', repoData.connection_id);
-          
-          // Set the parent model as selected to show its lineage
-          setSelectedModel(parentObject.id);
-          setConnectionId(repoData.connection_id);
+          return; // Important: Stop here for Snowflake objects
         }
+        
+        // Get connection_id from repository for GitHub objects
+        console.log('GitHub object detected - fetching connection_id from repository:', parentObject.repository_id);
+        const { data: repoData, error: repoError } = await supabase
+          .schema('metadata')
+          .from('repositories')
+          .select('connection_id')
+          .eq('id', parentObject.repository_id)
+          .single();
+
+        if (repoError || !repoData?.connection_id) {
+          console.error('Failed to get connection_id:', repoError);
+          alert('Could not find connection for this repository');
+          return;
+        }
+
+        console.log('Connection ID:', repoData.connection_id);
+        
+        // Set the parent model as selected to show its lineage
+        setSelectedModel(parentObject.id);
+        setConnectionId(repoData.connection_id);
         
       } catch (error) {
         console.error('Error loading column lineage:', error);
@@ -518,7 +592,7 @@ export function DataLineage() {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="h-screen flex flex-col bg-[#0d0c0c]">
       {/* AI-Style Central Search - Always visible */}
       <div className={`flex-shrink-0 flex items-center justify-center px-6 transition-all duration-300 ${
         selectedModel ? 'py-4' : 'py-12'
@@ -528,30 +602,30 @@ export function DataLineage() {
           {!selectedModel && (
           <div className="text-center mb-8">
             <div className="inline-flex items-center gap-2 mb-4">
-              <div className="p-3 bg-gradient-to-br from-purple-500 to-blue-500 rounded-2xl shadow-lg">
-                <Sparkles className="w-8 h-8 text-white" />
+              <div className="p-3 bg-purple-600/20 border border-purple-600/30 rounded-2xl">
+                <Sparkles className="w-8 h-8 text-purple-400" />
               </div>
             </div>
             {organizationName && (
-              <p className="text-lg text-gray-500 mb-3">Welcome to {organizationName}</p>
+              <p className="text-lg text-[#8d857b] mb-3">Welcome to {organizationName}</p>
             )}
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">Code Intelligence</h1>
-            <p className="text-lg text-gray-600">Search, explore lineage, and discover insights across your data platform</p>
+            <h1 className="text-4xl font-bold text-white mb-2">Code Intelligence</h1>
+            <p className="text-lg text-[#8d857b]">Search, explore lineage, and discover insights across your data platform</p>
           </div>
           )}
 
           {/* Search Box - Always visible */}
           <div className="relative mb-6">
             <div className="absolute left-6 top-1/2 transform -translate-y-1/2 flex items-center gap-3">
-              <Search className="w-6 h-6 text-gray-400" />
-              {isSearching && <Loader2 className="w-5 h-5 text-purple-500 animate-spin" />}
+              <Search className="w-6 h-6 text-[#8d857b]" />
+              {isSearching && <Loader2 className="w-5 h-5 text-[#ff6a3c] animate-spin" />}
             </div>
             <input
               type="text"
               placeholder="Ask anything... (e.g., 'customer_id column', 'stg_orders model', 'GOLD tier tables')"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-20 pr-6 py-6 text-lg border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 transition-all shadow-lg hover:shadow-xl bg-white"
+              className="w-full pl-20 pr-6 py-6 text-lg bg-[#161413] border-2 border-[#2d2a27] text-white rounded-2xl focus:ring-4 focus:ring-[#ff6a3c]/20 focus:border-[#ff6a3c] transition-all placeholder-[#8d857b]"
             />
           </div>
 
@@ -564,8 +638,8 @@ export function DataLineage() {
                 onClick={() => setSearchType(type)}
                 className={`px-4 py-2 rounded-lg font-medium transition-all ${
                   searchType === type
-                    ? 'bg-purple-500 text-white shadow-md'
-                    : 'bg-white text-gray-600 hover:bg-gray-100'
+                    ? 'bg-[#ff6a3c] text-white'
+                    : 'bg-[#161413] border border-[#2d2a27] text-[#8d857b] hover:bg-[#1f1d1b]'
                 }`}
               >
                 {type.charAt(0).toUpperCase() + type.slice(1)}
@@ -576,9 +650,9 @@ export function DataLineage() {
 
           {/* Search Results - Show always when there are results */}
           {searchResults.length > 0 && (
-            <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
-              <div className="p-4 bg-gray-50 border-b border-gray-200">
-                <p className="text-sm font-medium text-gray-600">
+            <div className="bg-[#161413] border border-[#2d2a27] rounded-2xl overflow-hidden">
+              <div className="p-4 bg-[#1f1d1b] border-b border-[#2d2a27]">
+                <p className="text-sm font-medium text-[#8d857b]">
                   Found {searchResults.length} results
                 </p>
               </div>
@@ -589,36 +663,36 @@ export function DataLineage() {
                     <button
                       key={result.id}
                       onClick={() => handleResultClick(result)}
-                      className="w-full p-4 hover:bg-purple-50 transition-colors border-b border-gray-100 last:border-b-0 text-left"
+                      className="w-full p-4 hover:bg-[#1f1d1b] transition-colors border-b border-[#2d2a27] last:border-b-0 text-left"
                     >
                       <div className="flex items-start gap-4">
-                        <div className="p-2 bg-purple-100 rounded-lg flex-shrink-0">
-                          <Icon className="w-5 h-5 text-purple-600" />
+                        <div className="p-2 bg-purple-600/20 border border-purple-600/30 rounded-lg flex-shrink-0">
+                          <Icon className="w-5 h-5 text-purple-400" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
-                            <h3 className="font-semibold text-gray-900">{result.name}</h3>
-                            <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full">
+                            <h3 className="font-semibold text-white">{result.name}</h3>
+                            <span className="text-xs px-2 py-0.5 bg-[#1f1d1b] border border-[#2d2a27] text-[#8d857b] rounded-full">
                               {result.type}
                             </span>
                             {result.tier && (
                               <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
-                                result.tier === 'GOLD' ? 'bg-yellow-100 text-yellow-700' :
-                                result.tier === 'SILVER' ? 'bg-gray-100 text-gray-700' :
-                                'bg-orange-100 text-orange-700'
+                                result.tier === 'GOLD' ? 'bg-yellow-600/20 border border-yellow-600/30 text-yellow-400' :
+                                result.tier === 'SILVER' ? 'bg-gray-600/20 border border-gray-600/30 text-gray-400' :
+                                'bg-orange-600/20 border border-orange-600/30 text-orange-400'
                               }`}>
                                 {result.tier}
                               </span>
                             )}
                           </div>
                           {result.description && (
-                            <p className="text-sm text-gray-600 mb-2">{result.description}</p>
+                            <p className="text-sm text-[#8d857b] mb-2">{result.description}</p>
                           )}
                           {result.parentModel && (
-                            <p className="text-xs text-gray-500">in {result.parentModel}</p>
+                            <p className="text-xs text-[#8d857b]">in {result.parentModel}</p>
                           )}
                           {result.filePath && (
-                            <p className="text-xs text-gray-400 font-mono mt-1">{result.filePath}</p>
+                            <p className="text-xs text-[#8d857b] font-mono mt-1">{result.filePath}</p>
                           )}
                           {(result.upstreamCount !== undefined || result.downstreamCount !== undefined) && (
                             <div className="flex items-center gap-4 mt-2">
@@ -641,10 +715,10 @@ export function DataLineage() {
                         {result.hasDocumentation && (
                           <button
                             onClick={(e) => handleViewDocumentation(result.id, result.name, e)}
-                            className="flex-shrink-0 p-2 hover:bg-purple-100 rounded-lg transition-colors group"
+                            className="flex-shrink-0 p-2 hover:bg-purple-600/20 rounded-lg transition-colors group"
                             title="View AI Documentation"
                           >
-                            <FileText className="w-5 h-5 text-purple-600 group-hover:text-purple-700" />
+                            <FileText className="w-5 h-5 text-purple-400 group-hover:text-purple-300" />
                           </button>
                         )}
                       </div>
@@ -657,49 +731,208 @@ export function DataLineage() {
 
           {/* Empty State */}
           {searchQuery.length >= 2 && searchResults.length === 0 && !isSearching && (
-            <div className="text-center py-12 bg-white rounded-2xl shadow-lg">
-              <Network className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-              <p className="text-gray-600">No results found for "{searchQuery}"</p>
-              <p className="text-sm text-gray-400 mt-2">Try searching for models, columns, or tables</p>
+            <div className="text-center py-12 bg-[#161413] border border-[#2d2a27] rounded-2xl">
+              <Network className="w-16 h-16 mx-auto mb-4 text-[#2d2a27]" />
+              <p className="text-white">No results found for "{searchQuery}"</p>
+              <p className="text-sm text-[#8d857b] mt-2">Try searching for models, columns, or tables</p>
             </div>
           )}
         </div>
       </div>
 
-      {/* Lineage View */}
+      {/* Lineage View with Metadata Panel */}
       {selectedModel && (
-        <div className="flex-1 overflow-hidden px-6 pb-6">
-          <div className="h-full bg-white rounded-2xl shadow-xl overflow-hidden">
-            <FocusedLineageView 
-              connectionId={connectionId || 'unified'}
-              initialModelId={selectedModel}
-              hideHeader={false}
-              useUnifiedApi={!connectionId}
-              organizationId={organizationId}
-            />
+        <div className="flex-1 overflow-hidden px-6 pb-6 relative">
+          {/* Main Lineage View - Fixed Full Width */}
+          <div className="h-full w-full">
+            <div className="h-full bg-[#161413] border border-[#2d2a27] rounded-2xl overflow-hidden">
+              <FocusedLineageView 
+                connectionId={connectionId || 'unified'}
+                initialModelId={selectedModel}
+                hideHeader={false}
+                useUnifiedApi={!connectionId}
+                organizationId={organizationId}
+                onNodeClick={(nodeId, nodeName) => {
+                  console.log('[DataLineage] Node clicked in graph:', nodeId, nodeName);
+                  // Update the metadata panel to show clicked model's details
+                  setSelectedModel(nodeId);
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Sidebar Toggle Button */}
+          <button
+            onClick={() => setShowMetadata(!showMetadata)}
+            className="absolute top-1/2 -translate-y-1/2 z-30 bg-[#161413] border-2 border-[#2d2a27] rounded-lg p-2 hover:bg-[#1f1d1b] hover:border-[#ff6a3c]/50 transition-all shadow-lg"
+            style={{
+              right: showMetadata ? '400px' : '0px',
+              transition: 'right 0.3s ease'
+            }}
+            title={showMetadata ? "Hide details" : "Show details"}
+          >
+            {showMetadata ? (
+              <ChevronRight className="w-4 h-4 text-white" />
+            ) : (
+              <ChevronLeft className="w-4 h-4 text-white" />
+            )}
+          </button>
+
+          {/* Metadata Side Panel - Slides in from right */}
+          <div 
+            className="absolute top-0 h-full w-96 bg-[#161413] border border-[#2d2a27] rounded-2xl overflow-hidden flex flex-col shadow-2xl transition-transform duration-300 ease-in-out z-20"
+            style={{
+              right: showMetadata ? '0' : '-384px',
+              transform: showMetadata ? 'translateX(0)' : 'translateX(0)'
+            }}
+          >
+              {/* Panel Header */}
+              <div className="px-5 py-4 bg-[#1f1d1b] border-b border-[#2d2a27]">
+                <div className="flex items-center gap-2 mb-2">
+                  <Info className="w-5 h-5 text-[#ff6a3c]"/>
+                  <span className="font-bold text-white">Table Details</span>
+                </div>
+                <p className="text-xs text-[#8d857b]">Schema and column information</p>
+              </div>
+
+              {/* Panel Content */}
+              <div className="flex-1 overflow-y-auto p-5">
+                {/* Model Info Section */}
+                {selectedModelInfo && (
+                  <div className="mb-5 p-4 bg-[#1f1d1b] border border-[#2d2a27] rounded-lg">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Database className="w-5 h-5 text-blue-400" />
+                      <span className="text-sm font-bold text-[#8d857b] uppercase">Model Info</span>
+                    </div>
+                    <div className="space-y-2">
+                      <div>
+                        <div className="text-xs text-[#8d857b] mb-1">Name</div>
+                        <div className="font-mono text-sm text-white font-semibold">{selectedModelInfo.name}</div>
+                      </div>
+                      <div className="flex gap-4">
+                        <div className="flex-1">
+                          <div className="text-xs text-[#8d857b] mb-1">Type</div>
+                          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                            selectedModelInfo.type === 'table' 
+                              ? 'bg-blue-600/20 border border-blue-600/30 text-blue-400'
+                              : 'bg-purple-600/20 border border-purple-600/30 text-purple-400'
+                          }`}>
+                            {selectedModelInfo.type}
+                          </span>
+                        </div>
+                        {selectedModelInfo.source && (
+                          <div className="flex-1">
+                            <div className="text-xs text-[#8d857b] mb-1">Source</div>
+                            <span className="px-2 py-1 bg-cyan-600/20 border border-cyan-600/30 text-cyan-400 rounded-full text-xs font-semibold">
+                              {selectedModelInfo.source}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      {selectedModelInfo.schema && (
+                        <div>
+                          <div className="text-xs text-[#8d857b] mb-1">Schema</div>
+                          <div className="text-sm text-white">{selectedModelInfo.schema}</div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Columns Section */}
+                {metadataLoading ? (
+                  <div className="flex items-center justify-center h-32">
+                    <Loader2 className="w-6 h-6 animate-spin text-[#ff6a3c]" />
+                  </div>
+                ) : metadataColumns.length > 0 ? (
+                  <div className="space-y-2">
+                    {/* Columns Header */}
+                    <div className="flex items-center gap-2 mb-3">
+                      <Columns className="w-5 h-5 text-purple-400" />
+                      <span className="text-sm font-bold text-[#8d857b] uppercase">Columns</span>
+                      <span className="ml-auto px-2 py-1 bg-[#1f1d1b] border border-[#2d2a27] rounded-full text-xs font-bold text-white">
+                        {metadataColumns.length}
+                      </span>
+                    </div>
+
+                    {/* Columns List */}
+                    {metadataColumns.map((col, idx) => (
+                      <div 
+                        key={idx}
+                        className="p-3 bg-[#1f1d1b] border border-[#2d2a27] rounded-lg hover:border-[#ff6a3c]/50 transition-all"
+                      >
+                        <div className="flex items-start gap-2 mb-2">
+                          <span className="text-yellow-400 mt-0.5">🔑</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-mono text-sm text-white font-semibold truncate">
+                              {col.name}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="space-y-1.5 ml-6">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-[#8d857b]">Type:</span>
+                            <span className="px-2 py-0.5 bg-[#0d0c0c] border border-[#2d2a27] rounded text-cyan-400 font-mono text-xs">
+                              {col.data_type || 'unknown'}
+                            </span>
+                          </div>
+                          {col.is_nullable !== undefined && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-[#8d857b]">Nullable:</span>
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                col.is_nullable
+                                  ? 'bg-yellow-600/20 border border-yellow-600/30 text-yellow-400'
+                                  : 'bg-green-600/20 border border-green-600/30 text-green-400'
+                              }`}>
+                                {col.is_nullable ? 'NULL' : 'NOT NULL'}
+                              </span>
+                            </div>
+                          )}
+                          {col.position !== undefined && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-[#8d857b]">Position:</span>
+                              <span className="text-xs text-white">{col.position}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : selectedModelInfo ? (
+                  <div className="flex flex-col items-center justify-center h-32 text-[#8d857b]">
+                    <Columns className="w-10 h-10 mb-2 opacity-50" />
+                    <p className="text-sm">No columns found</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-64 text-[#8d857b]">
+                    <Database className="w-12 h-12 mb-3 opacity-50" />
+                    <p className="text-sm text-center">Select a table to view<br/>details</p>
+                  </div>
+                )}
+              </div>
           </div>
         </div>
       )}
 
       {/* Documentation Viewer Modal */}
       {viewingDoc && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#161413] border border-[#2d2a27] rounded-xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
             {/* Modal Header */}
-            <div className="px-6 py-4 bg-gradient-to-r from-purple-50 to-purple-100 border-b border-purple-200 flex items-center justify-between">
+            <div className="px-6 py-4 bg-[#1f1d1b] border-b border-[#2d2a27] flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <FileText className="h-5 w-5 text-purple-600" />
-                <h2 className="text-lg font-semibold text-gray-900">{viewingDoc.objectName}</h2>
-                <span className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded-full font-medium">
+                <FileText className="h-5 w-5 text-purple-400" />
+                <h2 className="text-lg font-semibold text-white">{viewingDoc.objectName}</h2>
+                <span className="text-xs px-2 py-1 bg-purple-600/20 border border-purple-600/30 text-purple-400 rounded-full font-medium">
                   AI Documentation
                 </span>
               </div>
               <button
                 onClick={() => setViewingDoc(null)}
-                className="p-2 hover:bg-purple-200 rounded-lg transition-colors"
+                className="p-2 hover:bg-[#2d2a27] rounded-lg transition-colors"
                 aria-label="Close"
               >
-                <XCircle className="h-5 w-5 text-gray-500" />
+                <XCircle className="h-5 w-5 text-[#8d857b]" />
               </button>
             </div>
             

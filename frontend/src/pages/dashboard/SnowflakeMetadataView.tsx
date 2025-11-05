@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { ChevronDown, Database, Search, Table } from 'lucide-react';
+import { ChevronDown, Database, Search, Table, Columns, Loader2 } from 'lucide-react';
 import enterpriseService from '../../services/enterpriseService';
 import { snowflakeCostService } from '../../services/snowflakeCostService';
 import { snowflakeMetadataService, SchemaItem, ObjectItem, ColumnItem } from '../../services/snowflakeMetadataService';
@@ -114,19 +114,22 @@ export default function SnowflakeMetadataView() {
   }, [selected]);
 
   return (
-    <div className="p-6 space-y-6">
-      {loading && (
-        <div className="text-sm text-gray-500">Loading...</div>
-      )}
+    <div className="min-h-screen bg-[#0d0c0c] p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Snowflake Metadata</h1>
-          <p className="text-sm text-gray-500">Browse extracted schemas, tables/views, and columns</p>
+          <h1 className="text-2xl font-bold text-white">Snowflake Metadata</h1>
+          <p className="text-sm text-[#8d857b]">Browse extracted schemas, tables/views, and columns</p>
         </div>
-        <div className="flex gap-2 items-center">
+        <div className="flex gap-3 items-center">
+          {loading && (
+            <div className="flex items-center gap-2 text-[#ff6a3c]">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span className="text-sm">Loading...</span>
+            </div>
+          )}
           <div className="relative">
             <select
-              className="appearance-none pl-3 pr-10 py-2 bg-white border rounded-lg text-sm shadow-sm"
+              className="appearance-none pl-3 pr-10 py-2 bg-[#161413] border border-[#2d2a27] rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#ff6a3c]/50"
               value={organizationId || ''}
               onChange={(e) => setOrganizationId(e.target.value)}
             >
@@ -134,12 +137,12 @@ export default function SnowflakeMetadataView() {
                 <option key={o.id} value={o.id}>{o.name}</option>
               ))}
             </select>
-            <ChevronDown className="w-4 h-4 text-gray-500 absolute right-2 top-2.5" />
+            <ChevronDown className="w-4 h-4 text-[#8d857b] absolute right-2 top-2.5 pointer-events-none" />
           </div>
 
           <div className="relative">
             <select
-              className="appearance-none pl-3 pr-10 py-2 bg-white border rounded-lg text-sm shadow-sm"
+              className="appearance-none pl-3 pr-10 py-2 bg-[#161413] border border-[#2d2a27] rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#ff6a3c]/50"
               value={connectorId || ''}
               onChange={(e) => setConnectorId(e.target.value)}
             >
@@ -147,25 +150,37 @@ export default function SnowflakeMetadataView() {
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>
-            <ChevronDown className="w-4 h-4 text-gray-500 absolute right-2 top-2.5" />
+            <ChevronDown className="w-4 h-4 text-[#8d857b] absolute right-2 top-2.5 pointer-events-none" />
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* Schemas list */}
-        <div className="bg-white rounded-xl shadow p-4 lg:col-span-1">
-          <div className="flex items-center gap-2 mb-2 text-gray-700"><Database className="w-4 h-4"/> Schemas</div>
-          <div className="max-h-96 overflow-auto divide-y">
+        <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-5 lg:col-span-1">
+          <div className="flex items-center gap-2 mb-4">
+            <Database className="w-5 h-5 text-blue-400"/>
+            <span className="font-bold text-white">Schemas</span>
+            <span className="ml-auto text-xs text-[#8d857b]">{schemas.length}</span>
+          </div>
+          <div className="max-h-96 overflow-auto space-y-1">
             {schemas.map(s => (
               <button
                 key={s.schema_name}
                 onClick={() => setSchema(s.schema_name)}
-                className={`w-full text-left px-3 py-2 rounded-md hover:bg-gray-50 ${schema === s.schema_name ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700'}`}
+                className={`w-full text-left px-3 py-2.5 rounded-lg transition-all ${
+                  schema === s.schema_name 
+                    ? 'bg-[#ff6a3c] text-white' 
+                    : 'text-[#8d857b] hover:bg-[#1f1d1b] hover:text-white'
+                }`}
               >
                 <div className="flex items-center justify-between">
                   <span className="font-medium">{s.schema_name}</span>
-                  <span className="text-xs text-gray-500">{s.object_count}</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${
+                    schema === s.schema_name
+                      ? 'bg-white/20'
+                      : 'bg-[#1f1d1b]'
+                  }`}>{s.object_count}</span>
                 </div>
               </button>
             ))}
@@ -173,38 +188,54 @@ export default function SnowflakeMetadataView() {
         </div>
 
         {/* Objects list */}
-        <div className="bg-white rounded-xl shadow p-4 lg:col-span-2">
-          <div className="flex items-center justify-between mb-2 text-gray-700">
-            <div className="flex items-center gap-2"><Table className="w-4 h-4"/> Objects</div>
+        <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-5 lg:col-span-2">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Table className="w-5 h-5 text-green-400"/>
+              <span className="font-bold text-white">Tables & Views</span>
+              <span className="text-xs text-[#8d857b]">{objects.length}</span>
+            </div>
             <div className="relative w-64">
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search table/view..."
-                className="w-full pl-9 pr-3 py-1.5 border rounded-lg text-sm"
+                className="w-full pl-9 pr-3 py-2 bg-[#1f1d1b] border border-[#2d2a27] rounded-lg text-sm text-white placeholder-[#8d857b] focus:outline-none focus:ring-2 focus:ring-[#ff6a3c]/50"
               />
-              <Search className="w-4 h-4 text-gray-400 absolute left-2 top-2"/>
+              <Search className="w-4 h-4 text-[#8d857b] absolute left-2.5 top-2.5"/>
             </div>
           </div>
           <div className="max-h-96 overflow-auto">
             <table className="min-w-full text-sm">
-              <thead>
-                <tr className="text-left text-gray-500">
-                  <th className="py-2 pr-4">Name</th>
-                  <th className="py-2 pr-4">Schema</th>
-                  <th className="py-2">Type</th>
+              <thead className="sticky top-0 bg-[#161413]">
+                <tr className="text-left text-[#8d857b] border-b border-[#2d2a27]">
+                  <th className="py-3 pr-4 font-semibold">Name</th>
+                  <th className="py-3 pr-4 font-semibold">Schema</th>
+                  <th className="py-3 font-semibold">Type</th>
                 </tr>
               </thead>
               <tbody>
                 {objects.map(o => (
                   <tr
                     key={o.id}
-                    className={`border-t hover:bg-gray-50 cursor-pointer ${selected?.id === o.id ? 'bg-indigo-50' : ''}`}
+                    className={`border-b border-[#2d2a27] cursor-pointer transition-all ${
+                      selected?.id === o.id 
+                        ? 'bg-[#ff6a3c]/20 hover:bg-[#ff6a3c]/30' 
+                        : 'hover:bg-[#1f1d1b]'
+                    }`}
                     onClick={() => setSelected(o)}
                   >
-                    <td className="py-2 pr-4 font-medium">{o.name}</td>
-                    <td className="py-2 pr-4">{o.schema_name}</td>
-                    <td className="py-2 capitalize">{o.object_type}</td>
+                    <td className="py-3 pr-4 font-medium text-white">{o.name}</td>
+                    <td className="py-3 pr-4 text-[#8d857b]">{o.schema_name}</td>
+                    <td className="py-3">
+                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                        o.object_type === 'table' 
+                          ? 'bg-blue-600/20 border border-blue-600/30 text-blue-400'
+                          : 'bg-purple-600/20 border border-purple-600/30 text-purple-400'
+                      }`}>
+                        {o.object_type}
+                      </span>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -213,35 +244,72 @@ export default function SnowflakeMetadataView() {
         </div>
 
         {/* Columns */}
-        <div className="bg-white rounded-xl shadow p-4 lg:col-span-2">
-          <div className="flex items-center gap-2 mb-2 text-gray-700"><Table className="w-4 h-4"/> Columns {selected ? `— ${selected.name}` : ''}</div>
+        <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-5 lg:col-span-2">
+          <div className="flex items-center gap-2 mb-4">
+            <Columns className="w-5 h-5 text-purple-400"/>
+            <span className="font-bold text-white">Columns</span>
+            {selected && (
+              <>
+                <span className="text-[#8d857b]">—</span>
+                <span className="text-[#ff6a3c] font-semibold">{selected.name}</span>
+                <span className="ml-auto text-xs text-[#8d857b]">{columns.length} columns</span>
+              </>
+            )}
+          </div>
           <div className="max-h-96 overflow-auto">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="text-left text-gray-500">
-                  <th className="py-2 pr-4">Name</th>
-                  <th className="py-2 pr-4">Type</th>
-                  <th className="py-2 pr-4">Nullable</th>
-                  <th className="py-2">Position</th>
-                </tr>
-              </thead>
-              <tbody>
-                {columns.map((c, idx) => (
-                  <tr key={`${c.name}:${idx}`} className="border-t">
-                    <td className="py-2 pr-4 font-mono">{c.name}</td>
-                    <td className="py-2 pr-4">{c.data_type || '-'}</td>
-                    <td className="py-2 pr-4">{c.is_nullable ? 'YES' : 'NO'}</td>
-                    <td className="py-2">{c.position ?? '-'}</td>
+            {!selected ? (
+              <div className="flex flex-col items-center justify-center h-64 text-[#8d857b]">
+                <Columns className="w-12 h-12 mb-3 opacity-50" />
+                <p className="text-sm">Select a table or view to see its columns</p>
+              </div>
+            ) : (
+              <table className="min-w-full text-sm">
+                <thead className="sticky top-0 bg-[#161413]">
+                  <tr className="text-left text-[#8d857b] border-b border-[#2d2a27]">
+                    <th className="py-3 pr-4 font-semibold">Name</th>
+                    <th className="py-3 pr-4 font-semibold">Data Type</th>
+                    <th className="py-3 pr-4 font-semibold">Nullable</th>
+                    <th className="py-3 font-semibold">Position</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {columns.map((c, idx) => (
+                    <tr key={`${c.name}:${idx}`} className="border-b border-[#2d2a27] hover:bg-[#1f1d1b] transition-all">
+                      <td className="py-3 pr-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-yellow-400">🔑</span>
+                          <span className="font-mono text-white">{c.name}</span>
+                        </div>
+                      </td>
+                      <td className="py-3 pr-4">
+                        <span className="px-2 py-1 bg-[#1f1d1b] border border-[#2d2a27] rounded text-cyan-400 font-mono text-xs">
+                          {c.data_type || '-'}
+                        </span>
+                      </td>
+                      <td className="py-3 pr-4">
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                          c.is_nullable
+                            ? 'bg-yellow-600/20 border border-yellow-600/30 text-yellow-400'
+                            : 'bg-green-600/20 border border-green-600/30 text-green-400'
+                        }`}>
+                          {c.is_nullable ? 'NULL' : 'NOT NULL'}
+                        </span>
+                      </td>
+                      <td className="py-3 text-[#8d857b]">{c.position ?? '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
       </div>
 
       {error && (
-        <div className="p-3 rounded-md bg-red-50 text-red-700 text-sm">{error}</div>
+        <div className="p-4 rounded-lg bg-red-600/20 border border-red-600/30 text-red-400 text-sm flex items-center gap-2">
+          <span className="text-lg">⚠️</span>
+          <span>{error}</span>
+        </div>
       )}
     </div>
   );

@@ -116,34 +116,34 @@ export const ApiKeys: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
-      active: 'bg-green-100 text-green-700',
-      inactive: 'bg-gray-100 text-gray-700',
-      expired: 'bg-red-100 text-red-700',
-      revoked: 'bg-yellow-100 text-yellow-700',
+      active: 'bg-green-600/20 border border-green-600/30 text-green-400',
+      inactive: 'bg-[#2d2a27] border border-[#2d2a27] text-[#8d857b]',
+      expired: 'bg-red-600/20 border border-red-600/30 text-red-400',
+      revoked: 'bg-yellow-600/20 border border-yellow-600/30 text-yellow-400',
     };
     return colors[status] || colors.inactive;
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="flex items-center justify-center h-full bg-[#0d0c0c]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#ff6a3c]"></div>
       </div>
     );
   }
 
   return (
-    <div className="h-full bg-gray-50">
+    <div className="h-full bg-[#0d0c0c]">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-8 py-6">
+      <div className="bg-[#161413] border-b border-[#2d2a27] px-8 py-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold text-gray-900">API Keys</h1>
-            <p className="text-sm text-gray-500 mt-1">Manage LLM provider API keys for your organization</p>
+            <h1 className="text-2xl font-bold text-white">API Keys</h1>
+            <p className="text-sm text-[#8d857b] mt-1">Manage LLM provider API keys for your organization</p>
           </div>
           <button
             onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium text-sm"
+            className="flex items-center gap-2 px-4 py-2 bg-[#ff6a3c] text-white rounded-lg hover:bg-[#ff8c66] transition-colors font-semibold text-sm"
           >
             <Plus className="h-4 w-4" />
             Add API Key
@@ -154,12 +154,12 @@ export const ApiKeys: React.FC = () => {
       {/* Main Content */}
       <div className="p-8">
         {/* Security Notice */}
-        <div className="mb-6 bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+        <div className="mb-6 bg-blue-600/10 border border-blue-600/20 rounded-lg p-4">
           <div className="flex items-start space-x-3">
-            <Key className="h-5 w-5 text-indigo-600 mt-0.5" />
+            <Key className="h-5 w-5 text-blue-400 mt-0.5" />
             <div>
-              <h3 className="font-medium text-indigo-900 mb-1">Secure API Key Storage</h3>
-              <p className="text-sm text-indigo-700">
+              <h3 className="font-semibold text-blue-300 mb-1">Secure API Key Storage</h3>
+              <p className="text-sm text-blue-400/80">
               All API keys are encrypted with AES-256-GCM before storage. Only organization admins can view and manage keys.
             </p>
           </div>
@@ -168,17 +168,17 @@ export const ApiKeys: React.FC = () => {
 
       {/* API Keys List */}
       {apiKeys.length === 0 ? (
-        <div className="bg-white rounded-lg shadow p-12 text-center">
-          <Key className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+        <div className="bg-[#161413] border border-[#2d2a27] rounded-lg p-12 text-center">
+          <Key className="h-16 w-16 text-[#8d857b] mx-auto mb-4" />
+          <h3 className="text-lg font-bold text-white mb-2">
             No API keys configured
           </h3>
-          <p className="text-gray-600 mb-6">
+          <p className="text-[#8d857b] mb-6">
             Add your LLM provider API keys to enable AI-powered features
           </p>
           <button
             onClick={() => setShowAddModal(true)}
-            className="inline-flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+            className="inline-flex items-center space-x-2 px-4 py-2 bg-[#ff6a3c] text-white rounded-lg hover:bg-[#ff8c66] font-semibold"
           >
             <Plus className="h-5 w-5" />
             <span>Add API Key</span>
@@ -190,36 +190,36 @@ export const ApiKeys: React.FC = () => {
             const providerInfo = getProviderInfo(apiKey.provider);
 
             return (
-              <div key={apiKey.id} className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
+              <div key={apiKey.id} className="bg-[#161413] border border-[#2d2a27] rounded-lg p-6 hover:border-[#ff6a3c]/50 transition-all">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center space-x-3 mb-3">
                       <span className="text-2xl">{providerInfo.icon}</span>
                       <div>
                         <div className="flex items-center space-x-2">
-                          <h3 className="text-lg font-semibold text-gray-900">
+                          <h3 className="text-lg font-bold text-white">
                             {apiKey.key_name || providerInfo.label}
                           </h3>
                           {apiKey.is_default && (
-                            <Star className="h-4 w-4 text-yellow-500 fill-current" />
+                            <Star className="h-4 w-4 text-[#ff6a3c] fill-current" />
                           )}
                         </div>
-                        <p className="text-sm text-gray-500">{providerInfo.label}</p>
+                        <p className="text-sm text-[#8d857b]">{providerInfo.label}</p>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                       <div>
-                        <label className="text-xs text-gray-500 uppercase tracking-wider">API Key</label>
+                        <label className="text-xs text-[#8d857b] uppercase tracking-wider font-semibold">API Key</label>
                         <div className="flex items-center space-x-2 mt-1">
-                          <code className="text-sm font-mono text-gray-900">
+                          <code className="text-sm font-mono text-white">
                             {apiKey.masked_key}
                           </code>
                         </div>
                       </div>
 
                       <div>
-                        <label className="text-xs text-gray-500 uppercase tracking-wider">Status</label>
+                        <label className="text-xs text-[#8d857b] uppercase tracking-wider font-semibold">Status</label>
                         <div className="mt-1">
                           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full capitalize ${getStatusColor(apiKey.status)}`}>
                             {apiKey.status}
@@ -228,15 +228,15 @@ export const ApiKeys: React.FC = () => {
                       </div>
 
                       <div>
-                        <label className="text-xs text-gray-500 uppercase tracking-wider">Created</label>
-                        <p className="text-sm text-gray-900 mt-1">
+                        <label className="text-xs text-[#8d857b] uppercase tracking-wider font-semibold">Created</label>
+                        <p className="text-sm text-white mt-1">
                           {new Date(apiKey.created_at).toLocaleDateString()}
                         </p>
                       </div>
 
                       <div>
-                        <label className="text-xs text-gray-500 uppercase tracking-wider">Last Used</label>
-                        <p className="text-sm text-gray-900 mt-1">
+                        <label className="text-xs text-[#8d857b] uppercase tracking-wider font-semibold">Last Used</label>
+                        <p className="text-sm text-white mt-1">
                           {apiKey.last_used_at 
                             ? new Date(apiKey.last_used_at).toLocaleDateString()
                             : 'Never'}
@@ -248,7 +248,7 @@ export const ApiKeys: React.FC = () => {
                       {!apiKey.is_default && (
                         <button 
                           onClick={() => handleSetDefault(apiKey.id)}
-                          className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center space-x-1"
+                          className="text-sm text-blue-400 hover:text-blue-300 font-semibold flex items-center space-x-1"
                         >
                           <Star className="h-4 w-4" />
                           <span>Set as Default</span>
@@ -256,7 +256,7 @@ export const ApiKeys: React.FC = () => {
                       )}
                       <button 
                         onClick={() => handleDeleteApiKey(apiKey.id)}
-                        className="text-sm text-red-600 hover:text-red-700 font-medium flex items-center space-x-1"
+                        className="text-sm text-red-400 hover:text-red-300 font-semibold flex items-center space-x-1"
                       >
                         <Trash2 className="h-4 w-4" />
                         <span>Revoke</span>
@@ -272,17 +272,17 @@ export const ApiKeys: React.FC = () => {
 
       {/* Add API Key Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-lg w-full mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-[#161413] border border-[#2d2a27] rounded-lg p-6 max-w-lg w-full mx-4">
+            <h3 className="text-lg font-bold text-white mb-4">
               Add API Key
             </h3>
 
             {/* Warning */}
-            <div className="mb-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+            <div className="mb-4 bg-yellow-600/10 border border-yellow-600/20 rounded-lg p-3">
               <div className="flex items-start space-x-2">
-                <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
-                <p className="text-sm text-yellow-800">
+                <AlertTriangle className="h-5 w-5 text-yellow-400 mt-0.5" />
+                <p className="text-sm text-yellow-400/80">
                   API keys are encrypted and stored securely. Never share your keys publicly.
                 </p>
               </div>
@@ -290,13 +290,13 @@ export const ApiKeys: React.FC = () => {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-white mb-2">
                   Provider
                 </label>
                 <select
                   value={formData.provider}
                   onChange={(e) => setFormData({ ...formData, provider: e.target.value as ProviderType })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 bg-[#1f1d1b] border border-[#2d2a27] text-white rounded-lg focus:ring-2 focus:ring-[#ff6a3c]/50 focus:border-transparent"
                 >
                   {PROVIDERS.map(provider => (
                     <option key={provider.value} value={provider.value}>
@@ -307,7 +307,7 @@ export const ApiKeys: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-white mb-2">
                   Key Name (Optional)
                 </label>
                 <input
@@ -315,12 +315,12 @@ export const ApiKeys: React.FC = () => {
                   value={formData.key_name}
                   onChange={(e) => setFormData({ ...formData, key_name: e.target.value })}
                   placeholder="e.g., Production Key"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 bg-[#1f1d1b] border border-[#2d2a27] text-white placeholder-[#8d857b] rounded-lg focus:ring-2 focus:ring-[#ff6a3c]/50 focus:border-transparent"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-white mb-2">
                   API Key
                 </label>
                 <input
@@ -328,9 +328,9 @@ export const ApiKeys: React.FC = () => {
                   value={formData.api_key}
                   onChange={(e) => setFormData({ ...formData, api_key: e.target.value })}
                   placeholder="sk-..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
+                  className="w-full px-3 py-2 bg-[#1f1d1b] border border-[#2d2a27] text-white placeholder-[#8d857b] rounded-lg focus:ring-2 focus:ring-[#ff6a3c]/50 focus:border-transparent font-mono"
                 />
-                <p className="mt-1 text-xs text-gray-500">
+                <p className="mt-1 text-xs text-[#8d857b]">
                   Your API key will be encrypted before storage
                 </p>
               </div>
@@ -340,9 +340,9 @@ export const ApiKeys: React.FC = () => {
                   type="checkbox"
                   checked={formData.is_default}
                   onChange={(e) => setFormData({ ...formData, is_default: e.target.checked })}
-                  className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  className="h-4 w-4 text-[#ff6a3c] bg-[#1f1d1b] border-[#2d2a27] rounded focus:ring-[#ff6a3c]"
                 />
-                <label className="ml-2 text-sm text-gray-700">
+                <label className="ml-2 text-sm text-white">
                   Set as default key for this provider
                 </label>
               </div>
@@ -351,14 +351,14 @@ export const ApiKeys: React.FC = () => {
             <div className="mt-6 flex justify-end space-x-3">
               <button
                 onClick={() => setShowAddModal(false)}
-                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                className="px-4 py-2 text-white bg-[#1f1d1b] border border-[#2d2a27] rounded-lg hover:bg-[#2d2a27] font-medium"
               >
                 Cancel
               </button>
               <button 
                 onClick={handleAddApiKey}
                 disabled={!formData.api_key}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                className="px-4 py-2 bg-[#ff6a3c] text-white rounded-lg hover:bg-[#ff8c66] disabled:bg-[#2d2a27] disabled:text-[#8d857b] disabled:cursor-not-allowed font-semibold"
               >
                 Add API Key
               </button>

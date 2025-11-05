@@ -6,11 +6,9 @@ import {
   Users,
   Settings,
   Home,
-  BarChart3,
-  Database,
-  Bell,
-  Globe,
-  MessageSquare,
+  TrendingUp,
+  Plug,
+  LogOut,
 } from 'lucide-react';
 import { supabase } from '../../config/supabaseClient';
 import type { Organization } from '../../types/enterprise';
@@ -81,12 +79,8 @@ export const AdminLayout: React.FC = () => {
 
   const navigationItems = [
     { name: 'Main Dashboard', path: '/dashboard', icon: Home, highlight: true },
-    // { name: 'Admin Dashboard', path: '/admin', icon: LayoutDashboard }, // Hidden - not needed currently
-    { name: 'Cost Analytics', path: '/admin/analytics', icon: BarChart3 },
-    { name: 'Metadata Extraction', path: '/admin/metadata', icon: Database },
-    { name: 'Connectors', path: '/admin/connectors', icon: Database },
-    // { name: 'AI Documentation', path: '/admin/ai-documentation', icon: Zap }, // Hidden - changed plan for document generation process
-    // { name: 'Search', path: '/admin/search', icon: Search }, // Hidden - for future search tool intelligence
+    { name: 'Cost Analytics', path: '/admin/analytics', icon: TrendingUp },
+    { name: 'Connectors Hub', path: '/admin/connectors', icon: Plug },
     { name: 'API Keys', path: '/admin/api-keys', icon: Key },
     { name: 'Members', path: '/admin/members', icon: Users },
     { name: 'Settings', path: '/admin/settings', icon: Settings },
@@ -101,10 +95,10 @@ export const AdminLayout: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-50">
+      <div className="flex items-center justify-center h-screen bg-[#0d0c0c]">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#ff6a3c] mx-auto"></div>
+          <p className="mt-4 text-[#8d857b]">Loading...</p>
         </div>
       </div>
     );
@@ -112,16 +106,16 @@ export const AdminLayout: React.FC = () => {
 
   if (organizations.length === 0) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-50">
-        <div className="text-center max-w-md p-8 bg-white rounded-xl shadow-sm border border-gray-200">
-          <Building2 className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-          <h2 className="text-2xl font-semibold text-gray-900 mb-2">No Organizations</h2>
-          <p className="text-gray-600 mb-6">
+      <div className="flex items-center justify-center h-screen bg-[#0d0c0c]">
+        <div className="text-center max-w-md p-8 bg-[#161413] rounded-xl border border-[#2d2a27]">
+          <Building2 className="h-16 w-16 text-[#8d857b] mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-white mb-2">No Organizations</h2>
+          <p className="text-[#8d857b] mb-6">
             You don't belong to any organizations yet. Contact your administrator to get invited.
           </p>
           <button
             onClick={handleSignOut}
-            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+            className="px-4 py-2 bg-[#ff6a3c] text-white rounded-lg hover:bg-[#ff8c66] transition-colors font-semibold"
           >
             Sign Out
           </button>
@@ -131,11 +125,11 @@ export const AdminLayout: React.FC = () => {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-[#0d0c0c]">
       {/* Sidebar */}
-      <div className="w-16 bg-gray-900 flex flex-col items-center py-4 space-y-6">
+      <div className="w-16 bg-[#0d0c0c] border-r border-[#2d2a27] flex flex-col items-center py-4 space-y-6">
         {/* Logo */}
-        <div className="flex items-center justify-center w-10 h-10 bg-indigo-600 rounded-lg">
+        <div className="flex items-center justify-center w-10 h-10 bg-[#ff6a3c] rounded-lg hover:bg-[#ff8c66] transition-colors">
           <img src="/icon-duck-obs.png" alt="DuckCode" className="h-6 w-6" />
         </div>
 
@@ -150,10 +144,10 @@ export const AdminLayout: React.FC = () => {
                 key={item.path}
                 to={item.path}
                 className={`
-                  w-10 h-10 flex items-center justify-center rounded-lg transition-colors
+                  w-10 h-10 flex items-center justify-center rounded-lg transition-all duration-200
                   ${active
-                    ? 'bg-indigo-600 text-white'
-                    : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                    ? 'bg-[#ff6a3c] text-white shadow-lg shadow-[#ff6a3c]/50'
+                    : 'text-[#8d857b] hover:bg-[#161413] hover:text-white'
                   }
                 `}
                 title={item.name}
@@ -164,29 +158,29 @@ export const AdminLayout: React.FC = () => {
           })}
         </nav>
 
-        {/* Bottom Icons */}
-        <div className="flex flex-col items-center space-y-2">
-          <button className="w-10 h-10 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white transition-colors">
-            <Globe className="h-5 w-5" />
-          </button>
-          <button className="w-10 h-10 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white transition-colors">
-            <Bell className="h-5 w-5" />
-          </button>
-          <button className="w-10 h-10 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white transition-colors">
-            <MessageSquare className="h-5 w-5" />
-          </button>
-          <button
-            onClick={handleSignOut}
-            className="w-10 h-10 flex items-center justify-center rounded-lg bg-indigo-600 text-white font-semibold"
+        {/* Bottom Section - User & Sign Out */}
+        <div className="flex flex-col items-center space-y-3 pb-2">
+          {/* User Avatar */}
+          <div
+            className="w-10 h-10 flex items-center justify-center rounded-lg bg-[#161413] border border-[#2d2a27] text-white font-semibold text-sm"
             title={userEmail}
           >
             {userEmail.charAt(0).toUpperCase()}
+          </div>
+          
+          {/* Sign Out Button */}
+          <button
+            onClick={handleSignOut}
+            className="w-10 h-10 flex items-center justify-center rounded-lg text-[#8d857b] hover:bg-red-600/20 hover:text-red-400 transition-all duration-200 group"
+            title="Sign Out"
+          >
+            <LogOut className="h-5 w-5" />
           </button>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 overflow-auto bg-white">
+      <div className="flex-1 overflow-auto bg-[#0d0c0c]">
         <Outlet context={{ selectedOrg, organizations, refreshOrganizations: loadOrganizations }} />
       </div>
     </div>

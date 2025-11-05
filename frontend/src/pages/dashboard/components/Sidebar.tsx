@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
-  Settings as SettingsIcon, BarChart3, Shield, Network, Bell, Globe, MessageSquare
+  Settings as SettingsIcon, Shield, Network, Snowflake, TrendingUp, LogOut
 } from 'lucide-react';
 import { useAuth } from '../../../features/auth/contexts/AuthContext';
 import { useState, useEffect } from 'react';
@@ -14,15 +14,11 @@ const navigation = [
   }, {
     name: 'Cost Analytics',
     href: '/dashboard/analytics',
-    icon: BarChart3
+    icon: TrendingUp
   },  {
     name: 'Snowflake Intelligence',
     href: '/dashboard/snowflake-intelligence',
-    icon: BarChart3
-  }, {
-    name: 'Snowflake Metadata',
-    href: '/dashboard/snowflake-metadata',
-    icon: Network
+    icon: Snowflake
   }, {
     name: 'Settings',
     href: '/dashboard/settings',
@@ -90,9 +86,9 @@ export function Sidebar() {
   };
 
   return (
-    <div className="w-16 bg-gray-900 flex flex-col items-center py-4 space-y-6 sidebar-container">
+    <div className="w-16 bg-[#0d0c0c] border-r border-[#2d2a27] flex flex-col items-center py-4 space-y-6 sidebar-container">
       {/* Logo */}
-      <Link to="/" className="flex items-center justify-center w-10 h-10 bg-indigo-600 rounded-lg">
+      <Link to="/" className="flex items-center justify-center w-10 h-10 bg-[#ff6a3c] rounded-lg hover:bg-[#ff8c66] transition-colors">
         <img src="/icon-duck-obs.png" alt="DuckCode" className="h-6 w-6" />
       </Link>
 
@@ -107,10 +103,10 @@ export function Sidebar() {
               key={item.name}
               to={item.href}
               className={`
-                w-10 h-10 flex items-center justify-center rounded-lg transition-colors
+                w-10 h-10 flex items-center justify-center rounded-lg transition-all duration-200
                 ${active
-                  ? 'bg-indigo-600 text-white'
-                  : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                  ? 'bg-[#ff6a3c] text-white shadow-lg shadow-[#ff6a3c]/50'
+                  : 'text-[#8d857b] hover:bg-[#161413] hover:text-white'
                 }
               `}
               title={item.name}
@@ -124,7 +120,7 @@ export function Sidebar() {
         {!authLoading && user && isAdmin && (
           <Link
             to="/admin"
-            className="w-10 h-10 flex items-center justify-center rounded-lg text-purple-400 hover:bg-gray-800 hover:text-purple-300 transition-colors"
+            className="w-10 h-10 flex items-center justify-center rounded-lg text-purple-400 hover:bg-[#161413] hover:text-purple-300 transition-all"
             title="Admin Panel"
           >
             <Shield className="h-5 w-5" />
@@ -132,25 +128,27 @@ export function Sidebar() {
         )}
       </nav>
 
-      {/* Bottom Icons */}
-      <div className="flex flex-col items-center space-y-2">
-        <button className="w-10 h-10 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white transition-colors">
-          <Globe className="h-5 w-5" />
-        </button>
-        <button className="w-10 h-10 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white transition-colors">
-          <Bell className="h-5 w-5" />
-        </button>
-        <button className="w-10 h-10 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white transition-colors">
-          <MessageSquare className="h-5 w-5" />
-        </button>
+      {/* Bottom Section - User & Sign Out */}
+      <div className="flex flex-col items-center space-y-3 pb-2">
         {!authLoading && user && (
-          <button
-            onClick={handleSignOut}
-            className="w-10 h-10 flex items-center justify-center rounded-lg bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition-colors"
-            title={user.email || 'User'}
-          >
-            {(user.email || 'U').charAt(0).toUpperCase()}
-          </button>
+          <>
+            {/* User Avatar */}
+            <div
+              className="w-10 h-10 flex items-center justify-center rounded-lg bg-[#161413] border border-[#2d2a27] text-white font-semibold text-sm"
+              title={user.email || 'User'}
+            >
+              {(user.email || 'U').charAt(0).toUpperCase()}
+            </div>
+            
+            {/* Sign Out Button */}
+            <button
+              onClick={handleSignOut}
+              className="w-10 h-10 flex items-center justify-center rounded-lg text-[#8d857b] hover:bg-red-600/20 hover:text-red-400 transition-all duration-200 group"
+              title="Sign Out"
+            >
+              <LogOut className="h-5 w-5" />
+            </button>
+          </>
         )}
       </div>
     </div>

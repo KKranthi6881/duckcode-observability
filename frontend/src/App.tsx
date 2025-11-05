@@ -13,7 +13,6 @@ import { DataLineage } from './pages/dashboard/DataLineage';
 import AnalyticsDashboard from './pages/AnalyticsDashboard';
 import SnowflakeCostDashboard from './pages/dashboard/SnowflakeCostDashboard';
 import SnowflakeRecommendations from './pages/dashboard/SnowflakeRecommendations';
-import SnowflakeMetadataView from './pages/dashboard/SnowflakeMetadataView';
 import SnowflakeIntelligence from './pages/dashboard/SnowflakeIntelligence';
 import { FileProcessingStatus } from './components/FileProcessingStatus';
 import { UserAnalytics } from './pages/user/UserAnalytics';
@@ -119,7 +118,6 @@ const AppContent = () => {
             <Route path="snowflake-intelligence" element={<SnowflakeIntelligence />} />
             <Route path="snowflake-costs" element={<SnowflakeCostDashboard />} />
             <Route path="snowflake-recommendations" element={<SnowflakeRecommendations />} />
-            <Route path="snowflake-metadata" element={<SnowflakeMetadataView />} />
             <Route path="lineage" element={<DataLineage />} />
             <Route path="my-usage" element={<UserAnalytics />} />
             <Route path="settings" element={<Settings />} />
