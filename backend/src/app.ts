@@ -17,6 +17,7 @@ import userAnalyticsRoutes from './api/routes/user-analytics.routes';
 import adminMetadataRoutes from './api/routes/admin-metadata.routes';
 import metadataRoutes from './api/routes/metadata.routes'; // Import first (exports orchestrator)
 import metadataLineageRoutes from './api/routes/metadata-lineage.routes'; // Lineage visualization API
+import unifiedLineageRoutes from './api/routes/unified-lineage.routes'; // Unified multi-source lineage API
 import webhookRoutes from './api/routes/webhook.routes'; // Import second (uses orchestrator)
 import repositoryRoutes from './api/routes/repository.routes'; // Organization repositories (admin-connected)
 import universalRepositoryRoutes from './api/routes/universal-repository.routes'; // Universal repository API (GitHub + GitLab)
@@ -72,6 +73,7 @@ app.use('/api/user-analytics', userAnalyticsRoutes); // Individual user analytic
 app.use('/api/admin/metadata', adminMetadataRoutes); // Enterprise metadata extraction and catalog
 app.use('/api/metadata', metadataRoutes); // Automatic extraction and lineage API
 app.use('/api/metadata/lineage', metadataLineageRoutes); // Lineage visualization API
+app.use('/api/lineage', unifiedLineageRoutes); // Unified multi-source lineage API
 app.use('/api/webhooks', webhookRoutes); // GitHub webhooks for auto-extraction
 app.use('/api/repositories', repositoryRoutes); // Organization repositories (all users can view)
 app.use('/api/repos', universalRepositoryRoutes); // Universal repository API (GitHub + GitLab)

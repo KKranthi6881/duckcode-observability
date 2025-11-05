@@ -48,7 +48,8 @@ export class ConnectorExtractionOrchestrator {
     const historyId = historyRow?.id;
 
     try {
-      const instance = ConnectorFactory.create(connector.type, connector.name, config);
+      // Pass connector ID and organization ID for cost extraction
+      const instance = ConnectorFactory.create(connector.type, connector.name, config, connector.id, connector.organization_id);
       await instance.configure(config);
       
       // Test connection before extraction
@@ -169,23 +170,39 @@ export class ConnectorExtractionOrchestrator {
             if (!v.definition) continue;
             const targetFull = [v.database, v.schema, v.name].filter(Boolean).join('.');
             const selectSql = this.extractSelectFromDDL(v.definition) || v.definition || '';
+            console.log(`[EXTRACT] View ${v.name} - Original definition length: ${v.definition.length}`);
+            console.log(`[EXTRACT] View ${v.name} - Extracted SELECT length: ${selectSql.length}`);
+            console.log(`[EXTRACT] View ${v.name} - SELECT preview: ${selectSql.substring(0, 150)}`);
             const lineage = await python.extractColumnLineage(selectSql, targetFull || v.name, { dialect: 'snowflake' });
             if (!lineage || lineage.length === 0) continue;
 
+            console.log(`[EXTRACT] Processing ${lineage.length} lineage relationships for view ${v.name}`);
             for (const rel of lineage) {
               const targetObjectId = v.id;
               const sourceTable = (rel.targetName || '').toString();
+              console.log(`[EXTRACT] Lineage: ${sourceTable}.${rel.sourceColumn} → ${v.name}.${rel.targetColumn}`);
               const sourceVariants = this.buildTableNameVariants(sourceTable, v.schema || undefined, v.database || undefined);
+              console.log(`[EXTRACT] Looking for source table "${sourceTable}" in variants:`, sourceVariants.slice(0, 3));
               let sourceObjectId: string | undefined;
               for (const variant of sourceVariants) {
                 sourceObjectId = objectIdByKey.get(variant.toUpperCase());
-                if (sourceObjectId) break;
+                if (sourceObjectId) {
+                  console.log(`[EXTRACT] ✅ Found source object ID for variant: ${variant}`);
+                  break;
+                }
               }
               if (!sourceObjectId) {
                 // Try plain upper name
                 sourceObjectId = objectIdByKey.get(sourceTable.toUpperCase());
+                if (sourceObjectId) {
+                  console.log(`[EXTRACT] ✅ Found source object ID for plain name: ${sourceTable}`);
+                }
               }
-              if (!sourceObjectId) continue;
+              if (!sourceObjectId) {
+                console.warn(`[EXTRACT] ❌ Could not find source object for table: ${sourceTable}`);
+                console.warn(`[EXTRACT] Available keys:`, Array.from(objectIdByKey.keys()).slice(0, 10));
+                continue;
+              }
 
               // Ensure source and target columns exist (upsert)
               await supabase
@@ -211,7 +228,7 @@ export class ConnectorExtractionOrchestrator {
                 }, { onConflict: 'object_id,name' });
 
               // Store lineage
-              await supabase
+              const lineageResult = await supabase
                 .schema('metadata')
                 .from('columns_lineage')
                 .upsert({
@@ -230,6 +247,12 @@ export class ConnectorExtractionOrchestrator {
                     accuracy_tier: 'GOLD'
                   }
                 }, { onConflict: 'source_object_id,source_column,target_object_id,target_column' });
+              
+              if (lineageResult.error) {
+                console.error(`[EXTRACT] ❌ Failed to store lineage:`, lineageResult.error);
+              } else {
+                console.log(`[EXTRACT] ✅ Stored column lineage: ${sourceTable}.${rel.sourceColumn} → ${v.name}.${rel.targetColumn}`);
+              }
             }
           }
         }
@@ -317,11 +340,25 @@ export class ConnectorExtractionOrchestrator {
     if (!ddl) return null;
     const s = ddl.trim();
     const upper = s.toUpperCase();
+    
+    // Match "CREATE [OR REPLACE] VIEW viewname AS ..." pattern
+    const viewMatch = upper.match(/CREATE\s+(?:OR\s+REPLACE\s+)?VIEW\s+\S+\s+AS\s+/i);
+    if (viewMatch) {
+      // Extract everything after the AS
+      let body = s.substring(viewMatch[0].length).trim();
+      if (body.endsWith(';')) body = body.slice(0, -1).trim();
+      // Remove wrapping parentheses if present
+      if (body.startsWith('(') && body.endsWith(')')) {
+        body = body.slice(1, -1).trim();
+      }
+      return body;
+    }
+    
+    // Fallback: look for generic " AS " pattern
     const asIdx = upper.indexOf(' AS ');
     if (asIdx === -1) return s; // Already SELECT or unknown format
     let body = s.substring(asIdx + 4).trim();
     if (body.endsWith(';')) body = body.slice(0, -1).trim();
-    // Remove wrapping parentheses e.g., AS (SELECT ...)
     if (body.startsWith('(') && body.endsWith(')')) {
       body = body.slice(1, -1).trim();
     }

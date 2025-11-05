@@ -1,6 +1,8 @@
 import { IConnector, ConnectorConfig, ConnectionTestResult, ExtractionResult, ExtractedObject } from './IConnector';
 import { promisify } from 'util';
 import snowflakeCostExtractor from './SnowflakeCostExtractor';
+import snowflakePhase2Extractor from './SnowflakePhase2Extractor';
+import snowflakeRecommendationEngine from '../recommendations/SnowflakeRecommendationEngine';
 
 const snowflake = require('snowflake-sdk');
 
@@ -464,7 +466,7 @@ export class SnowflakeConnector implements IConnector {
       }
 
       // 4. Detect waste opportunities
-      console.log('[SNOWFLAKE] 🔍 Step 4/4: Detecting waste opportunities...');
+      console.log('[SNOWFLAKE] 🔍 Step 4/5: Detecting waste opportunities...');
       const wasteOpportunities = await this.detectWasteOpportunities();
       console.log(`[SNOWFLAKE] Found ${wasteOpportunities.length} waste opportunities`);
       if (wasteOpportunities.length > 0) {
@@ -476,7 +478,17 @@ export class SnowflakeConnector implements IConnector {
         console.log('[SNOWFLAKE] ⚠️  No waste opportunities found');
       }
 
-      console.log('[SNOWFLAKE] 🎉 Cost extraction complete!');
+      // 5. Extract Phase 2 data for smart recommendations
+      console.log('[SNOWFLAKE] 🤖 Step 5/6: Extracting Phase 2 data for recommendations...');
+      await snowflakePhase2Extractor.extractAll(connectorId, this.connection);
+      console.log('[SNOWFLAKE] ✅ Phase 2 data extracted');
+
+      // 6. Generate smart recommendations
+      console.log('[SNOWFLAKE] 💡 Step 6/6: Generating smart recommendations...');
+      await snowflakeRecommendationEngine.generateRecommendations(connectorId, organizationId);
+      console.log('[SNOWFLAKE] ✅ Recommendations generated');
+
+      console.log('[SNOWFLAKE] 🎉 Complete cost extraction and recommendations finished!');
     } catch (e: any) {
       console.error('[SNOWFLAKE] Cost extraction error:', e?.message || e);
       throw e;

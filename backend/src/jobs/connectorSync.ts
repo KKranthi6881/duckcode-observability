@@ -47,7 +47,7 @@ export function startConnectorSyncJob(): void {
           await supabaseAdmin
             .schema('enterprise')
             .from('connectors')
-            .update({ sync_next_run_at: next, last_sync_status: 'scheduled' })
+            .update({ sync_next_run_at: next })
             .eq('id', c.id);
         } catch (e: any) {
           console.error('[ConnectorSync] Extraction error:', e?.message || e);

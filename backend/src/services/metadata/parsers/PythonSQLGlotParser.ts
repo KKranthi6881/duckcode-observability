@@ -52,9 +52,13 @@ export class PythonSQLGlotParser {
     }
 
     try {
-      // Wrap compiled SQL in CREATE TABLE statement
+      // Wrap compiled SQL in CREATE TABLE statement ONLY if it doesn't already start with SELECT
       // This gives the parser a clear target, similar to how IDE does it
-      const wrappedSQL = `CREATE TABLE ${targetModel} AS ${compiledSQL}`;
+      const trimmedSQL = compiledSQL.trim();
+      const startsWithSelect = /^SELECT\s+/i.test(trimmedSQL);
+      const wrappedSQL = startsWithSelect 
+        ? `CREATE TABLE ${targetModel} AS ${trimmedSQL}`
+        : trimmedSQL; // Already wrapped or is a full DDL statement
       
       const dialect = options.dialect || this.detectDialect(compiledSQL);
       

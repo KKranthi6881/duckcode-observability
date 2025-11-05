@@ -12,6 +12,7 @@ import { EnhancedAnalytics } from './pages/dashboard/EnhancedAnalytics';
 import { DataLineage } from './pages/dashboard/DataLineage';
 import AnalyticsDashboard from './pages/AnalyticsDashboard';
 import SnowflakeCostDashboard from './pages/dashboard/SnowflakeCostDashboard';
+import SnowflakeRecommendations from './pages/dashboard/SnowflakeRecommendations';
 import SnowflakeMetadataView from './pages/dashboard/SnowflakeMetadataView';
 import ConnectorsAdmin from './pages/admin/ConnectorsAdmin';
 import { FileProcessingStatus } from './components/FileProcessingStatus';
@@ -116,6 +117,7 @@ const AppContent = () => {
             <Route path="code/status/:owner/:repo" element={<FileProcessingStatus />} />
             <Route path="analytics" element={<EnhancedAnalytics />} />
             <Route path="snowflake-costs" element={<SnowflakeCostDashboard />} />
+            <Route path="snowflake-recommendations" element={<SnowflakeRecommendations />} />
             <Route path="snowflake-metadata" element={<SnowflakeMetadataView />} />
             <Route path="lineage" element={<DataLineage />} />
             <Route path="my-usage" element={<UserAnalytics />} />

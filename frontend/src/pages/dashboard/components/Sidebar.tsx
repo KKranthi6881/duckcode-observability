@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
-  Settings as SettingsIcon, BarChart3, Shield, Network, Bell, Globe, MessageSquare
+  Settings as SettingsIcon, BarChart3, Shield, Network, Bell, Globe, MessageSquare, TrendingUp
 } from 'lucide-react';
 import { useAuth } from '../../../features/auth/contexts/AuthContext';
 import { useState, useEffect } from 'react';
@@ -15,10 +15,14 @@ const navigation = [
     name: 'Cost Analytics',
     href: '/dashboard/analytics',
     icon: BarChart3
-  }, {
+  },  {
     name: 'Snowflake Costs',
     href: '/dashboard/snowflake-costs',
     icon: BarChart3
+  }, {
+    name: 'Recommendations',
+    href: '/dashboard/snowflake-recommendations',
+    icon: TrendingUp
   }, {
     name: 'Snowflake Metadata',
     href: '/dashboard/snowflake-metadata',

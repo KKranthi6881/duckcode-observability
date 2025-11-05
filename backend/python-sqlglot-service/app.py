@@ -119,6 +119,10 @@ def extract_lineage_from_sql(sql: str, dialect: str) -> List[Dict[str, Any]]:
         tables, alias_map = collect_from_aliases(sel, dialect)
         base_table = tables[0] if len(tables) == 1 else (tables[0] if tables else None)
         
+        # Debug logging
+        app.logger.info(f"[SQLGlot] Tables found: {tables}")
+        app.logger.info(f"[SQLGlot] Alias map: {alias_map}")
+        
         # Iterate through projections (SELECT columns)
         for proj in getattr(sel, 'expressions', []) or []:
             expr = proj
@@ -175,7 +179,10 @@ def extract_lineage_from_sql(sql: str, dialect: str) -> List[Dict[str, Any]]:
             # For each column reference in the expression
             for c in cols:
                 c_name = getattr(c, 'name', None)
+                c_table_qualifier = getattr(c, 'table', None)
+                app.logger.info(f"[SQLGlot] Column {c_name} has qualifier: {c_table_qualifier}")
                 src_table = resolve_table_name(c, base_table, alias_map, cte_map)
+                app.logger.info(f"[SQLGlot] Resolved to table: {src_table}")
                 
                 if not src_table or not c_name:
                     continue
@@ -249,19 +256,40 @@ def collect_from_aliases(sel, dialect: str) -> tuple[List[str], Dict[str, str]]:
     
     try:
         for t in sel.find_all(exp.Table):
-            name = safe_sql(t, dialect).replace('`', '').strip('"[]')
-            if not name:
+            # Get the table name WITHOUT alias - use t.name or t.this
+            table_name = None
+            if hasattr(t, 'name') and t.name:
+                table_name = str(t.name)
+            elif hasattr(t, 'this') and t.this:
+                table_name = str(t.this)
+            else:
+                # Fallback to safe_sql but strip alias
+                full_sql = safe_sql(t, dialect).replace('`', '').strip('"[]')
+                # Remove " AS alias" part
+                if ' AS ' in full_sql.upper():
+                    table_name = full_sql.split(' AS ')[0].strip()
+                else:
+                    table_name = full_sql
+            
+            if not table_name:
                 continue
             
-            tables.append(name)
+            tables.append(table_name)
             
             # Get alias if present
             al = getattr(t, 'alias', None)
-            alias_name = getattr(al, 'name', None) if al else None
+            alias_name = None
+            if al:
+                if isinstance(al, str):
+                    alias_name = al
+                else:
+                    alias_name = getattr(al, 'name', None) or str(al) if al else None
             
-            if alias_name:
-                alias_map[str(alias_name)] = name
-    except Exception:
+            if alias_name and str(alias_name).upper() != table_name.upper():
+                alias_map[str(alias_name)] = table_name
+                app.logger.info(f"[SQLGlot] Mapped alias '{alias_name}' -> '{table_name}'")
+    except Exception as e:
+        app.logger.error(f"[SQLGlot] Error collecting aliases: {str(e)}")
         pass
     
     return tables, alias_map
