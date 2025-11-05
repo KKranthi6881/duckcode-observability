@@ -186,39 +186,39 @@ export default function BudgetGuardrailsView({ connectorId }: Props) {
         </button>
       </div>
 
-      {/* Summary Cards */}
+      {/* Summary Cards - Professional Dark Theme */}
       {activeBudgets.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Total Budget */}
-          <div className="bg-gradient-to-br from-blue-500/10 to-blue-600/10 border border-blue-500/30 rounded-xl p-6">
+          <div className="bg-[#161413] border-2 border-[#1f1d1b] rounded-xl p-6 hover:border-blue-500/30 transition">
             <div className="flex items-center gap-3 mb-2">
               <DollarSign className="w-6 h-6 text-blue-400" />
-              <span className="text-[#8d857b] text-sm uppercase">Total Budget</span>
+              <span className="text-[#8d857b] text-sm uppercase tracking-wider">Total Budget</span>
             </div>
             <div className="text-3xl font-bold text-white">{formatCurrency(totalBudget)}</div>
-            <div className="text-sm text-blue-400 mt-1">{activeBudgets.length} active budgets</div>
+            <div className="text-sm text-[#8d857b] mt-1">{activeBudgets.length} active budgets</div>
           </div>
 
           {/* Current Spend */}
-          <div className="bg-gradient-to-br from-purple-500/10 to-purple-600/10 border border-purple-500/30 rounded-xl p-6">
+          <div className="bg-[#161413] border-2 border-[#1f1d1b] rounded-xl p-6 hover:border-purple-500/30 transition">
             <div className="flex items-center gap-3 mb-2">
               <TrendingUp className="w-6 h-6 text-purple-400" />
-              <span className="text-[#8d857b] text-sm uppercase">Current Spend</span>
+              <span className="text-[#8d857b] text-sm uppercase tracking-wider">Current Spend</span>
             </div>
             <div className="text-3xl font-bold text-white">{formatCurrency(totalSpend)}</div>
-            <div className="text-sm text-purple-400 mt-1">
+            <div className="text-sm text-[#8d857b] mt-1">
               {totalBudget > 0 ? ((totalSpend / totalBudget) * 100).toFixed(1) : 0}% of total budget
             </div>
           </div>
 
           {/* Remaining */}
-          <div className="bg-gradient-to-br from-green-500/10 to-green-600/10 border border-green-500/30 rounded-xl p-6">
+          <div className="bg-[#161413] border-2 border-[#1f1d1b] rounded-xl p-6 hover:border-green-500/30 transition">
             <div className="flex items-center gap-3 mb-2">
               <TrendingDown className="w-6 h-6 text-green-400" />
-              <span className="text-[#8d857b] text-sm uppercase">Remaining</span>
+              <span className="text-[#8d857b] text-sm uppercase tracking-wider">Remaining</span>
             </div>
             <div className="text-3xl font-bold text-white">{formatCurrency(totalBudget - totalSpend)}</div>
-            <div className="text-sm text-green-400 mt-1">Across all budgets</div>
+            <div className="text-sm text-[#8d857b] mt-1">Across all budgets</div>
           </div>
         </div>
       )}

@@ -135,53 +135,53 @@ export default function WasteDetectionView({ connectorId }: Props) {
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Unused Tables */}
+      {/* Summary Cards - Professional Dark Theme */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Unused Tables - Critical */}
         <button
           onClick={() => setSelectedCategory(selectedCategory === 'unused_tables' ? 'all' : 'unused_tables')}
-          className={`bg-gradient-to-br from-red-600/20 to-red-700/20 border-2 ${
-            selectedCategory === 'unused_tables' ? 'border-red-500' : 'border-red-500/30'
-          } rounded-xl p-6 text-left hover:border-red-500/50 transition-all`}
+          className={`bg-[#161413] border-2 ${
+            selectedCategory === 'unused_tables' ? 'border-red-500/60' : 'border-[#1f1d1b]'
+          } rounded-xl p-6 text-left hover:border-red-500/40 transition-all`}
         >
           <div className="flex items-start justify-between mb-3">
             <Database className="w-8 h-8 text-red-400" />
-            <div className="text-xs font-bold text-red-300 uppercase">Critical</div>
+            <div className="text-xs font-bold text-red-400 uppercase tracking-wider">Critical</div>
           </div>
           <div className="text-3xl font-bold text-white mb-2">{formatCurrency(wasteData.summary?.unused_table_savings || 0)}</div>
-          <div className="text-red-200 text-sm font-medium">{unusedTables.length} Unused Tables</div>
+          <div className="text-white text-sm font-medium">{unusedTables.length} Unused Tables</div>
           <div className="text-[#8d857b] text-xs mt-2">Not accessed in 90+ days</div>
         </button>
 
-        {/* Idle Warehouses */}
+        {/* Idle Warehouses - Warning */}
         <button
           onClick={() => setSelectedCategory(selectedCategory === 'idle_warehouses' ? 'all' : 'idle_warehouses')}
-          className={`bg-gradient-to-br from-orange-600/20 to-orange-700/20 border-2 ${
-            selectedCategory === 'idle_warehouses' ? 'border-orange-500' : 'border-orange-500/30'
-          } rounded-xl p-6 text-left hover:border-orange-500/50 transition-all`}
+          className={`bg-[#161413] border-2 ${
+            selectedCategory === 'idle_warehouses' ? 'border-orange-500/60' : 'border-[#1f1d1b]'
+          } rounded-xl p-6 text-left hover:border-orange-500/40 transition-all`}
         >
           <div className="flex items-start justify-between mb-3">
             <Server className="w-8 h-8 text-orange-400" />
-            <div className="text-xs font-bold text-orange-300 uppercase">Warning</div>
+            <div className="text-xs font-bold text-orange-400 uppercase tracking-wider">Warning</div>
           </div>
           <div className="text-3xl font-bold text-white mb-2">{formatCurrency(wasteData.summary?.idle_warehouse_savings || 0)}</div>
-          <div className="text-orange-200 text-sm font-medium">{idleWarehouses.length} Idle Warehouses</div>
+          <div className="text-white text-sm font-medium">{idleWarehouses.length} Idle Warehouses</div>
           <div className="text-[#8d857b] text-xs mt-2">Running but not used</div>
         </button>
 
-        {/* Underutilized */}
+        {/* Underutilized - Optimize */}
         <button
           onClick={() => setSelectedCategory(selectedCategory === 'underutilized' ? 'all' : 'underutilized')}
-          className={`bg-gradient-to-br from-yellow-600/20 to-yellow-700/20 border-2 ${
-            selectedCategory === 'underutilized' ? 'border-yellow-500' : 'border-yellow-500/30'
-          } rounded-xl p-6 text-left hover:border-yellow-500/50 transition-all`}
+          className={`bg-[#161413] border-2 ${
+            selectedCategory === 'underutilized' ? 'border-yellow-500/60' : 'border-[#1f1d1b]'
+          } rounded-xl p-6 text-left hover:border-yellow-500/40 transition-all`}
         >
           <div className="flex items-start justify-between mb-3">
             <Activity className="w-8 h-8 text-yellow-400" />
-            <div className="text-xs font-bold text-yellow-300 uppercase">Optimize</div>
+            <div className="text-xs font-bold text-yellow-400 uppercase tracking-wider">Optimize</div>
           </div>
           <div className="text-3xl font-bold text-white mb-2">{formatCurrency(wasteData.summary?.underutilized_warehouse_savings || 0)}</div>
-          <div className="text-yellow-200 text-sm font-medium">{underutilizedWarehouses.length} Underutilized</div>
+          <div className="text-white text-sm font-medium">{underutilizedWarehouses.length} Underutilized</div>
           <div className="text-[#8d857b] text-xs mt-2">Low utilization rate</div>
         </button>
       </div>
