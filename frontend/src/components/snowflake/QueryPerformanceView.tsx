@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Activity, TrendingDown, Clock, AlertTriangle, Loader2, Code, X } from 'lucide-react';
+import { Activity, TrendingDown, Clock, AlertTriangle, Loader2, Code, X, Copy, Check, Eye } from 'lucide-react';
 import { supabase } from '../../config/supabaseClient';
 
 interface Props {
@@ -23,6 +23,7 @@ export default function QueryPerformanceView({ connectorId }: Props) {
   const [selectedQuery, setSelectedQuery] = useState<ExpensiveQuery | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [sortBy, setSortBy] = useState<'cost' | 'time' | 'count'>('cost');
+  const [copied, setCopied] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -251,9 +252,16 @@ export default function QueryPerformanceView({ connectorId }: Props) {
               {topQueries.map((query) => (
                 <tr key={query.query_hash} className="hover:bg-[#0d0c0a] transition-colors">
                   <td className="px-6 py-4">
-                    <div className="text-sm text-white font-mono max-w-md truncate">
-                      {query.query_text.substring(0, 100)}...
-                    </div>
+                    <button
+                      onClick={() => {
+                        setSelectedQuery(query);
+                        setShowModal(true);
+                      }}
+                      className="text-sm text-white font-mono max-w-md truncate hover:text-[#ff6a3c] transition-colors flex items-center gap-2 group"
+                    >
+                      <Eye className="w-4 h-4 text-[#8d857b] group-hover:text-[#ff6a3c] flex-shrink-0" />
+                      <span className="truncate">{query.query_text.substring(0, 100)}...</span>
+                    </button>
                   </td>
                   <td className="px-6 py-4 text-sm text-[#8d857b]">
                     {query.warehouse_name}
@@ -306,12 +314,34 @@ export default function QueryPerformanceView({ connectorId }: Props) {
           <div className="bg-[#161413] border border-[#2d2a27] rounded-xl max-w-6xl w-full max-h-[90vh] overflow-auto">
             <div className="sticky top-0 bg-[#161413] border-b border-[#2d2a27] p-6 flex items-center justify-between">
               <h3 className="text-xl font-bold text-white">Query Details</h3>
-              <button
-                onClick={() => setShowModal(false)}
-                className="p-2 hover:bg-[#2d2a27] rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5 text-white" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(selectedQuery.query_text);
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-[#ff6a3c] hover:bg-[#d94a1e] text-white rounded-lg transition-colors text-sm font-medium"
+                >
+                  {copied ? (
+                    <>
+                      <Check className="w-4 h-4" />
+                      Copied!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4" />
+                      Copy Query
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="p-2 hover:bg-[#2d2a27] rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-white" />
+                </button>
+              </div>
             </div>
             <div className="p-6 space-y-6">
               {/* Stats Grid */}
@@ -336,9 +366,21 @@ export default function QueryPerformanceView({ connectorId }: Props) {
 
               {/* Query Text */}
               <div>
-                <div className="text-[#8d857b] text-sm font-medium mb-2">Query Text</div>
-                <div className="bg-[#0d0c0a] border border-[#2d2a27] rounded-lg p-4">
-                  <pre className="text-sm text-green-400 font-mono whitespace-pre-wrap overflow-x-auto">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-[#8d857b] text-sm font-medium">Query Text</div>
+                  <div className="text-xs text-[#8d857b]">Click query to select all</div>
+                </div>
+                <div 
+                  className="bg-[#0d0c0a] border-2 border-[#2d2a27] hover:border-[#ff6a3c]/50 rounded-lg p-4 cursor-text transition-colors"
+                  onClick={(e) => {
+                    const selection = window.getSelection();
+                    const range = document.createRange();
+                    range.selectNodeContents(e.currentTarget.querySelector('pre')!);
+                    selection?.removeAllRanges();
+                    selection?.addRange(range);
+                  }}
+                >
+                  <pre className="text-sm text-green-400 font-mono whitespace-pre-wrap overflow-x-auto select-text">
                     {selectedQuery.query_text}
                   </pre>
                 </div>

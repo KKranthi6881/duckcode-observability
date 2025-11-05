@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ReactECharts from 'echarts-for-react';
-import { TrendingUp, Database, Server, DollarSign, AlertCircle, CheckCircle, Loader2, RefreshCw, Calendar, Target, Activity, Zap, Archive, Filter, Lightbulb, BarChart3 } from 'lucide-react';
+import { TrendingUp, Database, Server, DollarSign, AlertCircle, CheckCircle, Loader2, RefreshCw, Calendar, Target, Activity, Zap, Archive, Filter, Lightbulb, BarChart3, Eye, Copy, Check, X, Code } from 'lucide-react';
 import snowflakeCostPhase1Service, { CostOverview, StorageUsageRow, WasteDetectionData } from '../../services/snowflakeCostPhase1Service';
 import enterpriseService from '../../services/enterpriseService';
 import { snowflakeCostService, ConnectorItem, DailyCreditRow, WarehouseCostRow, TagCostRow, TopQueryRow } from '../../services/snowflakeCostService';
@@ -39,6 +39,9 @@ export default function SnowflakeIntelligence() {
   const [filters, setFilters] = useState<{ warehouses: string[]; tags: { TAG_NAME: string; TAG_VALUE: string }[] }>({ warehouses: [], tags: [] });
   const [budgets, setBudgets] = useState<SnowflakeBudget[]>([]);
   const [expandedWasteCategory, setExpandedWasteCategory] = useState<string | null>(null);
+  const [selectedQuery, setSelectedQuery] = useState<TopQueryRow | null>(null);
+  const [showQueryModal, setShowQueryModal] = useState(false);
+  const [copiedQuery, setCopiedQuery] = useState(false);
   const [storageHistory, setStorageHistory] = useState<any[]>([]);
   const [transferCosts, setTransferCosts] = useState<any>(null);
 
@@ -74,7 +77,7 @@ export default function SnowflakeIntelligence() {
       }
     };
     loadConnectors();
-  }, [organizationId, connectorId]);
+  }, [organizationId]);
 
   const loadData = useCallback(async () => {
     if (!connectorId) return;
@@ -94,7 +97,7 @@ export default function SnowflakeIntelligence() {
         snowflakeCostService.getDailyCredits(connectorId, start, undefined, {}),
         snowflakeCostService.getWarehouseCosts(connectorId, start, undefined, {}),
         snowflakeCostService.getCostByTags(connectorId, start, undefined),
-        snowflakeCostService.getTopQueries(connectorId, start, undefined, {}),
+        snowflakeCostService.getTopQueries(connectorId, start, undefined, { includeText: true }),
         snowflakeCostService.getFilters(connectorId, start, undefined),
         snowflakeBudgetsService.list(connectorId).catch(() => []),
       ]);
@@ -681,7 +684,7 @@ export default function SnowflakeIntelligence() {
                 <table className="min-w-full">
                   <thead className="bg-[#1f1d1b]">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-[#8d857b] uppercase">Query ID</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-[#8d857b] uppercase">Query Preview</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-[#8d857b] uppercase">User</th>
                       <th className="px-6 py-3 text-right text-xs font-medium text-[#8d857b] uppercase">Execution Time</th>
                       <th className="px-6 py-3 text-right text-xs font-medium text-[#8d857b] uppercase">Bytes Scanned</th>
@@ -690,7 +693,18 @@ export default function SnowflakeIntelligence() {
                   <tbody className="divide-y divide-[#2d2a27]">
                     {topQueries.slice(0, 5).map((query, idx) => (
                       <tr key={idx} className="hover:bg-[#1f1d1b]">
-                        <td className="px-6 py-4 text-sm font-mono text-white">{query.QUERY_ID?.substring(0, 12)}...</td>
+                        <td className="px-6 py-4">
+                          <button
+                            onClick={() => {
+                              setSelectedQuery(query);
+                              setShowQueryModal(true);
+                            }}
+                            className="text-sm text-white font-mono max-w-md truncate hover:text-[#ff6a3c] transition-colors flex items-center gap-2 group"
+                          >
+                            <Eye className="w-4 h-4 text-[#8d857b] group-hover:text-[#ff6a3c] flex-shrink-0" />
+                            <span className="truncate">{query.QUERY_TEXT?.substring(0, 80) || query.QUERY_ID?.substring(0, 80) || 'No query text'}...</span>
+                          </button>
+                        </td>
                         <td className="px-6 py-4 text-sm text-[#8d857b]">{query.USER_NAME}</td>
                         <td className="px-6 py-4 text-sm font-medium text-orange-400 text-right">{(Number(query.EXECUTION_TIME || 0) / 1000).toFixed(1)}s</td>
                         <td className="px-6 py-4 text-sm text-[#8d857b] text-right">{formatBytes(Number(query.BYTES_SCANNED || 0))}</td>
@@ -798,6 +812,92 @@ export default function SnowflakeIntelligence() {
             </div>
           )}
         </div>
+
+        {/* Query Detail Modal */}
+        {showQueryModal && selectedQuery && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+            <div className="bg-[#161413] border border-[#2d2a27] rounded-xl max-w-6xl w-full max-h-[90vh] overflow-auto">
+              <div className="sticky top-0 bg-[#161413] border-b border-[#2d2a27] p-6 flex items-center justify-between">
+                <h3 className="text-xl font-bold text-white">Query Details</h3>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      const queryText = selectedQuery.QUERY_TEXT || selectedQuery.QUERY_ID || '';
+                      navigator.clipboard.writeText(queryText);
+                      setCopiedQuery(true);
+                      setTimeout(() => setCopiedQuery(false), 2000);
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 bg-[#ff6a3c] hover:bg-[#d94a1e] text-white rounded-lg transition-colors text-sm font-medium"
+                  >
+                    {copiedQuery ? (
+                      <>
+                        <Check className="w-4 h-4" />
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-4 h-4" />
+                        Copy Query
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setShowQueryModal(false)}
+                    className="p-2 hover:bg-[#2d2a27] rounded-lg transition-colors"
+                  >
+                    <X className="w-5 h-5 text-white" />
+                  </button>
+                </div>
+              </div>
+              <div className="p-6 space-y-6">
+                {/* Stats Grid */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div>
+                    <div className="text-[#8d857b] text-xs uppercase mb-1">User</div>
+                    <div className="text-white font-medium">{selectedQuery.USER_NAME}</div>
+                  </div>
+                  <div>
+                    <div className="text-[#8d857b] text-xs uppercase mb-1">Warehouse</div>
+                    <div className="text-white font-medium">{selectedQuery.WAREHOUSE_NAME}</div>
+                  </div>
+                  <div>
+                    <div className="text-[#8d857b] text-xs uppercase mb-1">Execution Time</div>
+                    <div className="text-orange-400 font-medium">{(Number(selectedQuery.EXECUTION_TIME || 0) / 1000).toFixed(2)}s</div>
+                  </div>
+                  <div>
+                    <div className="text-[#8d857b] text-xs uppercase mb-1">Data Scanned</div>
+                    <div className="text-blue-400 font-medium">{formatBytes(Number(selectedQuery.BYTES_SCANNED || 0))}</div>
+                  </div>
+                </div>
+
+                {/* Query Text */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-[#8d857b] text-sm font-medium">Query Text</div>
+                    <div className="text-xs text-[#8d857b]">Click query to select all</div>
+                  </div>
+                  <div 
+                    className="bg-[#0d0c0a] border-2 border-[#2d2a27] hover:border-[#ff6a3c]/50 rounded-lg p-4 cursor-text transition-colors"
+                    onClick={(e) => {
+                      const selection = window.getSelection();
+                      const range = document.createRange();
+                      const pre = e.currentTarget.querySelector('pre');
+                      if (pre) {
+                        range.selectNodeContents(pre);
+                        selection?.removeAllRanges();
+                        selection?.addRange(range);
+                      }
+                    }}
+                  >
+                    <pre className="text-sm text-green-400 font-mono whitespace-pre-wrap overflow-x-auto select-text">
+                      {selectedQuery.QUERY_TEXT || selectedQuery.QUERY_ID || 'No query text available'}
+                    </pre>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         </>
         )}
 
