@@ -452,11 +452,13 @@ export class SnowflakeCostService {
           SELECT DISTINCT
             WAREHOUSE_NAME,
             FIRST_VALUE(WAREHOUSE_SIZE) OVER (PARTITION BY WAREHOUSE_NAME ORDER BY START_TIME DESC) AS WAREHOUSE_SIZE
-          FROM SNOWFLAKE.ACCOUNT_USAGE.WAREHOUSE_METERING_HISTORY
+          FROM SNOWFLAKE.ACCOUNT_USAGE.QUERY_HISTORY
           WHERE START_TIME >= '${start}'
+            AND WAREHOUSE_NAME IS NOT NULL
+            AND WAREHOUSE_SIZE IS NOT NULL
         )
         SELECT 
-          wi.WAREHOUSE_NAME,
+          COALESCE(wi.WAREHOUSE_NAME, wm.WAREHOUSE_NAME) AS WAREHOUSE_NAME,
           wi.WAREHOUSE_SIZE,
           wm.TOTAL_CREDITS,
           wm.ACTIVE_HOURS,
@@ -467,10 +469,10 @@ export class SnowflakeCostService {
             WHEN AVG(wl.AVG_QUEUED_LOAD) > 0.1 THEN 'OVERSIZED'
             ELSE 'OPTIMAL'
           END AS STATUS
-        FROM warehouse_info wi
-        LEFT JOIN warehouse_load wl ON wi.WAREHOUSE_NAME = wl.WAREHOUSE_NAME
-        LEFT JOIN warehouse_metering wm ON wi.WAREHOUSE_NAME = wm.WAREHOUSE_NAME
-        GROUP BY wi.WAREHOUSE_NAME, wi.WAREHOUSE_SIZE, wm.TOTAL_CREDITS, wm.ACTIVE_HOURS
+        FROM warehouse_metering wm
+        LEFT JOIN warehouse_info wi ON wm.WAREHOUSE_NAME = wi.WAREHOUSE_NAME
+        LEFT JOIN warehouse_load wl ON wm.WAREHOUSE_NAME = wl.WAREHOUSE_NAME
+        GROUP BY COALESCE(wi.WAREHOUSE_NAME, wm.WAREHOUSE_NAME), wi.WAREHOUSE_SIZE, wm.TOTAL_CREDITS, wm.ACTIVE_HOURS
         ORDER BY wm.TOTAL_CREDITS DESC NULLS LAST
       `;
       return await this.exec(conn, sql);

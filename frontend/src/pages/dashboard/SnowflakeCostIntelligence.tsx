@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import ReactECharts from 'echarts-for-react';
 import { 
   TrendingUp, 
   Database, 
@@ -9,7 +10,9 @@ import {
   CheckCircle,
   Loader2,
   RefreshCw,
-  Calendar
+  Calendar,
+  Target,
+  Activity
 } from 'lucide-react';
 import snowflakeCostPhase1Service, { 
   CostOverview, 
@@ -154,35 +157,39 @@ export default function SnowflakeCostIntelligence() {
 
   if (loading && !costOverview) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="flex items-center gap-2 text-gray-600">
-          <Loader2 className="w-6 h-6 animate-spin" />
-          <span>Loading Snowflake Cost Intelligence...</span>
+      <div className="flex items-center justify-center h-screen bg-[#0d0c0a]">
+        <div className="flex items-center gap-3 text-[#d6d2c9]">
+          <Loader2 className="w-8 h-8 animate-spin text-[#ff6a3c]" />
+          <span className="text-lg">Loading Snowflake Intelligence...</span>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6 space-y-6 bg-gray-50 min-h-screen">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Snowflake Cost Intelligence</h1>
-          <p className="text-sm text-gray-600 mt-1">
-            Real-time visibility into your Snowflake spending and optimization opportunities
-          </p>
-        </div>
+    <div className="min-h-screen bg-[#0d0c0a] text-white">
+      {/* Dark Header - Grafana Style */}
+      <div className="border-b border-[#1f1d1b] bg-[#161413] px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Database className="w-8 h-8 text-[#ff6a3c]" />
+            <div>
+              <h1 className="text-2xl font-bold text-white">Snowflake Intelligence</h1>
+              <p className="text-sm text-[#8d857b] mt-1">
+                Real-time cost analytics and AI-powered optimization
+              </p>
+            </div>
+          </div>
         
-        <div className="flex items-center gap-3">
-          {/* Time Period Selector */}
-          <div className="flex items-center gap-2 bg-white rounded-lg shadow-sm border px-3 py-2">
-            <Calendar className="w-4 h-4 text-gray-500" />
-            <select
-              value={timePeriod}
-              onChange={(e) => setTimePeriod(Number(e.target.value) as 7 | 30 | 90)}
-              className="text-sm border-none focus:ring-0 bg-transparent"
-            >
+          <div className="flex items-center gap-3">
+            {/* Time Period Selector */}
+            <div className="flex items-center gap-2 bg-[#1f1d1b] rounded-lg border border-[#2d2a27] px-3 py-2">
+              <Calendar className="w-4 h-4 text-[#8d857b]" />
+              <select
+                value={timePeriod}
+                onChange={(e) => setTimePeriod(Number(e.target.value) as 7 | 30 | 90)}
+                className="text-sm bg-transparent border-none text-white focus:ring-0"
+              >
               <option value={7}>Last 7 days</option>
               <option value={30}>Last 30 days</option>
               <option value={90}>Last 90 days</option>

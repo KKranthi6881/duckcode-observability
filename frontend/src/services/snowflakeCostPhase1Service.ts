@@ -12,18 +12,24 @@ export interface CostOverview {
   failure_rate: string | number;
 }
 
-// Storage Usage Row
+// Storage Usage Row - matches enterprise.snowflake_storage_usage table schema
 export interface StorageUsageRow {
-  DATABASE_NAME: string;
-  SCHEMA_NAME: string;
-  TABLE_NAME: string;
-  TABLE_TYPE: string;
-  STORAGE_BYTES: number;
-  ROW_COUNT: number;
-  IS_TRANSIENT: boolean;
-  RETENTION_DAYS: number;
-  LAST_ALTERED: string;
-  CREATED: string;
+  database_name: string;
+  schema_name: string;
+  table_name: string;
+  table_type?: string;
+  storage_bytes: number;
+  storage_gb?: number;
+  failsafe_bytes?: number;
+  time_travel_bytes?: number;
+  row_count?: number;
+  is_transient?: boolean;
+  retention_days?: number;
+  last_altered?: string;
+  last_accessed?: string;
+  days_since_access?: number;
+  monthly_storage_cost?: number;
+  snapshot_date?: string;
 }
 
 // Storage Costs Row
