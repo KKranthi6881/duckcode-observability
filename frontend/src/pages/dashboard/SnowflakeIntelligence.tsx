@@ -10,12 +10,13 @@ import RecommendationsView from '../../components/snowflake/RecommendationsView'
 import ROITrackerView from '../../components/snowflake/ROITrackerView';
 import QueryPerformanceView from '../../components/snowflake/QueryPerformanceView';
 import WasteDetectionView from '../../components/snowflake/WasteDetectionView';
+import BudgetGuardrailsView from '../../components/snowflake/BudgetGuardrailsView';
 
 interface ConnectorWithOrg extends ConnectorItem { organization_id: string; }
 interface Recommendation { id: string; type: string; priority: 'high' | 'medium' | 'low'; status: string; title: string; description: string; estimated_monthly_savings_usd: number; confidence_score: number; effort_level: string; }
 interface RecommendationsSummary { by_status: { pending: number; applied: number; dismissed: number }; by_priority: { high: number; medium: number; low: number }; total_potential_savings: number; applied_savings: number; }
 
-type TabType = 'overview' | 'waste' | 'recommendations' | 'roi' | 'performance';
+type TabType = 'overview' | 'waste' | 'budgets' | 'recommendations' | 'roi' | 'performance';
 
 export default function SnowflakeIntelligence() {
   const navigate = useNavigate();
@@ -424,6 +425,17 @@ export default function SnowflakeIntelligence() {
             >
               <AlertCircle className="w-4 h-4" />
               Waste Detection
+            </button>
+            <button
+              onClick={() => setActiveTab('budgets')}
+              className={`px-6 py-4 text-sm font-medium transition-colors flex items-center gap-2 whitespace-nowrap border-b-2 ${
+                activeTab === 'budgets'
+                  ? 'text-[#ff6a3c] border-[#ff6a3c]'
+                  : 'text-[#8d857b] border-transparent hover:text-white'
+              }`}
+            >
+              <Target className="w-4 h-4" />
+              Budgets
             </button>
             <button
               onClick={() => setActiveTab('recommendations')}
@@ -916,6 +928,11 @@ export default function SnowflakeIntelligence() {
         {/* Waste Detection Tab */}
         {activeTab === 'waste' && connectorId && (
           <WasteDetectionView connectorId={connectorId} />
+        )}
+
+        {/* Budget Guardrails Tab */}
+        {activeTab === 'budgets' && connectorId && (
+          <BudgetGuardrailsView connectorId={connectorId} />
         )}
 
         {/* Recommendations Tab */}

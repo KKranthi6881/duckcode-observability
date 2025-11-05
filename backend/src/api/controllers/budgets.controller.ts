@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
 import { supabaseAdmin } from '../../config/supabase';
-import { SlackNotifier } from '../../services/notifications/SlackNotifier';
-import { SnowflakeCostService } from '../../services/connectors/SnowflakeCostService';
+import budgetTrackingService from '../../services/BudgetTrackingService';
 
 function parseRoleName(roleRow: any): string | null {
   const role = (roleRow?.organization_roles as any) || null;
@@ -34,9 +33,6 @@ async function getConnector(connectorId: string) {
   return data;
 }
 
-const notifier = new SlackNotifier();
-const costSvc = new SnowflakeCostService();
-
 export async function listBudgets(req: Request, res: Response) {
   try {
     const userId = (req.user as any)?.id;
@@ -47,21 +43,18 @@ export async function listBudgets(req: Request, res: Response) {
     const isAdmin = await ensureAdmin(userId, connector.organization_id);
     if (!isAdmin) return res.status(403).json({ error: 'Forbidden' });
 
-    const { data, error } = await supabaseAdmin
-      .schema('enterprise')
-      .from('snowflake_budgets')
-      .select('*')
-      .eq('connector_id', connectorId)
-      .order('created_at', { ascending: false });
+    const budgets = await budgetTrackingService.listBudgets(
+      connector.organization_id,
+      connectorId
+    );
 
-    if (error) throw error;
-    return res.json({ success: true, budgets: data || [] });
+    return res.json({ success: true, budgets });
   } catch (e: any) {
     return res.status(500).json({ error: e?.message || 'Failed to list budgets' });
   }
 }
 
-export async function createOrUpdateBudget(req: Request, res: Response) {
+export async function createBudget(req: Request, res: Response) {
   try {
     const userId = (req.user as any)?.id;
     if (!userId) return res.status(401).json({ error: 'Not authenticated' });
@@ -72,51 +65,45 @@ export async function createOrUpdateBudget(req: Request, res: Response) {
     if (!isAdmin) return res.status(403).json({ error: 'Forbidden' });
 
     const body = req.body || {};
-    const payload = {
+    const budgetData = {
       organization_id: connector.organization_id,
-      connector_id: connectorId,
-      level: body.level,
-      warehouse_name: body.warehouse_name || null,
-      tag_name: body.tag_name || null,
-      tag_value: body.tag_value || null,
-      user_name: body.user_name || null,
-      threshold_credits: body.threshold_credits,
-      period: body.period || '30d',
-      start_time: body.start_time || null,
-      end_time: body.end_time || null,
-      notify_slack_webhook: body.notify_slack_webhook || null,
-      notify_email: body.notify_email || null,
-      status: body.status || 'active',
+      connector_id: body.budget_type === 'organization' ? undefined : connectorId,
+      budget_type: body.budget_type,
+      warehouse_name: body.warehouse_name,
+      budget_name: body.budget_name,
+      budget_amount: body.budget_amount,
+      budget_period: body.budget_period,
+      alert_threshold_1: body.alert_threshold_1,
+      alert_threshold_2: body.alert_threshold_2,
+      alert_threshold_3: body.alert_threshold_3,
+      email_alerts: body.email_alerts,
+      slack_webhook_url: body.slack_webhook_url,
+      auto_suspend_at_limit: body.auto_suspend_at_limit,
       created_by: userId,
     };
 
-    const upsert = req.query?.upsert === '1' || req.query?.upsert === 'true';
-
-    let result;
-    if (upsert && body.id) {
-      const { data, error } = await supabaseAdmin
-        .schema('enterprise')
-        .from('snowflake_budgets')
-        .update(payload)
-        .eq('id', body.id)
-        .select('*')
-        .single();
-      if (error) throw error;
-      result = data;
-    } else {
-      const { data, error } = await supabaseAdmin
-        .schema('enterprise')
-        .from('snowflake_budgets')
-        .insert(payload)
-        .select('*')
-        .single();
-      if (error) throw error;
-      result = data;
-    }
-
-    return res.json({ success: true, budget: result });
+    const budget = await budgetTrackingService.createBudget(budgetData);
+    return res.json({ success: true, budget });
   } catch (e: any) {
-    return res.status(500).json({ error: e?.message || 'Failed to save budget' });
+    return res.status(500).json({ error: e?.message || 'Failed to create budget' });
+  }
+}
+
+export async function updateBudget(req: Request, res: Response) {
+  try {
+    const userId = (req.user as any)?.id;
+    if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+
+    const connectorId = req.params.id;
+    const budgetId = req.params.budgetId;
+    const connector = await getConnector(connectorId);
+    const isAdmin = await ensureAdmin(userId, connector.organization_id);
+    if (!isAdmin) return res.status(403).json({ error: 'Forbidden' });
+
+    const budget = await budgetTrackingService.updateBudget(budgetId, req.body);
+    return res.json({ success: true, budget });
+  } catch (e: any) {
+    return res.status(500).json({ error: e?.message || 'Failed to update budget' });
   }
 }
 
@@ -144,107 +131,61 @@ export async function deleteBudget(req: Request, res: Response) {
   }
 }
 
-export async function listBudgetAlerts(req: Request, res: Response) {
+export async function getBudgetCurrentSpend(req: Request, res: Response) {
   try {
     const userId = (req.user as any)?.id;
     if (!userId) return res.status(401).json({ error: 'Not authenticated' });
 
-    const connectorId = req.params.id;
-    const connector = await getConnector(connectorId);
-    const isAdmin = await ensureAdmin(userId, connector.organization_id);
-    if (!isAdmin) return res.status(403).json({ error: 'Forbidden' });
+    const budgetId = req.params.budgetId;
+    const spend = await budgetTrackingService.getCurrentSpend(budgetId);
 
-    const { data, error } = await supabaseAdmin
-      .schema('enterprise')
-      .from('snowflake_budget_alerts')
-      .select('*')
-      .eq('connector_id', connectorId)
-      .order('fired_at', { ascending: false })
-      .limit(200);
+    return res.json({ success: true, data: spend });
+  } catch (e: any) {
+    return res.status(500).json({ error: e?.message || 'Failed to get current spend' });
+  }
+}
 
-    if (error) throw error;
-    return res.json({ success: true, alerts: data || [] });
+export async function getBudgetAlerts(req: Request, res: Response) {
+  try {
+    const userId = (req.user as any)?.id;
+    if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+
+    const budgetId = req.params.budgetId;
+    const alerts = await budgetTrackingService.getAlertHistory(budgetId);
+
+    return res.json({ success: true, alerts });
   } catch (e: any) {
     return res.status(500).json({ error: e?.message || 'Failed to fetch alerts' });
   }
 }
 
-export async function checkBudget(req: Request, res: Response) {
+export async function checkBudgetAlerts(req: Request, res: Response) {
   try {
     const userId = (req.user as any)?.id;
     if (!userId) return res.status(401).json({ error: 'Not authenticated' });
 
-    const connectorId = req.params.id;
     const budgetId = req.params.budgetId;
-    const connector = await getConnector(connectorId);
-    const isAdmin = await ensureAdmin(userId, connector.organization_id);
+    const alerts = await budgetTrackingService.checkBudgetAlerts(budgetId);
+
+    return res.json({ success: true, alerts });
+  } catch (e: any) {
+    return res.status(500).json({ error: e?.message || 'Failed to check budget alerts' });
+  }
+}
+
+export async function getOrganizationBudgetSummary(req: Request, res: Response) {
+  try {
+    const userId = (req.user as any)?.id;
+    if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+
+    const organizationId = req.params.organizationId;
+    const isAdmin = await ensureAdmin(userId, organizationId);
     if (!isAdmin) return res.status(403).json({ error: 'Forbidden' });
 
-    const { data: budget, error } = await supabaseAdmin
-      .schema('enterprise')
-      .from('snowflake_budgets')
-      .select('*')
-      .eq('id', budgetId)
-      .eq('connector_id', connectorId)
-      .single();
+    const summary = await budgetTrackingService.getOrganizationSummary(organizationId);
 
-    if (error || !budget) return res.status(404).json({ error: 'Budget not found' });
-
-    // Determine start/end from budget period
-    let start: string | undefined = undefined;
-    let end: string | undefined = undefined;
-    if (budget.period === '7d') {
-      const d = new Date(); d.setDate(d.getDate() - 7); start = d.toISOString().slice(0, 19);
-    } else if (budget.period === '30d') {
-      const d = new Date(); d.setDate(d.getDate() - 30); start = d.toISOString().slice(0, 19);
-    } else if (budget.period === '90d') {
-      const d = new Date(); d.setDate(d.getDate() - 90); start = d.toISOString().slice(0, 19);
-    } else if (budget.period === 'custom') {
-      start = budget.start_time || undefined;
-      end = budget.end_time || undefined;
-    }
-
-    const level = budget.level as 'overall' | 'warehouse' | 'tag' | 'user';
-    const current = await costSvc.getCreditsSummary(
-      connectorId,
-      start,
-      end,
-      {
-        level,
-        warehouse: budget.warehouse_name || undefined,
-        tagName: budget.tag_name || undefined,
-        tagValue: budget.tag_value || undefined,
-        user: budget.user_name || undefined,
-      }
-    );
-
-    let fired = false;
-    if (Number(current) >= Number(budget.threshold_credits)) {
-      fired = true;
-      const message = `Budget exceeded: level=${level}, threshold=${budget.threshold_credits}, current=${current}`;
-
-      const sentTargets: Record<string, boolean> = {};
-      if (budget.notify_slack_webhook) {
-        await notifier.send(budget.notify_slack_webhook, message);
-        sentTargets.slack = true;
-      }
-      // Email notifications can be integrated here (SES/SMTP). For now, we log only.
-
-      await supabaseAdmin
-        .schema('enterprise')
-        .from('snowflake_budget_alerts')
-        .insert({
-          organization_id: connector.organization_id,
-          budget_id: budget.id,
-          connector_id: connectorId,
-          current_credits: current,
-          message,
-          sent_targets: sentTargets,
-        });
-    }
-
-    return res.json({ success: true, fired, current });
+    return res.json({ success: true, data: summary });
   } catch (e: any) {
-    return res.status(500).json({ error: e?.message || 'Failed to check budget' });
+    return res.status(500).json({ error: e?.message || 'Failed to get organization summary' });
   }
 }
