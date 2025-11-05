@@ -35,6 +35,17 @@ import {
   getROI,
   generateRecommendations,
 } from '../controllers/snowflake-recommendations.controller';
+import {
+  getTopExpensiveUsers,
+  getUserCostDetails,
+  getAccessPatterns,
+  getAnomalies,
+  detectAnomalies,
+  getRolePermissions,
+  getSecurityIssues,
+  getPermissionIssues,
+  getSecuritySummary,
+} from '../controllers/security-monitoring.controller';
 
 const router = Router();
 
@@ -96,5 +107,16 @@ router.post('/:id/recommendations/generate', generateRecommendations); // Manual
 router.post('/:id/recommendations/:recommendationId/apply', applyRecommendation); // Apply recommendation
 router.put('/:id/recommendations/:recommendationId/dismiss', dismissRecommendation); // Dismiss recommendation
 router.get('/:id/roi', getROI); // ROI tracking
+
+// Security & Access Monitoring
+router.get('/:id/security/summary', getSecuritySummary); // Security overview
+router.get('/:id/security/user-costs', getTopExpensiveUsers); // Top expensive users
+router.get('/:id/security/user-costs/:userName', getUserCostDetails); // Specific user details
+router.get('/:id/security/access-patterns', getAccessPatterns); // Access logs
+router.get('/:id/security/anomalies', getAnomalies); // Detected anomalies
+router.post('/:id/security/detect-anomalies', detectAnomalies); // Trigger anomaly detection
+router.get('/:id/security/permissions', getRolePermissions); // Role permissions
+router.get('/:id/security/issues', getSecurityIssues); // Security issues summary
+router.get('/:id/security/permission-issues', getPermissionIssues); // Permission problems
 
 export default router;
