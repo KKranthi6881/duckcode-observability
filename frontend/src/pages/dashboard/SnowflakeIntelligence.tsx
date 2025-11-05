@@ -571,6 +571,21 @@ export default function SnowflakeIntelligence() {
                 </span>
               </div>
             </div>
+
+            {/* Budget Health - Moved here */}
+            {budgets.length > 0 && (
+              <div className="bg-[#161413] border-2 border-[#1f1d1b] rounded-xl p-6 hover:border-[#ff6a3c]/30 transition">
+                <div className="flex items-center justify-between mb-3">
+                  <DollarSign className="w-8 h-8 text-blue-400" />
+                  <span className="text-xs font-semibold text-[#8d857b] uppercase tracking-wider">Budgets</span>
+                </div>
+                <div className="text-3xl font-bold text-white mb-1">{budgets.length}</div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-[#8d857b]">{budgets.filter(b => b.status === 'ok').length} on track</span>
+                  <span className="text-orange-400 font-semibold">{budgets.filter(b => b.status === 'warning' || b.status === 'exceeded').length} at risk</span>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -586,6 +601,53 @@ export default function SnowflakeIntelligence() {
           {storageHistory.length > 0 && (
             <div className="bg-[#161413] border border-[#1f1d1b] rounded-xl p-6"><div className="flex items-center gap-3 mb-4"><TrendingUp className="w-5 h-5 text-[#ff6a3c]" /><div><h3 className="text-lg font-semibold text-white">Storage Growth Trend</h3><p className="text-xs text-[#8d857b] mt-1">Capacity planning insights</p></div></div><ReactECharts option={getStorageGrowthOptions()} style={{ height: '320px' }} /></div>
           )}
+
+          {/* Top Users by Activity - Moved here */}
+          {topQueries.length > 0 && (() => {
+            // Aggregate queries by user
+            const userStats = topQueries.reduce((acc: any, query) => {
+              const user = query.USER_NAME || 'Unknown';
+              if (!acc[user]) {
+                acc[user] = { user, queryCount: 0, totalTime: 0, totalBytes: 0 };
+              }
+              acc[user].queryCount++;
+              acc[user].totalTime += Number(query.EXECUTION_TIME || 0);
+              acc[user].totalBytes += Number(query.BYTES_SCANNED || 0);
+              return acc;
+            }, {});
+            
+            const topUsers = Object.values(userStats)
+              .sort((a: any, b: any) => b.totalTime - a.totalTime)
+              .slice(0, 5);
+
+            return (
+              <div className="bg-[#161413] border border-[#1f1d1b] rounded-xl p-6">
+                <div className="flex items-center gap-3 mb-4"><Target className="w-5 h-5 text-[#ff6a3c]" /><h3 className="text-lg font-semibold text-white">Top Users by Activity</h3><p className="text-xs text-[#8d857b] ml-auto">For cost chargeback</p></div>
+                <div className="overflow-hidden border border-[#2d2a27] rounded-lg">
+                  <table className="min-w-full">
+                    <thead className="bg-[#1f1d1b]">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-[#8d857b] uppercase">User</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-[#8d857b] uppercase">Queries</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-[#8d857b] uppercase">Total Time</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-[#8d857b] uppercase">Data Scanned</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#2d2a27]">
+                      {topUsers.map((user: any, idx: number) => (
+                        <tr key={idx} className="hover:bg-[#1f1d1b]">
+                          <td className="px-6 py-4 text-sm font-medium text-white">{user.user}</td>
+                          <td className="px-6 py-4 text-sm text-[#8d857b] text-right">{user.queryCount}</td>
+                          <td className="px-6 py-4 text-sm font-medium text-purple-400 text-right">{(user.totalTime / 1000).toFixed(1)}s</td>
+                          <td className="px-6 py-4 text-sm text-[#8d857b] text-right">{formatBytes(user.totalBytes)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {costOverview && costOverview.total_queries > 0 && (
@@ -599,58 +661,37 @@ export default function SnowflakeIntelligence() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {budgets.length > 0 && (
-            <div className="bg-[#161413] border border-[#1f1d1b] rounded-xl p-6">
-              <div className="flex items-center gap-3 mb-4"><DollarSign className="w-5 h-5 text-[#ff6a3c]" /><h3 className="text-lg font-semibold text-white">Budget Health</h3></div>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-white mb-2">{budgets.length}</div>
-                  <div className="text-xs text-[#8d857b]">Active Budgets</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-green-400 mb-2">{budgets.filter(b => b.status === 'ok').length}</div>
-                  <div className="text-xs text-[#8d857b]">On Track</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-orange-400 mb-2">{budgets.filter(b => b.status === 'warning' || b.status === 'exceeded').length}</div>
-                  <div className="text-xs text-[#8d857b]">At Risk</div>
-                </div>
+        {/* Data Transfer Costs */}
+        {transferCosts && (
+          <div className="bg-[#161413] border border-[#1f1d1b] rounded-xl p-6">
+            <div className="flex items-center gap-3 mb-4"><Database className="w-5 h-5 text-[#ff6a3c]" /><div><h3 className="text-lg font-semibold text-white">Data Transfer Costs</h3><p className="text-xs text-[#8d857b] mt-1">Egress & replication expenses</p></div></div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-[#1f1d1b] rounded-lg p-4">
+                <div className="text-xs text-[#8d857b] mb-1">Total Egress</div>
+                <div className="text-2xl font-bold text-orange-400">{formatCurrency(transferCosts.total_egress_cost || 0)}</div>
+                <div className="text-xs text-[#7b7469] mt-1">{formatBytes(transferCosts.total_bytes_transferred || 0)} transferred</div>
+              </div>
+              <div className="bg-[#1f1d1b] rounded-lg p-4">
+                <div className="text-xs text-[#8d857b] mb-1">Replication</div>
+                <div className="text-2xl font-bold text-blue-400">{formatCurrency(transferCosts.replication_cost || 0)}</div>
+                <div className="text-xs text-[#7b7469] mt-1">{transferCosts.replication_count || 0} operations</div>
               </div>
             </div>
-          )}
-
-          {transferCosts && (
-            <div className="bg-[#161413] border border-[#1f1d1b] rounded-xl p-6">
-              <div className="flex items-center gap-3 mb-4"><Database className="w-5 h-5 text-[#ff6a3c]" /><div><h3 className="text-lg font-semibold text-white">Data Transfer Costs</h3><p className="text-xs text-[#8d857b] mt-1">Egress & replication expenses</p></div></div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-[#1f1d1b] rounded-lg p-4">
-                  <div className="text-xs text-[#8d857b] mb-1">Total Egress</div>
-                  <div className="text-2xl font-bold text-orange-400">{formatCurrency(transferCosts.total_egress_cost || 0)}</div>
-                  <div className="text-xs text-[#7b7469] mt-1">{formatBytes(transferCosts.total_bytes_transferred || 0)} transferred</div>
-                </div>
-                <div className="bg-[#1f1d1b] rounded-lg p-4">
-                  <div className="text-xs text-[#8d857b] mb-1">Replication</div>
-                  <div className="text-2xl font-bold text-blue-400">{formatCurrency(transferCosts.replication_cost || 0)}</div>
-                  <div className="text-xs text-[#7b7469] mt-1">{transferCosts.replication_count || 0} operations</div>
+            {transferCosts.by_region && transferCosts.by_region.length > 0 && (
+              <div className="mt-4">
+                <div className="text-xs text-[#8d857b] mb-2">Top Regions</div>
+                <div className="space-y-2">
+                  {transferCosts.by_region.slice(0, 3).map((region: any, idx: number) => (
+                    <div key={idx} className="flex items-center justify-between text-xs">
+                      <span className="text-white">{region.region || 'Unknown'}</span>
+                      <span className="text-orange-400 font-semibold">{formatCurrency(region.cost || 0)}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
-              {transferCosts.by_region && transferCosts.by_region.length > 0 && (
-                <div className="mt-4">
-                  <div className="text-xs text-[#8d857b] mb-2">Top Regions</div>
-                  <div className="space-y-2">
-                    {transferCosts.by_region.slice(0, 3).map((region: any, idx: number) => (
-                      <div key={idx} className="flex items-center justify-between text-xs">
-                        <span className="text-white">{region.region || 'Unknown'}</span>
-                        <span className="text-orange-400 font-semibold">{formatCurrency(region.cost || 0)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {wasteData && (
@@ -794,92 +835,45 @@ export default function SnowflakeIntelligence() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {topQueries.length > 0 && (
-            <div className="bg-[#161413] border border-[#1f1d1b] rounded-xl p-6">
-              <div className="flex items-center gap-3 mb-4"><Activity className="w-5 h-5 text-[#ff6a3c]" /><h3 className="text-lg font-semibold text-white">Top Slowest Queries</h3></div>
-              <div className="overflow-hidden border border-[#2d2a27] rounded-lg">
-                <table className="min-w-full">
-                  <thead className="bg-[#1f1d1b]">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-[#8d857b] uppercase">Query Preview</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-[#8d857b] uppercase">User</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-[#8d857b] uppercase">Execution Time</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-[#8d857b] uppercase">Bytes Scanned</th>
+        {/* Top Slowest Queries - Now Full Width */}
+        {topQueries.length > 0 && (
+          <div className="bg-[#161413] border border-[#1f1d1b] rounded-xl p-6">
+            <div className="flex items-center gap-3 mb-4"><Activity className="w-5 h-5 text-[#ff6a3c]" /><h3 className="text-lg font-semibold text-white">Top Slowest Queries</h3></div>
+            <div className="overflow-hidden border border-[#2d2a27] rounded-lg">
+              <table className="min-w-full">
+                <thead className="bg-[#1f1d1b]">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-[#8d857b] uppercase">Query Preview</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-[#8d857b] uppercase">User</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-[#8d857b] uppercase">Execution Time</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-[#8d857b] uppercase">Bytes Scanned</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#2d2a27]">
+                  {topQueries.slice(0, 8).map((query, idx) => (
+                    <tr key={idx} className="hover:bg-[#1f1d1b]">
+                      <td className="px-6 py-4">
+                        <button
+                          onClick={() => {
+                            setSelectedQuery(query);
+                            setShowQueryModal(true);
+                          }}
+                          className="text-sm text-white font-mono max-w-md truncate hover:text-[#ff6a3c] transition-colors flex items-center gap-2 group"
+                        >
+                          <Eye className="w-4 h-4 text-[#8d857b] group-hover:text-[#ff6a3c] flex-shrink-0" />
+                          <span className="truncate">{query.QUERY_TEXT?.substring(0, 80) || query.QUERY_ID?.substring(0, 80) || 'No query text'}...</span>
+                        </button>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-[#8d857b]">{query.USER_NAME}</td>
+                      <td className="px-6 py-4 text-sm font-medium text-orange-400 text-right">{(Number(query.EXECUTION_TIME || 0) / 1000).toFixed(1)}s</td>
+                      <td className="px-6 py-4 text-sm text-[#8d857b] text-right">{formatBytes(Number(query.BYTES_SCANNED || 0))}</td>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#2d2a27]">
-                    {topQueries.slice(0, 5).map((query, idx) => (
-                      <tr key={idx} className="hover:bg-[#1f1d1b]">
-                        <td className="px-6 py-4">
-                          <button
-                            onClick={() => {
-                              setSelectedQuery(query);
-                              setShowQueryModal(true);
-                            }}
-                            className="text-sm text-white font-mono max-w-md truncate hover:text-[#ff6a3c] transition-colors flex items-center gap-2 group"
-                          >
-                            <Eye className="w-4 h-4 text-[#8d857b] group-hover:text-[#ff6a3c] flex-shrink-0" />
-                            <span className="truncate">{query.QUERY_TEXT?.substring(0, 80) || query.QUERY_ID?.substring(0, 80) || 'No query text'}...</span>
-                          </button>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-[#8d857b]">{query.USER_NAME}</td>
-                        <td className="px-6 py-4 text-sm font-medium text-orange-400 text-right">{(Number(query.EXECUTION_TIME || 0) / 1000).toFixed(1)}s</td>
-                        <td className="px-6 py-4 text-sm text-[#8d857b] text-right">{formatBytes(Number(query.BYTES_SCANNED || 0))}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          )}
-
-          {topQueries.length > 0 && (() => {
-            // Aggregate queries by user
-            const userStats = topQueries.reduce((acc: any, query) => {
-              const user = query.USER_NAME || 'Unknown';
-              if (!acc[user]) {
-                acc[user] = { user, queryCount: 0, totalTime: 0, totalBytes: 0 };
-              }
-              acc[user].queryCount++;
-              acc[user].totalTime += Number(query.EXECUTION_TIME || 0);
-              acc[user].totalBytes += Number(query.BYTES_SCANNED || 0);
-              return acc;
-            }, {});
-            
-            const topUsers = Object.values(userStats)
-              .sort((a: any, b: any) => b.totalTime - a.totalTime)
-              .slice(0, 5);
-
-            return (
-              <div className="bg-[#161413] border border-[#1f1d1b] rounded-xl p-6">
-                <div className="flex items-center gap-3 mb-4"><Target className="w-5 h-5 text-[#ff6a3c]" /><h3 className="text-lg font-semibold text-white">Top Users by Activity</h3><p className="text-xs text-[#8d857b] ml-auto">For cost chargeback</p></div>
-                <div className="overflow-hidden border border-[#2d2a27] rounded-lg">
-                  <table className="min-w-full">
-                    <thead className="bg-[#1f1d1b]">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-[#8d857b] uppercase">User</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-[#8d857b] uppercase">Queries</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-[#8d857b] uppercase">Total Time</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-[#8d857b] uppercase">Data Scanned</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#2d2a27]">
-                      {topUsers.map((user: any, idx: number) => (
-                        <tr key={idx} className="hover:bg-[#1f1d1b]">
-                          <td className="px-6 py-4 text-sm font-medium text-white">{user.user}</td>
-                          <td className="px-6 py-4 text-sm text-[#8d857b] text-right">{user.queryCount}</td>
-                          <td className="px-6 py-4 text-sm font-medium text-purple-400 text-right">{(user.totalTime / 1000).toFixed(1)}s</td>
-                          <td className="px-6 py-4 text-sm text-[#8d857b] text-right">{formatBytes(user.totalBytes)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            );
-          })()}
-        </div>
+          </div>
+        )}
 
         {recSummary && recommendations.length > 0 && (
           <div className="bg-[#161413] border border-[#1f1d1b] rounded-xl p-6"><div className="flex items-center justify-between mb-6"><div className="flex items-center gap-3"><Target className="w-6 h-6 text-[#ff6a3c]" /><div><h3 className="text-xl font-semibold text-white">Smart Recommendations</h3><p className="text-sm text-[#8d857b] mt-1">AI-powered optimization opportunities</p></div></div><button onClick={() => navigate('/dashboard/snowflake-recommendations')} className="px-4 py-2 bg-[#ff6a3c] hover:bg-[#d94a1e] text-white rounded-lg font-medium transition">View All →</button></div>
