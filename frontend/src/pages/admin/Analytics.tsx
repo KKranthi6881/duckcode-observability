@@ -16,25 +16,14 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { Card } from '../../components/ui/card';
 import { analyticsService } from '../../services/analyticsService';
 import type { Organization } from '../../types/enterprise';
 
 interface AdminContext {
   selectedOrg: Organization | null;
 }
-
-const COLORS = {
-  primary: '#3b82f6',
-  success: '#10b981',
-  warning: '#f59e0b',
-  purple: '#8b5cf6',
-  pink: '#ec4899',
-  cyan: '#06b6d4',
-};
 
 // Helper to extract provider from model name
 const getProviderFromModel = (modelName: string): string => {
@@ -155,35 +144,38 @@ export const Analytics: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin text-indigo-600 mx-auto mb-4" />
-          <p className="text-gray-600">Loading analytics...</p>
+      <div className="min-h-screen bg-[#0d0c0c] flex items-center justify-center">
+        <div className="flex items-center gap-3">
+          <Loader2 className="h-8 w-8 animate-spin text-[#ff6a3c]" />
+          <span className="text-white text-lg">Loading analytics...</span>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-full bg-gray-50">
-      {/* Page Header */}
-      <div className="bg-white border-b border-gray-200 px-8 py-6">
+    <div className="min-h-screen bg-[#0d0c0c] p-6">
+      <div className="max-w-[1800px] mx-auto space-y-6">
+        {/* Page Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold text-gray-900">Cost Analytics</h1>
-            <p className="text-sm text-gray-500 mt-1">{selectedOrg?.display_name}</p>
+            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+              <TrendingUp className="w-8 h-8 text-[#ff6a3c]" />
+              Admin Cost Analytics
+            </h1>
+            <p className="text-[#8d857b] mt-1">{selectedOrg?.display_name} - Team insights & performance</p>
           </div>
           <div className="flex items-center gap-3">
             {/* Time Range Selector */}
-            <div className="flex bg-white border border-gray-200 rounded-lg p-1 shadow-sm">
+            <div className="flex bg-[#161413] border border-[#1f1d1b] rounded-lg p-1">
               {[7, 30, 90].map((days) => (
                 <button
                   key={days}
                   onClick={() => setTimeRange(days)}
-                  className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
+                  className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                     timeRange === days
-                      ? 'bg-indigo-600 text-white shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                      ? 'bg-[#ff6a3c] text-white shadow-lg'
+                      : 'text-[#8d857b] hover:text-white hover:bg-[#1f1d1b]'
                   }`}
                 >
                   {days} days
@@ -195,7 +187,7 @@ export const Analytics: React.FC = () => {
             <select
               value={selectedUser}
               onChange={(e) => setSelectedUser(e.target.value)}
-              className="px-3 py-2 border border-gray-200 rounded-lg bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+              className="px-3 py-2 bg-[#1f1d1b] border border-[#2d2a27] text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#ff6a3c]/50 hover:border-[#ff6a3c]/30 transition"
             >
               <option value="">All Users</option>
               {users?.users?.map((user: any) => {
@@ -212,7 +204,7 @@ export const Analytics: React.FC = () => {
             <select
               value={selectedModel}
               onChange={(e) => setSelectedModel(e.target.value)}
-              className="px-3 py-2 border border-gray-200 rounded-lg bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+              className="px-3 py-2 bg-[#1f1d1b] border border-[#2d2a27] text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#ff6a3c]/50 hover:border-[#ff6a3c]/30 transition"
             >
               <option value="">All Models</option>
               {models?.models?.map((model: any) => (
@@ -226,7 +218,7 @@ export const Analytics: React.FC = () => {
             {hasActiveFilters && (
               <button
                 onClick={clearFilters}
-                className="flex items-center gap-1 px-3 py-2 text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+                className="flex items-center gap-1 px-3 py-2 text-sm bg-[#1f1d1b] border border-[#2d2a27] text-white rounded-lg hover:bg-[#2d2a27] transition font-medium"
               >
                 <X className="h-4 w-4" />
                 Clear
@@ -236,203 +228,233 @@ export const Analytics: React.FC = () => {
             {/* Export */}
             <button
               onClick={handleExport}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium text-sm shadow-sm"
+              className="flex items-center gap-2 px-4 py-2 bg-[#ff6a3c] text-white rounded-lg hover:bg-[#d94a1e] transition-colors font-medium text-sm shadow-lg"
             >
               <Download className="h-4 w-4" />
               Export
             </button>
           </div>
         </div>
-      </div>
 
-      {/* Main Content */}
-      <div className="p-8">
-        {/* Summary Cards - Clean Enterprise Style */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+        {/* Summary Cards - Gradient Dark Theme */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Total Cost */}
-          <Card className="p-6 bg-white border border-gray-200 hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between mb-3">
-              <DollarSign className="h-5 w-5 text-indigo-600" />
+          <div className="bg-gradient-to-br from-orange-600 to-orange-700 rounded-xl p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-2">
+              <DollarSign className="w-10 h-10 text-white/90" />
+              <span className="text-xs font-bold text-white/70 uppercase">Total Cost</span>
+            </div>
+            <div className="text-4xl font-bold text-white mb-1">
+              ${(filteredTotals.total_cost || 0).toFixed(2)}
+            </div>
+            <div className="text-sm text-white/80">
+              ${((filteredTotals.total_cost || 0) / (filteredTotals.conversations || 1)).toFixed(4)} per conversation
+            </div>
           </div>
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Total Cost</p>
-          <p className="text-3xl font-bold text-gray-900">
-            ${(filteredTotals.total_cost || 0).toFixed(2)}
-          </p>
-          <p className="text-xs text-gray-400 mt-2">
-            ${((filteredTotals.total_cost || 0) / (filteredTotals.conversations || 1)).toFixed(3)} per conversation
-          </p>
-          </Card>
 
           {/* Conversations */}
-          <Card className="p-6 bg-white border border-gray-200 hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between mb-3">
-            <MessageSquare className="h-5 w-5 text-purple-600" />
+          <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-2">
+              <MessageSquare className="w-10 h-10 text-white/90" />
+              <span className="text-xs font-bold text-white/70 uppercase">Sessions</span>
+            </div>
+            <div className="text-4xl font-bold text-white mb-1">
+              {(filteredTotals.conversations || 0).toLocaleString()}
+            </div>
+            <div className="text-sm text-white/80">
+              ${((filteredTotals.total_cost || 0) / (filteredTotals.conversations || 1)).toFixed(3)} avg cost
+            </div>
           </div>
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Conversations</p>
-          <p className="text-3xl font-bold text-gray-900">
-            {(filteredTotals.conversations || 0).toLocaleString()}
-          </p>
-          <p className="text-xs text-gray-400 mt-2">
-            ${((filteredTotals.total_cost || 0) / (filteredTotals.conversations || 1)).toFixed(3)} avg
-          </p>
-          </Card>
 
           {/* Active Users */}
-          <Card className="p-6 bg-white border border-gray-200 hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between mb-3">
-            <Users className="h-5 w-5 text-green-600" />
-          </div>
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Active Users</p>
-          <p className="text-3xl font-bold text-gray-900">
-            {(users?.users?.length || 0).toLocaleString()}
-          </p>
-          <p className="text-xs text-gray-400 mt-2">
-            ${((filteredTotals.total_cost || 0) / (users?.users?.length || 1)).toFixed(2)} per user
-          </p>
-          </Card>
-        </div>
-
-        {/* Cost Trend Chart - Full Width */}
-        <div className="mb-6">
-          <Card className="p-6 border border-gray-200">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-sm font-semibold text-gray-900">Cost Trend</h3>
-              <p className="text-xs text-gray-500 mt-0.5">Daily spending over time</p>
+          <div className="bg-gradient-to-br from-green-600 to-green-700 rounded-xl p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-2">
+              <Users className="w-10 h-10 text-white/90" />
+              <span className="text-xs font-bold text-white/70 uppercase">Team Members</span>
             </div>
-            <TrendingUp className="h-4 w-4 text-gray-400" />
+            <div className="text-4xl font-bold text-white mb-1">
+              {(users?.users?.length || 0).toLocaleString()}
+            </div>
+            <div className="text-sm text-white/80">
+              ${((filteredTotals.total_cost || 0) / (users?.users?.length || 1)).toFixed(2)} per user
+            </div>
           </div>
-          <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={filteredData.trends} barSize={20}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis
-                dataKey="usage_date"
-                tickFormatter={(date) => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                stroke="#999"
-                style={{ fontSize: '11px' }}
-              />
-              <YAxis stroke="#999" style={{ fontSize: '11px' }} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: 'white',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '8px',
-                  fontSize: '12px',
-                }}
-                formatter={(value: number) => `$${value.toFixed(2)}`}
-              />
-              <Legend wrapperStyle={{ fontSize: '12px' }} />
-              <Bar
-                dataKey="total_cost"
-                fill={COLORS.primary}
-                name="Cost"
-                radius={[4, 4, 0, 0]}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-          </Card>
         </div>
 
-        {/* Bottom Row - User Leaderboard & Provider Breakdown */}
+        {/* Cost Trend Chart - Enhanced Grafana Style */}
+        <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-6 shadow-xl">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-[#ff6a3c]/10 rounded-lg">
+                <TrendingUp className="w-5 h-5 text-[#ff6a3c]" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-white">Team Cost Trend</h3>
+                <p className="text-xs text-[#8d857b] mt-0.5">Historical team spending analysis</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4 text-xs">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-[#ff6a3c] rounded"></div>
+                <span className="text-[#8d857b]">Daily Cost</span>
+              </div>
+            </div>
+          </div>
+          <div className="bg-[#0d0c0c] rounded-lg p-4">
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={filteredData.trends} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="costGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#ff6a3c" stopOpacity={0.9}/>
+                    <stop offset="100%" stopColor="#ff6a3c" stopOpacity={0.6}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#2d2a27" vertical={false} />
+                <XAxis
+                  dataKey="usage_date"
+                  tickFormatter={(date) => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  stroke="#8d857b"
+                  style={{ fontSize: '11px' }}
+                  tick={{ fill: '#8d857b' }}
+                />
+                <YAxis 
+                  stroke="#8d857b" 
+                  style={{ fontSize: '11px' }}
+                  tick={{ fill: '#8d857b' }}
+                  tickFormatter={(value) => `$${value.toFixed(2)}`}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#1f1d1b',
+                    border: '1px solid #2d2a27',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    padding: '8px 12px',
+                    boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
+                  }}
+                  labelStyle={{ color: '#ffffff', marginBottom: '4px' }}
+                  itemStyle={{ color: '#ff6a3c' }}
+                  formatter={(value: number) => [`$${value.toFixed(4)}`, 'Cost']}
+                  labelFormatter={(label) => new Date(label).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                />
+                <Bar
+                  dataKey="total_cost"
+                  fill="url(#costGradient)"
+                  radius={[6, 6, 0, 0]}
+                  maxBarSize={40}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="mt-4 flex items-center justify-between text-xs">
+            <div className="text-[#8d857b]">
+              Showing {filteredData.trends?.length || 0} days of team activity
+            </div>
+            <div className="text-[#8d857b]">
+              Total: <span className="text-[#ff6a3c] font-semibold">${(filteredData.trends?.reduce((sum: number, day: any) => sum + (day.total_cost || 0), 0) || 0).toFixed(2)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom Row - User Leaderboard & Models Table */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* User Leaderboard */}
-          <Card className="p-6 border border-gray-200">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-sm font-semibold text-gray-900">Top Users</h3>
-              <p className="text-xs text-gray-500 mt-0.5">By spending</p>
+          <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 bg-blue-600/10 rounded-lg">
+                <Users className="w-5 h-5 text-blue-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-white">Top Users</h3>
+                <p className="text-xs text-[#8d857b] mt-0.5">Ranked by spending</p>
+              </div>
             </div>
-            <Users className="h-4 w-4 text-gray-400" />
-          </div>
-          <div className="space-y-2">
-            {filteredData.users.slice(0, 6).map((user: any, index: number) => {
-              // Debug: Log user data
-              if (index === 0) {
-                console.log('[Analytics] User data sample:', user);
-              }
-              // Show complete email address, fallback to full name or user ID
-              const displayName = user.email || user.full_name || user.display_name || (user.user_id ? user.user_id.substring(0, 12) + '...' : 'Unknown User');
-              return (
-                <div
-                  key={user.user_id}
-                  className="flex items-center justify-between p-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-600 font-semibold text-xs flex-shrink-0">
-                      {index + 1}
+            <div className="space-y-2">
+              {filteredData.users.slice(0, 8).map((user: any, index: number) => {
+                const displayName = user.email || user.full_name || user.display_name || (user.user_id ? user.user_id.substring(0, 12) + '...' : 'Unknown User');
+                return (
+                  <div
+                    key={user.user_id}
+                    className="flex items-center justify-between p-3 bg-[#1f1d1b] rounded-lg hover:bg-[#2d2a27] transition-colors border border-[#2d2a27]"
+                  >
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className="flex items-center justify-center w-7 h-7 rounded-full bg-blue-600/20 border border-blue-600/30 text-blue-400 font-bold text-xs flex-shrink-0">
+                        {index + 1}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-white text-sm truncate">{displayName}</p>
+                        <p className="text-xs text-[#8d857b]">{user.conversations} sessions · {(user.tokens / 1000).toFixed(0)}K tokens</p>
+                      </div>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-gray-900 text-xs truncate">{displayName}</p>
-                      <p className="text-xs text-gray-500">{user.conversations} convs</p>
+                    <div className="text-right flex-shrink-0">
+                      <p className="font-bold text-orange-400 text-base">${user.total_cost.toFixed(2)}</p>
                     </div>
                   </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className="font-semibold text-gray-900 text-sm">${user.total_cost.toFixed(2)}</p>
-                    <p className="text-xs text-gray-500">{(user.tokens / 1000).toFixed(0)}K</p>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
-          </Card>
 
-          {/* Top Models */}
-          <Card className="p-6 border border-gray-200">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-sm font-semibold text-gray-900">Top Models</h3>
-              <p className="text-xs text-gray-500 mt-0.5">By usage & cost</p>
+          {/* Top Models Table */}
+          <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 bg-purple-600/10 rounded-lg">
+                <MessageSquare className="w-5 h-5 text-purple-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-white">Top Models</h3>
+                <p className="text-xs text-[#8d857b] mt-0.5">By usage & cost</p>
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full">
+                <thead>
+                  <tr className="border-b border-[#2d2a27]">
+                    <th className="text-left py-3 px-2 text-xs font-bold text-[#8d857b] uppercase">#</th>
+                    <th className="text-left py-3 px-2 text-xs font-bold text-[#8d857b] uppercase">Model</th>
+                    <th className="text-left py-3 px-2 text-xs font-bold text-[#8d857b] uppercase">Provider</th>
+                    <th className="text-center py-3 px-2 text-xs font-bold text-[#8d857b] uppercase">Sessions</th>
+                    <th className="text-right py-3 px-2 text-xs font-bold text-[#8d857b] uppercase">Cost</th>
+                    <th className="text-right py-3 px-2 text-xs font-bold text-[#8d857b] uppercase">Tokens</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#2d2a27]">
+                  {filteredData.models?.slice(0, 8).map((model: any, index: number) => {
+                    const provider = getProviderFromModel(model.model);
+                    return (
+                      <tr
+                        key={model.model}
+                        className="hover:bg-[#1f1d1b] transition-colors"
+                      >
+                        <td className="py-3 px-2">
+                          <div className="flex items-center justify-center w-7 h-7 rounded-full bg-purple-600/20 border border-purple-600/30 text-purple-400 font-bold text-xs">
+                            {index + 1}
+                          </div>
+                        </td>
+                        <td className="py-3 px-2">
+                          <p className="font-semibold text-white text-sm truncate max-w-xs">{model.model}</p>
+                        </td>
+                        <td className="py-3 px-2">
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-600/20 text-blue-400 border border-blue-600/30">
+                            {provider}
+                          </span>
+                        </td>
+                        <td className="py-3 px-2 text-center">
+                          <p className="text-sm text-white font-medium">{model.conversations}</p>
+                        </td>
+                        <td className="py-3 px-2 text-right">
+                          <p className="font-bold text-orange-400 text-sm">${model.cost.toFixed(2)}</p>
+                        </td>
+                        <td className="py-3 px-2 text-right">
+                          <p className="text-xs text-[#8d857b]">{(model.tokens / 1000).toFixed(0)}K</p>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-2 px-2 text-xs font-semibold text-gray-600">#</th>
-                  <th className="text-left py-2 px-2 text-xs font-semibold text-gray-600">Model</th>
-                  <th className="text-left py-2 px-2 text-xs font-semibold text-gray-600">Provider</th>
-                  <th className="text-center py-2 px-2 text-xs font-semibold text-gray-600">Conversations</th>
-                  <th className="text-right py-2 px-2 text-xs font-semibold text-gray-600">Cost</th>
-                  <th className="text-right py-2 px-2 text-xs font-semibold text-gray-600">Tokens</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredData.models?.slice(0, 10).map((model: any, index: number) => {
-                  const provider = getProviderFromModel(model.model);
-                  return (
-                    <tr
-                      key={model.model}
-                      className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
-                    >
-                      <td className="py-2 px-2">
-                        <div className="flex items-center justify-center w-6 h-6 rounded-full bg-purple-100 text-purple-600 font-semibold text-xs">
-                          {index + 1}
-                        </div>
-                      </td>
-                      <td className="py-2 px-2">
-                        <p className="font-medium text-gray-900 text-xs truncate max-w-xs">{model.model}</p>
-                      </td>
-                      <td className="py-2 px-2">
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          {provider}
-                        </span>
-                      </td>
-                      <td className="py-2 px-2 text-center">
-                        <p className="text-xs text-gray-600">{model.conversations}</p>
-                      </td>
-                      <td className="py-2 px-2 text-right">
-                        <p className="font-semibold text-gray-900 text-sm">${model.cost.toFixed(2)}</p>
-                      </td>
-                      <td className="py-2 px-2 text-right">
-                        <p className="text-xs text-gray-500">{(model.tokens / 1000).toFixed(0)}K</p>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          </Card>
         </div>
       </div>
     </div>
