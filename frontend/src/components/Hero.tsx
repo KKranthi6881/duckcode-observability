@@ -1,470 +1,292 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight, Sparkles, Database, Network, GitBranch, BarChart3, Shield, Zap, Code2, Bot, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, Check, Database, PlayCircle, Send, Sparkles } from 'lucide-react';
+
+const featureRows = [
+  {
+    id: 'lineage',
+    tag: 'Lineage',
+    title: 'Lineage that understands every hop',
+    description: 'Column-level lineage renders instantly so every metric change is traceable in seconds.',
+    bullets: ['Trace upstream + downstream instantly', 'Shareable snapshots for stakeholders', 'Column + BI exposure coverage'],
+    placeholder: 'Lineage feature clip placeholder'
+  },
+  {
+    id: 'documentation',
+    tag: 'Auto documentation',
+    title: 'Docs written at merge time',
+    description: 'AI produces release-ready docs the moment code ships — always versioned with Git.',
+    bullets: ['Plain-language summaries tied to code', 'Owner & SLA tagging on autopilot', 'Docs synced to Notion / Confluence (optional)'],
+    placeholder: 'Documentation feature clip placeholder'
+  },
+  {
+    id: 'architecture',
+    tag: 'Auto architecture',
+    title: 'Architecture maps without the diagram tool',
+    description: 'Metadata fuels auto-generated architecture views so leadership and devs stay aligned.',
+    bullets: ['Environment-aware topology layouts', 'Pipeline health overlays', 'Embed in decks or share securely'],
+    placeholder: 'Architecture feature clip placeholder'
+  },
+  {
+    id: 'snowflake',
+    tag: 'Snowflake + dbt',
+    title: 'Snowflake guardrails inside the IDE',
+    description: 'Snowflake spend, tests, and telemetry appear where you build — before issues escalate.',
+    bullets: ['Spend insights + anomaly alerts', 'dbt job + exposure sync', 'AI copilots tuned to your warehouse'],
+    placeholder: 'Snowflake & dbt feature clip placeholder'
+  }
+];
+
+const integrations = ['Snowflake', 'dbt', 'GitHub', 'GitLab', 'Azure DevOps'];
+
+const quickReasons = [
+  { title: '15 min setup', description: 'Connect Git + Snowflake and preview automated lineage instantly.' },
+  { title: 'Secure by design', description: 'Deploy in your VPC or use Duckcode managed cloud with SSO and RBAC.' },
+  { title: 'Full data stack coverage', description: 'Support for Snowflake, dbt, lakehouses, and BI refresh pipelines.' }
+];
 
 export function Hero() {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-black">
-      {/* Gradient background effects */}
-      <div className="absolute inset-0 z-0">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#2AB7A9]/20 rounded-full filter blur-[128px]" />
-        <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-purple-500/20 rounded-full filter blur-[128px]" />
-        <div className="absolute bottom-0 left-1/2 w-96 h-96 bg-[#F5B72F]/10 rounded-full filter blur-[128px]" />
-      </div>
-      
-      {/* Hero Section */}
-      <div className="relative container mx-auto px-4 pt-32 pb-20 sm:px-6 lg:px-8">
-        <div className="max-w-6xl mx-auto text-center">
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#2AB7A9]/10 border border-[#2AB7A9]/20 mb-8">
-            <Sparkles className="w-4 h-4 text-[#2AB7A9]" />
-            <span className="text-sm font-medium text-gray-300">Enterprise AI IDE + Data Observability Platform</span>
-          </div>
-
-          {/* Main Headline */}
-          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-white mb-6 leading-tight">
-            AI-Powered IDE for{' '}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#2AB7A9] via-[#F5B72F] to-purple-500">
-              Data Engineering Teams
-            </span>
-          </h1>
-
-          {/* Subheadline */}
-          <p className="text-xl sm:text-2xl text-gray-400 mb-8 max-w-4xl mx-auto leading-relaxed">
-            Build, test, and monitor data pipelines with AI-assisted development. 
-            <span className="text-white font-semibold"> Auto-generate code, docs, and tests</span> while maintaining 
-            <span className="text-[#2AB7A9]"> enterprise-grade security</span> and team collaboration.
-          </p>
-
-          {/* Key Benefits */}
-          <div className="flex flex-wrap items-center justify-center gap-6 mb-12 text-sm text-gray-400">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 text-[#2AB7A9]" />
-              <span>Offline Lineage Tracking</span>
+    <div className="bg-[#f5f1e9] text-[#161413]">
+      <section id="home" className="px-4 pb-24 pt-28 sm:px-6 lg:px-8">
+        <div className="mx-auto grid max-w-6xl gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
+          <div className="space-y-8">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#d6d2c9] bg-white/70 px-4 py-2 text-sm text-[#6f695f]">
+              <Sparkles className="h-4 w-4 text-[#ff6a3c]" />
+              Duckcode.ai — AI IDE for data teams
             </div>
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 text-[#2AB7A9]" />
-              <span>Auto Documentation</span>
+            <h1 className="text-4xl font-semibold leading-tight text-[#0d0c0a] sm:text-5xl">
+              Build, document, and trust Snowflake projects in one place.
+            </h1>
+            <p className="text-lg text-[#59544c]">
+              Duckcode turns lineage, documentation, and observability into an AI-native workflow. One IDE for analysts, engineers, and architects.
+            </p>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <Link
+                to="/register"
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#ff6a3c] to-[#d94a1e] px-7 py-4 text-base font-semibold text-white shadow-[0_18px_40px_rgba(255,106,60,0.35)] transition hover:translate-y-[-2px]"
+              >
+                Try Duckcode free
+                <ArrowRight className="h-5 w-5" />
+              </Link>
+              <a
+                href="#snowflake"
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-[#bfb8ac] px-7 py-4 text-base font-semibold text-[#161413] transition hover:border-[#ff6a3c]"
+              >
+                Book a demo
+                <PlayCircle className="h-5 w-5" />
+              </a>
             </div>
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 text-[#2AB7A9]" />
-              <span>AI Code Generation</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 text-[#2AB7A9]" />
-              <span>Enterprise Team Sync</span>
+            <div className="grid gap-4 text-sm text-[#59544c] sm:grid-cols-3">
+              <div className="rounded-3xl border border-[#d6d2c9] bg-white/80 p-4 shadow-sm">
+                <p className="text-3xl font-semibold text-[#161413]">80%</p>
+                <p>Less time stitching docs and lineage together.</p>
+              </div>
+              <div className="rounded-3xl border border-[#d6d2c9] bg-white/80 p-4 shadow-sm">
+                <p className="text-3xl font-semibold text-[#161413]">95%</p>
+                <p>Coverage across Snowflake, dbt, and downstream BI.</p>
+              </div>
+              <div className="rounded-3xl border border-[#d6d2c9] bg-white/80 p-4 shadow-sm">
+                <p className="text-3xl font-semibold text-[#161413]">24 hrs</p>
+                <p>Average time to value with guided onboarding.</p>
+              </div>
             </div>
           </div>
 
-          {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
-            <Link
-              to="/register"
-              className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-[#2AB7A9] to-[#F5B72F] text-black font-semibold rounded-lg hover:opacity-90 transition-opacity shadow-lg shadow-[#2AB7A9]/20"
+          <div className="relative rounded-[36px] border border-[#d6d2c9] bg-white/80 p-6 shadow-[0_35px_60px_rgba(26,20,15,0.1)]">
+            <div className="flex items-center justify-between text-xs text-[#6f695f]">
+              <span className="rounded-full bg-[#fff4ee] px-3 py-1 font-semibold text-[#d94a1e]">Product preview</span>
+              <span>Replace with hero GIF</span>
+            </div>
+            <div className="mt-6 h-72 rounded-3xl border border-dashed border-[#d6d2c9] bg-[#f8f4ec] p-6 text-sm text-[#a7a198]">
+              Showcase Duckcode IDE + lineage explorer here.
+            </div>
+            <div className="mt-6 rounded-2xl bg-[#f5efe3] p-4 text-xs text-[#6f695f]">
+              Optional dark mode toggle can sit inside the app preview.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="px-4 pb-12 sm:px-6 lg:px-8">
+        <div className="mx-auto flex max-w-6xl flex-wrap gap-4">
+          {quickReasons.map(({ title, description }) => (
+            <div key={title} className="flex-1 min-w-[220px] rounded-3xl border border-[#e1dcd3] bg-white/80 px-6 py-5 text-sm text-[#4e493f]">
+              <div className="flex items-center gap-2 text-[#161413]">
+                <Check className="h-4 w-4 text-[#d94a1e]" />
+                <span className="font-semibold">{title}</span>
+              </div>
+              <p className="mt-2 leading-relaxed">{description}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="px-4 pb-28 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-6xl space-y-20">
+          {featureRows.map(({ id, tag, title, description, bullets, placeholder }, index) => (
+            <div
+              key={id}
+              id={id}
+              className={`flex flex-col gap-10 lg:flex-row ${index % 2 === 1 ? 'lg:flex-row-reverse' : ''}`}
             >
-              Start Free Trial
-              <ArrowRight className="w-5 h-5" />
-            </Link>
+              <div className="lg:w-[28%] min-w-[260px] space-y-5 text-center text-[#161413]">
+                <span className="inline-flex items-center justify-center gap-2 text-xs uppercase tracking-[0.3em] text-[#a39c92]">{tag}</span>
+                <h2 className="text-3xl font-semibold leading-tight">{title}</h2>
+                <p className="text-sm text-[#4e493f]">{description}</p>
+                <ul className="space-y-2 text-sm text-[#4e493f]">
+                  {bullets.map((item) => (
+                    <li key={item} className="flex items-center justify-center gap-2">
+                      <Check className="h-4 w-4 text-[#ff6a3c]" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Link
+                  to="/register"
+                  className="inline-flex items-center gap-3 rounded-[28px] border border-[#d6d2c9] px-6 py-3 text-sm font-semibold text-[#161413] transition hover:border-[#ff6a3c]"
+                >
+                  Explore Duckcode
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </div>
+              <div className="flex-1 rounded-[36px] border border-[#1f1d1b] bg-[#0b0a09] p-6 text-sm text-[#8d857b] shadow-[0_30px_60px_rgba(7,7,7,0.35)]">
+                <div className="flex h-full min-h-[440px] items-center justify-center rounded-[28px] border border-[#24211e] bg-[#141211]">
+                  {placeholder}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="px-4 pb-28 sm:px-6 lg:px-8">
+        <div className="mx-auto flex max-w-6xl flex-col gap-8 rounded-[32px] border border-[#e1dcd3] bg-[#f8f4ec] p-10 shadow-sm">
+          <div className="flex flex-col justify-between gap-4 text-[#4e493f] md:flex-row md:items-end">
+            <div>
+              <p className="text-sm uppercase tracking-[0.25em] text-[#a39c92]">Integrations</p>
+              <h3 className="mt-2 text-2xl font-semibold text-[#161413]">Learn from the systems you already trust.</h3>
+              <p className="mt-2 max-w-xl text-sm">
+                Duckcode plugs into your repositories, warehouses, and observability pipelines to stay ahead of change.
+              </p>
+            </div>
             <a
-              href="#demo"
-              className="inline-flex items-center gap-2 px-8 py-4 bg-transparent border-2 border-gray-700 text-white font-semibold rounded-lg hover:border-[#2AB7A9] transition-colors"
+              href="#snowflake"
+              className="inline-flex items-center gap-2 rounded-full border border-[#bfb8ac] px-5 py-2 text-sm font-medium text-[#161413] transition hover:border-[#ff6a3c]"
             >
-              Watch Demo
-              <Bot className="w-5 h-5" />
+              View all connections
+              <ArrowRight className="h-4 w-4" />
             </a>
           </div>
-
-          {/* Integration Logos */}
-          <p className="text-sm text-gray-500 mb-6 uppercase tracking-wider">
-            Works with your data stack
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-8 opacity-60">
-            {[
-              { name: 'dbt', icon: Database },
-              { name: 'Snowflake', icon: Database },
-              { name: 'Databricks', icon: Database },
-              { name: 'Airflow', icon: Network },
-              { name: 'Redshift', icon: Database },
-              { name: 'Azure SQL', icon: Database },
-              { name: 'MySQL', icon: Database }
-            ].map((integration) => (
-              <div key={integration.name} className="flex items-center gap-2 text-gray-500 hover:text-gray-300 transition-colors">
-                <integration.icon className="w-5 h-5" />
-                <span className="text-sm font-medium">{integration.name}</span>
+          <div className="grid gap-4 rounded-[24px] border border-[#e8e2d8] bg-white p-6 sm:grid-cols-5">
+            {integrations.map((item) => (
+              <div
+                key={item}
+                className="flex h-24 flex-col items-center justify-center gap-2 rounded-2xl border border-transparent text-[#161413] transition hover:border-[#d6d2c9] hover:bg-[#f5f1e9]"
+              >
+                <Database className="h-8 w-8 text-[#161413]" />
+                <span className="text-sm font-medium">{item}</span>
               </div>
             ))}
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* IDE Preview Section */}
-      <div className="relative container mx-auto px-4 py-20 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="relative rounded-2xl overflow-hidden border border-gray-800 shadow-2xl">
-            {/* Gradient border effect */}
-            <div className="absolute inset-0 bg-gradient-to-br from-[#2AB7A9]/20 via-purple-500/20 to-[#F5B72F]/20 blur-xl" />
-            
-            {/* IDE mockup */}
-            <div className="relative bg-[#1e1e1e] p-1">
-              <div className="bg-[#252526] rounded-lg overflow-hidden">
-                {/* IDE Header */}
-                <div className="flex items-center justify-between px-4 py-3 bg-[#323233] border-b border-gray-800">
-                  <div className="flex items-center gap-2">
-                    <div className="flex gap-2">
-                      <div className="w-3 h-3 rounded-full bg-red-500" />
-                      <div className="w-3 h-3 rounded-full bg-yellow-500" />
-                      <div className="w-3 h-3 rounded-full bg-green-500" />
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Bot className="w-4 h-4 text-[#F5B72F]" />
-                    <span className="text-xs text-gray-400">DuckCode AI Active</span>
-                  </div>
-                </div>
-                
-                {/* IDE Content */}
-                <div className="p-6 font-mono text-sm">
-                  <div className="text-gray-400 mb-4">-- AI-generated SQL query</div>
-                  <div className="text-purple-400">SELECT</div>
-                  <div className="text-gray-300 ml-4">customer_id,</div>
-                  <div className="text-gray-300 ml-4">customer_name,</div>
-                  <div className="text-gray-300 ml-4">
-                    <span className="text-blue-400">SUM</span>(order_amount) 
-                    <span className="text-purple-400"> AS </span>
-                    total_revenue
-                  </div>
-                  <div className="text-purple-400 mt-2">FROM</div>
-                  <div className="text-gray-300 ml-4">customers</div>
-                  <div className="text-purple-400 mt-2">JOIN</div>
-                  <div className="text-gray-300 ml-4">orders <span className="text-purple-400">ON</span> customers.id = orders.customer_id</div>
-                  <div className="text-purple-400 mt-2">GROUP BY</div>
-                  <div className="text-gray-300 ml-4">customer_id, customer_name</div>
-                  <div className="text-purple-400 mt-2">ORDER BY</div>
-                  <div className="text-gray-300 ml-4">total_revenue <span className="text-purple-400">DESC</span></div>
-                </div>
-              </div>
-            </div>
+      <section id="cta" className="px-4 pb-24 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-5xl rounded-[32px] border border-[#e1dcd3] bg-[#fff7f2] p-12 text-center shadow-[0_25px_45px_rgba(217,74,30,0.2)]">
+          <h2 className="text-3xl font-semibold text-[#161413] sm:text-4xl">Bring clarity to your Snowflake estate.</h2>
+          <p className="mt-4 text-sm text-[#4e493f]">
+            Duckcode gives data teams a calm, shared workspace — lineage, docs, and AI copilots bundled into one IDE.
+          </p>
+          <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+            <Link
+              to="/register"
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#ff6a3c] to-[#d94a1e] px-8 py-4 text-base font-semibold text-white shadow-[0_18px_40px_rgba(255,106,60,0.35)] transition hover:translate-y-[-2px]"
+            >
+              Start free workspace
+              <ArrowRight className="h-5 w-5" />
+            </Link>
+            <a
+              href="mailto:hello@duckcode.ai"
+              className="inline-flex items-center justify-center gap-2 rounded-full border border-[#bfb8ac] px-8 py-4 text-base font-semibold text-[#161413] transition hover:border-[#ff6a3c]"
+            >
+              Talk to sales
+              <PlayCircle className="h-5 w-5" />
+            </a>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Core Features Section */}
-      <div className="relative container mx-auto px-4 py-32 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          {/* Section Header */}
-          <div className="text-center mb-20">
-            <h2 className="text-4xl sm:text-5xl font-bold text-white mb-6">
-              Everything you need to build data products
-            </h2>
-            <p className="text-xl text-gray-400 max-w-3xl mx-auto">
-              From development to production monitoring, DuckCode provides enterprise-grade tools for modern data teams
+      <section id="resources" className="px-4 pb-24 sm:px-6 lg:px-8">
+        <div className="mx-auto grid max-w-6xl gap-8 md:grid-cols-[1.2fr_0.8fr]">
+          <div className="rounded-[32px] border border-[#e1dcd3] bg-white p-10 shadow-sm">
+            <h3 className="text-2xl font-semibold text-[#161413]">Join the Duckcode waitlist</h3>
+            <p className="mt-2 text-sm text-[#4e493f]">
+              Get product drops, Snowflake playbooks, and early-access invites. No spam — ever.
             </p>
+            <form className="mt-6 flex flex-col gap-3 sm:flex-row" data-analytics="waitlist-form">
+              <label htmlFor="waitlist-email" className="sr-only">
+                Email
+              </label>
+              <input
+                id="waitlist-email"
+                type="email"
+                required
+                placeholder="you@company.com"
+                className="w-full rounded-full border border-[#d6d2c9] bg-white px-4 py-3 text-sm text-[#161413] shadow-sm focus:border-[#ff6a3c] focus:outline-none focus:ring-2 focus:ring-[#ff6a3c]/40"
+              />
+              <button
+                type="submit"
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-[#161413] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#0d0c0a]"
+              >
+                Join waitlist
+                <Send className="h-4 w-4" />
+              </button>
+            </form>
+            <p className="mt-3 text-xs text-[#7b7469]">Prefer a call? hello@duckcode.ai — response within one business day.</p>
           </div>
-
-          {/* Feature Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-12">
-            {/* AI Code Generation */}
-            <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-8 border border-gray-800 hover:border-[#2AB7A9]/50 transition-all group">
-              <div className="w-14 h-14 bg-gradient-to-br from-[#2AB7A9] to-[#F5B72F] rounded-xl flex items-center justify-center mb-6">
-                <Bot className="w-8 h-8 text-black" />
-              </div>
-              <h3 className="text-2xl font-bold text-white mb-4">AI Code Generation</h3>
-              <p className="text-gray-400 mb-6">
-                Generate SQL, dbt models, and data transformations with AI. Context-aware suggestions based on your schema and business logic.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <span className="text-xs px-3 py-1 bg-gray-800 text-gray-400 rounded-full">SQL</span>
-                <span className="text-xs px-3 py-1 bg-gray-800 text-gray-400 rounded-full">dbt</span>
-                <span className="text-xs px-3 py-1 bg-gray-800 text-gray-400 rounded-full">Python</span>
-              </div>
+          <div className="space-y-4 rounded-[32px] border border-[#e1dcd3] bg-[#f8f4ec] p-8 text-sm text-[#4e493f]">
+            <div>
+              <p className="text-xs uppercase tracking-[0.25em] text-[#a39c92]">Resources</p>
+              <ul className="mt-3 space-y-2">
+                <li>Snowflake optimisation kit</li>
+                <li>Lineage rollout playbook</li>
+                <li>Enterprise security checklist</li>
+              </ul>
             </div>
-
-            {/* Offline Lineage */}
-            <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-8 border border-gray-800 hover:border-[#2AB7A9]/50 transition-all group">
-              <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl flex items-center justify-center mb-6">
-                <GitBranch className="w-8 h-8 text-white" />
-              </div>
-              <h3 className="text-2xl font-bold text-white mb-4">Offline Lineage Tracking</h3>
-              <p className="text-gray-400 mb-6">
-                Visualize column-level lineage without connecting to your warehouse. Trace data flow from source to dashboard instantly.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <span className="text-xs px-3 py-1 bg-gray-800 text-gray-400 rounded-full">Column-level</span>
-                <span className="text-xs px-3 py-1 bg-gray-800 text-gray-400 rounded-full">Impact Analysis</span>
-              </div>
-            </div>
-
-            {/* Auto Documentation */}
-            <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-8 border border-gray-800 hover:border-[#2AB7A9]/50 transition-all group">
-              <div className="w-14 h-14 bg-gradient-to-br from-[#F5B72F] to-orange-500 rounded-xl flex items-center justify-center mb-6">
-                <Code2 className="w-8 h-8 text-black" />
-              </div>
-              <h3 className="text-2xl font-bold text-white mb-4">Auto Documentation</h3>
-              <p className="text-gray-400 mb-6">
-                AI-generated documentation for tables, columns, and transformations. Keep your data catalog always up-to-date.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <span className="text-xs px-3 py-1 bg-gray-800 text-gray-400 rounded-full">Schema Docs</span>
-                <span className="text-xs px-3 py-1 bg-gray-800 text-gray-400 rounded-full">Auto-sync</span>
-              </div>
-            </div>
-
-            {/* Auto Testing */}
-            <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-8 border border-gray-800 hover:border-[#2AB7A9]/50 transition-all group">
-              <div className="w-14 h-14 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl flex items-center justify-center mb-6">
-                <CheckCircle2 className="w-8 h-8 text-white" />
-              </div>
-              <h3 className="text-2xl font-bold text-white mb-4">Automated Testing</h3>
-              <p className="text-gray-400 mb-6">
-                Generate data quality tests automatically. Catch issues before they reach production with AI-powered validation.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <span className="text-xs px-3 py-1 bg-gray-800 text-gray-400 rounded-full">Data Quality</span>
-                <span className="text-xs px-3 py-1 bg-gray-800 text-gray-400 rounded-full">CI/CD</span>
-              </div>
-            </div>
-
-            {/* Enterprise Team Sync */}
-            <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-8 border border-gray-800 hover:border-[#2AB7A9]/50 transition-all group">
-              <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center mb-6">
-                <Network className="w-8 h-8 text-white" />
-              </div>
-              <h3 className="text-2xl font-bold text-white mb-4">Enterprise Team Sync</h3>
-              <p className="text-gray-400 mb-6">
-                Real-time collaboration with version control. Share context, review changes, and maintain consistency across teams.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <span className="text-xs px-3 py-1 bg-gray-800 text-gray-400 rounded-full">Git Integration</span>
-                <span className="text-xs px-3 py-1 bg-gray-800 text-gray-400 rounded-full">Code Review</span>
-              </div>
-            </div>
-
-            {/* Security & Compliance */}
-            <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-8 border border-gray-800 hover:border-[#2AB7A9]/50 transition-all group">
-              <div className="w-14 h-14 bg-gradient-to-br from-red-500 to-pink-500 rounded-xl flex items-center justify-center mb-6">
-                <Shield className="w-8 h-8 text-white" />
-              </div>
-              <h3 className="text-2xl font-bold text-white mb-4">Enterprise Security</h3>
-              <p className="text-gray-400 mb-6">
-                100% local processing. Your code and data never leave your infrastructure. SOC 2 compliant with SSO and RBAC.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <span className="text-xs px-3 py-1 bg-gray-800 text-gray-400 rounded-full">SOC 2</span>
-                <span className="text-xs px-3 py-1 bg-gray-800 text-gray-400 rounded-full">SSO</span>
-                <span className="text-xs px-3 py-1 bg-gray-800 text-gray-400 rounded-full">RBAC</span>
-              </div>
+            <div>
+              <p className="text-xs uppercase tracking-[0.25em] text-[#a39c92]">Security & deployment</p>
+              <p className="mt-2">SOC 2 in progress • SSO / SCIM • Private cloud & on-prem options.</p>
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* How It Works Section */}
-      <div className="relative container mx-auto px-4 py-32 sm:px-6 lg:px-8 bg-gradient-to-b from-black to-gray-950">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-20">
-            <h2 className="text-4xl sm:text-5xl font-bold text-white mb-6">
-              Ship data products 10x faster
-            </h2>
-            <p className="text-xl text-gray-400 max-w-3xl mx-auto">
-              From idea to production in minutes, not weeks. AI-powered development with enterprise-grade observability.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* Step 1 */}
-            <div className="relative">
-              <div className="absolute -top-4 -left-4 w-12 h-12 bg-gradient-to-br from-[#2AB7A9] to-[#F5B72F] rounded-full flex items-center justify-center text-black font-bold text-xl">
-                1
-              </div>
-              <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-8 border border-gray-800 h-full">
-                <h3 className="text-2xl font-bold text-white mb-4 mt-4">Connect Your Stack</h3>
-                <p className="text-gray-400 mb-6">
-                  Integrate with dbt, Snowflake, Databricks, Airflow, and more. DuckCode understands your entire data ecosystem.
-                </p>
-                <div className="bg-gray-950 rounded-lg p-4 font-mono text-xs text-gray-400">
-                  <div className="text-[#2AB7A9]">✓ Connected to Snowflake</div>
-                  <div className="text-[#2AB7A9]">✓ dbt project synced</div>
-                  <div className="text-[#2AB7A9]">✓ Lineage extracted</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Step 2 */}
-            <div className="relative">
-              <div className="absolute -top-4 -left-4 w-12 h-12 bg-gradient-to-br from-[#2AB7A9] to-[#F5B72F] rounded-full flex items-center justify-center text-black font-bold text-xl">
-                2
-              </div>
-              <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-8 border border-gray-800 h-full">
-                <h3 className="text-2xl font-bold text-white mb-4 mt-4">Build with AI</h3>
-                <p className="text-gray-400 mb-6">
-                  Generate code, tests, and documentation automatically. AI understands your schema, business logic, and best practices.
-                </p>
-                <div className="bg-gray-950 rounded-lg p-4 font-mono text-xs">
-                  <div className="text-gray-500 mb-2">// AI Generated</div>
-                  <div className="text-purple-400">SELECT</div>
-                  <div className="text-gray-300 ml-2">customer_id,</div>
-                  <div className="text-gray-300 ml-2">SUM(revenue)</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Step 3 */}
-            <div className="relative">
-              <div className="absolute -top-4 -left-4 w-12 h-12 bg-gradient-to-br from-[#2AB7A9] to-[#F5B72F] rounded-full flex items-center justify-center text-black font-bold text-xl">
-                3
-              </div>
-              <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-8 border border-gray-800 h-full">
-                <h3 className="text-2xl font-bold text-white mb-4 mt-4">Monitor & Optimize</h3>
-                <p className="text-gray-400 mb-6">
-                  Real-time observability with automated alerts. Catch breaking changes before they impact stakeholders.
-                </p>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm">
-                    <div className="w-2 h-2 rounded-full bg-green-500" />
-                    <span className="text-gray-400">All tests passing</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <div className="w-2 h-2 rounded-full bg-green-500" />
-                    <span className="text-gray-400">No breaking changes</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <div className="w-2 h-2 rounded-full bg-green-500" />
-                    <span className="text-gray-400">Quality checks OK</span>
-                  </div>
-                </div>
-              </div>
+      <footer className="border-t border-[#e1dcd3] bg-[#f0ede5] py-10">
+        <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 text-sm text-[#4e493f] sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
+          <div className="flex items-center gap-3">
+            <img src="/icon-duck-obs.png" alt="Duckcode Logo" className="h-8 w-8" />
+            <div>
+              <p className="text-sm font-semibold text-[#161413]">Duckcode.ai</p>
+              <p className="text-xs text-[#7b7469]">AI IDE + Observability platform for Snowflake &amp; dbt teams.</p>
             </div>
           </div>
+          <div className="flex flex-wrap gap-6">
+            <a href="https://www.linkedin.com" className="transition hover:text-[#161413]">
+              LinkedIn
+            </a>
+            <a href="https://github.com" className="transition hover:text-[#161413]">
+              GitHub
+            </a>
+            <a href="mailto:hello@duckcode.ai" className="transition hover:text-[#161413]">
+              Contact
+            </a>
+            <a href="/privacy" className="transition hover:text-[#161413]">
+              Privacy Policy
+            </a>
+          </div>
+          <p className="text-xs text-[#7b7469]">© {new Date().getFullYear()} Duckcode.ai. All rights reserved.</p>
         </div>
-      </div>
-
-      {/* Observability Section */}
-      <div className="relative container mx-auto px-4 py-32 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-20">
-            <h2 className="text-4xl sm:text-5xl font-bold text-white mb-6">
-              Enterprise-grade observability
-            </h2>
-            <p className="text-xl text-gray-400 max-w-3xl mx-auto">
-              Catch issues before they reach production. Full visibility into your data pipelines with real-time monitoring and automated alerts.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
-            {/* Lineage Visualization */}
-            <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-8 border border-gray-800">
-              <div className="flex items-center gap-3 mb-6">
-                <GitBranch className="w-8 h-8 text-[#2AB7A9]" />
-                <h3 className="text-2xl font-bold text-white">Impact Analysis</h3>
-              </div>
-              <p className="text-gray-400 mb-6">
-                Understand downstream impact of any change. Visualize column-level lineage across your entire data stack.
-              </p>
-              <div className="bg-gray-950 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm text-gray-400">users.customer_id</span>
-                  <ArrowRight className="w-4 h-4 text-gray-600" />
-                  <span className="text-sm text-gray-400">orders.customer_id</span>
-                </div>
-                <div className="text-xs text-[#2AB7A9]">→ Impacts 12 downstream models</div>
-              </div>
-            </div>
-
-            {/* Data Quality */}
-            <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-8 border border-gray-800">
-              <div className="flex items-center gap-3 mb-6">
-                <Shield className="w-8 h-8 text-[#F5B72F]" />
-                <h3 className="text-2xl font-bold text-white">Data Quality Checks</h3>
-              </div>
-              <p className="text-gray-400 mb-6">
-                Automated testing for schema changes, null values, duplicates, and custom business rules.
-              </p>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-sm">
-                  <CheckCircle2 className="w-4 h-4 text-green-500" />
-                  <span className="text-gray-400">Schema validation passed</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <CheckCircle2 className="w-4 h-4 text-green-500" />
-                  <span className="text-gray-400">No null values in key columns</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <CheckCircle2 className="w-4 h-4 text-green-500" />
-                  <span className="text-gray-400">Freshness checks OK</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Alerts & Monitoring */}
-            <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-8 border border-gray-800">
-              <div className="flex items-center gap-3 mb-6">
-                <BarChart3 className="w-8 h-8 text-purple-500" />
-                <h3 className="text-2xl font-bold text-white">Smart Alerts</h3>
-              </div>
-              <p className="text-gray-400 mb-6">
-                Get notified about breaking changes, performance issues, and data anomalies before they impact users.
-              </p>
-              <div className="bg-gray-950 rounded-lg p-4">
-                <div className="text-xs text-gray-500 mb-2">Recent Alerts</div>
-                <div className="text-sm text-gray-400">✓ All systems operational</div>
-              </div>
-            </div>
-
-            {/* Version Control */}
-            <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-8 border border-gray-800">
-              <div className="flex items-center gap-3 mb-6">
-                <Code2 className="w-8 h-8 text-blue-500" />
-                <h3 className="text-2xl font-bold text-white">Git Integration</h3>
-              </div>
-              <p className="text-gray-400 mb-6">
-                Full version control with pull request reviews, automated testing, and deployment workflows.
-              </p>
-              <div className="bg-gray-950 rounded-lg p-4 font-mono text-xs">
-                <div className="text-gray-500">git commit -m "Add customer metrics"</div>
-                <div className="text-[#2AB7A9] mt-2">✓ Tests passed • Ready to merge</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Final CTA */}
-      <div className="relative container mx-auto px-4 py-32 sm:px-6 lg:px-8">
-        <div className="max-w-5xl mx-auto">
-          <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl p-12 border border-gray-800 text-center relative overflow-hidden">
-            {/* Background gradient effect */}
-            <div className="absolute inset-0 bg-gradient-to-br from-[#2AB7A9]/10 via-purple-500/10 to-[#F5B72F]/10" />
-            
-            <div className="relative z-10">
-              <h2 className="text-4xl sm:text-5xl font-bold text-white mb-6">
-                Ready to transform your data workflow?
-              </h2>
-              <p className="text-xl text-gray-400 mb-12 max-w-2xl mx-auto">
-                Join leading data teams using DuckCode to build, test, and monitor data products faster than ever.
-              </p>
-              
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
-                <Link
-                  to="/register"
-                  className="inline-flex items-center gap-2 px-10 py-5 bg-gradient-to-r from-[#2AB7A9] to-[#F5B72F] text-black font-bold rounded-lg hover:opacity-90 transition-opacity text-lg shadow-lg shadow-[#2AB7A9]/20"
-                >
-                  Start Free Trial
-                  <ArrowRight className="w-6 h-6" />
-                </Link>
-                <a
-                  href="mailto:sales@duckcode.ai"
-                  className="inline-flex items-center gap-2 px-10 py-5 bg-transparent border-2 border-gray-700 text-white font-bold rounded-lg hover:border-[#2AB7A9] transition-colors text-lg"
-                >
-                  Talk to Sales
-                </a>
-              </div>
-              
-              <p className="text-sm text-gray-500">
-                14-day free trial • No credit card required • Enterprise support available
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
+      </footer>
     </div>
   );
 }
