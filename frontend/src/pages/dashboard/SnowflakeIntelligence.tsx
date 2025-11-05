@@ -491,13 +491,86 @@ export default function SnowflakeIntelligence() {
         {activeTab === 'overview' && (
           <>
             {costOverview && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-            <div className="bg-gradient-to-br from-[#ff6a3c] to-[#d94a1e] rounded-xl p-6 shadow-2xl"><div className="flex items-center justify-between mb-3"><DollarSign className="w-10 h-10 text-white/80" /><span className="text-xs font-semibold text-white/70 uppercase tracking-wider">Total Cost</span></div><div className="text-4xl font-bold text-white mb-1">{formatCurrency(costOverview.total_cost)}</div><div className="text-sm text-white/80">Last {timePeriod} days</div></div>
-            <div className="bg-[#161413] border-2 border-[#1f1d1b] rounded-xl p-6 hover:border-[#ff6a3c]/30 transition"><div className="flex items-center justify-between mb-3"><Server className="w-8 h-8 text-blue-400" /><span className="text-xs font-semibold text-[#8d857b] uppercase tracking-wider">Compute</span></div><div className="text-3xl font-bold text-white mb-1">{formatCurrency(costOverview.compute_credits * 3)}</div><div className="flex items-center justify-between text-sm"><span className="text-[#8d857b]">{costOverview.compute_credits.toFixed(1)} credits</span><span className="text-blue-400 font-semibold">{((costOverview.compute_credits / costOverview.total_credits) * 100).toFixed(0)}%</span></div></div>
-            <div className="bg-[#161413] border-2 border-[#1f1d1b] rounded-xl p-6 hover:border-[#ff6a3c]/30 transition"><div className="flex items-center justify-between mb-3"><Database className="w-8 h-8 text-green-400" /><span className="text-xs font-semibold text-[#8d857b] uppercase tracking-wider">Storage</span></div><div className="text-3xl font-bold text-white mb-1">{formatCurrency(costOverview.storage_credits * 3)}</div><div className="flex items-center justify-between text-sm"><span className="text-[#8d857b]">{costOverview.storage_credits.toFixed(1)} credits</span><span className="text-green-400 font-semibold">{((costOverview.storage_credits / costOverview.total_credits) * 100).toFixed(0)}%</span></div></div>
-            {wasteData && (<div className="bg-gradient-to-br from-orange-600 to-orange-700 rounded-xl p-6 shadow-2xl"><div className="flex items-center justify-between mb-3"><TrendingUp className="w-10 h-10 text-white/80" /><span className="text-xs font-semibold text-white/70 uppercase tracking-wider">Savings</span></div><div className="text-4xl font-bold text-white mb-1">{formatCurrency(wasteData.summary.total_potential_savings)}</div><div className="text-sm text-white/80">{wasteData.summary.total_opportunities} opportunities</div></div>)}
-            <div className="bg-[#161413] border-2 border-[#1f1d1b] rounded-xl p-6 hover:border-[#ff6a3c]/30 transition"><div className="flex items-center justify-between mb-3"><Activity className="w-8 h-8 text-purple-400" /><span className="text-xs font-semibold text-[#8d857b] uppercase tracking-wider">Queries</span></div><div className="text-3xl font-bold text-white mb-1">{formatNumber(costOverview.total_queries)}</div><div className="flex items-center justify-between text-sm"><span className="text-[#8d857b]">Total executed</span><span className="text-purple-400 font-semibold">{(costOverview.total_queries / timePeriod).toFixed(0)}/day</span></div></div>
-            <div className="bg-[#161413] border-2 border-[#1f1d1b] rounded-xl p-6 hover:border-[#ff6a3c]/30 transition"><div className="flex items-center justify-between mb-3">{Number(costOverview.failure_rate) > 5 ? <AlertCircle className="w-8 h-8 text-red-400" /> : <CheckCircle className="w-8 h-8 text-green-400" />}<span className="text-xs font-semibold text-[#8d857b] uppercase tracking-wider">Failures</span></div><div className="text-3xl font-bold text-white mb-1">{costOverview.failure_rate}%</div><div className="flex items-center justify-between text-sm"><span className="text-[#8d857b]">{formatNumber(costOverview.failed_queries)} failed</span><span className={`font-semibold ${Number(costOverview.failure_rate) > 5 ? 'text-red-400' : 'text-green-400'}`}>{Number(costOverview.failure_rate) > 5 ? '⚠️ High' : '✓ Healthy'}</span></div></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-6">
+            {/* Total Cost - Highlighted with accent border */}
+            <div className="bg-[#161413] border-2 border-[#ff6a3c]/40 rounded-xl p-6 hover:border-[#ff6a3c]/60 transition">
+              <div className="flex items-center justify-between mb-3">
+                <DollarSign className="w-8 h-8 text-[#ff6a3c]" />
+                <span className="text-xs font-semibold text-[#8d857b] uppercase tracking-wider">Total Cost</span>
+              </div>
+              <div className="text-3xl font-bold text-white mb-1">{formatCurrency(costOverview.total_cost)}</div>
+              <div className="text-sm text-[#8d857b]">Last {timePeriod} days</div>
+            </div>
+
+            {/* Compute */}
+            <div className="bg-[#161413] border-2 border-[#1f1d1b] rounded-xl p-6 hover:border-[#ff6a3c]/30 transition">
+              <div className="flex items-center justify-between mb-3">
+                <Server className="w-8 h-8 text-blue-400" />
+                <span className="text-xs font-semibold text-[#8d857b] uppercase tracking-wider">Compute</span>
+              </div>
+              <div className="text-3xl font-bold text-white mb-1">{formatCurrency(costOverview.compute_credits * 3)}</div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-[#8d857b]">{costOverview.compute_credits.toFixed(1)} credits</span>
+                <span className="text-blue-400 font-semibold">{((costOverview.compute_credits / costOverview.total_credits) * 100).toFixed(0)}%</span>
+              </div>
+            </div>
+
+            {/* Storage */}
+            <div className="bg-[#161413] border-2 border-[#1f1d1b] rounded-xl p-6 hover:border-[#ff6a3c]/30 transition">
+              <div className="flex items-center justify-between mb-3">
+                <Database className="w-8 h-8 text-green-400" />
+                <span className="text-xs font-semibold text-[#8d857b] uppercase tracking-wider">Storage</span>
+              </div>
+              <div className="text-3xl font-bold text-white mb-1">{formatCurrency(costOverview.storage_credits * 3)}</div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-[#8d857b]">{costOverview.storage_credits.toFixed(1)} credits</span>
+                <span className="text-green-400 font-semibold">{((costOverview.storage_credits / costOverview.total_credits) * 100).toFixed(0)}%</span>
+              </div>
+            </div>
+
+            {/* Savings - Highlighted with green border */}
+            {wasteData && (
+              <div className="bg-[#161413] border-2 border-green-500/40 rounded-xl p-6 hover:border-green-500/60 transition">
+                <div className="flex items-center justify-between mb-3">
+                  <TrendingUp className="w-8 h-8 text-green-400" />
+                  <span className="text-xs font-semibold text-[#8d857b] uppercase tracking-wider">Savings</span>
+                </div>
+                <div className="text-3xl font-bold text-green-400 mb-1">{formatCurrency(wasteData.summary.total_potential_savings)}</div>
+                <div className="text-sm text-[#8d857b]">{wasteData.summary.total_opportunities} opportunities</div>
+              </div>
+            )}
+
+            {/* Queries */}
+            <div className="bg-[#161413] border-2 border-[#1f1d1b] rounded-xl p-6 hover:border-[#ff6a3c]/30 transition">
+              <div className="flex items-center justify-between mb-3">
+                <Activity className="w-8 h-8 text-purple-400" />
+                <span className="text-xs font-semibold text-[#8d857b] uppercase tracking-wider">Queries</span>
+              </div>
+              <div className="text-3xl font-bold text-white mb-1">{formatNumber(costOverview.total_queries)}</div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-[#8d857b]">Total executed</span>
+                <span className="text-purple-400 font-semibold">{(costOverview.total_queries / timePeriod).toFixed(0)}/day</span>
+              </div>
+            </div>
+
+            {/* Failures */}
+            <div className="bg-[#161413] border-2 border-[#1f1d1b] rounded-xl p-6 hover:border-[#ff6a3c]/30 transition">
+              <div className="flex items-center justify-between mb-3">
+                {Number(costOverview.failure_rate) > 5 ? (
+                  <AlertCircle className="w-8 h-8 text-red-400" />
+                ) : (
+                  <CheckCircle className="w-8 h-8 text-green-400" />
+                )}
+                <span className="text-xs font-semibold text-[#8d857b] uppercase tracking-wider">Failures</span>
+              </div>
+              <div className="text-3xl font-bold text-white mb-1">{costOverview.failure_rate}%</div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-[#8d857b]">{formatNumber(costOverview.failed_queries)} failed</span>
+                <span className={`font-semibold ${Number(costOverview.failure_rate) > 5 ? 'text-red-400' : 'text-green-400'}`}>
+                  {Number(costOverview.failure_rate) > 5 ? '⚠️ High' : '✓ Healthy'}
+                </span>
+              </div>
+            </div>
           </div>
         )}
 
@@ -586,13 +659,16 @@ export default function SnowflakeIntelligence() {
             
               <div className="grid grid-cols-1 gap-3 mb-4">
                 {wasteData.unused_tables && wasteData.unused_tables.length > 0 && (
-                  <button onClick={() => setExpandedWasteCategory(expandedWasteCategory === 'unused_tables' ? null : 'unused_tables')} className="bg-gradient-to-br from-red-600/20 to-red-700/20 border border-red-500/30 rounded-lg p-4 text-left hover:border-red-500/50 transition">
+                  <button 
+                    onClick={() => setExpandedWasteCategory(expandedWasteCategory === 'unused_tables' ? null : 'unused_tables')} 
+                    className="bg-[#161413] border-2 border-[#1f1d1b] rounded-xl p-4 text-left hover:border-[#ff6a3c]/30 transition"
+                  >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <Database className="w-6 h-6 text-red-400" />
                         <div>
                           <div className="text-xl font-bold text-white">{formatCurrency(wasteData.summary.unused_table_savings || 0)}</div>
-                          <div className="text-xs text-red-200">{wasteData.unused_tables.length} unused tables</div>
+                          <div className="text-xs text-[#8d857b]">{wasteData.unused_tables.length} unused tables</div>
                         </div>
                       </div>
                     </div>
@@ -600,13 +676,16 @@ export default function SnowflakeIntelligence() {
                 )}
                 
                 {wasteData.idle_warehouses && wasteData.idle_warehouses.length > 0 && (
-                  <button onClick={() => setExpandedWasteCategory(expandedWasteCategory === 'idle_warehouses' ? null : 'idle_warehouses')} className="bg-gradient-to-br from-orange-600/20 to-orange-700/20 border border-orange-500/30 rounded-lg p-4 text-left hover:border-orange-500/50 transition">
+                  <button 
+                    onClick={() => setExpandedWasteCategory(expandedWasteCategory === 'idle_warehouses' ? null : 'idle_warehouses')} 
+                    className="bg-[#161413] border-2 border-[#1f1d1b] rounded-xl p-4 text-left hover:border-[#ff6a3c]/30 transition"
+                  >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <Server className="w-6 h-6 text-orange-400" />
                         <div>
                           <div className="text-xl font-bold text-white">{formatCurrency(wasteData.summary.idle_warehouse_savings || 0)}</div>
-                          <div className="text-xs text-orange-200">{wasteData.idle_warehouses.length} idle warehouses</div>
+                          <div className="text-xs text-[#8d857b]">{wasteData.idle_warehouses.length} idle warehouses</div>
                         </div>
                       </div>
                     </div>
@@ -614,13 +693,16 @@ export default function SnowflakeIntelligence() {
                 )}
                 
                 {wasteData.warehouse_utilization && wasteData.warehouse_utilization.filter((w: any) => w.STATUS === 'UNDERUTILIZED').length > 0 && (
-                  <button onClick={() => setExpandedWasteCategory(expandedWasteCategory === 'underutilized' ? null : 'underutilized')} className="bg-gradient-to-br from-yellow-600/20 to-yellow-700/20 border border-yellow-500/30 rounded-lg p-4 text-left hover:border-yellow-500/50 transition">
+                  <button 
+                    onClick={() => setExpandedWasteCategory(expandedWasteCategory === 'underutilized' ? null : 'underutilized')} 
+                    className="bg-[#161413] border-2 border-[#1f1d1b] rounded-xl p-4 text-left hover:border-[#ff6a3c]/30 transition"
+                  >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <Activity className="w-6 h-6 text-yellow-400" />
                         <div>
                           <div className="text-xl font-bold text-white">{formatCurrency(wasteData.summary.underutilized_warehouse_savings || 0)}</div>
-                          <div className="text-xs text-yellow-200">{wasteData.warehouse_utilization.filter((w: any) => w.STATUS === 'UNDERUTILIZED').length} underutilized</div>
+                          <div className="text-xs text-[#8d857b]">{wasteData.warehouse_utilization.filter((w: any) => w.STATUS === 'UNDERUTILIZED').length} underutilized</div>
                         </div>
                       </div>
                     </div>
