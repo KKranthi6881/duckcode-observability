@@ -1,10 +1,10 @@
-import cron from 'node-cron';
+import * as cron from 'node-cron';
 import SnowflakeDataSyncService from '../services/SnowflakeDataSyncService';
 import AlertNotificationService from '../services/AlertNotificationService';
 import BudgetTrackingService from '../services/BudgetTrackingService';
 
 export class JobScheduler {
-  private jobs: Map<string, cron.ScheduledTask> = new Map();
+  private jobs: Map<string, any> = new Map();
 
   /**
    * Initialize all scheduled jobs
@@ -58,7 +58,6 @@ export class JobScheduler {
         console.error(`[Scheduler] ✗ ${jobName} failed:`, err);
       }
     }, {
-      scheduled: true,
       timezone: process.env.TZ || 'America/Chicago',
     });
 
@@ -110,7 +109,6 @@ export class JobScheduler {
         console.error(`[Scheduler] ✗ ${jobName} failed:`, err);
       }
     }, {
-      scheduled: true,
       timezone: process.env.TZ || 'America/Chicago',
     });
 
@@ -136,7 +134,6 @@ export class JobScheduler {
         console.error(`[Scheduler] ✗ ${jobName} failed:`, err);
       }
     }, {
-      scheduled: true,
       timezone: process.env.TZ || 'America/Chicago',
     });
 
@@ -187,7 +184,6 @@ export class JobScheduler {
         console.error(`[Scheduler] ✗ ${jobName} failed:`, err);
       }
     }, {
-      scheduled: true,
       timezone: process.env.TZ || 'America/Chicago',
     });
 

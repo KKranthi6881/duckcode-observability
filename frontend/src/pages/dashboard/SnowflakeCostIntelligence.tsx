@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import ReactECharts from 'echarts-for-react';
 import { 
   TrendingUp, 
@@ -12,7 +11,10 @@ import {
   RefreshCw,
   Calendar,
   Target,
-  Activity
+  Activity,
+  Lightbulb,
+  BarChart3,
+  Trash2
 } from 'lucide-react';
 import snowflakeCostPhase1Service, { 
   CostOverview, 
@@ -21,16 +23,21 @@ import snowflakeCostPhase1Service, {
 } from '../../services/snowflakeCostPhase1Service';
 import enterpriseService from '../../services/enterpriseService';
 import { snowflakeCostService, ConnectorItem } from '../../services/snowflakeCostService';
+import RecommendationsView from '../../components/snowflake/RecommendationsView';
+import ROITrackerView from '../../components/snowflake/ROITrackerView';
+import QueryPerformanceView from '../../components/snowflake/QueryPerformanceView';
 
 interface ConnectorWithOrg extends ConnectorItem {
   organization_id: string;
 }
 
+type TabType = 'overview' | 'recommendations' | 'roi' | 'performance' | 'storage' | 'waste';
+
 export default function SnowflakeCostIntelligence() {
-  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabType>('overview');
 
   // Organization and connector selection
   const [organizations, setOrganizations] = useState<{ id: string; name: string }[]>([]);
@@ -344,69 +351,118 @@ export default function SnowflakeCostIntelligence() {
       )}
 
       {/* Main Content Tabs */}
-      <div className="bg-white rounded-xl shadow-md border border-gray-200">
-        <div className="border-b border-gray-200">
-          <nav className="flex">
+      <div className="bg-[#161413] border border-[#2d2a27] rounded-xl overflow-hidden">
+        <div className="border-b border-[#2d2a27] bg-[#0d0c0a]">
+          <nav className="flex overflow-x-auto">
             <button
-              onClick={() => navigate('#overview')}
-              className="px-6 py-4 text-sm font-medium text-indigo-600 border-b-2 border-indigo-600"
+              onClick={() => setActiveTab('overview')}
+              className={`px-6 py-4 text-sm font-medium transition-colors flex items-center gap-2 whitespace-nowrap ${
+                activeTab === 'overview'
+                  ? 'text-[#ff6a3c] border-b-2 border-[#ff6a3c]'
+                  : 'text-[#8d857b] hover:text-white'
+              }`}
             >
+              <BarChart3 className="w-4 h-4" />
               Overview
             </button>
             <button
-              onClick={() => navigate('#storage')}
-              className="px-6 py-4 text-sm font-medium text-gray-500 hover:text-gray-700"
+              onClick={() => setActiveTab('recommendations')}
+              className={`px-6 py-4 text-sm font-medium transition-colors flex items-center gap-2 whitespace-nowrap ${
+                activeTab === 'recommendations'
+                  ? 'text-[#ff6a3c] border-b-2 border-[#ff6a3c]'
+                  : 'text-[#8d857b] hover:text-white'
+              }`}
             >
-              Storage Breakdown
+              <Lightbulb className="w-4 h-4" />
+              Recommendations
             </button>
             <button
-              onClick={() => navigate('#waste')}
-              className="px-6 py-4 text-sm font-medium text-gray-500 hover:text-gray-700"
+              onClick={() => setActiveTab('roi')}
+              className={`px-6 py-4 text-sm font-medium transition-colors flex items-center gap-2 whitespace-nowrap ${
+                activeTab === 'roi'
+                  ? 'text-[#ff6a3c] border-b-2 border-[#ff6a3c]'
+                  : 'text-[#8d857b] hover:text-white'
+              }`}
             >
+              <Target className="w-4 h-4" />
+              ROI Tracker
+            </button>
+            <button
+              onClick={() => setActiveTab('performance')}
+              className={`px-6 py-4 text-sm font-medium transition-colors flex items-center gap-2 whitespace-nowrap ${
+                activeTab === 'performance'
+                  ? 'text-[#ff6a3c] border-b-2 border-[#ff6a3c]'
+                  : 'text-[#8d857b] hover:text-white'
+              }`}
+            >
+              <Activity className="w-4 h-4" />
+              Query Performance
+            </button>
+            <button
+              onClick={() => setActiveTab('storage')}
+              className={`px-6 py-4 text-sm font-medium transition-colors flex items-center gap-2 whitespace-nowrap ${
+                activeTab === 'storage'
+                  ? 'text-[#ff6a3c] border-b-2 border-[#ff6a3c]'
+                  : 'text-[#8d857b] hover:text-white'
+              }`}
+            >
+              <Database className="w-4 h-4" />
+              Storage Analysis
+            </button>
+            <button
+              onClick={() => setActiveTab('waste')}
+              className={`px-6 py-4 text-sm font-medium transition-colors flex items-center gap-2 whitespace-nowrap ${
+                activeTab === 'waste'
+                  ? 'text-[#ff6a3c] border-b-2 border-[#ff6a3c]'
+                  : 'text-[#8d857b] hover:text-white'
+              }`}
+            >
+              <Trash2 className="w-4 h-4" />
               Waste Detection
             </button>
           </nav>
         </div>
 
         <div className="p-6">
-          {/* Overview Content */}
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Cost Distribution</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {costOverview && (
-                  <>
-                    <div className="p-4 bg-blue-50 rounded-lg">
-                      <div className="text-sm text-blue-600 font-medium mb-1">Compute</div>
-                      <div className="text-2xl font-bold text-blue-900">
-                        {formatCurrency(costOverview.compute_credits * 3)}
+          {/* Tab Content */}
+          {activeTab === 'overview' && (
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-semibold text-white mb-4">Cost Distribution</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {costOverview && (
+                    <>
+                      <div className="p-4 bg-blue-50 rounded-lg">
+                        <div className="text-sm text-blue-600 font-medium mb-1">Compute</div>
+                        <div className="text-2xl font-bold text-blue-900">
+                          {formatCurrency(costOverview.compute_credits * 3)}
+                        </div>
+                        <div className="text-xs text-blue-600 mt-1">
+                          {costOverview.compute_credits.toFixed(2)} credits
+                        </div>
                       </div>
-                      <div className="text-xs text-blue-600 mt-1">
-                        {costOverview.compute_credits.toFixed(2)} credits
+                      <div className="p-4 bg-green-50 rounded-lg">
+                        <div className="text-sm text-green-600 font-medium mb-1">Storage</div>
+                        <div className="text-2xl font-bold text-green-900">
+                          {formatCurrency(costOverview.storage_credits * 3)}
+                        </div>
+                        <div className="text-xs text-green-600 mt-1">
+                          {costOverview.storage_credits.toFixed(2)} credits
+                        </div>
                       </div>
-                    </div>
-                    <div className="p-4 bg-green-50 rounded-lg">
-                      <div className="text-sm text-green-600 font-medium mb-1">Storage</div>
-                      <div className="text-2xl font-bold text-green-900">
-                        {formatCurrency(costOverview.storage_credits * 3)}
+                      <div className="p-4 bg-gray-50 rounded-lg">
+                        <div className="text-sm text-gray-600 font-medium mb-1">Data Transfer</div>
+                        <div className="text-2xl font-bold text-gray-900">
+                          {formatCurrency((costOverview.total_credits - costOverview.compute_credits - costOverview.storage_credits) * 3)}
+                        </div>
+                        <div className="text-xs text-gray-600 mt-1">
+                          {(costOverview.total_credits - costOverview.compute_credits - costOverview.storage_credits).toFixed(2)} credits
+                        </div>
                       </div>
-                      <div className="text-xs text-green-600 mt-1">
-                        {costOverview.storage_credits.toFixed(2)} credits
-                      </div>
-                    </div>
-                    <div className="p-4 bg-gray-50 rounded-lg">
-                      <div className="text-sm text-gray-600 font-medium mb-1">Data Transfer</div>
-                      <div className="text-2xl font-bold text-gray-900">
-                        {formatCurrency((costOverview.total_credits - costOverview.compute_credits - costOverview.storage_credits) * 3)}
-                      </div>
-                      <div className="text-xs text-gray-600 mt-1">
-                        {(costOverview.total_credits - costOverview.compute_credits - costOverview.storage_credits).toFixed(2)} credits
-                      </div>
-                    </div>
-                  </>
-                )}
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
 
             {/* Top Tables by Cost */}
             {storageData.length > 0 && (
@@ -524,7 +580,122 @@ export default function SnowflakeCostIntelligence() {
                 </div>
               </div>
             )}
-          </div>
+            </div>
+          )}
+
+          {/* Recommendations Tab */}
+          {activeTab === 'recommendations' && connectorId && (
+            <RecommendationsView connectorId={connectorId} />
+          )}
+
+          {/* ROI Tracker Tab */}
+          {activeTab === 'roi' && connectorId && (
+            <ROITrackerView connectorId={connectorId} />
+          )}
+
+          {/* Query Performance Tab */}
+          {activeTab === 'performance' && connectorId && (
+            <QueryPerformanceView connectorId={connectorId} />
+          )}
+
+          {/* Storage Analysis Tab */}
+          {activeTab === 'storage' && storageData.length > 0 && (
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-xl font-bold text-white mb-4">Storage Usage by Table</h3>
+                <div className="bg-[#161413] border border-[#2d2a27] rounded-xl overflow-hidden">
+                  <table className="w-full">
+                    <thead className="bg-[#0d0c0a]">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-[#8d857b] uppercase tracking-wider">
+                          Table
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-[#8d857b] uppercase tracking-wider">
+                          Database.Schema
+                        </th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-[#8d857b] uppercase tracking-wider">
+                          Size
+                        </th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-[#8d857b] uppercase tracking-wider">
+                          Rows
+                        </th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-[#8d857b] uppercase tracking-wider">
+                          Monthly Cost
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#2d2a27]">
+                      {storageData.map((table, idx) => (
+                        <tr key={idx} className="hover:bg-[#0d0c0a] transition-colors">
+                          <td className="px-6 py-4 text-sm font-medium text-white">
+                            {table.table_name}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-[#8d857b]">
+                            {table.database_name}.{table.schema_name}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-right text-white">
+                            {formatBytes(table.storage_bytes)}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-right text-[#8d857b]">
+                            {table.row_count ? formatNumber(table.row_count) : '-'}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-right font-medium text-green-400">
+                            {formatCurrency((table.storage_bytes / 1099511627776) * 23)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Waste Detection Tab */}
+          {activeTab === 'waste' && wasteData && (
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-xl font-bold text-white mb-4">Cost Optimization Opportunities</h3>
+                
+                {/* Unused Tables */}
+                {wasteData.unused_tables.length > 0 && (
+                  <div className="mb-6">
+                    <h4 className="text-lg font-semibold text-red-400 mb-3">Unused Tables</h4>
+                    <div className="bg-[#161413] border border-[#2d2a27] rounded-xl overflow-hidden">
+                      <table className="w-full">
+                        <thead className="bg-[#0d0c0a]">
+                          <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-[#8d857b] uppercase">Table</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-[#8d857b] uppercase">Size</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-[#8d857b] uppercase">Days Idle</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-[#8d857b] uppercase">Cost/Month</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#2d2a27]">
+                          {wasteData.unused_tables.slice(0, 20).map((table, idx) => (
+                            <tr key={idx} className="hover:bg-[#0d0c0a]">
+                              <td className="px-6 py-4 text-sm text-white">
+                                {table.TABLE_NAME}
+                              </td>
+                              <td className="px-6 py-4 text-sm text-right text-[#8d857b]">
+                                {formatBytes(table.STORAGE_BYTES)}
+                              </td>
+                              <td className="px-6 py-4 text-sm text-right text-red-400 font-medium">
+                                {table.DAYS_SINCE_ACCESS}
+                              </td>
+                              <td className="px-6 py-4 text-sm text-right text-red-400 font-bold">
+                                {formatCurrency((table.STORAGE_BYTES / 1099511627776) * 23)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

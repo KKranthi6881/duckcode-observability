@@ -48,6 +48,17 @@ import {
   getSecuritySummary,
 } from '../controllers/security-monitoring.controller';
 import SnowflakeCostTrackingController from '../controllers/snowflake-cost-tracking.controller';
+import {
+  getSecuritySummary as getSnowflakeSecuritySummary,
+  getSecurityAlerts,
+  getStaleUsers,
+  getFailedLogins,
+  getLoginHistory,
+  getUsersWithoutMFA,
+  getAdminAccess,
+  extractSecurityData,
+  resolveAlert,
+} from '../controllers/snowflake-security.controller';
 
 const router = Router();
 
@@ -129,5 +140,16 @@ router.post('/:id/security/detect-anomalies', detectAnomalies); // Trigger anoma
 router.get('/:id/security/permissions', getRolePermissions); // Role permissions
 router.get('/:id/security/issues', getSecurityIssues); // Security issues summary
 router.get('/:id/security/permission-issues', getPermissionIssues); // Permission problems
+
+// Snowflake Security Monitoring (ACCOUNT_USAGE)
+router.get('/:id/security/snowflake/summary', cacheMiddleware(300), getSnowflakeSecuritySummary); // Security dashboard summary
+router.get('/:id/security/snowflake/alerts', cacheMiddleware(180), getSecurityAlerts); // Security alerts
+router.get('/:id/security/snowflake/stale-users', cacheMiddleware(600), getStaleUsers); // Users who haven't logged in
+router.get('/:id/security/snowflake/failed-logins', cacheMiddleware(180), getFailedLogins); // Failed login attempts
+router.get('/:id/security/snowflake/login-history', cacheMiddleware(300), getLoginHistory); // Login history
+router.get('/:id/security/snowflake/no-mfa', cacheMiddleware(300), getUsersWithoutMFA); // Users without MFA
+router.get('/:id/security/snowflake/admin-access', cacheMiddleware(300), getAdminAccess); // ACCOUNTADMIN/SECURITYADMIN grants
+router.post('/:id/security/snowflake/extract', extractSecurityData); // Trigger security data extraction
+router.put('/:id/security/snowflake/alerts/:alertId/resolve', resolveAlert); // Resolve security alert
 
 export default router;
