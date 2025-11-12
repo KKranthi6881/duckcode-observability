@@ -1,8 +1,5 @@
 import { Resend } from 'resend';
 
-// Initialize Resend client
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 export interface SendEmailOptions {
   to: string | string[];
   subject: string;
@@ -25,14 +22,25 @@ class EmailService {
   private replyToEmail: string;
   private frontendUrl: string;
   private isEnabled: boolean;
+  private resend: Resend | null;
 
   constructor() {
     this.fromEmail = process.env.EMAIL_FROM || 'noreply@duckcode.ai';
     this.replyToEmail = process.env.EMAIL_REPLY_TO || 'support@duckcode.ai';
     this.frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5175';
     this.isEnabled = !!process.env.RESEND_API_KEY;
+    this.resend = null;
 
-    if (!this.isEnabled) {
+    if (this.isEnabled) {
+      try {
+        this.resend = new Resend(process.env.RESEND_API_KEY!);
+      } catch (e) {
+        // If construction fails for any reason, disable email sending and log
+        this.isEnabled = false;
+        this.resend = null;
+        console.warn('⚠️  Failed to initialize Resend client. Emails will be logged to console only.', e);
+      }
+    } else {
       console.warn('⚠️  RESEND_API_KEY not configured. Emails will be logged to console only.');
     }
   }
@@ -51,7 +59,7 @@ class EmailService {
         return { success: true, messageId: 'dev-mode-' + Date.now() };
       }
 
-      const { data, error } = await resend.emails.send({
+      const { data, error } = await this.resend!.emails.send({
         from: options.from || this.fromEmail,
         to: Array.isArray(options.to) ? options.to : [options.to],
         subject: options.subject,

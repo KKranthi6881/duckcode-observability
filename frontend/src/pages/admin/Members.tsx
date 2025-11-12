@@ -242,6 +242,20 @@ export const Members: React.FC = () => {
     }
   };
 
+  const handleResend = async (invitationId: string) => {
+    try {
+      setLoading(true);
+      await invitationService.resendInvitation(invitationId);
+      await loadData();
+      alert('Invitation email resent successfully');
+    } catch (error) {
+      console.error('Failed to resend invitation:', error);
+      alert('Failed to resend invitation');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const getStatusIcon = (status: string) => {
     const icons: Record<string, JSX.Element> = {
       active: <CheckCircle className="h-5 w-5 text-green-400" />,
@@ -478,7 +492,7 @@ export const Members: React.FC = () => {
                     <div className="flex items-center justify-end space-x-2">
                       {invitation.status === 'pending' && (
                         <>
-                          <button className="text-blue-400 hover:text-blue-300" title="Resend">
+                          <button onClick={() => handleResend(invitation.id)} className="text-blue-400 hover:text-blue-300" title="Resend">
                             <RefreshCw className="h-4 w-4" />
                           </button>
                           <button

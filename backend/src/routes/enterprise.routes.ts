@@ -84,4 +84,13 @@ router.patch('/organizations/:organizationId', requireAuth, enterpriseController
  */
 router.post('/permissions/check', requireAuth, enterpriseController.checkPermission);
 
+// ==================== SSO CONFIGURATION (Protected) ====================
+
+router.get('/sso/:organizationId/connections', requireAuth, enterpriseController.getSsoConnections);
+router.post('/sso/connections', requireAuth, enterpriseController.upsertSsoConnection);
+router.delete('/sso/connections/:connectionId', requireAuth, enterpriseController.deleteSsoConnection);
+router.post('/sso/domains', requireAuth, enterpriseController.createSsoDomain);
+router.post('/sso/domains/:domainId/verify', requireAuth, enterpriseController.verifySsoDomain);
+router.delete('/sso/domains/:domainId', requireAuth, enterpriseController.deleteSsoDomain);
+
 export default router;

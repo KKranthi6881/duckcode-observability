@@ -32,6 +32,54 @@ import type {
   OrganizationMembersResult,
 } from '../types/enterprise';
 
+async function fetchWithRetry(url: string, options: RequestInit, retries = 2, timeoutMs = 15000): Promise<Response> {
+  let lastError: unknown = null;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, { ...options, signal: controller.signal });
+      clearTimeout(timer);
+      if (res.ok) return res;
+      lastError = await res.json().catch(() => ({}));
+      if (attempt === retries) return res; // return final response to let caller surface body
+    } catch (e) {
+      clearTimeout(timer);
+      lastError = e;
+      if (attempt === retries) throw e;
+    }
+    await new Promise(r => setTimeout(r, 300 * (attempt + 1)));
+  }
+  throw lastError instanceof Error ? lastError : new Error('Request failed');
+}
+
+export interface SsoConnection {
+  id?: string;
+  organization_id: string;
+  provider_type: string;
+  provider_label?: string | null;
+  issuer_url?: string | null;
+  authorization_url?: string | null;
+  token_url?: string | null;
+  jwks_url?: string | null;
+  client_id: string;
+  has_client_secret?: boolean;
+  default_role_id?: string | null;
+  enforce_sso?: boolean;
+  allow_password_fallback?: boolean | null;
+  metadata?: Record<string, unknown>;
+}
+
+export interface SsoDomain {
+  id: string;
+  organization_id: string;
+  connection_id?: string | null;
+  domain_name: string;
+  is_verified?: boolean;
+  verified_at?: string | null;
+  created_at?: string;
+}
+
 // ==================== ORGANIZATIONS ====================
 
 export const organizationService = {
@@ -622,6 +670,146 @@ export const apiKeyService = {
   },
 };
 
+// ==================== SSO ====================
+
+export const ssoService = {
+  async getSsoConfig(organizationId: string): Promise<{ connections: SsoConnection[]; domains: SsoDomain[] }> {
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
+
+    const response = await fetchWithRetry(`${backendUrl}/api/enterprise/sso/${organizationId}/connections`, {
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'Failed to fetch SSO configuration');
+    }
+
+    const result = await response.json();
+    return { connections: (result.connections || []) as SsoConnection[], domains: (result.domains || []) as SsoDomain[] };
+  },
+
+  async upsertSsoConnection(payload: {
+    organization_id: string;
+    provider_type: string;
+    provider_label?: string;
+    issuer_url: string;
+    authorization_url?: string;
+    token_url?: string;
+    jwks_url?: string;
+    client_id: string;
+    client_secret?: string;
+    default_role_id?: string;
+    enforce_sso?: boolean;
+    allow_password_fallback?: boolean;
+    metadata?: Record<string, unknown>;
+  }): Promise<SsoConnection> {
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
+
+    const response = await fetchWithRetry(`${backendUrl}/api/enterprise/sso/connections`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'Failed to save SSO connection');
+    }
+
+    return await response.json();
+  },
+
+  async createSsoDomain(payload: { organization_id: string; domain_name: string; connection_id?: string | null }): Promise<SsoDomain> {
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
+
+    const response = await fetchWithRetry(`${backendUrl}/api/enterprise/sso/domains`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'Failed to create SSO domain');
+    }
+
+    return await response.json();
+  },
+
+  async verifySsoDomain(domainId: string, verification_token: string): Promise<SsoDomain> {
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
+
+    const response = await fetchWithRetry(`${backendUrl}/api/enterprise/sso/domains/${domainId}/verify`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ verification_token }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'Failed to verify SSO domain');
+    }
+
+    return await response.json();
+  },
+
+  async deleteSsoDomain(domainId: string): Promise<void> {
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
+
+    const response = await fetchWithRetry(`${backendUrl}/api/enterprise/sso/domains/${domainId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'Failed to delete SSO domain');
+    }
+  },
+
+  async deleteSsoConnection(connectionId: string): Promise<void> {
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
+
+    const response = await fetchWithRetry(`${backendUrl}/api/enterprise/sso/connections/${connectionId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'Failed to delete SSO connection');
+    }
+  },
+};
+
 // ==================== INVITATIONS ====================
 
 export const invitationService = {
@@ -657,18 +845,19 @@ export const invitationService = {
    * Invite user to organization (handles multiple emails and sends email)
    */
   async inviteUser(request: InviteUserRequest): Promise<OrganizationInvitation> {
-    const token = localStorage.getItem('token');
-    if (!token) throw new Error('Not authenticated');
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
 
     // Handle multiple emails
     const emails = Array.isArray(request.emails) ? request.emails : [request.emails];
 
     // Call backend API which handles both DB insert and email sending
-    const response = await fetch('http://localhost:3001/api/invitations/send', {
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+    const response = await fetchWithRetry(`${backendUrl}/api/invitations/send`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Bearer ${session.access_token}`,
       },
       body: JSON.stringify({
         organization_id: request.organization_id,
@@ -688,6 +877,27 @@ export const invitationService = {
     
     // Return first invitation (for backward compatibility)
     return result.invitations[0];
+  },
+
+  /**
+   * Resend an invitation email
+   */
+  async resendInvitation(invitationId: string): Promise<void> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
+
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+    const response = await fetchWithRetry(`${backendUrl}/api/invitations/${invitationId}/resend`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'Failed to resend invitation');
+    }
   },
 
   /**
@@ -719,6 +929,7 @@ export const enterpriseService = {
   team: teamService,
   role: roleService,
   apiKey: apiKeyService,
+  sso: ssoService,
   invitation: invitationService,
 };
 

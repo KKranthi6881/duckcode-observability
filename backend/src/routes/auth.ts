@@ -1,5 +1,8 @@
 import express, { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
+import fetch from 'node-fetch';
+import { decryptApiKey as decryptKey } from '../services/encryptionService';
 import { body, validationResult } from 'express-validator';
 import { SupabaseUser } from '../models/SupabaseUser';
 import { SupabaseBilling } from '../models/SupabaseBilling';
@@ -8,7 +11,7 @@ import { IdeSession } from '../models/IdeSession';
 import { AccountLockout } from '../models/AccountLockout';
 import { auth } from '../middleware/auth';
 import { AuthenticatedRequest } from '../middleware/supabaseAuth';
-import { supabaseAdmin } from '../config/supabase';
+import { supabaseAdmin, supabaseEnterprise } from '../config/supabase';
 import { 
   authRateLimiter, 
   registrationRateLimiter, 
@@ -19,6 +22,101 @@ import { passwordValidationMiddleware } from '../utils/passwordValidator';
 import SecurityAuditLogger, { SecurityEventType, SecurityEventSeverity } from '../services/SecurityAuditLogger';
 
 const router = express.Router();
+
+interface SsoEnforcementResult {
+  organizationId: string;
+  providerType: string;
+  providerLabel: string | null;
+  allowPasswordFallback: boolean;
+  enforce: boolean;
+  domain: string;
+}
+
+const getEmailDomain = (email: string): string | null => {
+  if (!email || typeof email !== 'string' || !email.includes('@')) {
+    return null;
+  }
+  const parts = email.split('@');
+  return parts[1]?.trim().toLowerCase() || null;
+};
+
+const getSsoRequirementForEmail = async (email: string): Promise<SsoEnforcementResult | null> => {
+  const domain = getEmailDomain(email);
+  if (!domain) {
+    return null;
+  }
+
+  const { data: domainRecord, error: domainError } = await supabaseEnterprise
+    .from('sso_domains')
+    .select('id, organization_id, connection_id, domain_name, is_verified')
+    .eq('domain_name', domain)
+    .eq('is_verified', true)
+    .maybeSingle();
+
+  if (domainError && domainError.code !== 'PGRST116') {
+    console.error('[SSO] Error fetching domain configuration:', domainError);
+    return null;
+  }
+
+  if (!domainRecord) {
+    return null;
+  }
+
+  let connection: {
+    id: string;
+    provider_type: string;
+    provider_label: string | null;
+    enforce_sso: boolean;
+    allow_password_fallback: boolean | null;
+  } | null = null;
+
+  if (domainRecord.connection_id) {
+    const { data, error } = await supabaseEnterprise
+      .from('sso_connections')
+      .select('id, provider_type, provider_label, enforce_sso, allow_password_fallback')
+      .eq('id', domainRecord.connection_id)
+      .maybeSingle();
+
+    if (error && error.code !== 'PGRST116') {
+      console.error('[SSO] Error fetching domain connection:', error);
+      return null;
+    }
+    connection = data;
+  } else {
+    const { data, error } = await supabaseEnterprise
+      .from('sso_connections')
+      .select('id, provider_type, provider_label, enforce_sso, allow_password_fallback')
+      .eq('organization_id', domainRecord.organization_id)
+      .order('enforce_sso', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error && error.code !== 'PGRST116') {
+      console.error('[SSO] Error fetching organization connection:', error);
+      return null;
+    }
+    connection = data;
+  }
+
+  if (!connection) {
+    return null;
+  }
+
+  const enforce =
+    connection.enforce_sso ||
+    connection.allow_password_fallback === false ||
+    connection.allow_password_fallback === null;
+
+  return {
+    organizationId: domainRecord.organization_id,
+    providerType: connection.provider_type,
+    providerLabel: connection.provider_label || null,
+    allowPasswordFallback: connection.allow_password_fallback ?? true,
+    enforce,
+    domain: domainRecord.domain_name
+  };
+};
 
 /**
  * ENTERPRISE-ENHANCED AUTHENTICATION ROUTES
@@ -47,6 +145,25 @@ router.post('/register',
     const userAgent = req.headers['user-agent'];
 
     try {
+      // Enforce SSO for domains that require it (Okta / Azure AD)
+      const ssoRequirement = await getSsoRequirementForEmail(email);
+      if (ssoRequirement?.enforce) {
+        await SecurityAuditLogger.logEvent(
+          SecurityEventType.REGISTRATION,
+          SecurityEventSeverity.WARNING,
+          `Password signup blocked: domain requires SSO (${ssoRequirement.providerType})`,
+          undefined,
+          { ipAddress, userAgent, additionalInfo: { email, provider: ssoRequirement.providerType } },
+          'failure'
+        );
+
+        return res.status(403).json({
+          error: 'sso_required',
+          provider: ssoRequirement.providerType,
+          message: `Users with @${getEmailDomain(email)} must sign in with enterprise SSO (${ssoRequirement.providerType}).`
+        });
+      }
+
       // Check if user already exists
       const existingUser = await SupabaseUser.findByEmail(email);
       if (existingUser) {
@@ -110,6 +227,17 @@ router.post('/register',
       
       const token = jwt.sign(payload, jwtSecret, { expiresIn: '30d' });
       
+      // Set secure httpOnly cookie session
+      try {
+        res.cookie('dc-auth', token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          path: '/',
+          maxAge: 30 * 24 * 60 * 60 * 1000,
+        });
+      } catch {}
+
       res.json({ 
         token,
         user: {
@@ -164,6 +292,22 @@ router.post('/login',
     const userAgent = req.headers['user-agent'];
 
     try {
+      const ssoRequirement = await getSsoRequirementForEmail(email);
+      if (ssoRequirement?.enforce && ssoRequirement.allowPasswordFallback === false) {
+        await SecurityAuditLogger.logEvent(
+          SecurityEventType.LOGIN_FAILED,
+          SecurityEventSeverity.WARNING,
+          `Password login blocked: domain requires SSO (${ssoRequirement.providerType})`,
+          undefined,
+          { ipAddress, userAgent, additionalInfo: { email, provider: ssoRequirement.providerType } },
+          'failure'
+        );
+        return res.status(403).json({
+          error: 'sso_required',
+          provider: ssoRequirement.providerType,
+          message: `Users with @${getEmailDomain(email)} must sign in with enterprise SSO (${ssoRequirement.providerType}).`
+        });
+      }
       // Check if account is locked
       const lockoutStatus = await AccountLockout.checkLockoutStatus(email);
       
@@ -243,6 +387,17 @@ router.post('/login',
       
       const token = jwt.sign(payload, jwtSecret, { expiresIn: '30d' });
       
+      // Set secure httpOnly cookie session
+      try {
+        res.cookie('dc-auth', token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          path: '/',
+          maxAge: 30 * 24 * 60 * 60 * 1000,
+        });
+      } catch {}
+
       res.json({
         token,
         user: {
@@ -689,66 +844,204 @@ router.post('/admin/unlock-account', auth, async (req: AuthenticatedRequest, res
     res.status(500).json({ message: 'Error unlocking account' });
   }
 });
-
 // @route   GET /api/auth/me
 // @desc    Get current user with role information
 // @access  Private
 router.get('/me', auth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user?.id;
-    
     if (!userId) {
       return res.status(401).json({ message: 'Not authenticated' });
     }
 
-    // Get user profile
-    const user = await SupabaseUser.findById(userId);
-    
-    if (!user) {
+    const { data: userData, error: userErr } = await supabaseAdmin.auth.admin.getUserById(userId);
+    if (userErr || !userData?.user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Get user's role from organization
-    const { supabaseAdmin } = require('../config/supabase');
-    const { data: roleData, error: roleError } = await supabaseAdmin
-      .schema('enterprise')
-      .from('user_organization_roles')
-      .select(`
-        role:role_id (
-          name,
-          display_name,
-          permissions
-        )
-      `)
-      .eq('user_id', userId)
-      .single();
-
-    let role = 'Member'; // default
+    let organizationId: string | null = null;
+    let roleName: string | null = null;
     let permissions: string[] = [];
+    const { data: roleJoin } = await supabaseEnterprise
+      .from('user_organization_roles')
+      .select('organization_id, role:organization_roles(name, permissions)')
+      .eq('user_id', userId)
+      .order('assigned_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
 
-    if (!roleError && roleData?.role) {
-      role = roleData.role.name || 'Member';
+    if (roleJoin) {
+      organizationId = roleJoin.organization_id;
+      roleName = (roleJoin as any).role?.name || null;
       try {
-        permissions = Array.isArray(roleData.role.permissions) 
-          ? roleData.role.permissions 
-          : JSON.parse(roleData.role.permissions || '[]');
-      } catch (e) {
-        permissions = [];
-      }
+        const perms = (roleJoin as any).role?.permissions;
+        permissions = Array.isArray(perms) ? perms : JSON.parse(perms || '[]');
+      } catch {}
     }
 
     res.json({
-      id: user.id,
-      email: user.email,
-      fullName: user.full_name,
-      role,
+      id: userData.user.id,
+      email: userData.user.email,
+      fullName: (userData.user.user_metadata as any)?.full_name || null,
+      avatarUrl: (userData.user.user_metadata as any)?.avatar_url || null,
+      organizationId,
+      role: roleName,
       permissions,
-      organizationId: user.organization_id,
     });
   } catch (err) {
     console.error('Error fetching current user:', err);
     res.status(500).json({ message: 'Error fetching user information' });
   }
+});
+
+// OIDC SSO
+const ssoStateStore = new Map<string, { codeVerifier: string; nonce: string; orgId: string; connectionId: string; clientId: string; issuerUrl: string; defaultRoleId: string | null }>();
+const getBackendBaseUrl = (req: Request) => process.env.BACKEND_URL || `${req.protocol}://${req.get('host')}` || 'http://localhost:3001';
+
+router.get('/sso/authorize', async (req: Request, res: Response) => {
+  try {
+    const email = (req.query.email as string) || '';
+    const domain = getEmailDomain(email);
+    if (!domain) return res.status(400).json({ message: 'Email is required' });
+
+    const { data: domainRecord } = await supabaseEnterprise
+      .from('sso_domains')
+      .select('id, organization_id, connection_id, is_verified')
+      .eq('domain_name', domain)
+      .eq('is_verified', true)
+      .maybeSingle();
+
+    if (!domainRecord) return res.status(404).json({ message: 'No SSO configured for this domain' });
+
+    let connectionId = domainRecord.connection_id as string | null;
+    if (!connectionId) {
+      const { data: fallback } = await supabaseEnterprise
+        .from('sso_connections')
+        .select('id')
+        .eq('organization_id', domainRecord.organization_id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      connectionId = fallback?.id || null;
+    }
+    if (!connectionId) return res.status(404).json({ message: 'No SSO connection available' });
+
+    const { data: conn } = await supabaseEnterprise
+      .from('sso_connections')
+      .select('id, provider_type, issuer_url, authorization_url, token_url, jwks_url, client_id, client_secret, default_role_id')
+      .eq('id', connectionId)
+      .single();
+    if (!conn) return res.status(404).json({ message: 'Connection not found' });
+
+    const openid: any = await import('openid-client');
+    const codeVerifier = openid.generators.codeVerifier();
+    const codeChallenge = openid.generators.codeChallenge(codeVerifier);
+    const state = crypto.randomBytes(16).toString('hex');
+    const nonce = crypto.randomBytes(16).toString('hex');
+
+    const discoveredIssuer = await openid.Issuer.discover(conn.issuer_url);
+    const clientSecret = conn.client_secret ? decryptKey(conn.client_secret) : undefined;
+    const client = new discoveredIssuer.Client({ client_id: conn.client_id, client_secret: clientSecret, redirect_uris: [`${getBackendBaseUrl(req)}/api/auth/sso/callback`], response_types: ['code'] });
+
+    ssoStateStore.set(state, { codeVerifier, nonce, orgId: domainRecord.organization_id, connectionId: conn.id, clientId: conn.client_id, issuerUrl: conn.issuer_url, defaultRoleId: conn.default_role_id || null });
+    setTimeout(() => ssoStateStore.delete(state), 10 * 60 * 1000);
+
+    const url = client.authorizationUrl({ scope: 'openid email profile', code_challenge: codeChallenge, code_challenge_method: 'S256', state, nonce });
+    res.redirect(url);
+  } catch (e) {
+    res.status(500).json({ message: 'Failed to start SSO' });
+  }
+});
+
+router.get('/sso/callback', async (req: Request, res: Response) => {
+  try {
+    const { state, code } = req.query as { state?: string; code?: string };
+    if (!state || !code) return res.status(400).send('Invalid callback');
+    const entry = ssoStateStore.get(state);
+    if (!entry) return res.status(400).send('State expired');
+
+    const openid: any = await import('openid-client');
+    const issuer = await openid.Issuer.discover(entry.issuerUrl);
+    // Look up connection to get encrypted client_secret
+    const { data: conn } = await supabaseEnterprise
+      .from('sso_connections')
+      .select('client_id, client_secret')
+      .eq('id', entry.connectionId)
+      .single();
+    const clientSecret = conn?.client_secret ? decryptKey(conn.client_secret) : undefined;
+    const client = new issuer.Client({ client_id: conn?.client_id || entry.clientId, client_secret: clientSecret, redirect_uris: [`${getBackendBaseUrl(req)}/api/auth/sso/callback`], response_types: ['code'] });
+
+    const params = { code: String(code), state: String(state) } as any;
+    const tokenSet = await client.callback(`${getBackendBaseUrl(req)}/api/auth/sso/callback`, params, { code_verifier: entry.codeVerifier, state: state, nonce: entry.nonce });
+    const claims = tokenSet.claims();
+    const email = (claims.email as string) || '';
+    const fullName = (claims.name as string) || '';
+    if (!email) return res.status(400).send('Email not found in IdP claims');
+
+    const { data: existing } = await supabaseEnterprise.rpc('get_user_by_email', { p_email: email });
+    let userId: string;
+    if (existing && existing.length > 0) {
+      userId = existing[0].id;
+    } else {
+      const { data: created, error: createErr } = await supabaseAdmin.auth.admin.createUser({ email, email_confirm: true, user_metadata: { full_name: fullName } });
+      if (createErr || !created?.user) return res.status(500).send('Failed to create user');
+      userId = created.user.id;
+    }
+
+    if (entry.orgId) {
+      await supabaseEnterprise
+        .from('user_organization_roles')
+        .upsert({ user_id: userId, organization_id: entry.orgId, role_id: entry.defaultRoleId }, { onConflict: 'user_id,organization_id' });
+    }
+
+    const payload = { user: { id: userId, email, fullName } };
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) return res.status(500).send('JWT not configured');
+    const token = jwt.sign(payload, jwtSecret, { expiresIn: '30d' });
+    try {
+      res.cookie('dc-auth', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/', maxAge: 30 * 24 * 60 * 60 * 1000 });
+    } catch {}
+
+    ssoStateStore.delete(state);
+    const redirectUrl = `${process.env.FRONTEND_URL || 'http://localhost:5175'}/dashboard/analytics`;
+    res.redirect(redirectUrl);
+  } catch (e) {
+    res.status(500).send('SSO callback failed');
+  }
+});
+
+// @route   GET /api/auth/sso/options
+// @desc    Check if an email domain has an SSO provider configured
+// @access  Public
+router.get('/sso/options', async (req: Request, res: Response) => {
+  try {
+    const email = (req.query.email as string) || '';
+    const domain = getEmailDomain(email);
+
+    if (!email || !domain) {
+      return res.json({ domain: domain || null, connection: null });
+    }
+
+    const requirement = await getSsoRequirementForEmail(email);
+
+    if (!requirement) {
+      return res.json({ domain, connection: null });
+    }
+
+    res.json({
+      domain,
+      connection: {
+        organizationId: requirement.organizationId,
+        providerType: requirement.providerType,
+        providerLabel: requirement.providerLabel,
+        enforce: requirement.enforce,
+        allowPasswordFallback: requirement.allowPasswordFallback
+      }
+});
+} catch (error) {
+console.error('SSO options lookup error:', error);
+res.status(500).json({ message: 'Failed to lookup SSO options' });
+}
 });
 
 export default router;

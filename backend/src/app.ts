@@ -5,7 +5,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import apiRoutes from './api/routes'; // Imports the main router from routes/index.ts
-import authRoutes from './routes/auth';
+import * as authRoutes from './routes/auth';
 import billingRoutes from './routes/billing';
 import analyticsRoutes from './routes/analytics';
 import enterpriseRoutes from './routes/enterprise.routes';
@@ -32,8 +32,8 @@ const app: Express = express();
 // No database connection setup required here since we use Supabase client
 
 // --- Middleware ---
-// Enable CORS
-app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5175' }));
+// Enable CORS (allow credentials for cookie-based auth)
+app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5175', credentials: true }));
 
 // Set security-related HTTP headers
 app.use(helmet());
@@ -60,8 +60,9 @@ app.get('/api/health', (req: Request, res: Response) => {
 });
 
 // Register API routes
+const authRouter: any = (authRoutes as any).default || (authRoutes as any);
 app.use('/api', apiRoutes); // Mounts all routes (GitHub, Insights, etc.) under /api
-app.use('/api/auth', authRoutes); // Authentication routes
+app.use('/api/auth', authRouter); // Authentication routes
 app.use('/api/billing', billingRoutes); // Billing and pricing routes
 app.use('/api/analytics', analyticsRoutes); // Analytics and profit tracking routes
 app.use('/api/enterprise', enterpriseRoutes); // Enterprise management routes (organizations, teams, roles, API keys)

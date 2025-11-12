@@ -9,6 +9,7 @@ export { Analytics } from './Analytics';
 export { ApiKeys } from './ApiKeys';
 export { Members } from './Members';
 export { SettingsPage } from './Settings';
+export { SSO } from './SSO';
 export { MetadataExtraction } from './MetadataExtraction';
 export { SearchPage } from './Search';
 export { AIDocumentation } from './AIDocumentation';

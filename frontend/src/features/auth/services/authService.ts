@@ -1,5 +1,5 @@
 import { supabase, supabaseDuckcode } from '../../../config/supabaseClient';
-import { SignInWithPasswordCredentials, SignUpWithPasswordCredentials } from '@supabase/supabase-js';
+import { SignInWithPasswordCredentials, SignUpWithPasswordCredentials, SignInWithSSO } from '@supabase/supabase-js';
 
 // Define a common interface for email/password credentials
 export interface EmailPasswordCredentials {
@@ -164,3 +164,17 @@ export async function signInWithGitHub(redirectTo?: string) {
 }
 
 // GitHub and SSO functions will be added here later
+export async function signInWithSSODomain(domain: string, redirectTo?: string) {
+  if (!domain) {
+    throw new Error('Domain is required for SSO sign in');
+  }
+
+  const params: SignInWithSSO = {
+    domain,
+    options: {
+      redirectTo: redirectTo || `${window.location.origin}/login`
+    }
+  };
+
+  return supabase.auth.signInWithSSO(params);
+}

@@ -2,8 +2,15 @@ import React, { useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthForm } from '../hooks/useAuthForm';
 import { useAuth } from '../contexts/AuthContext';
-import { signInWithEmailPassword, signInWithGitHub } from '../services/authService';
+import { signInWithEmailPassword, signInWithGitHub, signInWithSSODomain } from '../services/authService';
 import { supabase } from '@/config/supabaseClient';
+import { useSsoOptions } from '../hooks/useSsoOptions';
+import { getProviderDisplayName } from '../utils/providerDisplayName';
+
+const deriveDomain = (email: string): string | null => {
+  if (!email.includes('@')) return null;
+  return email.split('@')[1]?.trim().toLowerCase() || null;
+};
 
 const LoginPage: React.FC = () => {
   const {
@@ -15,18 +22,23 @@ const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { session } = useAuth();
+  const { connection: ssoConnection, domain: ssoDomain } = useSsoOptions(email);
   
   // Check if this is an IDE OAuth authorization request (JWT-based)
   const oauthToken = searchParams.get('oauth_token');
   const [oauthData, setOauthData] = React.useState<{state: string, redirect_uri: string} | null>(null);
   const isIdeAuth = !!oauthToken || !!oauthData;
+
+  const isSsoEnforced = Boolean(ssoConnection?.enforce);
+  const ssoButtonLabel = ssoConnection
+    ? `Continue with ${getProviderDisplayName(ssoConnection.providerType, ssoConnection.providerLabel)}`
+    : 'Continue with Enterprise SSO';
   
   // Decode OAuth token and check for existing session on component mount
-  React.useEffect(() => {
+  useEffect(() => {
     const handleOAuthAndSession = async () => {
       if (oauthToken) {
         try {
-          // Decode OAuth token
           const response = await fetch('/api/auth/ide/decode-oauth', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -38,17 +50,12 @@ const LoginPage: React.FC = () => {
             setOauthData({ state: data.state, redirect_uri: data.redirect_uri });
             console.log('Decoded OAuth data:', data);
             
-            // Immediately check for existing session
             const { data: { session: existingSession } } = await supabase.auth.getSession();
             if (existingSession?.access_token) {
-              console.log('LoginPage: Existing session detected during OAuth decode, redirecting immediately');
-              
-              // Redirect immediately to authorization endpoint
               const authUrl = `/api/auth/ide/authorize?oauth_token=${encodeURIComponent(oauthToken)}`;
               const authUrlWithToken = `${authUrl}&session_token=${encodeURIComponent(existingSession.access_token)}`;
-              
               window.location.href = authUrlWithToken;
-              return; // Exit early to prevent further processing
+              return;
             }
           }
         } catch (err) {
@@ -64,6 +71,12 @@ const LoginPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    if (isSsoEnforced) {
+      setError(`Your organization requires signing in with ${getProviderDisplayName(ssoConnection?.providerType, ssoConnection?.providerLabel)}. Use the SSO button above.`);
+      return;
+    }
+
     setIsLoading(true);
     try {
       const { data, error: signInError } = await signInWithEmailPassword({ email, password });
@@ -80,45 +93,21 @@ const LoginPage: React.FC = () => {
 
   useEffect(() => {
     const handleAuth = async () => {
-      console.log('LoginPage: useEffect triggered', { 
-        hasSession: !!session, 
-        session, 
-        isIdeAuth, 
-        oauthData 
-      });
-      
-      // Prevent infinite redirects by checking if we already processed this session
+      console.log('LoginPage: useEffect triggered', { hasSession: !!session, session, isIdeAuth, oauthData });
       const processedSessionId = sessionStorage.getItem('processedSessionId');
-      const currentSessionId = session?.access_token?.slice(-10); // Use last 10 chars as ID
+      const currentSessionId = session?.access_token?.slice(-10);
       
       if (session && processedSessionId !== currentSessionId) {
-        console.log('LoginPage: Session detected', { 
-          session, 
-          isIdeAuth, 
-          oauthData,
-          sessionKeys: Object.keys(session),
-          accessToken: session.access_token,
-          user: session.user
-        });
+        console.log('LoginPage: Session detected', { session, isIdeAuth, oauthData, sessionKeys: Object.keys(session) });
         
         if (isIdeAuth && oauthData) {
-          // OAuth-style IDE authentication - redirect to backend authorization endpoint
           console.log('LoginPage: OAuth IDE auth detected, redirecting to authorization endpoint');
           sessionStorage.setItem('processedSessionId', currentSessionId || '');
-          
-          // For IDE flows, redirect directly to authorization endpoint
           const authUrl = `/api/auth/ide/authorize?oauth_token=${encodeURIComponent(oauthToken || '')}`;
-          console.log('LoginPage: Redirecting to authorization endpoint:', authUrl);
-          
-          // Add session token as query parameter for authentication
           const authUrlWithToken = `${authUrl}&session_token=${encodeURIComponent(session.access_token)}`;
-          
-          // Direct redirect - backend will handle the IDE callback
           window.location.href = authUrlWithToken;
         } else {
           console.log('LoginPage: Regular web auth, redirecting to dashboard');
-          // Regular web authentication - go to main dashboard
-          // Admin users can navigate to admin panel from there
           navigate('/dashboard');
         }
       } else {
@@ -133,13 +122,36 @@ const LoginPage: React.FC = () => {
     setError(null);
     setIsLoading(true);
     try {
-      // Preserve IDE parameters in GitHub OAuth redirect
       const currentUrl = window.location.href;
       await signInWithGitHub(currentUrl);
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to sign in with GitHub.';
       setError(errorMessage);
       console.error('GitHub Sign-in error:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSsoSignIn = async () => {
+    setError(null);
+    const domain = ssoDomain || deriveDomain(email);
+    if (!domain) {
+      setError('Enter your work email to continue with SSO.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const { data, error: ssoError } = await signInWithSSODomain(domain, window.location.origin + '/login');
+      if (ssoError) throw ssoError;
+      if (data?.url) {
+        window.location.assign(data.url);
+      }
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to redirect to SSO. Please contact your administrator.';
+      setError(errorMessage);
+      console.error('SSO Sign-in error:', err);
     } finally {
       setIsLoading(false);
     }
@@ -160,7 +172,22 @@ const LoginPage: React.FC = () => {
         </div>
 
         {/* Form Card */}
-        <div className="rounded-[32px] border-2 border-[#e1dcd3] bg-white p-8 shadow-xl">
+        <div className="rounded-[32px] border-2 border-[#e1dcd3] bg-white p-8 shadow-xl space-y-6">
+          <div>
+            <button
+              onClick={handleSsoSignIn}
+              disabled={isLoading}
+              className="w-full px-6 py-3 rounded-2xl bg-white border-2 border-[#d6d2c9] text-base font-semibold text-[#161413] transition-all duration-300 hover:border-[#ff6a3c] hover:bg-[#fff4ee] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {ssoButtonLabel}
+            </button>
+            <p className="mt-2 text-xs text-[#7b7469]">
+              {ssoConnection
+                ? `Using ${getProviderDisplayName(ssoConnection.providerType, ssoConnection.providerLabel)} for ${ssoDomain ?? 'your organization'}.`
+                : 'Use your work email to discover if your organization has SSO enabled.'}
+            </p>
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label htmlFor="email" className="block text-sm font-semibold text-[#161413] mb-2">
@@ -172,7 +199,7 @@ const LoginPage: React.FC = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full px-4 py-3 rounded-2xl border-2 border-[#d6d2c9] bg-white text-base text-[#161413] transition focus:border-[#ff6a3c] focus:outline-none focus:ring-4 focus:ring-[#ff6a3c]/20"
+                className={`w-full px-4 py-3 rounded-2xl border-2 bg-white text-base text-[#161413] transition focus:border-[#ff6a3c] focus:outline-none focus:ring-4 focus:ring-[#ff6a3c]/20 ${isSsoEnforced ? 'border-amber-400 bg-amber-50' : 'border-[#d6d2c9]'}`}
                 placeholder="name@example.com"
               />
             </div>
@@ -192,11 +219,18 @@ const LoginPage: React.FC = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full px-4 py-3 rounded-2xl border-2 border-[#d6d2c9] bg-white text-base text-[#161413] transition focus:border-[#ff6a3c] focus:outline-none focus:ring-4 focus:ring-[#ff6a3c]/20"
+                disabled={isSsoEnforced}
+                className={`w-full px-4 py-3 rounded-2xl border-2 bg-white text-base text-[#161413] transition focus:border-[#ff6a3c] focus:outline-none focus:ring-4 focus:ring-[#ff6a3c]/20 ${isSsoEnforced ? 'border-amber-300 bg-amber-50 text-[#857b61]' : 'border-[#d6d2c9]'}`}
                 placeholder="••••••••"
               />
             </div>
             
+            {isSsoEnforced && (
+              <div className="p-4 rounded-2xl bg-amber-50 border-2 border-amber-200 text-sm text-[#775c1f]">
+                Your organization requires signing in with {getProviderDisplayName(ssoConnection?.providerType, ssoConnection?.providerLabel)}. Use the button above to continue.
+              </div>
+            )}
+
             {error && (
               <div className="p-4 rounded-2xl bg-red-50 border-2 border-red-200">
                 <p className="text-sm font-medium text-red-600">{error}</p>
@@ -205,7 +239,7 @@ const LoginPage: React.FC = () => {
             
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || isSsoEnforced}
               className="w-full px-6 py-4 rounded-2xl bg-gradient-to-r from-[#ff6a3c] to-[#d94a1e] text-base font-bold text-white shadow-lg transition-all duration-300 hover:scale-[1.02] hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
             >
               {isLoading ? 'Logging in...' : 'Sign in'}
@@ -228,13 +262,6 @@ const LoginPage: React.FC = () => {
               className="w-full px-6 py-3 rounded-2xl bg-white border-2 border-[#d6d2c9] text-base font-semibold text-[#161413] transition-all duration-300 hover:border-[#ff6a3c] hover:bg-[#fff4ee] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Sign in with GitHub
-            </button>
-            
-            <button
-              disabled={true}
-              className="w-full px-6 py-3 rounded-2xl bg-white border-2 border-[#e1dcd3] text-base font-semibold text-[#7b7469] cursor-not-allowed opacity-50"
-            >
-              Sign in with SSO (Coming soon)
             </button>
           </div>
           

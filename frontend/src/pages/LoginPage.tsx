@@ -13,16 +13,26 @@ export function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+      const res = await fetch(`${backendUrl}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email, password }),
       });
-
-      if (error) throw error;
-
-      console.log('Login successful:', data);
+      if (res.status === 403) {
+        const body = await res.json().catch(() => ({}));
+        if (body?.error === 'sso_required') {
+          setError(`SSO required for ${email.split('@')[1]}. Use enterprise SSO to sign in.`);
+          setLoading(false);
+          return;
+        }
+      }
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.msg || body?.error || 'Login failed');
+      }
       navigate('/dashboard/analytics');
     } catch (err) {
       console.error('Login error:', err);
@@ -30,6 +40,12 @@ export function LoginPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSso = () => {
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+    const emailParam = encodeURIComponent(email || '');
+    window.location.href = `${backendUrl}/api/auth/sso/authorize?email=${emailParam}`;
   };
 
   const handleSignUp = async () => {
@@ -120,6 +136,14 @@ export function LoginPage() {
               className="group relative w-full flex justify-center py-2 px-4 border border-indigo-600 text-sm font-medium rounded-md text-indigo-600 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
             >
               {loading ? 'Signing up...' : 'Sign up'}
+            </button>
+            <button
+              type="button"
+              onClick={handleSso}
+              disabled={loading}
+              className="group relative w-full flex justify-center py-2 px-4 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+            >
+              Sign in with SSO
             </button>
           </div>
         </form>

@@ -111,6 +111,12 @@ const IDERegisterPage: React.FC = () => {
       const data = await response.json();
 
       if (!response.ok) {
+        if (data.error === 'sso_required') {
+          throw new Error(
+            data.message ||
+              'This email domain requires enterprise SSO. Please sign in through the DuckCode login page using SSO, then relaunch from the IDE.'
+          );
+        }
         // Handle specific error cases with helpful messages
         if (response.status === 400) {
           if (data.msg?.includes('already exists')) {

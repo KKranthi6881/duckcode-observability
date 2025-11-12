@@ -16,19 +16,25 @@ declare global {
 export const requireAuth = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const authHeader = req.headers.authorization;
-    console.log('Auth header received:', authHeader ? 'Bearer token present' : 'No auth header');
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.log('Missing or invalid Authorization header format');
-      return res.status(401).json({ error: 'Unauthorized: Missing or invalid Authorization header.' });
+    const cookieToken = (req as any).cookies?.['dc-auth'];
+    console.log('Auth header:', authHeader ? 'present' : 'absent', '| Cookie dc-auth:', cookieToken ? 'present' : 'absent');
+
+    let token: string | null = null;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7);
+    } else if (cookieToken) {
+      token = cookieToken;
     }
 
-    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
-    console.log('Extracted token length:', token.length);
+    if (!token) {
+      return res.status(401).json({ error: 'Unauthorized: Missing token.' });
+    }
+
+    console.log('Token length:', token.length);
 
     let user = null;
 
-    // Try custom JWT validation first (for backend-issued tokens)
+    // Try custom JWT validation first (for backend-issued cookies or tokens)
     const jwtSecret = process.env.JWT_SECRET;
     if (jwtSecret) {
       try {

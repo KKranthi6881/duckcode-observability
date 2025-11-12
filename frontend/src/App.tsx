@@ -37,6 +37,7 @@ import {
   Analytics as AdminAnalytics,
   ApiKeys as AdminApiKeys,
   Members as AdminMembers,
+  SSO as AdminSSO,
   SettingsPage as AdminSettings,
   SearchPage as AdminSearch,
   AIDocumentation as AdminAIDocumentation,
@@ -130,6 +131,7 @@ const AppContent = () => {
             <Route path="analytics" element={<AdminAnalytics />} />
             <Route path="api-keys" element={<AdminApiKeys />} />
             <Route path="members" element={<AdminMembers />} />
+            <Route path="sso" element={<AdminSSO />} />
             <Route path="metadata" element={<ConnectorsHub />} />
             <Route path="connectors" element={<ConnectorsHub />} />
             <Route path="ai-documentation" element={<AdminAIDocumentation />} />

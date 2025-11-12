@@ -3,6 +3,15 @@ import { supabaseEnterprise } from '../../config/supabase';
 import { encryptApiKey, decryptApiKey as decryptKey, maskApiKey, validateApiKeyFormat } from '../../services/encryptionService';
 import crypto from 'crypto';
 
+const sanitizeSsoConnection = (connection: Record<string, any>) => {
+  if (!connection) return connection;
+  const { client_secret, ...safeConnection } = connection;
+  return {
+    ...safeConnection,
+    has_client_secret: Boolean(client_secret)
+  };
+};
+
 // ==================== API KEYS ====================
 
 /**
@@ -69,6 +78,62 @@ export const createApiKey = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Create API key error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const deleteSsoConnection = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { connectionId } = req.params;
+
+    const { data: connection, error: connError } = await supabaseEnterprise
+      .from('sso_connections')
+      .select('id, organization_id')
+      .eq('id', connectionId)
+      .single();
+
+    if (connError || !connection) {
+      return res.status(404).json({ error: 'Connection not found' });
+    }
+
+    const { data: isAdmin } = await supabaseEnterprise
+      .rpc('is_organization_admin', {
+        p_user_id: userId,
+        p_organization_id: connection.organization_id,
+      });
+
+    if (!isAdmin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const { error: nullifyError } = await supabaseEnterprise
+      .from('sso_domains')
+      .update({ connection_id: null })
+      .eq('connection_id', connectionId);
+
+    if (nullifyError) {
+      console.error('Failed to detach domains from connection:', nullifyError);
+      return res.status(500).json({ error: 'Failed to update related domains' });
+    }
+
+    const { error: deleteError } = await supabaseEnterprise
+      .from('sso_connections')
+      .delete()
+      .eq('id', connectionId);
+
+    if (deleteError) {
+      console.error('Failed to delete SSO connection:', deleteError);
+      return res.status(500).json({ error: 'Failed to delete SSO connection' });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete SSO connection error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -220,6 +285,286 @@ export const decryptApiKey = async (req: Request, res: Response) => {
     res.json({ decrypted_key: decrypted });
   } catch (error) {
     console.error('Decrypt API key error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// ==================== SSO CONFIGURATION ====================
+
+export const getSsoConnections = async (req: Request, res: Response) => {
+  try {
+    const { organizationId } = req.params;
+    const userId = (req as any).user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { data: isAdmin } = await supabaseEnterprise
+      .rpc('is_organization_admin', {
+        p_user_id: userId,
+        p_organization_id: organizationId,
+      });
+
+    if (!isAdmin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const { data: connections, error: connectionsError } = await supabaseEnterprise
+      .from('sso_connections')
+      .select('*')
+      .eq('organization_id', organizationId)
+      .order('created_at', { ascending: false });
+
+    if (connectionsError) {
+      console.error('Failed to fetch SSO connections:', connectionsError);
+      return res.status(500).json({ error: 'Failed to fetch SSO connections' });
+    }
+
+    const { data: domains, error: domainsError } = await supabaseEnterprise
+      .from('sso_domains')
+      .select('*')
+      .eq('organization_id', organizationId)
+      .order('created_at', { ascending: false });
+
+    if (domainsError) {
+      console.error('Failed to fetch SSO domains:', domainsError);
+      return res.status(500).json({ error: 'Failed to fetch SSO domains' });
+    }
+
+    res.json({
+      connections: (connections || []).map(sanitizeSsoConnection),
+      domains: domains || []
+    });
+  } catch (error) {
+    console.error('Get SSO configuration error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const upsertSsoConnection = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const {
+      organization_id,
+      provider_type,
+      provider_label,
+      issuer_url,
+      authorization_url,
+      token_url,
+      jwks_url,
+      client_id,
+      client_secret,
+      default_role_id,
+      enforce_sso,
+      allow_password_fallback,
+      metadata,
+    } = req.body;
+
+    if (!organization_id || !provider_type || !provider_label || !issuer_url || !client_id) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const { data: isAdmin } = await supabaseEnterprise
+      .rpc('is_organization_admin', {
+        p_user_id: userId,
+        p_organization_id: organization_id,
+      });
+
+    if (!isAdmin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const payload: Record<string, any> = {
+      organization_id,
+      provider_type,
+      provider_label,
+      issuer_url,
+      authorization_url: authorization_url || null,
+      token_url: token_url || null,
+      jwks_url: jwks_url || null,
+      client_id,
+      default_role_id: default_role_id || null,
+      enforce_sso: enforce_sso ?? false,
+      allow_password_fallback: allow_password_fallback ?? true,
+      metadata: metadata || {},
+    };
+
+    if (client_secret) {
+      payload.client_secret = encryptApiKey(client_secret);
+    }
+
+    const { data, error } = await supabaseEnterprise
+      .from('sso_connections')
+      .upsert(payload, { onConflict: 'organization_id,provider_type' })
+      .select('*')
+      .single();
+
+    if (error) {
+      console.error('Failed to upsert SSO connection:', error);
+      return res.status(500).json({ error: 'Failed to save SSO connection' });
+    }
+
+    res.status(201).json(sanitizeSsoConnection(data));
+  } catch (error) {
+    console.error('Upsert SSO connection error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const createSsoDomain = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { organization_id, domain_name, connection_id } = req.body;
+
+    if (!organization_id || !domain_name) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const normalizedDomain = domain_name.trim().toLowerCase();
+    const { data: isAdmin } = await supabaseEnterprise
+      .rpc('is_organization_admin', {
+        p_user_id: userId,
+        p_organization_id: organization_id,
+      });
+
+    if (!isAdmin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const { data, error } = await supabaseEnterprise
+      .from('sso_domains')
+      .insert({
+        organization_id,
+        connection_id: connection_id || null,
+        domain_name: normalizedDomain,
+        verification_token: crypto.randomBytes(24).toString('hex'),
+      })
+      .select('*')
+      .single();
+
+    if (error) {
+      console.error('Failed to create SSO domain:', error);
+      return res.status(500).json({ error: 'Failed to create domain' });
+    }
+
+    res.status(201).json(data);
+  } catch (error) {
+    console.error('Create SSO domain error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const verifySsoDomain = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { domainId } = req.params;
+    const { verification_token } = req.body;
+
+    if (!verification_token) {
+      return res.status(400).json({ error: 'Verification token required' });
+    }
+
+    const { data: domainRecord, error: domainError } = await supabaseEnterprise
+      .from('sso_domains')
+      .select('*')
+      .eq('id', domainId)
+      .single();
+
+    if (domainError || !domainRecord) {
+      return res.status(404).json({ error: 'Domain not found' });
+    }
+
+    const { data: isAdmin } = await supabaseEnterprise
+      .rpc('is_organization_admin', {
+        p_user_id: userId,
+        p_organization_id: domainRecord.organization_id,
+      });
+
+    if (!isAdmin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    if (domainRecord.verification_token !== verification_token) {
+      return res.status(400).json({ error: 'Invalid verification token' });
+    }
+
+    const { data, error } = await supabaseEnterprise
+      .from('sso_domains')
+      .update({
+        is_verified: true,
+        verified_at: new Date().toISOString(),
+      })
+      .eq('id', domainId)
+      .select('*')
+      .single();
+
+    if (error) {
+      console.error('Failed to verify SSO domain:', error);
+      return res.status(500).json({ error: 'Failed to verify domain' });
+    }
+
+    res.json(data);
+  } catch (error) {
+    console.error('Verify SSO domain error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const deleteSsoDomain = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { domainId } = req.params;
+
+    const { data: domainRecord, error: domainError } = await supabaseEnterprise
+      .from('sso_domains')
+      .select('id, organization_id')
+      .eq('id', domainId)
+      .single();
+
+    if (domainError || !domainRecord) {
+      return res.status(404).json({ error: 'Domain not found' });
+    }
+
+    const { data: isAdmin } = await supabaseEnterprise
+      .rpc('is_organization_admin', {
+        p_user_id: userId,
+        p_organization_id: domainRecord.organization_id,
+      });
+
+    if (!isAdmin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const { error } = await supabaseEnterprise
+      .from('sso_domains')
+      .delete()
+      .eq('id', domainId);
+
+    if (error) {
+      console.error('Failed to delete SSO domain:', error);
+      return res.status(500).json({ error: 'Failed to delete domain' });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete SSO domain error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
