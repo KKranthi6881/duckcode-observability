@@ -205,7 +205,7 @@ const GitHubCallbackPage: React.FC = () => {
                 {user ? 'Link to My Account' : 'Please Login First'}
               </button>
               <Link 
-                to="/dashboard/settings" 
+                to="/dashboard/profile" 
                 style={{ 
                   marginTop: '1rem', 
                   display: 'inline-block', 
@@ -221,8 +221,8 @@ const GitHubCallbackPage: React.FC = () => {
             </div>
           ) : (
             <div>
-              <Link to="/dashboard/settings" style={{ marginTop: '1rem', display: 'inline-block', padding: '0.5rem 1rem', backgroundColor: '#f44336', color: 'white', textDecoration: 'none', borderRadius: '4px', marginRight: '10px' }}>
-                Go to Settings
+              <Link to="/dashboard/profile" style={{ marginTop: '1rem', display: 'inline-block', padding: '0.5rem 1rem', backgroundColor: '#f44336', color: 'white', textDecoration: 'none', borderRadius: '4px', marginRight: '10px' }}>
+                Go to Profile
               </Link>
               <button onClick={() => window.location.reload()} style={{ marginTop: '1rem', padding: '0.5rem 1rem', backgroundColor: '#2196F3', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
                 Retry

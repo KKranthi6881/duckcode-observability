@@ -10,6 +10,7 @@ import {
   Plug,
   LogOut,
   Shield,
+  CreditCard,
 } from 'lucide-react';
 import { supabase } from '../../config/supabaseClient';
 import type { Organization } from '../../types/enterprise';
@@ -81,6 +82,7 @@ export const AdminLayout: React.FC = () => {
   const navigationItems = [
     { name: 'Main Dashboard', path: '/dashboard', icon: Home, highlight: true },
     { name: 'Cost Analytics', path: '/admin/analytics', icon: TrendingUp },
+    { name: 'Subscription', path: '/admin/subscription', icon: CreditCard },
     { name: 'Connectors Hub', path: '/admin/connectors', icon: Plug },
     { name: 'API Keys', path: '/admin/api-keys', icon: Key },
     { name: 'Members', path: '/admin/members', icon: Users },

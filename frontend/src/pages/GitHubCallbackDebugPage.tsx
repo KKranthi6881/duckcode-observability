@@ -115,7 +115,7 @@ const GitHubCallbackDebugPage: React.FC = () => {
       
       <div style={{ marginTop: '20px' }}>
         <Link to="/dashboard" style={{ marginRight: '20px' }}>Go to Dashboard</Link>
-        <Link to="/dashboard/settings">Go to Settings</Link>
+        <Link to="/dashboard/profile">Go to Profile</Link>
       </div>
     </div>
   );

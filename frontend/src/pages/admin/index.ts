@@ -14,6 +14,7 @@ export { MetadataExtraction } from './MetadataExtraction';
 export { SearchPage } from './Search';
 export { AIDocumentation } from './AIDocumentation';
 export { default as ConnectorsHub } from './ConnectorsHub';
+export { default as Subscription } from './Subscription';
 
 // Export types for convenience
 export type { Organization, Team, TeamType } from '../../types/enterprise';

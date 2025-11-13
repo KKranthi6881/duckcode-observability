@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { Building2, AlertTriangle, Save, Trash2, Users, CreditCard, Globe } from 'lucide-react';
+import { Building2, AlertTriangle, Save, Trash2, Globe } from 'lucide-react';
 import type { Organization } from '../../types/enterprise';
 import { organizationService } from '../../services/enterpriseService';
 
@@ -17,13 +17,9 @@ export const SettingsPage: React.FC = () => {
   const [formData, setFormData] = useState<{
     display_name: string;
     domain: string;
-    max_users: number;
-    plan_type: 'trial' | 'starter' | 'professional' | 'enterprise';
   }>({
     display_name: '',
     domain: '',
-    max_users: 10,
-    plan_type: 'trial',
   });
 
   useEffect(() => {
@@ -31,8 +27,6 @@ export const SettingsPage: React.FC = () => {
       setFormData({
         display_name: selectedOrg.display_name,
         domain: selectedOrg.domain || '',
-        max_users: selectedOrg.max_users,
-        plan_type: selectedOrg.plan_type,
       });
     }
   }, [selectedOrg]);
@@ -51,13 +45,6 @@ export const SettingsPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const planFeatures = {
-    trial: ['Up to 10 users', '100 API calls/day', 'Community support', '7-day retention'],
-    starter: ['Up to 50 users', '10,000 API calls/day', 'Email support', '30-day retention'],
-    professional: ['Up to 200 users', 'Unlimited API calls', 'Priority support', '90-day retention', 'SSO enabled'],
-    enterprise: ['Unlimited users', 'Unlimited API calls', '24/7 support', 'Custom retention', 'SSO + SAML', 'Custom contracts'],
   };
 
   return (
@@ -141,67 +128,6 @@ export const SettingsPage: React.FC = () => {
             <Save className="h-4 w-4" />
             <span>{loading ? 'Saving...' : 'Save Changes'}</span>
           </button>
-        </div>
-      </div>
-
-      {/* Plan & Billing */}
-      <div className="bg-card border border-border rounded-lg mb-6">
-        <div className="p-6 border-b border-border">
-          <div className="flex items-center space-x-2 mb-4">
-            <CreditCard className="h-5 w-5 text-primary" />
-            <h2 className="text-lg font-bold text-foreground">Plan & Billing</h2>
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-blue-600/10 border border-blue-600/20 rounded-lg">
-              <div>
-                <p className="font-bold text-blue-300 capitalize">
-                  {selectedOrg?.plan_type} Plan
-                </p>
-                <p className="text-sm text-blue-400/80 mt-1">
-                  Status: <span className="font-semibold capitalize">{selectedOrg?.status}</span>
-                </p>
-              </div>
-              <button className="px-4 py-2 bg-primary text-foreground rounded-lg hover:bg-primary/90 font-semibold">
-                Upgrade Plan
-              </button>
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-foreground mb-3">
-                Plan Features
-              </label>
-              <div className="space-y-2">
-                {planFeatures[selectedOrg?.plan_type || 'trial'].map((feature, index) => (
-                  <div key={index} className="flex items-center space-x-2 text-sm text-foreground">
-                    <div className="h-1.5 w-1.5 rounded-full bg-primary"></div>
-                    <span>{feature}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-foreground mb-2">
-                User Limit
-              </label>
-              <div className="flex items-center space-x-4">
-                <Users className="h-5 w-5 text-muted-foreground" />
-                <div className="flex-1">
-                  <input
-                    type="number"
-                    value={formData.max_users}
-                    onChange={(e) => setFormData({ ...formData, max_users: parseInt(e.target.value) })}
-                    min="1"
-                    className="w-32 px-3 py-2 bg-muted border border-border text-foreground rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-transparent"
-                  />
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Maximum number of users allowed
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
 

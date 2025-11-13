@@ -472,7 +472,7 @@ export function CodeBase() {
 
   // Handle GitHub Connection
   const handleConnectGitHub = () => {
-    navigate('/dashboard/settings?tab=github');
+    navigate('/admin'); // GitHub settings moved to admin portal
   };
 
   // Handle repository selection with view change

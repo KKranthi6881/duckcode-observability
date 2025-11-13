@@ -6,6 +6,7 @@ export interface AuthenticatedRequest extends Request {
   user?: {
     id: string;
     email: string;
+    organization_id?: string;
   };
 }
 
@@ -23,10 +24,17 @@ export const auth = async (req: AuthenticatedRequest, res: Response, next: NextF
     const { data: { user }, error } = await supabaseDuckCode.auth.getUser(token);
     
     if (user && !error) {
-      // Valid Supabase token
+      // Valid Supabase token - fetch organization_id from profile
+      const { data: profile } = await supabaseDuckCode
+        .from('user_profiles')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .single();
+      
       req.user = {
         id: user.id,
-        email: user.email || ''
+        email: user.email || '',
+        organization_id: profile?.organization_id
       };
       return next();
     }

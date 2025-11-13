@@ -1,47 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
-import { User, Lock, CreditCard, Bell, Check, Star, Github } from 'lucide-react';
+import { User, Lock, Bell, Check, Github } from 'lucide-react';
 import { PasswordChangeModal } from '@/components/modals/PasswordChangeModal';
-import { PaymentModal } from '@/components/modals/PaymentModal';
 import { Button } from '@/components/ui/button';
-
-type Plan = {
-  name: string;
-  price: string;
-  period: string;
-  description: string;
-  features: string[];
-  current?: boolean;
-  popular?: boolean;
-};
-
-const plans: Plan[] = [{
-  name: 'Free',
-  price: '$0',
-  period: 'forever',
-  description: 'Basic features for individuals getting started',
-  features: ['Basic data lineage', 'Limited catalog entries', 'Community support', '1 user'],
-  current: true
-}, {
-  name: 'Starter',
-  price: '$29',
-  period: 'per month',
-  description: 'Everything in Free plus enhanced features',
-  features: ['Advanced data lineage', 'Unlimited catalog entries', 'Email support', 'Up to 5 users']
-}, {
-  name: 'Pro',
-  price: '$99',
-  period: 'per month',
-  description: 'Professional features for growing teams',
-  features: ['Column-level lineage', 'Advanced governance', 'Priority support', 'Up to 20 users'],
-  popular: true
-}, {
-  name: 'Pro Plus',
-  price: '$299',
-  period: 'per month',
-  description: 'Enterprise-grade features and support',
-  features: ['Custom integrations', 'Enterprise governance', 'Dedicated support', 'Unlimited users']
-}];
 
 const GitHubIntegrationTab = () => {
   return (
@@ -142,8 +103,6 @@ export function Settings() {
     marketing: false
   });
   const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [form, setForm] = useState({
     fullName: 'John Doe',
@@ -153,7 +112,7 @@ export function Settings() {
   });
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files[0];
+    const file = event.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -171,11 +130,6 @@ export function Settings() {
     setShowPasswordModal(true);
   };
 
-  const handleUpdatePayment = (plan: Plan) => {
-    setSelectedPlan(plan);
-    setShowPaymentModal(true);
-  };
-
   const notificationOptions: { key: NotificationKey; label: string; description: string }[] = [
     { key: 'email', label: 'Email Notifications', description: 'Receive important updates via email' },
     { key: 'push', label: 'Push Notifications', description: 'Get real-time alerts in your browser' },
@@ -186,7 +140,6 @@ export function Settings() {
   const tabs = [
     { id: 'profile', label: 'Profile', icon: User },
     { id: 'notifications', label: 'Notifications', icon: Bell },
-    { id: 'billing', label: 'Billing & Plans', icon: CreditCard },
     { id: 'github', label: 'GitHub Integration', icon: Github }
   ];
 
@@ -389,111 +342,6 @@ export function Settings() {
               </div>
             )}
 
-            {/* Billing & Plans */}
-            {activeTab === 'billing' && (
-              <div className="space-y-8">
-                <div>
-                  <h3 className="text-xl font-bold text-foreground">Billing & Subscription</h3>
-                  <p className="text-muted-foreground mt-1">
-                    Manage your subscription plan and payment methods
-                  </p>
-                </div>
-
-                {/* Current Plan Overview */}
-                <div className="bg-muted rounded-xl p-6 border-2 border-primary/30">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-lg font-bold text-foreground">Current Plan: Free</h4>
-                      <p className="text-muted-foreground">You're currently on the Free plan</p>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-bold text-primary">$0</div>
-                      <div className="text-sm text-muted-foreground">per month</div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Available Plans */}
-                <div>
-                  <h4 className="text-lg font-bold text-foreground mb-6">Available Plans</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {plans.map((plan) => (
-                      <div
-                        key={plan.name}
-                        className={`relative rounded-xl border-2 p-6 transition-all bg-muted ${
-                          plan.current
-                            ? 'border-primary shadow-lg shadow-primary/20'
-                            : 'border-border hover:border-primary/50 hover:shadow-md'
-                        }`}
-                      >
-                        {plan.popular && (
-                          <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                            <span className="inline-flex items-center rounded-full bg-primary px-3 py-1 text-xs font-bold text-foreground shadow-lg">
-                              <Star className="h-3 w-3 mr-1" />
-                              Most Popular
-                            </span>
-                          </div>
-                        )}
-                        
-                        <div className="text-center">
-                          <h3 className="text-lg font-bold text-foreground">{plan.name}</h3>
-                          <div className="mt-3">
-                            <span className="text-3xl font-bold text-foreground">{plan.price}</span>
-                            <span className="text-muted-foreground text-sm">/{plan.period}</span>
-                          </div>
-                          <p className="mt-3 text-sm text-muted-foreground">{plan.description}</p>
-                        </div>
-
-                        <ul className="mt-6 space-y-3">
-                          {plan.features.map((feature) => (
-                            <li key={feature} className="flex items-start text-sm">
-                              <Check className="h-4 w-4 text-primary mr-3 flex-shrink-0 mt-0.5" />
-                              <span className="text-foreground">{feature}</span>
-                            </li>
-                          ))}
-                        </ul>
-
-                        <button
-                          onClick={() => !plan.current && handleUpdatePayment(plan)}
-                          disabled={plan.current}
-                          className={`mt-6 w-full rounded-lg px-4 py-3 text-sm font-semibold transition-all ${
-                            plan.current
-                              ? 'bg-accent text-muted-foreground cursor-not-allowed'
-                              : plan.popular
-                              ? 'bg-primary text-foreground hover:bg-primary/90 hover:shadow-lg hover:scale-105'
-                              : 'bg-primary text-foreground hover:bg-primary/90 hover:shadow-md'
-                          }`}
-                        >
-                          {plan.current ? 'Current Plan' : 'Upgrade'}
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Payment Method Section */}
-                <div className="border-t border-border pt-8">
-                  <h4 className="text-lg font-bold text-foreground mb-6">Payment Method</h4>
-                  <div className="bg-muted border border-border rounded-xl p-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        <div className="h-12 w-12 bg-accent rounded-lg flex items-center justify-center">
-                          <CreditCard className="h-6 w-6 text-muted-foreground" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-foreground">No payment method added</p>
-                          <p className="text-sm text-muted-foreground">Add a payment method to upgrade your plan</p>
-                        </div>
-                      </div>
-                      <button className="px-4 py-2 bg-primary text-foreground rounded-lg hover:bg-primary/90 font-semibold transition-colors">
-                        Add Payment Method
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* GitHub Integration */}
             {activeTab === 'github' && <GitHubIntegrationTab />}
           </div>
@@ -502,13 +350,6 @@ export function Settings() {
 
       {/* Modals */}
       <PasswordChangeModal isOpen={showPasswordModal} onClose={() => setShowPasswordModal(false)} />
-      {selectedPlan && (
-        <PaymentModal
-          isOpen={showPaymentModal}
-          onClose={() => setShowPaymentModal(false)}
-          plan={selectedPlan}
-        />
-      )}
     </div>
   );
 }

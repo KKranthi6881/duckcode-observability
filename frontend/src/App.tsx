@@ -5,7 +5,7 @@ import { Hero } from './components/Hero';
 // import { CTA } from './components/CTA'; // CTA and Footer removed from landing if user is redirected
 // import { Footer } from './components/Footer';
 import { DashboardLayout } from './pages/dashboard/DashboardLayout';
-import { Settings } from './pages/dashboard/Settings';
+import { Profile } from './pages/dashboard/Profile';
 import { CodeBase } from './pages/dashboard/CodeBase';
 import { AnalysisSetup } from './pages/dashboard/AnalysisSetup';
 import { EnhancedAnalytics } from './pages/dashboard/EnhancedAnalytics';
@@ -42,6 +42,7 @@ import {
   SearchPage as AdminSearch,
   AIDocumentation as AdminAIDocumentation,
   ConnectorsHub,
+  Subscription as AdminSubscription,
 } from './pages/admin';
 import LineagePage from './pages/lineage/LineagePage';
 
@@ -121,7 +122,7 @@ const AppContent = () => {
             <Route path="snowflake-recommendations" element={<SnowflakeRecommendations />} />
             <Route path="lineage" element={<DataLineage />} />
             <Route path="my-usage" element={<UserAnalytics />} />
-            <Route path="settings" element={<Settings />} />
+            <Route path="profile" element={<Profile />} />
           </Route>
           <Route path="/profile" element={<ProfilePage />} />
           
@@ -129,6 +130,7 @@ const AppContent = () => {
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<AdminDashboard />} />
             <Route path="analytics" element={<AdminAnalytics />} />
+            <Route path="subscription" element={<AdminSubscription />} />
             <Route path="api-keys" element={<AdminApiKeys />} />
             <Route path="members" element={<AdminMembers />} />
             <Route path="sso" element={<AdminSSO />} />

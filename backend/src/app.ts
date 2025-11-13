@@ -8,6 +8,8 @@ import apiRoutes from './api/routes'; // Imports the main router from routes/ind
 import * as authRoutes from './routes/auth';
 import billingRoutes from './routes/billing';
 import analyticsRoutes from './routes/analytics';
+import subscriptionRoutes from './routes/subscriptions';
+import stripeWebhookRoutes from './routes/stripe-webhook';
 import enterpriseRoutes from './routes/enterprise.routes';
 import emailRoutes from './routes/email.routes';
 import invitationsRoutes from './routes/invitations.routes';
@@ -38,6 +40,9 @@ app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5175', cred
 // Set security-related HTTP headers
 app.use(helmet());
 
+// Stripe webhook needs raw body - must be registered before JSON parsing
+app.use('/api/stripe/webhook', stripeWebhookRoutes);
+
 // Parse incoming requests with JSON payloads
 app.use(express.json());
 
@@ -64,6 +69,7 @@ const authRouter: any = (authRoutes as any).default || (authRoutes as any);
 app.use('/api', apiRoutes); // Mounts all routes (GitHub, Insights, etc.) under /api
 app.use('/api/auth', authRouter); // Authentication routes
 app.use('/api/billing', billingRoutes); // Billing and pricing routes
+app.use('/api/subscriptions', subscriptionRoutes); // Stripe subscription management
 app.use('/api/analytics', analyticsRoutes); // Analytics and profit tracking routes
 app.use('/api/enterprise', enterpriseRoutes); // Enterprise management routes (organizations, teams, roles, API keys)
 app.use('/api/email', emailRoutes); // Email service routes (testing and notifications)

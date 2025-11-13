@@ -21,8 +21,8 @@ const navigation = [
     href: '/dashboard/snowflake-intelligence',
     icon: Snowflake
   }, {
-    name: 'Settings',
-    href: '/dashboard/settings',
+    name: 'Profile',
+    href: '/dashboard/profile',
     icon: SettingsIcon
   }
 ];
