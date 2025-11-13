@@ -51,50 +51,50 @@
     --chart-5: 27 87% 67%;
   }
 
-  /* Dark Theme - Rich dark palette with good contrast */
+  /* Dark Theme - Modern, lighter dark palette with excellent contrast */
   .dark {
-    --background: 0 0% 6%;
-    --foreground: 0 0% 95%;
+    --background: 222 47% 11%;     /* Softer dark blue-gray background */
+    --foreground: 210 40% 98%;     /* Crisp white text */
 
-    --muted: 0 0% 12%;
-    --muted-foreground: 0 0% 60%;
+    --muted: 217 33% 17%;          /* Lighter muted areas */
+    --muted-foreground: 215 20% 65%; /* Better readable muted text */
 
-    --popover: 0 0% 8%;
-    --popover-foreground: 0 0% 95%;
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 40% 98%;
 
-    --border: 0 0% 18%;
-    --input: 0 0% 18%;
+    --border: 217 33% 21%;         /* Visible but subtle borders */
+    --input: 217 33% 17%;          /* Distinct input backgrounds */
 
-    --card: 0 0% 9%;
-    --card-foreground: 0 0% 95%;
+    --card: 220 40% 14%;           /* Elevated card backgrounds */
+    --card-foreground: 210 40% 98%;
 
-    --primary: 16 100% 62%;  /* Brand color #ff6a3c */
+    --primary: 16 100% 62%;        /* Brand color #ff6a3c */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 0 0% 14%;
-    --secondary-foreground: 0 0% 95%;
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 98%;
 
-    --accent: 0 0% 14%;
-    --accent-foreground: 0 0% 95%;
+    --accent: 217 33% 20%;         /* Slightly lighter for hover states */
+    --accent-foreground: 210 40% 98%;
 
-    --destructive: 0 63% 45%;
+    --destructive: 0 63% 50%;
     --destructive-foreground: 0 0% 100%;
 
     --ring: 16 100% 62%;
 
-    --sidebar: 0 0% 5%;
-    --sidebar-foreground: 0 0% 55%;
-    --sidebar-border: 0 0% 15%;
+    --sidebar: 222 47% 9%;         /* Slightly darker than main background */
+    --sidebar-foreground: 215 20% 70%;
+    --sidebar-border: 217 33% 18%;
     --sidebar-active: 16 100% 62%;
-    --sidebar-hover: 0 0% 10%;
+    --sidebar-hover: 217 33% 15%;
 
-    --modal-overlay: 0 0% 0%;
+    --modal-overlay: 222 47% 5%;
 
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
+    --chart-1: 217 91% 60%;
+    --chart-2: 142 76% 36%;
+    --chart-3: 38 92% 50%;
     --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+    --chart-5: 340 82% 52%;
   }
 }
 

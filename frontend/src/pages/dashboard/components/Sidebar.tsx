@@ -1,8 +1,9 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
-  Settings as SettingsIcon, Shield, Network, Snowflake, TrendingUp, LogOut
+  Settings as SettingsIcon, Shield, Network, Snowflake, TrendingUp, LogOut, Sun, Moon, Monitor
 } from 'lucide-react';
 import { useAuth } from '../../../features/auth/contexts/AuthContext';
+import { useTheme } from '../../../contexts/ThemeContext';
 import { useState, useEffect } from 'react';
 import { supabase } from '../../../config/supabaseClient';
 
@@ -30,6 +31,7 @@ export function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, signOut, isLoading: authLoading } = useAuth();
+  const { theme, setTheme } = useTheme();
   const [isAdmin, setIsAdmin] = useState(false);
 
   // Check if user is admin
@@ -128,8 +130,26 @@ export function Sidebar() {
         )}
       </nav>
 
-      {/* Bottom Section - User & Sign Out */}
+      {/* Bottom Section - Theme, User & Sign Out */}
       <div className="flex flex-col items-center space-y-3 pb-2">
+        {/* Theme Selector */}
+        <div className="relative group">
+          <button
+            onClick={() => {
+              const themes = ['light', 'dark', 'system'] as const;
+              const currentIndex = themes.indexOf(theme);
+              const nextTheme = themes[(currentIndex + 1) % themes.length];
+              setTheme(nextTheme);
+            }}
+            className="w-10 h-10 flex items-center justify-center rounded-lg text-sidebar-foreground hover:bg-sidebar-hover hover:text-foreground transition-all duration-200"
+            title={`Theme: ${theme.charAt(0).toUpperCase() + theme.slice(1)}`}
+          >
+            {theme === 'light' && <Sun className="h-5 w-5" />}
+            {theme === 'dark' && <Moon className="h-5 w-5" />}
+            {theme === 'system' && <Monitor className="h-5 w-5" />}
+          </button>
+        </div>
+
         {!authLoading && user && (
           <>
             {/* User Avatar */}

@@ -989,7 +989,7 @@ export default function SnowflakeIntelligence() {
                     <div className="text-xs text-muted-foreground">Click query to select all</div>
                   </div>
                   <div 
-                    className="bg-muted border-2 border-border hover:border-[#ff6a3c]/50 rounded-lg p-4 cursor-text transition-colors"
+                    className="bg-muted border-2 border-border hover:border-primary/50 rounded-lg p-4 cursor-text transition-colors"
                     onClick={(e) => {
                       const selection = window.getSelection();
                       const range = document.createRange();
@@ -1001,7 +1001,7 @@ export default function SnowflakeIntelligence() {
                       }
                     }}
                   >
-                    <pre className="text-sm text-green-400 font-mono whitespace-pre-wrap overflow-x-auto select-text">
+                    <pre className="text-sm text-foreground font-mono whitespace-pre-wrap overflow-x-auto select-text">
                       {selectedQuery.QUERY_TEXT || selectedQuery.QUERY_ID || 'No query text available'}
                     </pre>
                   </div>

@@ -39,8 +39,8 @@ export const Dashboard: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full bg-[#0d0c0c]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#ff6a3c]"></div>
+      <div className="flex items-center justify-center h-full bg-background">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }
@@ -48,40 +48,40 @@ export const Dashboard: React.FC = () => {
   const tabs = ['Overview', 'Calendar', 'Tasks', 'Activity'];
 
   return (
-    <div className="h-full bg-[#0d0c0c]">
+    <div className="h-full bg-background">
       {/* Header */}
-      <div className="bg-[#161413] border-b border-[#2d2a27] px-8 py-6">
+      <div className="bg-card border-b border-border px-8 py-6">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-white">Dashboard</h1>
+          <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
           <div className="flex items-center gap-3">
-            <button className="flex items-center gap-2 px-4 py-2 text-sm text-white bg-[#1f1d1b] border border-[#2d2a27] rounded-lg hover:bg-[#2d2a27] transition-colors">
+            <button className="flex items-center gap-2 px-4 py-2 text-sm text-foreground bg-muted border border-border rounded-lg hover:bg-accent transition-colors">
               <ExternalLink className="h-4 w-4" />
               View careers site
             </button>
-            <button className="flex items-center gap-2 px-4 py-2 text-sm text-white bg-[#ff6a3c] rounded-lg hover:bg-[#ff8c66] transition-colors font-semibold">
+            <button className="flex items-center gap-2 px-4 py-2 text-sm text-foreground bg-primary rounded-lg hover:bg-primary/90 transition-colors font-semibold">
               + New job
             </button>
-            <button className="p-2 text-[#8d857b] hover:text-white transition-colors">
+            <button className="p-2 text-muted-foreground hover:text-foreground transition-colors">
               <MoreHorizontal className="h-5 w-5" />
             </button>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="flex items-center gap-8 border-b border-[#2d2a27] -mb-px">
+        <div className="flex items-center gap-8 border-b border-border -mb-px">
           {tabs.map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`pb-3 text-sm font-semibold transition-colors relative ${
                 activeTab === tab
-                  ? 'text-[#ff6a3c]'
-                  : 'text-[#8d857b] hover:text-white'
+                  ? 'text-primary'
+                  : 'text-muted-foreground hover:text-white'
               }`}
             >
               {tab}
               {activeTab === tab && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#ff6a3c]" />
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
               )}
             </button>
           ))}
@@ -91,16 +91,16 @@ export const Dashboard: React.FC = () => {
       {/* Main Content */}
       <div className="p-8">
         {/* Analytics Report Section */}
-        <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-6 mb-6">
+        <div className="bg-card border border-border rounded-xl p-6 mb-6">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-bold text-white">Analytics report</h2>
+            <h2 className="text-lg font-bold text-foreground">Analytics report</h2>
             <div className="flex items-center gap-3">
-              <button className="flex items-center gap-2 px-3 py-1.5 text-sm text-white bg-[#1f1d1b] border border-[#2d2a27] rounded-lg hover:bg-[#2d2a27]">
+              <button className="flex items-center gap-2 px-3 py-1.5 text-sm text-foreground bg-muted border border-border rounded-lg hover:bg-accent">
                 <Calendar className="h-4 w-4" />
                 Today
               </button>
-              <span className="text-sm text-[#8d857b]">compared to</span>
-              <button className="flex items-center gap-2 px-3 py-1.5 text-sm text-white bg-[#1f1d1b] border border-[#2d2a27] rounded-lg hover:bg-[#2d2a27]">
+              <span className="text-sm text-muted-foreground">compared to</span>
+              <button className="flex items-center gap-2 px-3 py-1.5 text-sm text-foreground bg-muted border border-border rounded-lg hover:bg-accent">
                 Previous period
               </button>
             </div>
@@ -110,55 +110,55 @@ export const Dashboard: React.FC = () => {
           <div className="grid grid-cols-4 gap-6 mb-8">
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-sm text-[#8d857b]">New candidates</span>
+                <span className="text-sm text-muted-foreground">New candidates</span>
                 <span className="flex items-center gap-1 text-xs text-green-400 font-medium">
                   <TrendingUp className="h-3 w-3" />
                   +4
                 </span>
               </div>
-              <div className="text-3xl font-bold text-white">{stats?.member_count || 35}</div>
-              <div className="text-xs text-[#8d857b] mt-1">in last 7 days</div>
+              <div className="text-3xl font-bold text-foreground">{stats?.member_count || 35}</div>
+              <div className="text-xs text-muted-foreground mt-1">in last 7 days</div>
             </div>
 
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-sm text-[#8d857b]">Job applications</span>
+                <span className="text-sm text-muted-foreground">Job applications</span>
                 <span className="flex items-center gap-1 text-xs text-green-400 font-medium">
                   <TrendingUp className="h-3 w-3" />
                   +7
                 </span>
               </div>
-              <div className="text-3xl font-bold text-white">{stats?.team_count || 49}</div>
-              <div className="text-xs text-[#8d857b] mt-1">in last 7 days</div>
+              <div className="text-3xl font-bold text-foreground">{stats?.team_count || 49}</div>
+              <div className="text-xs text-muted-foreground mt-1">in last 7 days</div>
             </div>
 
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-sm text-[#8d857b]">Total candidates</span>
+                <span className="text-sm text-muted-foreground">Total candidates</span>
                 <span className="flex items-center gap-1 text-xs text-green-400 font-medium">
                   <TrendingUp className="h-3 w-3" />
                   +25
                 </span>
               </div>
-              <div className="text-3xl font-bold text-white">587</div>
-              <div className="text-xs text-[#8d857b] mt-1">for the entire period</div>
+              <div className="text-3xl font-bold text-foreground">587</div>
+              <div className="text-xs text-muted-foreground mt-1">for the entire period</div>
             </div>
 
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-sm text-[#8d857b]">Employees</span>
+                <span className="text-sm text-muted-foreground">Employees</span>
                 <span className="flex items-center gap-1 text-xs text-green-400 font-medium">
                   <TrendingUp className="h-3 w-3" />
                   +3
                 </span>
               </div>
-              <div className="text-3xl font-bold text-white">{stats?.api_key_count || 20}</div>
-              <div className="text-xs text-[#8d857b] mt-1">for the entire period</div>
+              <div className="text-3xl font-bold text-foreground">{stats?.api_key_count || 20}</div>
+              <div className="text-xs text-muted-foreground mt-1">for the entire period</div>
             </div>
           </div>
 
           {/* Chart Area */}
-          <div className="relative h-64 bg-gradient-to-b from-[#ff6a3c]/10 to-transparent rounded-lg p-4 border border-[#2d2a27]">
+          <div className="relative h-64 bg-gradient-to-b from-primary/10 to-transparent rounded-lg p-4 border border-border">
             <svg className="w-full h-full" viewBox="0 0 800 200" preserveAspectRatio="none">
               <defs>
                 <linearGradient id="chartGradient" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -173,7 +173,7 @@ export const Dashboard: React.FC = () => {
                 strokeWidth="2"
               />
             </svg>
-            <div className="absolute bottom-2 left-0 right-0 flex justify-between px-4 text-xs text-[#8d857b]">
+            <div className="absolute bottom-2 left-0 right-0 flex justify-between px-4 text-xs text-muted-foreground">
               <span>17/11</span>
               <span>18/11</span>
               <span>19/11</span>
@@ -196,27 +196,27 @@ export const Dashboard: React.FC = () => {
         {/* Bottom Section */}
         <div className="grid grid-cols-2 gap-6">
           {/* Upcoming Interviews */}
-          <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-6">
+          <div className="bg-card border border-border rounded-xl p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-white">Upcoming interviews</h3>
-              <ChevronRight className="h-5 w-5 text-[#8d857b]" />
+              <h3 className="text-lg font-bold text-foreground">Upcoming interviews</h3>
+              <ChevronRight className="h-5 w-5 text-muted-foreground" />
             </div>
             <div className="space-y-4">
               {[24, 25, 26].map((day, idx) => (
-                <div key={day} className="flex items-start gap-4 pb-4 border-b border-[#2d2a27] last:border-0">
+                <div key={day} className="flex items-start gap-4 pb-4 border-b border-border last:border-0">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-white">{day}</div>
-                    <div className="text-xs text-[#8d857b]">{idx === 0 ? 'Mon' : idx === 1 ? 'Tue' : 'Wed'}</div>
+                    <div className="text-2xl font-bold text-foreground">{day}</div>
+                    <div className="text-xs text-muted-foreground">{idx === 0 ? 'Mon' : idx === 1 ? 'Tue' : 'Wed'}</div>
                   </div>
                   <div className="flex-1">
-                    <div className="text-sm font-semibold text-white">Ivan Serthin (10:30 - 12:00)</div>
-                    <div className="text-xs text-[#8d857b]">Product Designer phone screening</div>
+                    <div className="text-sm font-semibold text-foreground">Ivan Serthin (10:30 - 12:00)</div>
+                    <div className="text-xs text-muted-foreground">Product Designer phone screening</div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button className="p-1.5 text-[#8d857b] hover:text-white">
+                    <button className="p-1.5 text-muted-foreground hover:text-foreground">
                       <LinkIcon className="h-4 w-4" />
                     </button>
-                    <button className="p-1.5 text-[#8d857b] hover:text-white">
+                    <button className="p-1.5 text-muted-foreground hover:text-foreground">
                       <MoreHorizontal className="h-4 w-4" />
                     </button>
                   </div>
@@ -224,17 +224,17 @@ export const Dashboard: React.FC = () => {
               ))}
             </div>
             <div className="mt-4 text-center">
-              <button className="text-sm text-[#ff6a3c] hover:text-[#ff8c66] font-semibold">
+              <button className="text-sm text-primary hover:text-primary/90 font-semibold">
                 Join with Google Meet
               </button>
             </div>
           </div>
 
           {/* Applications to Review */}
-          <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-6">
+          <div className="bg-card border border-border rounded-xl p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-white">Applications to review</h3>
-              <ChevronRight className="h-5 w-5 text-[#8d857b]" />
+              <h3 className="text-lg font-bold text-foreground">Applications to review</h3>
+              <ChevronRight className="h-5 w-5 text-muted-foreground" />
             </div>
             <div className="space-y-4">
               {[
@@ -242,21 +242,21 @@ export const Dashboard: React.FC = () => {
                 { title: 'Senior Java Developer', date: 'Nov 25 2020', count: 10 },
                 { title: 'UI/UX Designer', date: 'Nov 24 2020', count: 7 }
               ].map((app, idx) => (
-                <div key={idx} className="flex items-center justify-between pb-4 border-b border-[#2d2a27] last:border-0">
+                <div key={idx} className="flex items-center justify-between pb-4 border-b border-border last:border-0">
                   <div>
-                    <div className="text-sm font-semibold text-white">{app.title}</div>
-                    <div className="text-xs text-[#8d857b]">{app.date}</div>
+                    <div className="text-sm font-semibold text-foreground">{app.title}</div>
+                    <div className="text-xs text-muted-foreground">{app.date}</div>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="flex -space-x-2">
                       {[...Array(Math.min(3, app.count))].map((_, i) => (
                         <div
                           key={i}
-                          className="w-6 h-6 rounded-full bg-gradient-to-br from-[#ff6a3c] to-[#ff8c66] border-2 border-[#161413]"
+                          className="w-6 h-6 rounded-full bg-gradient-to-br from-primary to-primary/90 border-2 border-card"
                         />
                       ))}
                     </div>
-                    <span className="text-xs text-[#8d857b]">+{app.count}</span>
+                    <span className="text-xs text-muted-foreground">+{app.count}</span>
                   </div>
                 </div>
               ))}

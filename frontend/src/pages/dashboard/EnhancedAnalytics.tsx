@@ -155,10 +155,10 @@ export function EnhancedAnalytics() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0d0c0c] flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex items-center gap-3">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#ff6a3c]"></div>
-          <span className="text-white text-lg">Loading analytics...</span>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <span className="text-foreground text-lg">Loading analytics...</span>
         </div>
       </div>
     );
@@ -166,13 +166,13 @@ export function EnhancedAnalytics() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-[#0d0c0c] flex items-center justify-center p-6">
-        <div className="bg-[#161413] border border-red-500/50 rounded-xl p-8 max-w-md text-center">
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <div className="bg-card border border-red-500/50 rounded-xl p-8 max-w-md text-center">
           <div className="text-red-400 text-xl mb-3">⚠️ Error loading analytics</div>
-          <div className="text-[#8d857b] text-sm mb-6">{error}</div>
+          <div className="text-muted-foreground text-sm mb-6">{error}</div>
           <button 
             onClick={fetchAnalytics} 
-            className="px-6 py-3 bg-[#ff6a3c] text-white rounded-lg hover:bg-[#d94a1e] font-medium transition"
+            className="px-6 py-3 bg-primary text-foreground rounded-lg hover:bg-primary/90 font-medium transition"
           >
             Retry
           </button>
@@ -182,28 +182,28 @@ export function EnhancedAnalytics() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0d0c0c] p-6">
+    <div className="min-h-screen bg-background p-6">
       <div className="max-w-[1800px] mx-auto space-y-6">
         {/* Page Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-              <BarChart3 className="w-8 h-8 text-[#ff6a3c]" />
+            <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
+              <BarChart3 className="w-8 h-8 text-primary" />
               My Usage Analytics
             </h1>
-            <p className="text-[#8d857b] mt-1">Track your AI model usage and costs</p>
+            <p className="text-muted-foreground mt-1">Track your AI model usage and costs</p>
           </div>
           <div className="flex items-center gap-3">
             {/* Time Range Selector */}
-            <div className="flex bg-[#161413] border border-[#1f1d1b] rounded-lg p-1">
+            <div className="flex bg-card border border-border rounded-lg p-1">
               {(['7d', '30d', '90d'] as const).map((range) => (
                 <button
                   key={range}
                   onClick={() => setTimeRange(range)}
                   className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                     timeRange === range
-                      ? 'bg-[#ff6a3c] text-white shadow-lg'
-                      : 'text-[#8d857b] hover:text-white hover:bg-[#1f1d1b]'
+                      ? 'bg-primary text-foreground shadow-lg'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                   }`}
                 >
                   {range === '7d' ? '7 days' : range === '30d' ? '30 days' : '90 days'}
@@ -214,7 +214,7 @@ export function EnhancedAnalytics() {
             {/* Export Button */}
             <button
               onClick={handleExport}
-              className="flex items-center gap-2 px-4 py-2 bg-[#ff6a3c] text-white rounded-lg hover:bg-[#d94a1e] transition-colors font-medium text-sm shadow-lg"
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium text-sm shadow-lg"
             >
               <Download className="h-4 w-4" />
               Export
@@ -225,57 +225,57 @@ export function EnhancedAnalytics() {
         {/* KPI Cards - 4 Column Layout */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Total Cost */}
-          <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-5">
+          <div className="bg-card border border-border rounded-xl p-5">
             <div className="flex items-center justify-between mb-2">
               <DollarSign className="w-8 h-8 text-orange-400" />
-              <span className="text-xs font-bold text-[#8d857b] uppercase">Total Cost</span>
+              <span className="text-xs font-bold text-muted-foreground uppercase">Total Cost</span>
             </div>
-            <div className="text-3xl font-bold text-white mb-1">
+            <div className="text-3xl font-bold text-foreground mb-1">
               ${(summary?.totalCost || 0).toFixed(2)}
             </div>
-            <div className="text-xs text-[#8d857b]">
+            <div className="text-xs text-muted-foreground">
               ${((summary?.totalCost || 0) / (summary?.totalConversations || 1)).toFixed(4)} per session
             </div>
           </div>
 
           {/* Conversations */}
-          <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-5">
+          <div className="bg-card border border-border rounded-xl p-5">
             <div className="flex items-center justify-between mb-2">
               <BarChart3 className="w-8 h-8 text-blue-400" />
-              <span className="text-xs font-bold text-[#8d857b] uppercase">Sessions</span>
+              <span className="text-xs font-bold text-muted-foreground uppercase">Sessions</span>
             </div>
-            <div className="text-3xl font-bold text-white mb-1">
+            <div className="text-3xl font-bold text-foreground mb-1">
               {(summary?.totalConversations || 0).toLocaleString()}
             </div>
-            <div className="text-xs text-[#8d857b]">
+            <div className="text-xs text-muted-foreground">
               Total conversations
             </div>
           </div>
 
           {/* Total Tokens */}
-          <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-5">
+          <div className="bg-card border border-border rounded-xl p-5">
             <div className="flex items-center justify-between mb-2">
               <Zap className="w-8 h-8 text-purple-400" />
-              <span className="text-xs font-bold text-[#8d857b] uppercase">Tokens</span>
+              <span className="text-xs font-bold text-muted-foreground uppercase">Tokens</span>
             </div>
-            <div className="text-3xl font-bold text-white mb-1">
+            <div className="text-3xl font-bold text-foreground mb-1">
               {((summary?.totalTokens || 0) / 1000000).toFixed(2)}M
             </div>
-            <div className="text-xs text-[#8d857b]">
+            <div className="text-xs text-muted-foreground">
               {summary?.avgTokensPerConversation ? Math.round(summary.avgTokensPerConversation).toLocaleString() : 0} avg/session
             </div>
           </div>
 
           {/* Avg Cost */}
-          <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-5">
+          <div className="bg-card border border-border rounded-xl p-5">
             <div className="flex items-center justify-between mb-2">
               <TrendingUp className="w-8 h-8 text-green-400" />
-              <span className="text-xs font-bold text-[#8d857b] uppercase">Avg Cost</span>
+              <span className="text-xs font-bold text-muted-foreground uppercase">Avg Cost</span>
             </div>
-            <div className="text-3xl font-bold text-white mb-1">
+            <div className="text-3xl font-bold text-foreground mb-1">
               ${(summary?.avgCostPerConversation || 0).toFixed(3)}
             </div>
-            <div className="text-xs text-[#8d857b]">
+            <div className="text-xs text-muted-foreground">
               Per conversation
             </div>
           </div>
@@ -283,22 +283,22 @@ export function EnhancedAnalytics() {
 
         {/* Detailed Metrics Row */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-4">
+          <div className="bg-card border border-border rounded-xl p-4">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm text-[#8d857b] font-medium">Token Distribution</span>
+              <span className="text-sm text-muted-foreground font-medium">Token Distribution</span>
               <Zap className="w-4 h-4 text-purple-400" />
             </div>
             <div className="space-y-2">
               <div className="flex justify-between items-center">
-                <span className="text-xs text-[#8d857b]">Input Tokens</span>
-                <span className="text-sm font-semibold text-white">{((summary?.totalTokensIn || 0) / 1000).toFixed(1)}K</span>
+                <span className="text-xs text-muted-foreground">Input Tokens</span>
+                <span className="text-sm font-semibold text-foreground">{((summary?.totalTokensIn || 0) / 1000).toFixed(1)}K</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-xs text-[#8d857b]">Output Tokens</span>
-                <span className="text-sm font-semibold text-white">{((summary?.totalTokensOut || 0) / 1000).toFixed(1)}K</span>
+                <span className="text-xs text-muted-foreground">Output Tokens</span>
+                <span className="text-sm font-semibold text-foreground">{((summary?.totalTokensOut || 0) / 1000).toFixed(1)}K</span>
               </div>
-              <div className="flex justify-between items-center pt-2 border-t border-[#2d2a27]">
-                <span className="text-xs text-[#8d857b]">Ratio (Out/In)</span>
+              <div className="flex justify-between items-center pt-2 border-t border-border">
+                <span className="text-xs text-muted-foreground">Ratio (Out/In)</span>
                 <span className="text-sm font-semibold text-green-400">
                   {summary?.totalTokensIn ? (summary.totalTokensOut / summary.totalTokensIn).toFixed(2) : '0.00'}x
                 </span>
@@ -306,22 +306,22 @@ export function EnhancedAnalytics() {
             </div>
           </div>
 
-          <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-4">
+          <div className="bg-card border border-border rounded-xl p-4">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm text-[#8d857b] font-medium">Cost Breakdown</span>
+              <span className="text-sm text-muted-foreground font-medium">Cost Breakdown</span>
               <DollarSign className="w-4 h-4 text-orange-400" />
             </div>
             <div className="space-y-2">
               <div className="flex justify-between items-center">
-                <span className="text-xs text-[#8d857b]">Total Spend</span>
-                <span className="text-sm font-semibold text-white">${(summary?.totalCost || 0).toFixed(2)}</span>
+                <span className="text-xs text-muted-foreground">Total Spend</span>
+                <span className="text-sm font-semibold text-foreground">${(summary?.totalCost || 0).toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-xs text-[#8d857b]">Per Session</span>
-                <span className="text-sm font-semibold text-white">${(summary?.avgCostPerConversation || 0).toFixed(4)}</span>
+                <span className="text-xs text-muted-foreground">Per Session</span>
+                <span className="text-sm font-semibold text-foreground">${(summary?.avgCostPerConversation || 0).toFixed(4)}</span>
               </div>
-              <div className="flex justify-between items-center pt-2 border-t border-[#2d2a27]">
-                <span className="text-xs text-[#8d857b]">Per 1K Tokens</span>
+              <div className="flex justify-between items-center pt-2 border-t border-border">
+                <span className="text-xs text-muted-foreground">Per 1K Tokens</span>
                 <span className="text-sm font-semibold text-orange-400">
                   ${summary?.totalTokens ? ((summary.totalCost / summary.totalTokens) * 1000).toFixed(4) : '0.0000'}
                 </span>
@@ -329,22 +329,22 @@ export function EnhancedAnalytics() {
             </div>
           </div>
 
-          <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-4">
+          <div className="bg-card border border-border rounded-xl p-4">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm text-[#8d857b] font-medium">Activity Summary</span>
+              <span className="text-sm text-muted-foreground font-medium">Activity Summary</span>
               <BarChart3 className="w-4 h-4 text-blue-400" />
             </div>
             <div className="space-y-2">
               <div className="flex justify-between items-center">
-                <span className="text-xs text-[#8d857b]">Total Sessions</span>
-                <span className="text-sm font-semibold text-white">{(summary?.totalConversations || 0).toLocaleString()}</span>
+                <span className="text-xs text-muted-foreground">Total Sessions</span>
+                <span className="text-sm font-semibold text-foreground">{(summary?.totalConversations || 0).toLocaleString()}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-xs text-[#8d857b]">Avg Tokens/Session</span>
-                <span className="text-sm font-semibold text-white">{summary?.avgTokensPerConversation ? Math.round(summary.avgTokensPerConversation).toLocaleString() : 0}</span>
+                <span className="text-xs text-muted-foreground">Avg Tokens/Session</span>
+                <span className="text-sm font-semibold text-foreground">{summary?.avgTokensPerConversation ? Math.round(summary.avgTokensPerConversation).toLocaleString() : 0}</span>
               </div>
-              <div className="flex justify-between items-center pt-2 border-t border-[#2d2a27]">
-                <span className="text-xs text-[#8d857b]">Time Period</span>
+              <div className="flex justify-between items-center pt-2 border-t border-border">
+                <span className="text-xs text-muted-foreground">Time Period</span>
                 <span className="text-sm font-semibold text-blue-400">{timeRange === '7d' ? '7 days' : timeRange === '30d' ? '30 days' : '90 days'}</span>
               </div>
             </div>
@@ -352,25 +352,25 @@ export function EnhancedAnalytics() {
         </div>
 
         {/* Usage Trend Chart - Enhanced Grafana Style */}
-        <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-6 shadow-xl">
+        <div className="bg-card border border-border rounded-xl p-6 shadow-xl">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-[#ff6a3c]/10 rounded-lg">
-                <TrendingUp className="w-5 h-5 text-[#ff6a3c]" />
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <TrendingUp className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-white">Daily Cost Trend</h3>
-                <p className="text-xs text-[#8d857b] mt-0.5">Historical spending analysis</p>
+                <h3 className="text-lg font-semibold text-foreground">Daily Cost Trend</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Historical spending analysis</p>
               </div>
             </div>
             <div className="flex items-center gap-4 text-xs">
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-[#ff6a3c] rounded"></div>
-                <span className="text-[#8d857b]">Daily Cost</span>
+                <div className="w-3 h-3 bg-primary rounded"></div>
+                <span className="text-muted-foreground">Daily Cost</span>
               </div>
             </div>
           </div>
-          <div className="bg-[#0d0c0c] rounded-lg p-4">
+          <div className="bg-background rounded-lg p-4">
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={dailyStats} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                 <defs>
@@ -417,11 +417,11 @@ export function EnhancedAnalytics() {
             </ResponsiveContainer>
           </div>
           <div className="mt-4 flex items-center justify-between text-xs">
-            <div className="text-[#8d857b]">
+            <div className="text-muted-foreground">
               Showing {dailyStats.length} days of activity
             </div>
-            <div className="text-[#8d857b]">
-              Total: <span className="text-[#ff6a3c] font-semibold">${dailyStats.reduce((sum, day) => sum + day.total_cost, 0).toFixed(2)}</span>
+            <div className="text-muted-foreground">
+              Total: <span className="text-primary font-semibold">${dailyStats.reduce((sum, day) => sum + day.total_cost, 0).toFixed(2)}</span>
             </div>
           </div>
         </div>

@@ -380,7 +380,7 @@ export default function QueryPerformanceView({ connectorId }: Props) {
                     selection?.addRange(range);
                   }}
                 >
-                  <pre className="text-sm text-green-400 font-mono whitespace-pre-wrap overflow-x-auto select-text">
+                  <pre className="text-sm text-foreground font-mono whitespace-pre-wrap overflow-x-auto select-text">
                     {selectedQuery.query_text}
                   </pre>
                 </div>
