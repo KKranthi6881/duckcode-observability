@@ -1,14 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
-import { User, Lock, CreditCard, Bell, Check, Star } from 'lucide-react';
+import { User, Lock, CreditCard, Bell, Check, Star, Sun, Moon, Monitor } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { PasswordChangeModal } from '@/components/modals/PasswordChangeModal';
 import { PaymentModal } from '@/components/modals/PaymentModal';
-import { useAuth } from '@/features/auth/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Github } from 'lucide-react';
 
-const plans = [{
+type Plan = {
+  name: string;
+  price: string;
+  period: string;
+  description: string;
+  features: string[];
+  current?: boolean;
+  popular?: boolean;
+};
+
+const plans: Plan[] = [{
   name: 'Free',
   price: '$0',
   period: 'forever',
@@ -124,13 +133,15 @@ const GitHubIntegrationTab = () => {
   );
 };
 
+type NotificationKey = 'email' | 'push' | 'weekly' | 'marketing';
+
 export function Settings() {
   const {
     theme,
     setTheme
   } = useTheme();
   const [activeTab, setActiveTab] = useState('profile');
-  const [notifications, setNotifications] = useState({
+  const [notifications, setNotifications] = useState<Record<NotificationKey, boolean>>({
     email: true,
     push: false,
     weekly: true,
@@ -138,8 +149,8 @@ export function Settings() {
   });
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState(null);
-  const [profileImage, setProfileImage] = useState(null);
+  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
+  const [profileImage, setProfileImage] = useState<string | null>(null);
   const [form, setForm] = useState({
     fullName: 'John Doe',
     email: 'john@example.com',
@@ -147,12 +158,12 @@ export function Settings() {
     role: 'Data Engineer'
   });
 
-  const handleImageUpload = (event: any) => {
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setProfileImage(reader.result);
+        setProfileImage(reader.result as string);
       };
       reader.readAsDataURL(file);
     }
@@ -166,13 +177,21 @@ export function Settings() {
     setShowPasswordModal(true);
   };
 
-  const handleUpdatePayment = (plan: any) => {
+  const handleUpdatePayment = (plan: Plan) => {
     setSelectedPlan(plan);
     setShowPaymentModal(true);
   };
 
+  const notificationOptions: { key: NotificationKey; label: string; description: string }[] = [
+    { key: 'email', label: 'Email Notifications', description: 'Receive important updates via email' },
+    { key: 'push', label: 'Push Notifications', description: 'Get real-time alerts in your browser' },
+    { key: 'weekly', label: 'Weekly Summary', description: 'Weekly digest of your data insights' },
+    { key: 'marketing', label: 'Marketing Communications', description: 'Updates about new features and tips' }
+  ];
+
   const tabs = [
     { id: 'profile', label: 'Profile', icon: User },
+    { id: 'appearance', label: 'Appearance', icon: Sun },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'billing', label: 'Billing & Plans', icon: CreditCard },
     { id: 'github', label: 'GitHub Integration', icon: Github }
@@ -186,27 +205,27 @@ export function Settings() {
     if (tab === 'github') {
       setActiveTab('github');
     }
-  }, [location]);
+  }, [location, searchParams]);
 
   return (
-    <div className="min-h-screen bg-[#0d0c0c]">
+    <div className="min-h-screen bg-background text-foreground">
       {/* Modern Header */}
-      <div className="bg-[#161413] border-b border-[#2d2a27]">
+      <div className="bg-card border-b border-border">
         <div className="max-w-7xl mx-auto px-6 py-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-white">Settings</h1>
-              <p className="text-[#8d857b] mt-1">Manage your account preferences and integrations</p>
+              <h1 className="text-3xl font-bold">Settings</h1>
+              <p className="text-muted-foreground mt-1">Manage your account preferences and integrations</p>
             </div>
           </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="bg-[#161413] rounded-xl border border-[#2d2a27] overflow-hidden">
+        <div className="bg-card text-card-foreground rounded-xl border border-border overflow-hidden">
           
           {/* Modern Tab Navigation */}
-          <div className="border-b border-[#2d2a27] bg-[#1f1d1b]">
+          <div className="border-b border-border bg-background">
             <nav className="flex space-x-8 px-6" aria-label="Tabs">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
@@ -217,7 +236,7 @@ export function Settings() {
                     className={`${
                       activeTab === tab.id
                         ? 'border-[#ff6a3c] text-[#ff6a3c]'
-                        : 'border-transparent text-[#8d857b] hover:text-white hover:border-[#2d2a27]'
+                        : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
                     } flex items-center space-x-2 whitespace-nowrap py-4 px-3 border-b-2 font-medium text-sm transition-all duration-200 -mb-px`}
                   >
                     <Icon className="h-4 w-4" />
@@ -230,6 +249,44 @@ export function Settings() {
 
           {/* Tab Content */}
           <div className="p-8">
+            {/* Appearance Settings */}
+            {activeTab === 'appearance' && (
+              <div className="space-y-8">
+                <div>
+                  <h3 className="text-xl font-bold">Appearance</h3>
+                  <p className="text-muted-foreground mt-1">Choose Light, Dark, or follow your System preference</p>
+                </div>
+
+                <div className="inline-flex rounded-lg border border-border overflow-hidden">
+                  <Button
+                    variant={theme === 'light' ? 'default' : 'outline'}
+                    onClick={() => setTheme('light')}
+                    className="rounded-none"
+                  >
+                    <Sun className="h-4 w-4 mr-2" /> Light
+                  </Button>
+                  <Button
+                    variant={theme === 'dark' ? 'default' : 'outline'}
+                    onClick={() => setTheme('dark')}
+                    className="rounded-none"
+                  >
+                    <Moon className="h-4 w-4 mr-2" /> Dark
+                  </Button>
+                  <Button
+                    variant={theme === 'system' ? 'default' : 'outline'}
+                    onClick={() => setTheme('system')}
+                    className="rounded-none"
+                  >
+                    <Monitor className="h-4 w-4 mr-2" /> System
+                  </Button>
+                </div>
+
+                <div className="rounded-lg border border-border p-6 bg-muted/30">
+                  <p className="text-sm text-muted-foreground">Preview</p>
+                  <div className="mt-3 h-24 rounded-md border border-border bg-background" />
+                </div>
+              </div>
+            )}
             {/* Profile Settings */}
             {activeTab === 'profile' && (
               <div className="space-y-8">
@@ -353,12 +410,7 @@ export function Settings() {
                 </div>
 
                 <div className="space-y-6">
-                  {[
-                    { key: 'email', label: 'Email Notifications', description: 'Receive important updates via email' },
-                    { key: 'push', label: 'Push Notifications', description: 'Get real-time alerts in your browser' },
-                    { key: 'weekly', label: 'Weekly Summary', description: 'Weekly digest of your data insights' },
-                    { key: 'marketing', label: 'Marketing Communications', description: 'Updates about new features and tips' }
-                  ].map((notification) => (
+                  {notificationOptions.map((notification) => (
                     <div key={notification.key} className="flex items-center justify-between p-4 bg-[#1f1d1b] border border-[#2d2a27] rounded-lg">
                       <div>
                         <h4 className="text-sm font-semibold text-white">{notification.label}</h4>

@@ -117,7 +117,7 @@ export const ApiKeys: React.FC = () => {
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
       active: 'bg-green-600/20 border border-green-600/30 text-green-400',
-      inactive: 'bg-[#2d2a27] border border-[#2d2a27] text-[#8d857b]',
+      inactive: 'bg-accent border border-border text-muted-foreground',
       expired: 'bg-red-600/20 border border-red-600/30 text-red-400',
       revoked: 'bg-yellow-600/20 border border-yellow-600/30 text-yellow-400',
     };
@@ -126,24 +126,24 @@ export const ApiKeys: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full bg-[#0d0c0c]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#ff6a3c]"></div>
+      <div className="flex items-center justify-center h-full bg-background">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }
 
   return (
-    <div className="h-full bg-[#0d0c0c]">
+    <div className="h-full bg-background">
       {/* Header */}
-      <div className="bg-[#161413] border-b border-[#2d2a27] px-8 py-6">
+      <div className="bg-card border-b border-border px-8 py-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-white">API Keys</h1>
-            <p className="text-sm text-[#8d857b] mt-1">Manage LLM provider API keys for your organization</p>
+            <h1 className="text-2xl font-bold text-foreground">API Keys</h1>
+            <p className="text-sm text-muted-foreground mt-1">Manage LLM provider API keys for your organization</p>
           </div>
           <button
             onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-[#ff6a3c] text-white rounded-lg hover:bg-[#ff8c66] transition-colors font-semibold text-sm"
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-foreground rounded-lg hover:bg-primary/90 transition-colors font-semibold text-sm"
           >
             <Plus className="h-4 w-4" />
             Add API Key
@@ -168,17 +168,17 @@ export const ApiKeys: React.FC = () => {
 
       {/* API Keys List */}
       {apiKeys.length === 0 ? (
-        <div className="bg-[#161413] border border-[#2d2a27] rounded-lg p-12 text-center">
-          <Key className="h-16 w-16 text-[#8d857b] mx-auto mb-4" />
-          <h3 className="text-lg font-bold text-white mb-2">
+        <div className="bg-card border border-border rounded-lg p-12 text-center">
+          <Key className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-bold text-foreground mb-2">
             No API keys configured
           </h3>
-          <p className="text-[#8d857b] mb-6">
+          <p className="text-muted-foreground mb-6">
             Add your LLM provider API keys to enable AI-powered features
           </p>
           <button
             onClick={() => setShowAddModal(true)}
-            className="inline-flex items-center space-x-2 px-4 py-2 bg-[#ff6a3c] text-white rounded-lg hover:bg-[#ff8c66] font-semibold"
+            className="inline-flex items-center space-x-2 px-4 py-2 bg-primary text-foreground rounded-lg hover:bg-primary/90 font-semibold"
           >
             <Plus className="h-5 w-5" />
             <span>Add API Key</span>
@@ -190,36 +190,36 @@ export const ApiKeys: React.FC = () => {
             const providerInfo = getProviderInfo(apiKey.provider);
 
             return (
-              <div key={apiKey.id} className="bg-[#161413] border border-[#2d2a27] rounded-lg p-6 hover:border-[#ff6a3c]/50 transition-all">
+              <div key={apiKey.id} className="bg-card border border-border rounded-lg p-6 hover:border-primary/50 transition-all">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center space-x-3 mb-3">
                       <span className="text-2xl">{providerInfo.icon}</span>
                       <div>
                         <div className="flex items-center space-x-2">
-                          <h3 className="text-lg font-bold text-white">
+                          <h3 className="text-lg font-bold text-foreground">
                             {apiKey.key_name || providerInfo.label}
                           </h3>
                           {apiKey.is_default && (
-                            <Star className="h-4 w-4 text-[#ff6a3c] fill-current" />
+                            <Star className="h-4 w-4 text-primary fill-current" />
                           )}
                         </div>
-                        <p className="text-sm text-[#8d857b]">{providerInfo.label}</p>
+                        <p className="text-sm text-muted-foreground">{providerInfo.label}</p>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                       <div>
-                        <label className="text-xs text-[#8d857b] uppercase tracking-wider font-semibold">API Key</label>
+                        <label className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">API Key</label>
                         <div className="flex items-center space-x-2 mt-1">
-                          <code className="text-sm font-mono text-white">
+                          <code className="text-sm font-mono text-foreground">
                             {apiKey.masked_key}
                           </code>
                         </div>
                       </div>
 
                       <div>
-                        <label className="text-xs text-[#8d857b] uppercase tracking-wider font-semibold">Status</label>
+                        <label className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Status</label>
                         <div className="mt-1">
                           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full capitalize ${getStatusColor(apiKey.status)}`}>
                             {apiKey.status}
@@ -228,15 +228,15 @@ export const ApiKeys: React.FC = () => {
                       </div>
 
                       <div>
-                        <label className="text-xs text-[#8d857b] uppercase tracking-wider font-semibold">Created</label>
-                        <p className="text-sm text-white mt-1">
+                        <label className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Created</label>
+                        <p className="text-sm text-foreground mt-1">
                           {new Date(apiKey.created_at).toLocaleDateString()}
                         </p>
                       </div>
 
                       <div>
-                        <label className="text-xs text-[#8d857b] uppercase tracking-wider font-semibold">Last Used</label>
-                        <p className="text-sm text-white mt-1">
+                        <label className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Last Used</label>
+                        <p className="text-sm text-foreground mt-1">
                           {apiKey.last_used_at 
                             ? new Date(apiKey.last_used_at).toLocaleDateString()
                             : 'Never'}
@@ -272,9 +272,9 @@ export const ApiKeys: React.FC = () => {
 
       {/* Add API Key Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-[#161413] border border-[#2d2a27] rounded-lg p-6 max-w-lg w-full mx-4">
-            <h3 className="text-lg font-bold text-white mb-4">
+        <div className="fixed inset-0 bg-modal-overlay/80 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-card border border-border rounded-lg p-6 max-w-lg w-full mx-4">
+            <h3 className="text-lg font-bold text-foreground mb-4">
               Add API Key
             </h3>
 
@@ -290,13 +290,13 @@ export const ApiKeys: React.FC = () => {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-white mb-2">
+                <label className="block text-sm font-semibold text-foreground mb-2">
                   Provider
                 </label>
                 <select
                   value={formData.provider}
                   onChange={(e) => setFormData({ ...formData, provider: e.target.value as ProviderType })}
-                  className="w-full px-3 py-2 bg-[#1f1d1b] border border-[#2d2a27] text-white rounded-lg focus:ring-2 focus:ring-[#ff6a3c]/50 focus:border-transparent"
+                  className="w-full px-3 py-2 bg-muted border border-border text-foreground rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-transparent"
                 >
                   {PROVIDERS.map(provider => (
                     <option key={provider.value} value={provider.value}>
@@ -307,7 +307,7 @@ export const ApiKeys: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-white mb-2">
+                <label className="block text-sm font-semibold text-foreground mb-2">
                   Key Name (Optional)
                 </label>
                 <input
@@ -315,12 +315,12 @@ export const ApiKeys: React.FC = () => {
                   value={formData.key_name}
                   onChange={(e) => setFormData({ ...formData, key_name: e.target.value })}
                   placeholder="e.g., Production Key"
-                  className="w-full px-3 py-2 bg-[#1f1d1b] border border-[#2d2a27] text-white placeholder-[#8d857b] rounded-lg focus:ring-2 focus:ring-[#ff6a3c]/50 focus:border-transparent"
+                  className="w-full px-3 py-2 bg-muted border border-border text-foreground placeholder-muted-foreground rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-transparent"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-white mb-2">
+                <label className="block text-sm font-semibold text-foreground mb-2">
                   API Key
                 </label>
                 <input
@@ -328,9 +328,9 @@ export const ApiKeys: React.FC = () => {
                   value={formData.api_key}
                   onChange={(e) => setFormData({ ...formData, api_key: e.target.value })}
                   placeholder="sk-..."
-                  className="w-full px-3 py-2 bg-[#1f1d1b] border border-[#2d2a27] text-white placeholder-[#8d857b] rounded-lg focus:ring-2 focus:ring-[#ff6a3c]/50 focus:border-transparent font-mono"
+                  className="w-full px-3 py-2 bg-muted border border-border text-foreground placeholder-muted-foreground rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-transparent font-mono"
                 />
-                <p className="mt-1 text-xs text-[#8d857b]">
+                <p className="mt-1 text-xs text-muted-foreground">
                   Your API key will be encrypted before storage
                 </p>
               </div>
@@ -340,9 +340,9 @@ export const ApiKeys: React.FC = () => {
                   type="checkbox"
                   checked={formData.is_default}
                   onChange={(e) => setFormData({ ...formData, is_default: e.target.checked })}
-                  className="h-4 w-4 text-[#ff6a3c] bg-[#1f1d1b] border-[#2d2a27] rounded focus:ring-[#ff6a3c]"
+                  className="h-4 w-4 text-primary bg-muted border-border rounded focus:ring-primary"
                 />
-                <label className="ml-2 text-sm text-white">
+                <label className="ml-2 text-sm text-foreground">
                   Set as default key for this provider
                 </label>
               </div>
@@ -351,14 +351,14 @@ export const ApiKeys: React.FC = () => {
             <div className="mt-6 flex justify-end space-x-3">
               <button
                 onClick={() => setShowAddModal(false)}
-                className="px-4 py-2 text-white bg-[#1f1d1b] border border-[#2d2a27] rounded-lg hover:bg-[#2d2a27] font-medium"
+                className="px-4 py-2 text-foreground bg-muted border border-border rounded-lg hover:bg-accent font-medium"
               >
                 Cancel
               </button>
               <button 
                 onClick={handleAddApiKey}
                 disabled={!formData.api_key}
-                className="px-4 py-2 bg-[#ff6a3c] text-white rounded-lg hover:bg-[#ff8c66] disabled:bg-[#2d2a27] disabled:text-[#8d857b] disabled:cursor-not-allowed font-semibold"
+                className="px-4 py-2 bg-primary text-foreground rounded-lg hover:bg-primary/90 disabled:bg-accent disabled:text-muted-foreground disabled:cursor-not-allowed font-semibold"
               >
                 Add API Key
               </button>

@@ -218,9 +218,9 @@ export default function ConnectorsPageNew() {
 
       {/* Create Modal */}
       {showCreate && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
+        <div className="fixed inset-0 bg-modal-overlay/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-card border-b border-border px-6 py-4 flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-gray-900">Create Snowflake Connector</h2>
                 <p className="text-sm text-gray-500">Connect to your Snowflake data warehouse</p>

@@ -21,9 +21,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   }, [location.pathname]);
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-background text-foreground">
       <Sidebar />
-      <div className="flex-1 overflow-auto bg-white">
+      <div className="flex-1 overflow-auto bg-background">
         {/* Use children if provided, otherwise fall back to Outlet for router-based content */}
         {children || <Outlet />}
       </div>

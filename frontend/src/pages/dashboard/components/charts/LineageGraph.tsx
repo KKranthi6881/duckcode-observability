@@ -651,7 +651,7 @@ export function LineageGraph({
   return <div className="w-full h-full">
       <ReactFlow nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} nodeTypes={{
       tableNode: TableNode
-    }} fitView className="bg-slate-900" defaultEdgeOptions={{
+    }} fitView className="bg-background" defaultEdgeOptions={{
       type: 'smoothstep',
       animated: true,
       style: {

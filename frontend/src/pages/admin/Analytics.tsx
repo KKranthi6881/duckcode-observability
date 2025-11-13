@@ -144,38 +144,38 @@ export const Analytics: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0d0c0c] flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex items-center gap-3">
-          <Loader2 className="h-8 w-8 animate-spin text-[#ff6a3c]" />
-          <span className="text-white text-lg">Loading analytics...</span>
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <span className="text-foreground text-lg">Loading analytics...</span>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#0d0c0c] p-6">
+    <div className="min-h-screen bg-background p-6">
       <div className="max-w-[1800px] mx-auto space-y-6">
         {/* Page Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-              <TrendingUp className="w-8 h-8 text-[#ff6a3c]" />
+            <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
+              <TrendingUp className="w-8 h-8 text-primary" />
               Admin Cost Analytics
             </h1>
-            <p className="text-[#8d857b] mt-1">{selectedOrg?.display_name} - Team insights & performance</p>
+            <p className="text-muted-foreground mt-1">{selectedOrg?.display_name} - Team insights & performance</p>
           </div>
           <div className="flex items-center gap-3">
             {/* Time Range Selector */}
-            <div className="flex bg-[#161413] border border-[#1f1d1b] rounded-lg p-1">
+            <div className="flex bg-card border border-border rounded-lg p-1">
               {[7, 30, 90].map((days) => (
                 <button
                   key={days}
                   onClick={() => setTimeRange(days)}
                   className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                     timeRange === days
-                      ? 'bg-[#ff6a3c] text-white shadow-lg'
-                      : 'text-[#8d857b] hover:text-white hover:bg-[#1f1d1b]'
+                      ? 'bg-primary text-foreground shadow-lg'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                   }`}
                 >
                   {days} days
@@ -187,7 +187,7 @@ export const Analytics: React.FC = () => {
             <select
               value={selectedUser}
               onChange={(e) => setSelectedUser(e.target.value)}
-              className="px-3 py-2 bg-[#1f1d1b] border border-[#2d2a27] text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#ff6a3c]/50 hover:border-[#ff6a3c]/30 transition"
+              className="px-3 py-2 bg-muted border border-border text-foreground rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 hover:border-primary/30 transition"
             >
               <option value="">All Users</option>
               {users?.users?.map((user: any) => {
@@ -204,7 +204,7 @@ export const Analytics: React.FC = () => {
             <select
               value={selectedModel}
               onChange={(e) => setSelectedModel(e.target.value)}
-              className="px-3 py-2 bg-[#1f1d1b] border border-[#2d2a27] text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#ff6a3c]/50 hover:border-[#ff6a3c]/30 transition"
+              className="px-3 py-2 bg-muted border border-border text-foreground rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 hover:border-primary/30 transition"
             >
               <option value="">All Models</option>
               {models?.models?.map((model: any) => (
@@ -218,7 +218,7 @@ export const Analytics: React.FC = () => {
             {hasActiveFilters && (
               <button
                 onClick={clearFilters}
-                className="flex items-center gap-1 px-3 py-2 text-sm bg-[#1f1d1b] border border-[#2d2a27] text-white rounded-lg hover:bg-[#2d2a27] transition font-medium"
+                className="flex items-center gap-1 px-3 py-2 text-sm bg-muted border border-border text-foreground rounded-lg hover:bg-accent transition font-medium"
               >
                 <X className="h-4 w-4" />
                 Clear
@@ -228,7 +228,7 @@ export const Analytics: React.FC = () => {
             {/* Export */}
             <button
               onClick={handleExport}
-              className="flex items-center gap-2 px-4 py-2 bg-[#ff6a3c] text-white rounded-lg hover:bg-[#d94a1e] transition-colors font-medium text-sm shadow-lg"
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium text-sm shadow-lg"
             >
               <Download className="h-4 w-4" />
               Export
@@ -239,68 +239,68 @@ export const Analytics: React.FC = () => {
         {/* Summary Cards - Clean Bordered Style */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Total Cost */}
-          <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-6">
+          <div className="bg-card border border-border rounded-xl p-6">
             <div className="flex items-center justify-between mb-2">
               <DollarSign className="w-10 h-10 text-orange-400" />
-              <span className="text-xs font-bold text-[#8d857b] uppercase">Total Cost</span>
+              <span className="text-xs font-bold text-muted-foreground uppercase">Total Cost</span>
             </div>
-            <div className="text-4xl font-bold text-white mb-1">
+            <div className="text-4xl font-bold text-foreground mb-1">
               ${(filteredTotals.total_cost || 0).toFixed(2)}
             </div>
-            <div className="text-sm text-[#8d857b]">
+            <div className="text-sm text-muted-foreground">
               ${((filteredTotals.total_cost || 0) / (filteredTotals.conversations || 1)).toFixed(4)} per conversation
             </div>
           </div>
 
           {/* Conversations */}
-          <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-6">
+          <div className="bg-card border border-border rounded-xl p-6">
             <div className="flex items-center justify-between mb-2">
               <MessageSquare className="w-10 h-10 text-blue-400" />
-              <span className="text-xs font-bold text-[#8d857b] uppercase">Sessions</span>
+              <span className="text-xs font-bold text-muted-foreground uppercase">Sessions</span>
             </div>
-            <div className="text-4xl font-bold text-white mb-1">
+            <div className="text-4xl font-bold text-foreground mb-1">
               {(filteredTotals.conversations || 0).toLocaleString()}
             </div>
-            <div className="text-sm text-[#8d857b]">
+            <div className="text-sm text-muted-foreground">
               ${((filteredTotals.total_cost || 0) / (filteredTotals.conversations || 1)).toFixed(3)} avg cost
             </div>
           </div>
 
           {/* Active Users */}
-          <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-6">
+          <div className="bg-card border border-border rounded-xl p-6">
             <div className="flex items-center justify-between mb-2">
               <Users className="w-10 h-10 text-green-400" />
-              <span className="text-xs font-bold text-[#8d857b] uppercase">Team Members</span>
+              <span className="text-xs font-bold text-muted-foreground uppercase">Team Members</span>
             </div>
-            <div className="text-4xl font-bold text-white mb-1">
+            <div className="text-4xl font-bold text-foreground mb-1">
               {(users?.users?.length || 0).toLocaleString()}
             </div>
-            <div className="text-sm text-[#8d857b]">
+            <div className="text-sm text-muted-foreground">
               ${((filteredTotals.total_cost || 0) / (users?.users?.length || 1)).toFixed(2)} per user
             </div>
           </div>
         </div>
 
         {/* Cost Trend Chart - Enhanced Grafana Style */}
-        <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-6 shadow-xl">
+        <div className="bg-card border border-border rounded-xl p-6 shadow-xl">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-[#ff6a3c]/10 rounded-lg">
-                <TrendingUp className="w-5 h-5 text-[#ff6a3c]" />
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <TrendingUp className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-white">Team Cost Trend</h3>
-                <p className="text-xs text-[#8d857b] mt-0.5">Historical team spending analysis</p>
+                <h3 className="text-lg font-semibold text-foreground">Team Cost Trend</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Historical team spending analysis</p>
               </div>
             </div>
             <div className="flex items-center gap-4 text-xs">
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-[#ff6a3c] rounded"></div>
-                <span className="text-[#8d857b]">Daily Cost</span>
+                <div className="w-3 h-3 bg-primary rounded"></div>
+                <span className="text-muted-foreground">Daily Cost</span>
               </div>
             </div>
           </div>
-          <div className="bg-[#0d0c0c] rounded-lg p-4">
+          <div className="bg-background rounded-lg p-4">
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={filteredData.trends} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                 <defs>
@@ -347,11 +347,11 @@ export const Analytics: React.FC = () => {
             </ResponsiveContainer>
           </div>
           <div className="mt-4 flex items-center justify-between text-xs">
-            <div className="text-[#8d857b]">
+            <div className="text-muted-foreground">
               Showing {filteredData.trends?.length || 0} days of team activity
             </div>
-            <div className="text-[#8d857b]">
-              Total: <span className="text-[#ff6a3c] font-semibold">${(filteredData.trends?.reduce((sum: number, day: any) => sum + (day.total_cost || 0), 0) || 0).toFixed(2)}</span>
+            <div className="text-muted-foreground">
+              Total: <span className="text-primary font-semibold">${(filteredData.trends?.reduce((sum: number, day: any) => sum + (day.total_cost || 0), 0) || 0).toFixed(2)}</span>
             </div>
           </div>
         </div>
@@ -359,14 +359,14 @@ export const Analytics: React.FC = () => {
         {/* Bottom Row - User Leaderboard & Models Table */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* User Leaderboard */}
-          <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-6">
+          <div className="bg-card border border-border rounded-xl p-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="p-2 bg-blue-600/10 rounded-lg">
                 <Users className="w-5 h-5 text-blue-400" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-white">Top Users</h3>
-                <p className="text-xs text-[#8d857b] mt-0.5">Ranked by spending</p>
+                <h3 className="text-lg font-semibold text-foreground">Top Users</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Ranked by spending</p>
               </div>
             </div>
             <div className="space-y-2">
@@ -375,15 +375,15 @@ export const Analytics: React.FC = () => {
                 return (
                   <div
                     key={user.user_id}
-                    className="flex items-center justify-between p-3 bg-[#1f1d1b] rounded-lg hover:bg-[#2d2a27] transition-colors border border-[#2d2a27]"
+                    className="flex items-center justify-between p-3 bg-muted rounded-lg hover:bg-accent transition-colors border border-border"
                   >
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       <div className="flex items-center justify-center w-7 h-7 rounded-full bg-blue-600/20 border border-blue-600/30 text-blue-400 font-bold text-xs flex-shrink-0">
                         {index + 1}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="font-semibold text-white text-sm truncate">{displayName}</p>
-                        <p className="text-xs text-[#8d857b]">{user.conversations} sessions · {(user.tokens / 1000).toFixed(0)}K tokens</p>
+                        <p className="font-semibold text-foreground text-sm truncate">{displayName}</p>
+                        <p className="text-xs text-muted-foreground">{user.conversations} sessions · {(user.tokens / 1000).toFixed(0)}K tokens</p>
                       </div>
                     </div>
                     <div className="text-right flex-shrink-0">
@@ -396,26 +396,26 @@ export const Analytics: React.FC = () => {
           </div>
 
           {/* Top Models Table */}
-          <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-6">
+          <div className="bg-card border border-border rounded-xl p-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="p-2 bg-purple-600/10 rounded-lg">
                 <MessageSquare className="w-5 h-5 text-purple-400" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-white">Top Models</h3>
-                <p className="text-xs text-[#8d857b] mt-0.5">By usage & cost</p>
+                <h3 className="text-lg font-semibold text-foreground">Top Models</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">By usage & cost</p>
               </div>
             </div>
             <div className="overflow-x-auto">
               <table className="min-w-full">
                 <thead>
-                  <tr className="border-b border-[#2d2a27]">
-                    <th className="text-left py-3 px-2 text-xs font-bold text-[#8d857b] uppercase">#</th>
-                    <th className="text-left py-3 px-2 text-xs font-bold text-[#8d857b] uppercase">Model</th>
-                    <th className="text-left py-3 px-2 text-xs font-bold text-[#8d857b] uppercase">Provider</th>
-                    <th className="text-center py-3 px-2 text-xs font-bold text-[#8d857b] uppercase">Sessions</th>
-                    <th className="text-right py-3 px-2 text-xs font-bold text-[#8d857b] uppercase">Cost</th>
-                    <th className="text-right py-3 px-2 text-xs font-bold text-[#8d857b] uppercase">Tokens</th>
+                  <tr className="border-b border-border">
+                    <th className="text-left py-3 px-2 text-xs font-bold text-muted-foreground uppercase">#</th>
+                    <th className="text-left py-3 px-2 text-xs font-bold text-muted-foreground uppercase">Model</th>
+                    <th className="text-left py-3 px-2 text-xs font-bold text-muted-foreground uppercase">Provider</th>
+                    <th className="text-center py-3 px-2 text-xs font-bold text-muted-foreground uppercase">Sessions</th>
+                    <th className="text-right py-3 px-2 text-xs font-bold text-muted-foreground uppercase">Cost</th>
+                    <th className="text-right py-3 px-2 text-xs font-bold text-muted-foreground uppercase">Tokens</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#2d2a27]">
@@ -424,7 +424,7 @@ export const Analytics: React.FC = () => {
                     return (
                       <tr
                         key={model.model}
-                        className="hover:bg-[#1f1d1b] transition-colors"
+                        className="hover:bg-muted transition-colors"
                       >
                         <td className="py-3 px-2">
                           <div className="flex items-center justify-center w-7 h-7 rounded-full bg-purple-600/20 border border-purple-600/30 text-purple-400 font-bold text-xs">
@@ -432,7 +432,7 @@ export const Analytics: React.FC = () => {
                           </div>
                         </td>
                         <td className="py-3 px-2">
-                          <p className="font-semibold text-white text-sm truncate max-w-xs">{model.model}</p>
+                          <p className="font-semibold text-foreground text-sm truncate max-w-xs">{model.model}</p>
                         </td>
                         <td className="py-3 px-2">
                           <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-600/20 text-blue-400 border border-blue-600/30">
@@ -440,13 +440,13 @@ export const Analytics: React.FC = () => {
                           </span>
                         </td>
                         <td className="py-3 px-2 text-center">
-                          <p className="text-sm text-white font-medium">{model.conversations}</p>
+                          <p className="text-sm text-foreground font-medium">{model.conversations}</p>
                         </td>
                         <td className="py-3 px-2 text-right">
                           <p className="font-bold text-orange-400 text-sm">${model.cost.toFixed(2)}</p>
                         </td>
                         <td className="py-3 px-2 text-right">
-                          <p className="text-xs text-[#8d857b]">{(model.tokens / 1000).toFixed(0)}K</p>
+                          <p className="text-xs text-muted-foreground">{(model.tokens / 1000).toFixed(0)}K</p>
                         </td>
                       </tr>
                     );

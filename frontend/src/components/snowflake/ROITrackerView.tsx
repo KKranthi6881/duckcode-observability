@@ -40,17 +40,17 @@ export default function ROITrackerView({ connectorId }: Props) {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <Loader2 className="w-8 h-8 animate-spin text-[#ff6a3c]" />
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
 
   if (!summary) {
     return (
-      <div className="text-center py-12 bg-[#161413] border border-[#2d2a27] rounded-xl">
-        <Target className="w-16 h-16 text-[#8d857b] mx-auto mb-4" />
-        <p className="text-[#8d857b] text-lg">No ROI data available yet</p>
-        <p className="text-[#8d857b] text-sm mt-2">Apply some recommendations to start tracking ROI</p>
+      <div className="text-center py-12 bg-card border border-border rounded-xl">
+        <Target className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+        <p className="text-muted-foreground text-lg">No ROI data available yet</p>
+        <p className="text-muted-foreground text-sm mt-2">Apply some recommendations to start tracking ROI</p>
       </div>
     );
   }
@@ -59,78 +59,78 @@ export default function ROITrackerView({ connectorId }: Props) {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-          <Target className="w-8 h-8 text-[#ff6a3c]" />
+        <h2 className="text-2xl font-bold text-foreground flex items-center gap-3">
+          <Target className="w-8 h-8 text-primary" />
           ROI Tracker
         </h2>
-        <p className="text-[#8d857b] mt-1">Track savings from implemented recommendations</p>
+        <p className="text-muted-foreground mt-1">Track savings from implemented recommendations</p>
       </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Applied Recommendations */}
-        <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-5">
+        <div className="bg-card border border-border rounded-xl p-5">
           <div className="flex items-center justify-between mb-2">
             <CheckCircle className="w-6 h-6 text-green-400" />
-            <span className="text-[#8d857b] text-xs font-bold uppercase">Applied</span>
+            <span className="text-muted-foreground text-xs font-bold uppercase">Applied</span>
           </div>
-          <div className="text-3xl font-bold text-white">{summary.applied_recommendations || 0}</div>
-          <div className="text-[#8d857b] text-sm mt-1">
+          <div className="text-3xl font-bold text-foreground">{summary.applied_recommendations || 0}</div>
+          <div className="text-muted-foreground text-sm mt-1">
             of {summary.total_recommendations || 0} total
           </div>
         </div>
 
         {/* Projected Savings */}
-        <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-5">
+        <div className="bg-card border border-border rounded-xl p-5">
           <div className="flex items-center justify-between mb-2">
             <TrendingUp className="w-6 h-6 text-blue-400" />
-            <span className="text-[#8d857b] text-xs font-bold uppercase">Projected</span>
+            <span className="text-muted-foreground text-xs font-bold uppercase">Projected</span>
           </div>
           <div className="text-3xl font-bold text-blue-400">
             {formatCurrency(summary.projected_annual_savings || 0)}
           </div>
-          <div className="text-[#8d857b] text-sm mt-1">/year</div>
+          <div className="text-muted-foreground text-sm mt-1">/year</div>
         </div>
 
         {/* Actual Savings */}
-        <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-5">
+        <div className="bg-card border border-border rounded-xl p-5">
           <div className="flex items-center justify-between mb-2">
             <DollarSign className="w-6 h-6 text-green-400" />
-            <span className="text-[#8d857b] text-xs font-bold uppercase">Actual</span>
+            <span className="text-muted-foreground text-xs font-bold uppercase">Actual</span>
           </div>
           <div className="text-3xl font-bold text-green-400">
             {formatCurrency(summary.actual_annual_savings || 0)}
           </div>
-          <div className="text-[#8d857b] text-sm mt-1">/year</div>
+          <div className="text-muted-foreground text-sm mt-1">/year</div>
         </div>
 
         {/* ROI Percentage */}
-        <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-5">
+        <div className="bg-card border border-border rounded-xl p-5">
           <div className="flex items-center justify-between mb-2">
             <Target className="w-6 h-6 text-purple-400" />
-            <span className="text-[#8d857b] text-xs font-bold uppercase">ROI</span>
+            <span className="text-muted-foreground text-xs font-bold uppercase">ROI</span>
           </div>
           <div className="text-3xl font-bold text-purple-400">
             {(summary.roi_percentage || 0).toFixed(0)}%
           </div>
-          <div className="text-[#8d857b] text-sm mt-1">
+          <div className="text-muted-foreground text-sm mt-1">
             Payback: {(summary.payback_months || 0).toFixed(1)} months
           </div>
         </div>
       </div>
 
       {/* Savings Visualization */}
-      <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-6">
-        <h3 className="text-lg font-bold text-white mb-4">Projected vs Actual Savings</h3>
+      <div className="bg-card border border-border rounded-xl p-6">
+        <h3 className="text-lg font-bold text-foreground mb-4">Projected vs Actual Savings</h3>
         <div className="space-y-4">
           <div>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[#8d857b] text-sm">Projected Annual Savings</span>
+              <span className="text-muted-foreground text-sm">Projected Annual Savings</span>
               <span className="text-blue-400 font-bold">
                 {formatCurrency(summary.projected_annual_savings || 0)}
               </span>
             </div>
-            <div className="w-full bg-[#0d0c0a] rounded-full h-3">
+            <div className="w-full bg-input rounded-full h-3">
               <div
                 className="bg-blue-500 h-3 rounded-full"
                 style={{ width: '100%' }}
@@ -139,12 +139,12 @@ export default function ROITrackerView({ connectorId }: Props) {
           </div>
           <div>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[#8d857b] text-sm">Actual Annual Savings</span>
+              <span className="text-muted-foreground text-sm">Actual Annual Savings</span>
               <span className="text-green-400 font-bold">
                 {formatCurrency(summary.actual_annual_savings || 0)}
               </span>
             </div>
-            <div className="w-full bg-[#0d0c0a] rounded-full h-3">
+            <div className="w-full bg-input rounded-full h-3">
               <div
                 className="bg-green-500 h-3 rounded-full transition-all"
                 style={{ 
@@ -158,38 +158,38 @@ export default function ROITrackerView({ connectorId }: Props) {
 
       {/* Breakdown Table */}
       {breakdown.length > 0 && (
-        <div className="bg-[#161413] border border-[#2d2a27] rounded-xl overflow-hidden">
-          <div className="p-6 border-b border-[#2d2a27]">
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+        <div className="bg-card border border-border rounded-xl overflow-hidden">
+          <div className="p-6 border-b border-border">
+            <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
               <Calendar className="w-5 h-5" />
               Detailed Breakdown
             </h3>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-[#0d0c0a]">
+              <thead className="bg-input">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-[#8d857b] uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Recommendation
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-[#8d857b] uppercase tracking-wider">
+                  <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Projected
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-[#8d857b] uppercase tracking-wider">
+                  <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Actual
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-[#8d857b] uppercase tracking-wider">
+                  <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Variance
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-[#8d857b] uppercase tracking-wider">
+                  <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Status
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#2d2a27]">
                 {breakdown.map((item) => (
-                  <tr key={item.id} className="hover:bg-[#0d0c0a] transition-colors">
-                    <td className="px-6 py-4 text-sm text-white">
+                  <tr key={item.id} className="hover:bg-input transition-colors">
+                    <td className="px-6 py-4 text-sm text-foreground">
                       {item.recommendation_title}
                     </td>
                     <td className="px-6 py-4 text-sm text-right text-blue-400 font-medium">
@@ -235,7 +235,7 @@ export default function ROITrackerView({ connectorId }: Props) {
               <h3 className="text-xl font-bold text-green-400 mb-2">
                 Great Progress! 🎉
               </h3>
-              <p className="text-[#8d857b] mb-3">
+              <p className="text-muted-foreground mb-3">
                 You've saved <span className="text-green-400 font-bold">{formatCurrency(summary.actual_annual_savings || 0)}</span> annually 
                 by implementing {summary.applied_recommendations || 0} recommendations. 
                 {(summary.actual_annual_savings || 0) >= (summary.projected_annual_savings || 0) ? (
@@ -244,7 +244,7 @@ export default function ROITrackerView({ connectorId }: Props) {
                   <span> You're on track to reach your {formatCurrency(summary.projected_annual_savings || 0)} annual savings goal.</span>
                 )}
               </p>
-              <div className="text-sm text-[#8d857b]">
+              <div className="text-sm text-muted-foreground">
                 ROI: <span className="text-purple-400 font-bold">{(summary.roi_percentage || 0).toFixed(0)}%</span> | 
                 Payback Period: <span className="text-purple-400 font-bold">{(summary.payback_months || 0).toFixed(1)} months</span>
               </div>

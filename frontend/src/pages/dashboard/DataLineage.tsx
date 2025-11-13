@@ -592,7 +592,7 @@ export function DataLineage() {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-[#0d0c0c]">
+    <div className="h-screen flex flex-col bg-background text-foreground">
       {/* AI-Style Central Search - Always visible */}
       <div className={`flex-shrink-0 flex items-center justify-center px-6 transition-all duration-300 ${
         selectedModel ? 'py-4' : 'py-12'
@@ -607,17 +607,17 @@ export function DataLineage() {
               </div>
             </div>
             {organizationName && (
-              <p className="text-lg text-[#8d857b] mb-3">Welcome to {organizationName}</p>
+              <p className="text-lg text-muted-foreground mb-3">Welcome to {organizationName}</p>
             )}
-            <h1 className="text-4xl font-bold text-white mb-2">Code Intelligence</h1>
-            <p className="text-lg text-[#8d857b]">Search, explore lineage, and discover insights across your data platform</p>
+            <h1 className="text-4xl font-bold text-foreground mb-2">Code Intelligence</h1>
+            <p className="text-lg text-muted-foreground">Search, explore lineage, and discover insights across your data platform</p>
           </div>
           )}
 
           {/* Search Box - Always visible */}
           <div className="relative mb-6">
             <div className="absolute left-6 top-1/2 transform -translate-y-1/2 flex items-center gap-3">
-              <Search className="w-6 h-6 text-[#8d857b]" />
+              <Search className="w-6 h-6 text-muted-foreground" />
               {isSearching && <Loader2 className="w-5 h-5 text-[#ff6a3c] animate-spin" />}
             </div>
             <input
@@ -625,7 +625,7 @@ export function DataLineage() {
               placeholder="Ask anything... (e.g., 'customer_id column', 'stg_orders model', 'GOLD tier tables')"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-20 pr-6 py-6 text-lg bg-[#161413] border-2 border-[#2d2a27] text-white rounded-2xl focus:ring-4 focus:ring-[#ff6a3c]/20 focus:border-[#ff6a3c] transition-all placeholder-[#8d857b]"
+              className="w-full pl-20 pr-6 py-6 text-lg bg-card border-2 border-border text-foreground rounded-2xl focus:ring-4 focus:ring-[#ff6a3c]/20 focus:border-[#ff6a3c] transition-all placeholder:text-muted-foreground"
             />
           </div>
 
@@ -639,7 +639,7 @@ export function DataLineage() {
                 className={`px-4 py-2 rounded-lg font-medium transition-all ${
                   searchType === type
                     ? 'bg-[#ff6a3c] text-white'
-                    : 'bg-[#161413] border border-[#2d2a27] text-[#8d857b] hover:bg-[#1f1d1b]'
+                    : 'bg-card border border-border text-muted-foreground hover:bg-muted'
                 }`}
               >
                 {type.charAt(0).toUpperCase() + type.slice(1)}
@@ -650,9 +650,9 @@ export function DataLineage() {
 
           {/* Search Results - Show always when there are results */}
           {searchResults.length > 0 && (
-            <div className="bg-[#161413] border border-[#2d2a27] rounded-2xl overflow-hidden">
-              <div className="p-4 bg-[#1f1d1b] border-b border-[#2d2a27]">
-                <p className="text-sm font-medium text-[#8d857b]">
+            <div className="bg-card border border-border rounded-2xl overflow-hidden">
+              <div className="p-4 bg-muted border-b border-border">
+                <p className="text-sm font-medium text-muted-foreground">
                   Found {searchResults.length} results
                 </p>
               </div>
@@ -663,7 +663,7 @@ export function DataLineage() {
                     <button
                       key={result.id}
                       onClick={() => handleResultClick(result)}
-                      className="w-full p-4 hover:bg-[#1f1d1b] transition-colors border-b border-[#2d2a27] last:border-b-0 text-left"
+                      className="w-full p-4 hover:bg-muted transition-colors border-b border-border last:border-b-0 text-left"
                     >
                       <div className="flex items-start gap-4">
                         <div className="p-2 bg-purple-600/20 border border-purple-600/30 rounded-lg flex-shrink-0">
@@ -671,8 +671,8 @@ export function DataLineage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
-                            <h3 className="font-semibold text-white">{result.name}</h3>
-                            <span className="text-xs px-2 py-0.5 bg-[#1f1d1b] border border-[#2d2a27] text-[#8d857b] rounded-full">
+                            <h3 className="font-semibold text-foreground">{result.name}</h3>
+                            <span className="text-xs px-2 py-0.5 bg-muted border border-border text-muted-foreground rounded-full">
                               {result.type}
                             </span>
                             {result.tier && (
@@ -686,13 +686,13 @@ export function DataLineage() {
                             )}
                           </div>
                           {result.description && (
-                            <p className="text-sm text-[#8d857b] mb-2">{result.description}</p>
+                            <p className="text-sm text-muted-foreground mb-2">{result.description}</p>
                           )}
                           {result.parentModel && (
-                            <p className="text-xs text-[#8d857b]">in {result.parentModel}</p>
+                            <p className="text-xs text-muted-foreground">in {result.parentModel}</p>
                           )}
                           {result.filePath && (
-                            <p className="text-xs text-[#8d857b] font-mono mt-1">{result.filePath}</p>
+                            <p className="text-xs text-muted-foreground font-mono mt-1">{result.filePath}</p>
                           )}
                           {(result.upstreamCount !== undefined || result.downstreamCount !== undefined) && (
                             <div className="flex items-center gap-4 mt-2">
@@ -731,10 +731,10 @@ export function DataLineage() {
 
           {/* Empty State */}
           {searchQuery.length >= 2 && searchResults.length === 0 && !isSearching && (
-            <div className="text-center py-12 bg-[#161413] border border-[#2d2a27] rounded-2xl">
-              <Network className="w-16 h-16 mx-auto mb-4 text-[#2d2a27]" />
-              <p className="text-white">No results found for "{searchQuery}"</p>
-              <p className="text-sm text-[#8d857b] mt-2">Try searching for models, columns, or tables</p>
+            <div className="text-center py-12 bg-card border border-border rounded-2xl">
+              <Network className="w-16 h-16 mx-auto mb-4 text-border" />
+              <p className="text-foreground">No results found for "{searchQuery}"</p>
+              <p className="text-sm text-muted-foreground mt-2">Try searching for models, columns, or tables</p>
             </div>
           )}
         </div>
@@ -745,7 +745,7 @@ export function DataLineage() {
         <div className="flex-1 overflow-hidden px-6 pb-6 relative">
           {/* Main Lineage View - Fixed Full Width */}
           <div className="h-full w-full">
-            <div className="h-full bg-[#161413] border border-[#2d2a27] rounded-2xl overflow-hidden">
+            <div className="h-full bg-card border border-border rounded-2xl overflow-hidden">
               <FocusedLineageView 
                 connectionId={connectionId || 'unified'}
                 initialModelId={selectedModel}
@@ -764,7 +764,7 @@ export function DataLineage() {
           {/* Sidebar Toggle Button */}
           <button
             onClick={() => setShowMetadata(!showMetadata)}
-            className="absolute top-1/2 -translate-y-1/2 z-30 bg-[#161413] border-2 border-[#2d2a27] rounded-lg p-2 hover:bg-[#1f1d1b] hover:border-[#ff6a3c]/50 transition-all shadow-lg"
+            className="absolute top-1/2 -translate-y-1/2 z-30 bg-card border-2 border-border rounded-lg p-2 hover:bg-muted hover:border-[#ff6a3c]/50 transition-all shadow-lg"
             style={{
               right: showMetadata ? '400px' : '0px',
               transition: 'right 0.3s ease'
@@ -772,46 +772,46 @@ export function DataLineage() {
             title={showMetadata ? "Hide details" : "Show details"}
           >
             {showMetadata ? (
-              <ChevronRight className="w-4 h-4 text-white" />
+              <ChevronRight className="w-4 h-4 text-foreground" />
             ) : (
-              <ChevronLeft className="w-4 h-4 text-white" />
+              <ChevronLeft className="w-4 h-4 text-foreground" />
             )}
           </button>
 
           {/* Metadata Side Panel - Slides in from right */}
           <div 
-            className="absolute top-0 h-full w-96 bg-[#161413] border border-[#2d2a27] rounded-2xl overflow-hidden flex flex-col shadow-2xl transition-transform duration-300 ease-in-out z-20"
+            className="absolute top-0 h-full w-96 bg-card border border-border rounded-2xl overflow-hidden flex flex-col shadow-2xl transition-transform duration-300 ease-in-out z-20"
             style={{
               right: showMetadata ? '0' : '-384px',
               transform: showMetadata ? 'translateX(0)' : 'translateX(0)'
             }}
           >
               {/* Panel Header */}
-              <div className="px-5 py-4 bg-[#1f1d1b] border-b border-[#2d2a27]">
+              <div className="px-5 py-4 bg-muted border-b border-border">
                 <div className="flex items-center gap-2 mb-2">
                   <Info className="w-5 h-5 text-[#ff6a3c]"/>
-                  <span className="font-bold text-white">Table Details</span>
+                  <span className="font-bold text-foreground">Table Details</span>
                 </div>
-                <p className="text-xs text-[#8d857b]">Schema and column information</p>
+                <p className="text-xs text-muted-foreground">Schema and column information</p>
               </div>
 
               {/* Panel Content */}
               <div className="flex-1 overflow-y-auto p-5">
                 {/* Model Info Section */}
                 {selectedModelInfo && (
-                  <div className="mb-5 p-4 bg-[#1f1d1b] border border-[#2d2a27] rounded-lg">
+                  <div className="mb-5 p-4 bg-muted border border-border rounded-lg">
                     <div className="flex items-center gap-2 mb-3">
                       <Database className="w-5 h-5 text-blue-400" />
-                      <span className="text-sm font-bold text-[#8d857b] uppercase">Model Info</span>
+                      <span className="text-sm font-bold text-muted-foreground uppercase">Model Info</span>
                     </div>
                     <div className="space-y-2">
                       <div>
-                        <div className="text-xs text-[#8d857b] mb-1">Name</div>
-                        <div className="font-mono text-sm text-white font-semibold">{selectedModelInfo.name}</div>
+                        <div className="text-xs text-muted-foreground mb-1">Name</div>
+                        <div className="font-mono text-sm text-foreground font-semibold">{selectedModelInfo.name}</div>
                       </div>
                       <div className="flex gap-4">
                         <div className="flex-1">
-                          <div className="text-xs text-[#8d857b] mb-1">Type</div>
+                          <div className="text-xs text-muted-foreground mb-1">Type</div>
                           <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
                             selectedModelInfo.type === 'table' 
                               ? 'bg-blue-600/20 border border-blue-600/30 text-blue-400'
@@ -822,7 +822,7 @@ export function DataLineage() {
                         </div>
                         {selectedModelInfo.source && (
                           <div className="flex-1">
-                            <div className="text-xs text-[#8d857b] mb-1">Source</div>
+                            <div className="text-xs text-muted-foreground mb-1">Source</div>
                             <span className="px-2 py-1 bg-cyan-600/20 border border-cyan-600/30 text-cyan-400 rounded-full text-xs font-semibold">
                               {selectedModelInfo.source}
                             </span>
@@ -831,8 +831,8 @@ export function DataLineage() {
                       </div>
                       {selectedModelInfo.schema && (
                         <div>
-                          <div className="text-xs text-[#8d857b] mb-1">Schema</div>
-                          <div className="text-sm text-white">{selectedModelInfo.schema}</div>
+                          <div className="text-xs text-muted-foreground mb-1">Schema</div>
+                          <div className="text-sm text-foreground">{selectedModelInfo.schema}</div>
                         </div>
                       )}
                     </div>
@@ -849,8 +849,8 @@ export function DataLineage() {
                     {/* Columns Header */}
                     <div className="flex items-center gap-2 mb-3">
                       <Columns className="w-5 h-5 text-purple-400" />
-                      <span className="text-sm font-bold text-[#8d857b] uppercase">Columns</span>
-                      <span className="ml-auto px-2 py-1 bg-[#1f1d1b] border border-[#2d2a27] rounded-full text-xs font-bold text-white">
+                      <span className="text-sm font-bold text-muted-foreground uppercase">Columns</span>
+                      <span className="ml-auto px-2 py-1 bg-muted border border-border rounded-full text-xs font-bold text-foreground">
                         {metadataColumns.length}
                       </span>
                     </div>
@@ -859,26 +859,26 @@ export function DataLineage() {
                     {metadataColumns.map((col, idx) => (
                       <div 
                         key={idx}
-                        className="p-3 bg-[#1f1d1b] border border-[#2d2a27] rounded-lg hover:border-[#ff6a3c]/50 transition-all"
+                        className="p-3 bg-muted border border-border rounded-lg hover:border-[#ff6a3c]/50 transition-all"
                       >
                         <div className="flex items-start gap-2 mb-2">
                           <span className="text-yellow-400 mt-0.5">🔑</span>
                           <div className="flex-1 min-w-0">
-                            <div className="font-mono text-sm text-white font-semibold truncate">
+                            <div className="font-mono text-sm text-foreground font-semibold truncate">
                               {col.name}
                             </div>
                           </div>
                         </div>
                         <div className="space-y-1.5 ml-6">
                           <div className="flex items-center gap-2">
-                            <span className="text-xs text-[#8d857b]">Type:</span>
-                            <span className="px-2 py-0.5 bg-[#0d0c0c] border border-[#2d2a27] rounded text-cyan-400 font-mono text-xs">
+                            <span className="text-xs text-muted-foreground">Type:</span>
+                            <span className="px-2 py-0.5 bg-muted border border-border rounded text-cyan-400 font-mono text-xs">
                               {col.data_type || 'unknown'}
                             </span>
                           </div>
                           {col.is_nullable !== undefined && (
                             <div className="flex items-center gap-2">
-                              <span className="text-xs text-[#8d857b]">Nullable:</span>
+                              <span className="text-xs text-muted-foreground">Nullable:</span>
                               <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
                                 col.is_nullable
                                   ? 'bg-yellow-600/20 border border-yellow-600/30 text-yellow-400'
@@ -890,8 +890,8 @@ export function DataLineage() {
                           )}
                           {col.position !== undefined && (
                             <div className="flex items-center gap-2">
-                              <span className="text-xs text-[#8d857b]">Position:</span>
-                              <span className="text-xs text-white">{col.position}</span>
+                              <span className="text-xs text-muted-foreground">Position:</span>
+                              <span className="text-xs text-foreground">{col.position}</span>
                             </div>
                           )}
                         </div>
@@ -916,10 +916,10 @@ export function DataLineage() {
 
       {/* Documentation Viewer Modal */}
       {viewingDoc && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#161413] border border-[#2d2a27] rounded-xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="fixed inset-0 bg-modal-overlay/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
             {/* Modal Header */}
-            <div className="px-6 py-4 bg-[#1f1d1b] border-b border-[#2d2a27] flex items-center justify-between">
+            <div className="px-6 py-4 bg-muted border-b border-border flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <FileText className="h-5 w-5 text-purple-400" />
                 <h2 className="text-lg font-semibold text-white">{viewingDoc.objectName}</h2>

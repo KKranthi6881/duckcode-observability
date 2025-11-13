@@ -180,16 +180,16 @@ export default function SnowflakeCostDashboard() {
   }, [daily]);
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6 text-foreground">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Snowflake Cost Analytics</h1>
-          <p className="text-sm text-gray-500">Visualize credits usage, warehouse costs, tagging, and high-cost queries</p>
+          <h1 className="text-2xl font-semibold">Snowflake Cost Analytics</h1>
+          <p className="text-sm text-muted-foreground">Visualize credits usage, warehouse costs, tagging, and high-cost queries</p>
         </div>
         <div className="flex gap-2 items-center flex-wrap">
           <div className="relative">
             <select
-              className="appearance-none pl-3 pr-10 py-2 bg-white border rounded-lg text-sm shadow-sm"
+              className="appearance-none pl-3 pr-10 py-2 bg-background border border-border rounded-lg text-sm shadow-sm"
               value={range}
               onChange={(e) => setRange(e.target.value as '7d' | '30d' | '90d' | 'custom')}
             >
@@ -198,20 +198,20 @@ export default function SnowflakeCostDashboard() {
               <option value="90d">Last 90 days</option>
               <option value="custom">Custom</option>
             </select>
-            <ChevronDown className="w-4 h-4 text-gray-500 absolute right-2 top-2.5" />
+            <ChevronDown className="w-4 h-4 text-muted-foreground absolute right-2 top-2.5" />
           </div>
 
           {range === 'custom' && (
             <div className="flex items-center gap-2">
-              <input type="date" className="border rounded-lg px-2 py-1 text-sm" value={customStartDate} onChange={(e) => setCustomStartDate(e.target.value)} />
-              <span className="text-gray-500 text-sm">to</span>
-              <input type="date" className="border rounded-lg px-2 py-1 text-sm" value={customEndDate} onChange={(e) => setCustomEndDate(e.target.value)} />
+              <input type="date" className="border border-border bg-background rounded-lg px-2 py-1 text-sm" value={customStartDate} onChange={(e) => setCustomStartDate(e.target.value)} />
+              <span className="text-muted-foreground text-sm">to</span>
+              <input type="date" className="border border-border bg-background rounded-lg px-2 py-1 text-sm" value={customEndDate} onChange={(e) => setCustomEndDate(e.target.value)} />
             </div>
           )}
 
           <div className="relative">
             <select
-              className="appearance-none pl-3 pr-10 py-2 bg-white border rounded-lg text-sm shadow-sm"
+              className="appearance-none pl-3 pr-10 py-2 bg-background border border-border rounded-lg text-sm shadow-sm"
               value={organizationId || ''}
               onChange={(e) => setOrganizationId(e.target.value)}
             >
@@ -219,12 +219,12 @@ export default function SnowflakeCostDashboard() {
                 <option key={o.id} value={o.id}>{o.name}</option>
               ))}
             </select>
-            <ChevronDown className="w-4 h-4 text-gray-500 absolute right-2 top-2.5" />
+            <ChevronDown className="w-4 h-4 text-muted-foreground absolute right-2 top-2.5" />
           </div>
 
           <div className="relative">
             <select
-              className="appearance-none pl-3 pr-10 py-2 bg-white border rounded-lg text-sm shadow-sm"
+              className="appearance-none pl-3 pr-10 py-2 bg-background border border-border rounded-lg text-sm shadow-sm"
               value={connectorId || ''}
               onChange={(e) => setConnectorId(e.target.value)}
             >
@@ -232,12 +232,12 @@ export default function SnowflakeCostDashboard() {
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>
-            <ChevronDown className="w-4 h-4 text-gray-500 absolute right-2 top-2.5" />
+            <ChevronDown className="w-4 h-4 text-muted-foreground absolute right-2 top-2.5" />
           </div>
 
           <div className="relative">
             <select
-              className="appearance-none pl-3 pr-10 py-2 bg-white border rounded-lg text-sm shadow-sm"
+              className="appearance-none pl-3 pr-10 py-2 bg-background border border-border rounded-lg text-sm shadow-sm"
               value={selectedWarehouse}
               onChange={(e) => setSelectedWarehouse(e.target.value)}
             >
@@ -246,12 +246,12 @@ export default function SnowflakeCostDashboard() {
                 <option key={w.WAREHOUSE_NAME} value={w.WAREHOUSE_NAME}>{w.WAREHOUSE_NAME}</option>
               ))}
             </select>
-            <ChevronDown className="w-4 h-4 text-gray-500 absolute right-2 top-2.5" />
+            <ChevronDown className="w-4 h-4 text-muted-foreground absolute right-2 top-2.5" />
           </div>
 
           <div className="relative">
             <select
-              className="appearance-none pl-3 pr-10 py-2 bg-white border rounded-lg text-sm shadow-sm"
+              className="appearance-none pl-3 pr-10 py-2 bg-background border border-border rounded-lg text-sm shadow-sm"
               value={selectedUser}
               onChange={(e) => setSelectedUser(e.target.value)}
             >
@@ -260,12 +260,12 @@ export default function SnowflakeCostDashboard() {
                 <option key={u.USER_NAME} value={u.USER_NAME}>{u.USER_NAME}</option>
               ))}
             </select>
-            <ChevronDown className="w-4 h-4 text-gray-500 absolute right-2 top-2.5" />
+            <ChevronDown className="w-4 h-4 text-muted-foreground absolute right-2 top-2.5" />
           </div>
 
           <div className="relative">
             <select
-              className="appearance-none pl-3 pr-10 py-2 bg-white border rounded-lg text-sm shadow-sm"
+              className="appearance-none pl-3 pr-10 py-2 bg-background border border-border rounded-lg text-sm shadow-sm"
               value={selectedTagName}
               onChange={(e) => setSelectedTagName(e.target.value)}
             >
@@ -274,12 +274,12 @@ export default function SnowflakeCostDashboard() {
                 <option key={name} value={name}>{name}</option>
               ))}
             </select>
-            <ChevronDown className="w-4 h-4 text-gray-500 absolute right-2 top-2.5" />
+            <ChevronDown className="w-4 h-4 text-muted-foreground absolute right-2 top-2.5" />
           </div>
 
           <div className="relative">
             <select
-              className="appearance-none pl-3 pr-10 py-2 bg-white border rounded-lg text-sm shadow-sm"
+              className="appearance-none pl-3 pr-10 py-2 bg-background border border-border rounded-lg text-sm shadow-sm"
               value={selectedTagValue}
               onChange={(e) => setSelectedTagValue(e.target.value)}
             >
@@ -288,7 +288,7 @@ export default function SnowflakeCostDashboard() {
                 <option key={`${t.TAG_NAME}:${t.TAG_VALUE}`} value={t.TAG_VALUE}>{t.TAG_VALUE}</option>
               ))}
             </select>
-            <ChevronDown className="w-4 h-4 text-gray-500 absolute right-2 top-2.5" />
+            <ChevronDown className="w-4 h-4 text-muted-foreground absolute right-2 top-2.5" />
           </div>
 
           <button className="px-3 py-2 text-sm border rounded-lg" onClick={() => { setSelectedWarehouse(''); setSelectedUser(''); setSelectedTagName(''); setSelectedTagValue(''); }}>Reset Filters</button>
@@ -301,7 +301,7 @@ export default function SnowflakeCostDashboard() {
       </div>
 
       {loading && (
-        <div className="flex items-center gap-2 text-gray-600"><Loader2 className="w-4 h-4 animate-spin"/> Loading...</div>
+        <div className="flex items-center gap-2 text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin"/> Loading...</div>
       )}
       {error && (
         <div className="p-3 rounded-md bg-red-50 text-red-700 text-sm">{error}</div>
@@ -309,8 +309,8 @@ export default function SnowflakeCostDashboard() {
 
       {/* Overview */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl shadow p-4">
-          <div className="flex items-center gap-2 mb-2 text-gray-700"><TrendingUp className="w-4 h-4"/> Daily Credits</div>
+        <div className="bg-card border border-border rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-2 text-muted-foreground"><TrendingUp className="w-4 h-4"/> Daily Credits</div>
           <div className="h-64">
             <ResponsiveContainer>
               <LineChart data={dailyData} margin={{ left: 16, right: 16, top: 8, bottom: 8 }}>
@@ -324,8 +324,8 @@ export default function SnowflakeCostDashboard() {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow p-4">
-          <div className="flex items-center gap-2 mb-2 text-gray-700"><Layers className="w-4 h-4"/> Warehouse Costs</div>
+        <div className="bg-card border border-border rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-2 text-muted-foreground"><Layers className="w-4 h-4"/> Warehouse Costs</div>
           <div className="h-64">
             <ResponsiveContainer>
               <BarChart data={warehouses} margin={{ left: 16, right: 16, top: 8, bottom: 8 }}>
@@ -341,8 +341,8 @@ export default function SnowflakeCostDashboard() {
       </div>
 
       {/* Tag Costs */}
-      <div className="bg-white rounded-xl shadow p-4">
-        <div className="flex items-center gap-2 mb-2 text-gray-700"><Tag className="w-4 h-4"/> Cost by Tags (Warehouse Tags)</div>
+      <div className="bg-card border border-border rounded-xl p-4">
+        <div className="flex items-center gap-2 mb-2 text-muted-foreground"><Tag className="w-4 h-4"/> Cost by Tags (Warehouse Tags)</div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="h-64">
             <ResponsiveContainer>
@@ -365,7 +365,7 @@ export default function SnowflakeCostDashboard() {
           <div className="overflow-auto">
             <table className="min-w-full text-sm">
               <thead>
-                <tr className="text-left text-gray-500">
+                <tr className="text-left text-muted-foreground">
                   <th className="py-2 pr-4">Tag</th>
                   <th className="py-2 pr-4">Value</th>
                   <th className="py-2">Credits</th>
@@ -386,12 +386,12 @@ export default function SnowflakeCostDashboard() {
       </div>
 
       {/* Top Queries */}
-      <div className="bg-white rounded-xl shadow p-4">
-        <div className="flex items-center gap-2 mb-2 text-gray-700"><Search className="w-4 h-4"/> High Cost Queries (Top by bytes scanned)</div>
+      <div className="bg-card border border-border rounded-xl p-4">
+        <div className="flex items-center gap-2 mb-2 text-muted-foreground"><Search className="w-4 h-4"/> High Cost Queries (Top by bytes scanned)</div>
         <div className="overflow-auto">
           <table className="min-w-full text-sm">
             <thead>
-              <tr className="text-left text-gray-500">
+              <tr className="text-left text-muted-foreground">
                 <th className="py-2 pr-4">Query ID</th>
                 <th className="py-2 pr-4">User</th>
                 <th className="py-2 pr-4">Warehouse</th>
@@ -405,7 +405,7 @@ export default function SnowflakeCostDashboard() {
             </thead>
             <tbody>
               {queries.map((q) => (
-                <tr key={q.QUERY_ID} className="border-t hover:bg-gray-50">
+                <tr key={q.QUERY_ID} className="border-t hover:bg-muted">
                   <td className="py-2 pr-4 font-mono text-indigo-600">{q.QUERY_ID}</td>
                   <td className="py-2 pr-4">{q.USER_NAME}</td>
                   <td className="py-2 pr-4">{q.WAREHOUSE_NAME}</td>
@@ -434,9 +434,9 @@ export default function SnowflakeCostDashboard() {
       </div>
 
       {/* Budgets & Alerts */}
-      <div className="bg-white rounded-xl shadow p-4">
+      <div className="bg-card border border-border rounded-xl p-4">
         <div className="flex items-center justify-between mb-3">
-          <div className="text-gray-700 font-medium">Budgets & Alerts</div>
+          <div className="text-muted-foreground font-medium">Budgets & Alerts</div>
           <button
             onClick={async () => { if (!connectorId || !newBudget.level || !newBudget.threshold_credits) return; await snowflakeBudgetsService.save(connectorId, { ...newBudget, level: newBudget.level, threshold_credits: Number(newBudget.threshold_credits) }, !!newBudget.id); setNewBudget({ level: 'overall', threshold_credits: 100 }); const b = await snowflakeBudgetsService.list(connectorId); setBudgets(b); }}
             className="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-lg"
@@ -444,40 +444,40 @@ export default function SnowflakeCostDashboard() {
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="space-y-2">
-            <select className="w-full border rounded-lg px-2 py-1 text-sm" value={newBudget.level as string || 'overall'} onChange={(e) => setNewBudget(prev => ({ ...prev, level: e.target.value as SnowflakeBudget['level'] }))}>
+            <select className="w-full border border-border bg-background rounded-lg px-2 py-1 text-sm" value={newBudget.level as string || 'overall'} onChange={(e) => setNewBudget(prev => ({ ...prev, level: e.target.value as SnowflakeBudget['level'] }))}>
               <option value="overall">Overall</option>
               <option value="warehouse">Warehouse</option>
               <option value="tag">Tag</option>
               <option value="user">User</option>
             </select>
             {(newBudget.level === 'warehouse') && (
-              <select className="w-full border rounded-lg px-2 py-1 text-sm" value={newBudget.warehouse_name || ''} onChange={(e) => setNewBudget(prev => ({ ...prev, warehouse_name: e.target.value }))}>
+              <select className="w-full border border-border bg-background rounded-lg px-2 py-1 text-sm" value={newBudget.warehouse_name || ''} onChange={(e) => setNewBudget(prev => ({ ...prev, warehouse_name: e.target.value }))}>
                 <option value="">Select warehouse</option>
                 {filters.warehouses.map(w => <option key={w.WAREHOUSE_NAME} value={w.WAREHOUSE_NAME}>{w.WAREHOUSE_NAME}</option>)}
               </select>
             )}
             {(newBudget.level === 'tag') && (
               <div className="flex gap-2">
-                <select className="flex-1 border rounded-lg px-2 py-1 text-sm" value={newBudget.tag_name || ''} onChange={(e) => setNewBudget(prev => ({ ...prev, tag_name: e.target.value }))}>
+                <select className="flex-1 border border-border bg-background rounded-lg px-2 py-1 text-sm" value={newBudget.tag_name || ''} onChange={(e) => setNewBudget(prev => ({ ...prev, tag_name: e.target.value }))}>
                   <option value="">Tag</option>
                   {[...new Set(filters.tags.map(t => t.TAG_NAME))].map(n => <option key={n} value={n}>{n}</option>)}
                 </select>
-                <select className="flex-1 border rounded-lg px-2 py-1 text-sm" value={newBudget.tag_value || ''} onChange={(e) => setNewBudget(prev => ({ ...prev, tag_value: e.target.value }))}>
+                <select className="flex-1 border border-border bg-background rounded-lg px-2 py-1 text-sm" value={newBudget.tag_value || ''} onChange={(e) => setNewBudget(prev => ({ ...prev, tag_value: e.target.value }))}>
                   <option value="">Value</option>
                   {filters.tags.filter(t => !newBudget.tag_name || t.TAG_NAME === newBudget.tag_name).map(t => <option key={`${t.TAG_NAME}:${t.TAG_VALUE}`} value={t.TAG_VALUE}>{t.TAG_VALUE}</option>)}
                 </select>
               </div>
             )}
             {(newBudget.level === 'user') && (
-              <select className="w-full border rounded-lg px-2 py-1 text-sm" value={newBudget.user_name || ''} onChange={(e) => setNewBudget(prev => ({ ...prev, user_name: e.target.value }))}>
+              <select className="w-full border border-border bg-background rounded-lg px-2 py-1 text-sm" value={newBudget.user_name || ''} onChange={(e) => setNewBudget(prev => ({ ...prev, user_name: e.target.value }))}>
                 <option value="">Select user</option>
                 {filters.users.map(u => <option key={u.USER_NAME} value={u.USER_NAME}>{u.USER_NAME}</option>)}
               </select>
             )}
           </div>
           <div className="space-y-2">
-            <input className="w-full border rounded-lg px-2 py-1 text-sm" type="number" placeholder="Threshold credits" value={String(newBudget.threshold_credits || '')} onChange={(e) => setNewBudget(prev => ({ ...prev, threshold_credits: Number(e.target.value) }))} />
-            <select className="w-full border rounded-lg px-2 py-1 text-sm" value={newBudget.period || '30d'} onChange={(e) => setNewBudget(prev => ({ ...prev, period: e.target.value as SnowflakeBudget['period'] }))}>
+            <input className="w-full border border-border bg-background rounded-lg px-2 py-1 text-sm" type="number" placeholder="Threshold credits" value={String(newBudget.threshold_credits || '')} onChange={(e) => setNewBudget(prev => ({ ...prev, threshold_credits: Number(e.target.value) }))} />
+            <select className="w-full border border-border bg-background rounded-lg px-2 py-1 text-sm" value={newBudget.period || '30d'} onChange={(e) => setNewBudget(prev => ({ ...prev, period: e.target.value as SnowflakeBudget['period'] }))}>
               <option value="7d">7d</option>
               <option value="30d">30d</option>
               <option value="90d">90d</option>
@@ -485,14 +485,14 @@ export default function SnowflakeCostDashboard() {
             </select>
             {newBudget.period === 'custom' && (
               <div className="flex gap-2">
-                <input type="date" className="flex-1 border rounded-lg px-2 py-1 text-sm" onChange={(e) => setNewBudget(prev => ({ ...prev, start_time: e.target.value ? `${e.target.value}T00:00:00` : null }))} />
-                <input type="date" className="flex-1 border rounded-lg px-2 py-1 text-sm" onChange={(e) => setNewBudget(prev => ({ ...prev, end_time: e.target.value ? `${e.target.value}T00:00:00` : null }))} />
+                <input type="date" className="flex-1 border border-border bg-background rounded-lg px-2 py-1 text-sm" onChange={(e) => setNewBudget(prev => ({ ...prev, start_time: e.target.value ? `${e.target.value}T00:00:00` : null }))} />
+                <input type="date" className="flex-1 border border-border bg-background rounded-lg px-2 py-1 text-sm" onChange={(e) => setNewBudget(prev => ({ ...prev, end_time: e.target.value ? `${e.target.value}T00:00:00` : null }))} />
               </div>
             )}
           </div>
           <div className="space-y-2">
-            <input className="w-full border rounded-lg px-2 py-1 text-sm" placeholder="Slack webhook (optional)" value={newBudget.notify_slack_webhook || ''} onChange={(e) => setNewBudget(prev => ({ ...prev, notify_slack_webhook: e.target.value }))} />
-            <select className="w-full border rounded-lg px-2 py-1 text-sm" value={newBudget.status || 'active'} onChange={(e) => setNewBudget(prev => ({ ...prev, status: e.target.value as SnowflakeBudget['status'] }))}>
+            <input className="w-full border border-border bg-background rounded-lg px-2 py-1 text-sm" placeholder="Slack webhook (optional)" value={newBudget.notify_slack_webhook || ''} onChange={(e) => setNewBudget(prev => ({ ...prev, notify_slack_webhook: e.target.value }))} />
+            <select className="w-full border border-border bg-background rounded-lg px-2 py-1 text-sm" value={newBudget.status || 'active'} onChange={(e) => setNewBudget(prev => ({ ...prev, status: e.target.value as SnowflakeBudget['status'] }))}>
               <option value="active">active</option>
               <option value="paused">paused</option>
               <option value="archived">archived</option>
@@ -502,10 +502,10 @@ export default function SnowflakeCostDashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
           <div>
-            <div className="text-sm font-medium text-gray-700 mb-2">Budgets</div>
+            <div className="text-sm font-medium text-muted-foreground mb-2">Budgets</div>
             <table className="min-w-full text-sm">
               <thead>
-                <tr className="text-left text-gray-500">
+                <tr className="text-left text-muted-foreground">
                   <th className="py-2 pr-4">Scope</th>
                   <th className="py-2 pr-4">Threshold</th>
                   <th className="py-2 pr-4">Period</th>
@@ -528,10 +528,10 @@ export default function SnowflakeCostDashboard() {
             </table>
           </div>
           <div>
-            <div className="text-sm font-medium text-gray-700 mb-2">Recent Alerts</div>
+            <div className="text-sm font-medium text-muted-foreground mb-2">Recent Alerts</div>
             <table className="min-w-full text-sm">
               <thead>
-                <tr className="text-left text-gray-500">
+                <tr className="text-left text-muted-foreground">
                   <th className="py-2 pr-4">When</th>
                   <th className="py-2 pr-4">Credits</th>
                   <th className="py-2">Message</th>

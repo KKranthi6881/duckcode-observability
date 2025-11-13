@@ -43,6 +43,14 @@ module.exports = {content: [
   				DEFAULT: 'hsl(var(--card))',
   				foreground: 'hsl(var(--card-foreground))'
   			},
+  			sidebar: {
+  				DEFAULT: 'hsl(var(--sidebar))',
+  				foreground: 'hsl(var(--sidebar-foreground))',
+  				border: 'hsl(var(--sidebar-border))',
+  				active: 'hsl(var(--sidebar-active))',
+  				hover: 'hsl(var(--sidebar-hover))'
+  			},
+  			'modal-overlay': 'hsl(var(--modal-overlay))',
   			chart: {
   				'1': 'hsl(var(--chart-1))',
   				'2': 'hsl(var(--chart-2))',

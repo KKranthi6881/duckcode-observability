@@ -453,7 +453,7 @@ export function DocumentationViewer({ documentation, objectName, objectId, organ
                       {documentation.code_explanations.map((explanation, index) => (
                         <div key={index} className="border border-gray-200 rounded-lg overflow-hidden">
                           {/* Code Block */}
-                          <div className="bg-gray-900 px-4 py-3 flex items-center justify-between border-b border-gray-700">
+                          <div className="bg-muted px-4 py-3 flex items-center justify-between border-b border-border">
                             <span className="text-xs font-mono text-gray-400">
                               Snippet {index + 1} of {documentation.code_explanations.length}
                             </span>
@@ -468,7 +468,7 @@ export function DocumentationViewer({ documentation, objectName, objectId, organ
                               {copiedSection === `code-${index}` ? '✓ Copied' : 'Copy'}
                             </button>
                           </div>
-                          <div className="bg-gray-900 p-4 overflow-x-auto">
+                          <div className="bg-muted p-4 overflow-x-auto">
                             <pre className="text-sm text-gray-100">
                               <code>{explanation.codeBlock}</code>
                             </pre>

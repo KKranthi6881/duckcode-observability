@@ -266,7 +266,7 @@ export const SearchPage: React.FC = () => {
               
               <TabsContent value="definition">
                 {objectDetails.definition ? (
-                  <pre className="bg-gray-50 dark:bg-gray-900 p-4 rounded text-sm overflow-x-auto">
+                  <pre className="bg-muted p-4 rounded text-sm overflow-x-auto">
                     <code>{objectDetails.definition}</code>
                   </pre>
                 ) : (

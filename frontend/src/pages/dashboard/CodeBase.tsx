@@ -962,12 +962,12 @@ export function CodeBase() {
   // Basic loading state
   if (isLoadingConnection) {
     return (
-      <div className="min-h-screen bg-[#0d0c0c] flex items-center justify-center">
-        <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-8 max-w-md w-full mx-4">
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
+        <div className="bg-card border border-border rounded-xl p-8 max-w-md w-full mx-4">
           <div className="flex flex-col items-center text-center">
             <Loader2 className="h-12 w-12 animate-spin text-[#ff6a3c] mb-4" />
-            <h3 className="text-lg font-semibold text-white mb-2">Loading GitHub Connection</h3>
-            <p className="text-[#8d857b]">Checking your repository access...</p>
+            <h3 className="text-lg font-semibold text-foreground mb-2">Loading GitHub Connection</h3>
+            <p className="text-muted-foreground">Checking your repository access...</p>
           </div>
         </div>
       </div>
@@ -977,8 +977,8 @@ export function CodeBase() {
   // Error state
   if (connectionError) {
     return (
-      <div className="min-h-screen bg-[#0d0c0c] flex items-center justify-center p-6">
-        <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-8 max-w-2xl w-full">
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-6">
+        <div className="bg-card border border-border rounded-xl p-8 max-w-2xl w-full">
           <div className="flex items-start space-x-4">
             <div className="flex-shrink-0">
               <div className="w-12 h-12 bg-red-600/20 border border-red-600/30 rounded-full flex items-center justify-center">
@@ -986,9 +986,9 @@ export function CodeBase() {
               </div>
             </div>
             <div className="flex-1">
-              <h3 className="text-xl font-bold text-white mb-2">Failed to Load Repositories</h3>
-              <p className="text-[#8d857b] mb-4">{connectionError}</p>
-              <p className="text-[#8d857b] text-sm mb-6">
+              <h3 className="text-xl font-bold text-foreground mb-2">Failed to Load Repositories</h3>
+              <p className="text-muted-foreground mb-4">{connectionError}</p>
+              <p className="text-muted-foreground text-sm mb-6">
                 Contact your administrator if repositories should be available.
               </p>
               <button
@@ -1008,8 +1008,8 @@ export function CodeBase() {
   // Empty state - no repositories connected
   if (repositories.length === 0 && !isLoadingConnection) {
      return (
-      <div className="min-h-screen bg-[#0d0c0c] flex items-center justify-center p-6">
-        <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-8 max-w-2xl w-full">
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-6">
+        <div className="bg-card border border-border rounded-xl p-8 max-w-2xl w-full">
           <div className="flex items-start space-x-4">
             <div className="flex-shrink-0">
               <div className="w-12 h-12 bg-blue-600/20 border border-blue-600/30 rounded-full flex items-center justify-center">
@@ -1017,8 +1017,8 @@ export function CodeBase() {
               </div>
             </div>
             <div className="flex-1">
-              <h3 className="text-xl font-bold text-white mb-2">No Repositories Connected</h3>
-              <p className="text-[#8d857b] mb-6">
+              <h3 className="text-xl font-bold text-foreground mb-2">No Repositories Connected</h3>
+              <p className="text-muted-foreground mb-6">
                 Your organization hasn't connected any GitHub repositories yet. Contact your administrator to add repositories.
               </p>
               <button
@@ -1037,25 +1037,24 @@ export function CodeBase() {
 
   // Connected State
   return (
-
-      <div className="min-h-screen bg-[#0d0c0c] p-6 space-y-6">
+    <div className="h-screen flex flex-col bg-background text-foreground">
+      {/* AI-Style Central Search - Always visible */}
+      <div className={`flex-shrink-0 flex items-center justify-center px-6 transition-all duration-300 py-4`}>
         {isAuthLoading ? (
-          <div className="flex items-center justify-center h-96">
-            <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-8">
-              <div className="flex flex-col items-center text-center">
-                <Loader2 className="h-8 w-8 animate-spin text-[#ff6a3c] mb-4" />
-                <span className="text-white font-medium">Loading...</span>
-              </div>
+          <div className="bg-card border border-border rounded-xl p-8">
+            <div className="flex flex-col items-center text-center">
+              <Loader2 className="h-8 w-8 animate-spin text-[#ff6a3c] mb-4" />
+              <span className="text-foreground font-medium">Loading...</span>
             </div>
           </div>
         ) : !session ? (
           <div className="flex items-center justify-center h-96">
-            <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-8 text-center max-w-md">
+            <div className="bg-card border border-border rounded-xl p-8 text-center max-w-md">
               <div className="w-12 h-12 bg-orange-600/20 border border-orange-600/30 rounded-full flex items-center justify-center mx-auto mb-4">
                 <AlertTriangle className="h-6 w-6 text-orange-400" />
               </div>
-              <h3 className="text-lg font-semibold text-white mb-2">Authentication Required</h3>
-              <p className="text-[#8d857b] mb-6">Please log in to access your repositories.</p>
+              <h3 className="text-lg font-semibold text-foreground mb-2">Authentication Required</h3>
+              <p className="text-muted-foreground mb-6">Please log in to access your repositories.</p>
               <button
                 onClick={() => navigate('/auth/signin')}
                 className="inline-flex items-center px-6 py-2.5 bg-[#ff6a3c] text-white rounded-lg hover:bg-[#d94a1e] transition-colors"
@@ -1072,8 +1071,8 @@ export function CodeBase() {
                 {/* Header */}
                 <div className="flex justify-between items-center">
                   <div>
-                    <h1 className="text-2xl font-bold text-white">Code Intelligence</h1>
-                    <p className="text-[#8d857b]">Browse and analyze your connected repositories</p>
+                    <h1 className="text-2xl font-bold text-foreground">Code Intelligence</h1>
+                    <p className="text-muted-foreground">Browse and analyze your connected repositories</p>
                   </div>
                 </div>
 
@@ -1084,7 +1083,7 @@ export function CodeBase() {
                       {/* Repository Card */}
                       <div
                         onClick={() => handleRepositorySelect(repo)}
-                        className="bg-[#161413] border border-[#2d2a27] rounded-xl p-6 hover:border-[#ff6a3c]/50 transition-all cursor-pointer"
+                        className="bg-card border border-border rounded-xl p-6 hover:border-[#ff6a3c]/50 transition-all cursor-pointer"
                       >
                         <div className="flex items-center justify-between mb-4">
                           <div className="flex items-center space-x-3">
@@ -1092,12 +1091,12 @@ export function CodeBase() {
                               <Database className="h-5 w-5 text-blue-400" />
                             </div>
                             <div>
-                              <h3 className="font-semibold text-white">{repo.repository_name}</h3>
-                              <p className="text-sm text-[#8d857b]">{repo.repository_owner}</p>
+                              <h3 className="font-semibold text-foreground">{repo.repository_name}</h3>
+                              <p className="text-sm text-muted-foreground">{repo.repository_owner}</p>
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center justify-between text-sm text-[#8d857b]">
+                        <div className="flex items-center justify-between text-sm text-muted-foreground">
                           <span>{repo.total_objects || 0} objects</span>
                           <span>{repo.total_files || 0} files</span>
                         </div>
@@ -1148,7 +1147,7 @@ export function CodeBase() {
 
             {/* Browser View - Full Code Browser */}
             {view === 'browser' && selectedGitHubRepo && (
-              <div className="bg-[#161413] border border-[#2d2a27] rounded-xl overflow-hidden" style={{ height: 'calc(100vh - 40px)' }}>
+              <div className="bg-card border border-border rounded-xl overflow-hidden" style={{ height: 'calc(100vh - 40px)' }}>
                 <div className="flex h-full w-full">
                   {/* Modern File Tree with Built-in Resize */}
                   {fileTree ? (
@@ -1166,20 +1165,20 @@ export function CodeBase() {
                       onFolderToggle={handleFolderToggle}
                     />
                   ) : (
-                    <div className="w-80 min-w-[240px] h-full border-r border-gray-200 bg-white flex items-center justify-center">
+                    <div className="w-80 min-w-[240px] h-full border-r border-border bg-card flex items-center justify-center">
                       <div className="text-center">
                         <Loader2 className="h-8 w-8 animate-spin text-[#2AB7A9] mx-auto mb-2" />
-                        <p className="text-sm text-gray-600">Loading files...</p>
+                        <p className="text-sm text-muted-foreground">Loading files...</p>
                       </div>
                     </div>
                   )}
                   
                   {/* Right Content Area */}
-                  <div className="flex-1 flex flex-col bg-white min-w-0">
+                  <div className="flex-1 flex flex-col bg-card min-w-0">
                     {selectedFile ? (
                       <>
                         {/* File Content Tabs */}
-                        <div className="border-b border-gray-200 bg-white flex-shrink-0 px-3 py-1">
+                        <div className="border-b border-border bg-card flex-shrink-0 px-3 py-1">
                           <nav className="flex space-x-3" aria-label="Tabs">
                             {[
                               { id: 'code', label: 'Code' },
@@ -1199,7 +1198,7 @@ export function CodeBase() {
                                 className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors
                                             ${activeTab === tab.id
                                               ? 'border-[#2AB7A9] text-[#2AB7A9]'
-                                              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+                                              : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'}`}
                               >
                                 {tab.label}
                               </button>
@@ -1208,7 +1207,7 @@ export function CodeBase() {
                         </div>
                         
                         {/* File Content */}
-                        <div className="flex-1 overflow-auto bg-gray-50 min-h-0">
+                        <div className="flex-1 overflow-auto bg-muted min-h-0">
                           <div className="h-full w-full">
                             {activeTab === 'code' && selectedFile && (
                               <div className="h-full w-full p-2">
@@ -1252,11 +1251,11 @@ export function CodeBase() {
                     ) : (
                       <div className="flex-1 flex items-center justify-center">
                         <div className="text-center max-w-md">
-                          <div className="w-16 h-16 bg-gray-100 rounded-xl flex items-center justify-center mx-auto mb-6">
-                            <File className="h-8 w-8 text-gray-400" />
+                          <div className="w-16 h-16 bg-muted rounded-xl flex items-center justify-center mx-auto mb-6">
+                            <File className="h-8 w-8 text-muted-foreground" />
                           </div>
-                          <h3 className="text-xl font-semibold text-gray-900 mb-3">Select a file to view</h3>
-                          <p className="text-gray-500 leading-relaxed">
+                          <h3 className="text-xl font-semibold text-foreground mb-3">Select a file to view</h3>
+                          <p className="text-muted-foreground leading-relaxed">
                             Choose a file from the tree on the left to view its content, documentation, and lineage.
                           </p>
                         </div>
@@ -1290,5 +1289,6 @@ export function CodeBase() {
           }}
         />
       </div>
+    </div>
   );
 }

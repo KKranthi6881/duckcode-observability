@@ -231,7 +231,7 @@ export const MetadataExtraction: React.FC = () => {
     };
     const variant = variants[status] || variants.connected;
     return (
-      <Badge className={`${variant.color} text-white flex items-center gap-1`}>
+      <Badge className={`${variant.color} text-foreground flex items-center gap-1`}>
         {variant.icon}
         {status}
       </Badge>
@@ -240,16 +240,16 @@ export const MetadataExtraction: React.FC = () => {
 
 
   return (
-    <div className="min-h-screen bg-[#0d0c0c] p-6">
+    <div className="min-h-screen bg-background p-6">
       <div className="max-w-[1600px] mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-[#8d857b]">Extract schemas, tables, and columns from your repositories</p>
+            <p className="text-muted-foreground">Extract schemas, tables, and columns from your repositories</p>
           </div>
           <button
             onClick={() => setShowAddDialog(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-[#ff6a3c] text-white rounded-lg hover:bg-[#d94a1e] transition-colors font-medium text-sm shadow-lg"
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium text-sm shadow-lg"
           >
             <Plus className="w-4 h-4" />
             Add Repository
@@ -258,17 +258,17 @@ export const MetadataExtraction: React.FC = () => {
 
         {/* Modal for adding repository */}
         {showAddDialog && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
-            <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-6 w-full max-w-md shadow-2xl">
-              <h2 className="text-xl font-bold text-white mb-4">Add Repository</h2>
+          <div className="fixed inset-0 bg-modal-overlay/80 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md shadow-2xl">
+              <h2 className="text-xl font-bold text-foreground mb-4">Add Repository</h2>
             <div className="space-y-4">
                 <div>
-                  <label htmlFor="provider" className="block text-sm font-medium text-white mb-1">
+                  <label htmlFor="provider" className="block text-sm font-medium text-foreground mb-1">
                     Provider
                   </label>
                   <select
                     id="provider"
-                    className="w-full px-3 py-2 bg-[#1f1d1b] border border-[#2d2a27] text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#ff6a3c]/50"
+                    className="w-full px-3 py-2 bg-muted border border-border text-foreground rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
                     value={newRepo.provider}
                     onChange={(e) => setNewRepo({ ...newRepo, provider: e.target.value as 'github' | 'gitlab' })}
                   >
@@ -277,44 +277,44 @@ export const MetadataExtraction: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="repo-url" className="block text-sm font-medium text-white mb-1">
+                  <label htmlFor="repo-url" className="block text-sm font-medium text-foreground mb-1">
                     Repository URL
                   </label>
                   <input
                     id="repo-url"
                     type="text"
-                    className="w-full px-3 py-2 bg-[#1f1d1b] border border-[#2d2a27] text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#ff6a3c]/50"
+                    className="w-full px-3 py-2 bg-muted border border-border text-foreground rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
                     placeholder={newRepo.provider === 'github' ? 'https://github.com/owner/repo' : 'https://gitlab.com/owner/repo'}
                     value={newRepo.url}
                     onChange={(e) => setNewRepo({ ...newRepo, url: e.target.value })}
                   />
                 </div>
                 <div>
-                  <label htmlFor="branch" className="block text-sm font-medium text-white mb-1">
+                  <label htmlFor="branch" className="block text-sm font-medium text-foreground mb-1">
                     Branch
                   </label>
                   <input
                     id="branch"
                     type="text"
-                    className="w-full px-3 py-2 bg-[#1f1d1b] border border-[#2d2a27] text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#ff6a3c]/50"
+                    className="w-full px-3 py-2 bg-muted border border-border text-foreground rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
                     placeholder="main"
                     value={newRepo.branch}
                     onChange={(e) => setNewRepo({ ...newRepo, branch: e.target.value })}
                   />
                 </div>
                 <div>
-                  <label htmlFor="token" className="block text-sm font-medium text-white mb-1">
+                  <label htmlFor="token" className="block text-sm font-medium text-foreground mb-1">
                     {newRepo.provider === 'github' ? 'GitHub' : 'GitLab'} Access Token
                   </label>
                   <input
                     id="token"
                     type="password"
-                    className="w-full px-3 py-2 bg-[#1f1d1b] border border-[#2d2a27] text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#ff6a3c]/50"
+                    className="w-full px-3 py-2 bg-muted border border-border text-foreground rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
                     placeholder={newRepo.provider === 'github' ? 'ghp_...' : 'glpat-...'}
                     value={newRepo.accessToken}
                     onChange={(e) => setNewRepo({ ...newRepo, accessToken: e.target.value })}
                   />
-                  <p className="text-xs text-[#8d857b] mt-1">
+                  <p className="text-xs text-muted-foreground mt-1">
                     {newRepo.provider === 'github' 
                       ? "Token needs 'repo' scope to read repository contents"
                       : "Token needs 'read_repository' scope to read repository contents"}
@@ -323,13 +323,13 @@ export const MetadataExtraction: React.FC = () => {
                 <div className="flex gap-2">
                   <button
                     onClick={connectRepository}
-                    className="flex-1 px-4 py-2 bg-[#ff6a3c] text-white rounded-lg hover:bg-[#d94a1e] transition font-medium"
+                    className="flex-1 px-4 py-2 bg-primary text-foreground rounded-lg hover:bg-primary/90 transition font-medium"
                   >
                     Add
                   </button>
                   <button
                     onClick={() => setShowAddDialog(false)}
-                    className="flex-1 px-4 py-2 bg-[#1f1d1b] border border-[#2d2a27] text-white rounded-lg hover:bg-[#2d2a27] transition font-medium"
+                    className="flex-1 px-4 py-2 bg-muted border border-border text-foreground rounded-lg hover:bg-accent transition font-medium"
                   >
                     Cancel
                   </button>

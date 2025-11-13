@@ -86,9 +86,9 @@ export function Sidebar() {
   };
 
   return (
-    <div className="w-16 bg-[#0d0c0c] border-r border-[#2d2a27] flex flex-col items-center py-4 space-y-6 sidebar-container">
+    <div className="w-16 bg-sidebar border-r border-sidebar-border flex flex-col items-center py-4 space-y-6 sidebar-container">
       {/* Logo */}
-      <Link to="/" className="flex items-center justify-center w-10 h-10 bg-[#ff6a3c] rounded-lg hover:bg-[#ff8c66] transition-colors">
+      <Link to="/" className="flex items-center justify-center w-10 h-10 bg-primary rounded-lg hover:bg-primary/90 transition-colors">
         <img src="/icon-duck-obs.png" alt="DuckCode" className="h-6 w-6" />
       </Link>
 
@@ -105,8 +105,8 @@ export function Sidebar() {
               className={`
                 w-10 h-10 flex items-center justify-center rounded-lg transition-all duration-200
                 ${active
-                  ? 'bg-[#ff6a3c] text-white shadow-lg shadow-[#ff6a3c]/50'
-                  : 'text-[#8d857b] hover:bg-[#161413] hover:text-white'
+                  ? 'bg-sidebar-active text-primary-foreground shadow-lg shadow-primary/40'
+                  : 'text-sidebar-foreground hover:bg-sidebar-hover hover:text-foreground'
                 }
               `}
               title={item.name}
@@ -120,7 +120,7 @@ export function Sidebar() {
         {!authLoading && user && isAdmin && (
           <Link
             to="/admin"
-            className="w-10 h-10 flex items-center justify-center rounded-lg text-purple-400 hover:bg-[#161413] hover:text-purple-300 transition-all"
+            className="w-10 h-10 flex items-center justify-center rounded-lg text-purple-500 dark:text-purple-400 hover:bg-sidebar-hover hover:text-purple-600 dark:hover:text-purple-300 transition-all"
             title="Admin Panel"
           >
             <Shield className="h-5 w-5" />
@@ -134,7 +134,7 @@ export function Sidebar() {
           <>
             {/* User Avatar */}
             <div
-              className="w-10 h-10 flex items-center justify-center rounded-lg bg-[#161413] border border-[#2d2a27] text-white font-semibold text-sm"
+              className="w-10 h-10 flex items-center justify-center rounded-lg bg-accent border border-border text-accent-foreground font-semibold text-sm"
               title={user.email || 'User'}
             >
               {(user.email || 'U').charAt(0).toUpperCase()}
@@ -143,7 +143,7 @@ export function Sidebar() {
             {/* Sign Out Button */}
             <button
               onClick={handleSignOut}
-              className="w-10 h-10 flex items-center justify-center rounded-lg text-[#8d857b] hover:bg-red-600/20 hover:text-red-400 transition-all duration-200 group"
+              className="w-10 h-10 flex items-center justify-center rounded-lg text-sidebar-foreground hover:bg-red-600/20 hover:text-red-500 dark:hover:text-red-400 transition-all duration-200 group"
               title="Sign Out"
             >
               <LogOut className="h-5 w-5" />

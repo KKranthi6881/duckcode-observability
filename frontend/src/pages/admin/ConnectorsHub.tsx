@@ -54,11 +54,11 @@ export default function ConnectorsHub() {
   // Render individual connector page
   if (selectedConnector === 'github') {
     return (
-      <div className="min-h-screen bg-[#0d0c0c]">
-        <div className="border-b border-[#2d2a27] bg-[#161413] px-6 py-4">
+      <div className="min-h-screen bg-background">
+        <div className="border-b border-border bg-card px-6 py-4">
           <button
             onClick={() => setSelectedConnector(null)}
-            className="flex items-center gap-2 text-[#8d857b] hover:text-white transition mb-3"
+            className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition mb-3"
           >
             <ArrowLeft className="w-4 h-4" />
             Back to Connectors
@@ -68,8 +68,8 @@ export default function ConnectorsHub() {
               <GitHubIcon className="w-6 h-6 text-purple-400" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-white">GitHub Connector</h1>
-              <p className="text-sm text-[#8d857b]">Extract metadata from repositories</p>
+              <h1 className="text-2xl font-bold text-foreground">GitHub Connector</h1>
+              <p className="text-sm text-muted-foreground">Extract metadata from repositories</p>
             </div>
           </div>
         </div>
@@ -80,11 +80,11 @@ export default function ConnectorsHub() {
 
   if (selectedConnector === 'snowflake') {
     return (
-      <div className="min-h-screen bg-[#0d0c0c]">
-        <div className="border-b border-[#2d2a27] bg-[#161413] px-6 py-4">
+      <div className="min-h-screen bg-background">
+        <div className="border-b border-border bg-card px-6 py-4">
           <button
             onClick={() => setSelectedConnector(null)}
-            className="flex items-center gap-2 text-[#8d857b] hover:text-white transition mb-3"
+            className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition mb-3"
           >
             <ArrowLeft className="w-4 h-4" />
             Back to Connectors
@@ -94,8 +94,8 @@ export default function ConnectorsHub() {
               <SnowflakeIcon className="w-6 h-6 text-blue-400" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-white">Snowflake Connector</h1>
-              <p className="text-sm text-[#8d857b]">Cost intelligence and optimization</p>
+              <h1 className="text-2xl font-bold text-foreground">Snowflake Connector</h1>
+              <p className="text-sm text-muted-foreground">Cost intelligence and optimization</p>
             </div>
           </div>
         </div>
@@ -106,52 +106,52 @@ export default function ConnectorsHub() {
 
   // Main hub view
   return (
-    <div className="min-h-screen bg-[#0d0c0c] p-6">
+    <div className="min-h-screen bg-background p-6">
       <div className="max-w-[1400px] mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-              <Plug2 className="w-8 h-8 text-[#ff6a3c]" />
+            <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
+              <Plug2 className="w-8 h-8 text-primary" />
               Connectors Hub
             </h1>
-            <p className="text-[#8d857b] mt-1">Manage all your data source connections in one place</p>
+            <p className="text-muted-foreground mt-1">Manage all your data source connections in one place</p>
           </div>
         </div>
 
         {/* Overview Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-5">
+          <div className="bg-card border border-border rounded-xl p-5">
             <div className="flex items-center justify-between mb-2">
-              <Plug2 className="w-8 h-8 text-[#ff6a3c]" />
-              <span className="text-xs font-bold text-[#8d857b] uppercase">Available</span>
+              <Plug2 className="w-8 h-8 text-primary" />
+              <span className="text-xs font-bold text-muted-foreground uppercase">Available</span>
             </div>
-            <div className="text-3xl font-bold text-white mb-1">{CONNECTORS.length}</div>
-            <div className="text-sm text-[#8d857b]">Data connectors</div>
+            <div className="text-3xl font-bold text-foreground mb-1">{CONNECTORS.length}</div>
+            <div className="text-sm text-muted-foreground">Data connectors</div>
           </div>
 
-          <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-5">
+          <div className="bg-card border border-border rounded-xl p-5">
             <div className="flex items-center justify-between mb-2">
               <GitHubIcon className="w-8 h-8 text-purple-400" />
-              <span className="text-xs font-bold text-[#8d857b] uppercase">GitHub</span>
+              <span className="text-xs font-bold text-muted-foreground uppercase">GitHub</span>
             </div>
-            <div className="text-3xl font-bold text-white mb-1">-</div>
-            <div className="text-sm text-[#8d857b]">Repositories connected</div>
+            <div className="text-3xl font-bold text-foreground mb-1">-</div>
+            <div className="text-sm text-muted-foreground">Repositories connected</div>
           </div>
 
-          <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-5">
+          <div className="bg-card border border-border rounded-xl p-5">
             <div className="flex items-center justify-between mb-2">
               <SnowflakeIcon className="w-8 h-8 text-blue-400" />
-              <span className="text-xs font-bold text-[#8d857b] uppercase">Snowflake</span>
+              <span className="text-xs font-bold text-muted-foreground uppercase">Snowflake</span>
             </div>
-            <div className="text-3xl font-bold text-white mb-1">-</div>
-            <div className="text-sm text-[#8d857b]">Accounts configured</div>
+            <div className="text-3xl font-bold text-foreground mb-1">-</div>
+            <div className="text-sm text-muted-foreground">Accounts configured</div>
           </div>
         </div>
 
         {/* Connectors Grid */}
         <div>
-          <h2 className="text-xl font-semibold text-white mb-4">Available Connectors</h2>
+          <h2 className="text-xl font-semibold text-foreground mb-4">Available Connectors</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {CONNECTORS.map((connector) => {
               const Icon = connector.icon;
@@ -159,7 +159,7 @@ export default function ConnectorsHub() {
                 <button
                   key={connector.id}
                   onClick={() => setSelectedConnector(connector.id)}
-                  className="group relative bg-[#161413] border border-[#2d2a27] rounded-xl p-6 hover:border-[#ff6a3c]/50 transition-all duration-200 text-left overflow-hidden"
+                  className="group relative bg-card border border-border rounded-xl p-6 hover:border-primary/50 transition-all duration-200 text-left overflow-hidden"
                 >
                   {/* Gradient background on hover */}
                   <div className={`absolute inset-0 bg-gradient-to-br ${connector.gradient} opacity-0 group-hover:opacity-5 transition-opacity`} />
@@ -168,24 +168,24 @@ export default function ConnectorsHub() {
                     {/* Icon and Title */}
                     <div className="flex items-start gap-4 mb-4">
                       <div className={`p-3 bg-gradient-to-br ${connector.gradient} rounded-xl shadow-lg`}>
-                        <Icon className="w-8 h-8 text-white" />
+                        <Icon className="w-8 h-8 text-foreground" />
                       </div>
                       <div className="flex-1">
-                        <h3 className="text-xl font-bold text-white mb-1 group-hover:text-[#ff6a3c] transition-colors">
+                        <h3 className="text-xl font-bold text-foreground mb-1 group-hover:text-primary transition-colors">
                           {connector.name}
                         </h3>
-                        <p className="text-sm text-[#8d857b] leading-relaxed">
+                        <p className="text-sm text-muted-foreground leading-relaxed">
                           {connector.description}
                         </p>
                       </div>
                     </div>
 
                     {/* Action */}
-                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-[#2d2a27]">
-                      <span className="text-xs text-[#8d857b] font-medium uppercase tracking-wider">
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
+                      <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
                         Click to configure
                       </span>
-                      <div className="flex items-center gap-2 text-[#ff6a3c] opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center gap-2 text-primary opacity-0 group-hover:opacity-100 transition-opacity">
                         <span className="text-sm font-medium">Open</span>
                         <ArrowLeft className="w-4 h-4 rotate-180" />
                       </div>
@@ -198,21 +198,21 @@ export default function ConnectorsHub() {
         </div>
 
         {/* Quick Info */}
-        <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-6">
-          <h3 className="text-lg font-semibold text-white mb-3">About Connectors</h3>
-          <div className="space-y-3 text-sm text-[#8d857b]">
+        <div className="bg-card border border-border rounded-xl p-6">
+          <h3 className="text-lg font-semibold text-foreground mb-3">About Connectors</h3>
+          <div className="space-y-3 text-sm text-muted-foreground">
             <p>
-              <span className="font-medium text-white">Connectors</span> allow you to integrate external data sources
+              <span className="font-medium text-foreground">Connectors</span> allow you to integrate external data sources
               with your platform. Each connector provides specialized functionality:
             </p>
             <ul className="space-y-2 ml-4">
               <li className="flex items-start gap-2">
-                <span className="text-[#ff6a3c] mt-1">•</span>
-                <span><strong className="text-white">GitHub:</strong> Extract database schemas, tables, views, and column metadata from dbt projects</span>
+                <span className="text-primary mt-1">•</span>
+                <span><strong className="text-foreground">GitHub:</strong> Extract database schemas, tables, views, and column metadata from dbt projects</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-[#ff6a3c] mt-1">•</span>
-                <span><strong className="text-white">Snowflake:</strong> Analyze costs, monitor usage, and optimize your Snowflake data warehouse</span>
+                <span className="text-primary mt-1">•</span>
+                <span><strong className="text-foreground">Snowflake:</strong> Analyze costs, monitor usage, and optimize your Snowflake data warehouse</span>
               </li>
             </ul>
           </div>

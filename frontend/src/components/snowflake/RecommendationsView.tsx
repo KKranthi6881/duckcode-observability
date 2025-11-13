@@ -122,20 +122,20 @@ export default function RecommendationsView({ connectorId }: Props) {
   if (loading && !summary) {
     return (
       <div className="flex items-center justify-center h-96">
-        <Loader2 className="w-8 h-8 animate-spin text-[#ff6a3c]" />
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-96 bg-[#161413] border border-[#2d2a27] rounded-xl">
+      <div className="flex flex-col items-center justify-center h-96 bg-card border border-border rounded-xl">
         <AlertCircle className="w-16 h-16 text-red-400 mb-4" />
-        <h3 className="text-xl font-bold text-white mb-2">Failed to Load Recommendations</h3>
-        <p className="text-[#8d857b] text-sm mb-4">{error}</p>
+        <h3 className="text-xl font-bold text-foreground mb-2">Failed to Load Recommendations</h3>
+        <p className="text-muted-foreground text-sm mb-4">{error}</p>
         <button 
           onClick={loadData}
-          className="px-4 py-2 bg-[#ff6a3c] hover:bg-[#d94a1e] text-white rounded-lg font-medium transition"
+          className="px-4 py-2 bg-primary hover:bg-primary/90 text-foreground rounded-lg font-medium transition"
         >
           Retry
         </button>
@@ -148,16 +148,16 @@ export default function RecommendationsView({ connectorId }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-            <Lightbulb className="w-8 h-8 text-[#ff6a3c]" />
+          <h2 className="text-2xl font-bold text-foreground flex items-center gap-3">
+            <Lightbulb className="w-8 h-8 text-primary" />
             AI-Powered Recommendations
           </h2>
-          <p className="text-[#8d857b] mt-1">Automated cost optimization suggestions</p>
+          <p className="text-muted-foreground mt-1">Automated cost optimization suggestions</p>
         </div>
         <button
           onClick={handleGenerate}
           disabled={generating}
-          className="px-4 py-2 bg-[#ff6a3c] hover:bg-[#ff7a4c] text-white rounded-lg font-medium disabled:opacity-50 flex items-center gap-2"
+          className="px-4 py-2 bg-primary hover:bg-primary/80 text-foreground rounded-lg font-medium disabled:opacity-50 flex items-center gap-2"
         >
           {generating ? (
             <>
@@ -177,47 +177,47 @@ export default function RecommendationsView({ connectorId }: Props) {
       {summary && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {/* Total Pending */}
-          <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-5">
+          <div className="bg-card border border-border rounded-xl p-5">
             <div className="flex items-center justify-between mb-2">
               <Clock className="w-6 h-6 text-yellow-400" />
-              <span className="text-[#8d857b] text-xs font-bold uppercase">Pending</span>
+              <span className="text-muted-foreground text-xs font-bold uppercase">Pending</span>
             </div>
-            <div className="text-3xl font-bold text-white">{summary.by_status.pending}</div>
-            <div className="text-[#8d857b] text-sm mt-1">Ready to apply</div>
+            <div className="text-3xl font-bold text-foreground">{summary.by_status.pending}</div>
+            <div className="text-muted-foreground text-sm mt-1">Ready to apply</div>
           </div>
 
           {/* Potential Savings */}
-          <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-5">
+          <div className="bg-card border border-border rounded-xl p-5">
             <div className="flex items-center justify-between mb-2">
               <TrendingUp className="w-6 h-6 text-green-400" />
-              <span className="text-[#8d857b] text-xs font-bold uppercase">Potential</span>
+              <span className="text-muted-foreground text-xs font-bold uppercase">Potential</span>
             </div>
             <div className="text-3xl font-bold text-green-400">
               {formatCurrency(summary.total_potential_savings)}
             </div>
-            <div className="text-[#8d857b] text-sm mt-1">/month</div>
+            <div className="text-muted-foreground text-sm mt-1">/month</div>
           </div>
 
           {/* Applied */}
-          <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-5">
+          <div className="bg-card border border-border rounded-xl p-5">
             <div className="flex items-center justify-between mb-2">
               <CheckCircle className="w-6 h-6 text-blue-400" />
-              <span className="text-[#8d857b] text-xs font-bold uppercase">Applied</span>
+              <span className="text-muted-foreground text-xs font-bold uppercase">Applied</span>
             </div>
-            <div className="text-3xl font-bold text-white">{summary.by_status.applied}</div>
-            <div className="text-[#8d857b] text-sm mt-1">
+            <div className="text-3xl font-bold text-foreground">{summary.by_status.applied}</div>
+            <div className="text-muted-foreground text-sm mt-1">
               Saving {formatCurrency(summary.applied_savings)}/mo
             </div>
           </div>
 
           {/* High Priority */}
-          <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-5">
+          <div className="bg-card border border-border rounded-xl p-5">
             <div className="flex items-center justify-between mb-2">
               <AlertCircle className="w-6 h-6 text-red-400" />
-              <span className="text-[#8d857b] text-xs font-bold uppercase">High Priority</span>
+              <span className="text-muted-foreground text-xs font-bold uppercase">High Priority</span>
             </div>
             <div className="text-3xl font-bold text-red-400">{summary.by_priority.high}</div>
-            <div className="text-[#8d857b] text-sm mt-1">Quick wins</div>
+            <div className="text-muted-foreground text-sm mt-1">Quick wins</div>
           </div>
         </div>
       )}
@@ -227,7 +227,7 @@ export default function RecommendationsView({ connectorId }: Props) {
         <select
           value={filter.status || ''}
           onChange={(e) => setFilter({ ...filter, status: e.target.value || undefined })}
-          className="px-4 py-2 bg-[#161413] border border-[#2d2a27] rounded-lg text-white text-sm focus:outline-none focus:border-[#ff6a3c]"
+          className="px-4 py-2 bg-card border border-border rounded-lg text-foreground text-sm focus:outline-none focus:border-primary"
         >
           <option value="">All Statuses</option>
           <option value="pending">Pending</option>
@@ -238,7 +238,7 @@ export default function RecommendationsView({ connectorId }: Props) {
         <select
           value={filter.priority || ''}
           onChange={(e) => setFilter({ ...filter, priority: e.target.value || undefined })}
-          className="px-4 py-2 bg-[#161413] border border-[#2d2a27] rounded-lg text-white text-sm focus:outline-none focus:border-[#ff6a3c]"
+          className="px-4 py-2 bg-card border border-border rounded-lg text-foreground text-sm focus:outline-none focus:border-primary"
         >
           <option value="">All Priorities</option>
           <option value="high">High Priority</option>
@@ -249,7 +249,7 @@ export default function RecommendationsView({ connectorId }: Props) {
         <select
           value={filter.type || ''}
           onChange={(e) => setFilter({ ...filter, type: e.target.value || undefined })}
-          className="px-4 py-2 bg-[#161413] border border-[#2d2a27] rounded-lg text-white text-sm focus:outline-none focus:border-[#ff6a3c]"
+          className="px-4 py-2 bg-card border border-border rounded-lg text-foreground text-sm focus:outline-none focus:border-primary"
         >
           <option value="">All Types</option>
           <option value="warehouse_resize">Warehouse Resize</option>
@@ -263,16 +263,16 @@ export default function RecommendationsView({ connectorId }: Props) {
       {/* Recommendations List */}
       <div className="space-y-4">
         {recommendations.length === 0 ? (
-          <div className="text-center py-12 bg-[#161413] border border-[#2d2a27] rounded-xl">
-            <Lightbulb className="w-16 h-16 text-[#8d857b] mx-auto mb-4" />
-            <p className="text-[#8d857b] text-lg">No recommendations found</p>
-            <p className="text-[#8d857b] text-sm mt-2">Click "Generate New" to analyze your Snowflake usage</p>
+          <div className="text-center py-12 bg-card border border-border rounded-xl">
+            <Lightbulb className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+            <p className="text-muted-foreground text-lg">No recommendations found</p>
+            <p className="text-muted-foreground text-sm mt-2">Click "Generate New" to analyze your Snowflake usage</p>
           </div>
         ) : (
           recommendations.map((rec) => (
             <div
               key={rec.id}
-              className="bg-[#161413] border border-[#2d2a27] rounded-xl p-6 hover:border-[#ff6a3c]/30 transition-colors"
+              className="bg-card border border-border rounded-xl p-6 hover:border-primary/30 transition-colors"
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
@@ -281,31 +281,31 @@ export default function RecommendationsView({ connectorId }: Props) {
                     <span className={`px-3 py-1 rounded-full text-xs font-bold border ${priorityColors[rec.priority]}`}>
                       {rec.priority.toUpperCase()}
                     </span>
-                    <span className="text-[#8d857b] text-sm">
+                    <span className="text-muted-foreground text-sm">
                       {effortIcons[rec.effort_level]} {rec.effort_level}
                     </span>
-                    <span className="text-[#8d857b] text-sm">
+                    <span className="text-muted-foreground text-sm">
                       {(rec.confidence_score || 0).toFixed(0)}% confidence
                     </span>
                   </div>
 
                   {/* Title */}
-                  <h3 className="text-xl font-bold text-white mb-2">{rec.title}</h3>
+                  <h3 className="text-xl font-bold text-foreground mb-2">{rec.title}</h3>
 
                   {/* Description */}
-                  <p className="text-[#8d857b] mb-4">{rec.description}</p>
+                  <p className="text-muted-foreground mb-4">{rec.description}</p>
 
                   {/* Details */}
                   <div className="grid grid-cols-2 gap-4 mb-4">
                     {rec.current_value && (
                       <div>
-                        <div className="text-[#8d857b] text-xs uppercase mb-1">Current</div>
-                        <div className="text-white font-medium">{rec.current_value}</div>
+                        <div className="text-muted-foreground text-xs uppercase mb-1">Current</div>
+                        <div className="text-foreground font-medium">{rec.current_value}</div>
                       </div>
                     )}
                     {rec.recommended_value && (
                       <div>
-                        <div className="text-[#8d857b] text-xs uppercase mb-1">Recommended</div>
+                        <div className="text-muted-foreground text-xs uppercase mb-1">Recommended</div>
                         <div className="text-green-400 font-medium">{rec.recommended_value}</div>
                       </div>
                     )}
@@ -332,7 +332,7 @@ export default function RecommendationsView({ connectorId }: Props) {
                           setSelectedRec(rec);
                           setShowSQLModal(true);
                         }}
-                        className="px-4 py-2 bg-[#2d2a27] hover:bg-[#3d3a37] text-white rounded-lg text-sm flex items-center gap-2"
+                        className="px-4 py-2 bg-accent hover:bg-accent text-foreground rounded-lg text-sm flex items-center gap-2"
                       >
                         <Code className="w-4 h-4" />
                         View SQL
@@ -340,7 +340,7 @@ export default function RecommendationsView({ connectorId }: Props) {
                       <button
                         onClick={() => handleApply(rec.id)}
                         disabled={applying === rec.id}
-                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium disabled:opacity-50 flex items-center gap-2"
+                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-foreground rounded-lg text-sm font-medium disabled:opacity-50 flex items-center gap-2"
                       >
                         {applying === rec.id ? (
                           <>
@@ -357,7 +357,7 @@ export default function RecommendationsView({ connectorId }: Props) {
                       <button
                         onClick={() => handleDismiss(rec.id)}
                         disabled={dismissing === rec.id}
-                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium disabled:opacity-50 flex items-center gap-2"
+                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-foreground rounded-lg text-sm font-medium disabled:opacity-50 flex items-center gap-2"
                       >
                         {dismissing === rec.id ? (
                           <>
@@ -395,18 +395,18 @@ export default function RecommendationsView({ connectorId }: Props) {
       {/* SQL Preview Modal */}
       {showSQLModal && selectedRec && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-[#161413] border border-[#2d2a27] rounded-xl max-w-4xl w-full max-h-[80vh] overflow-auto">
-            <div className="sticky top-0 bg-[#161413] border-b border-[#2d2a27] p-6 flex items-center justify-between">
-              <h3 className="text-xl font-bold text-white">SQL Commands</h3>
+          <div className="bg-card border border-border rounded-xl max-w-4xl w-full max-h-[80vh] overflow-auto">
+            <div className="sticky top-0 bg-card border-b border-border p-6 flex items-center justify-between">
+              <h3 className="text-xl font-bold text-foreground">SQL Commands</h3>
               <button
                 onClick={() => setShowSQLModal(false)}
-                className="p-2 hover:bg-[#2d2a27] rounded-lg transition-colors"
+                className="p-2 hover:bg-accent rounded-lg transition-colors"
               >
-                <X className="w-5 h-5 text-white" />
+                <X className="w-5 h-5 text-foreground" />
               </button>
             </div>
             <div className="p-6">
-              <div className="bg-[#0d0c0a] border border-[#2d2a27] rounded-lg p-4">
+              <div className="bg-input border border-border rounded-lg p-4">
                 <pre className="text-sm text-green-400 font-mono whitespace-pre-wrap">
                   {selectedRec.sql_commands.join('\n\n')}
                 </pre>
@@ -417,7 +417,7 @@ export default function RecommendationsView({ connectorId }: Props) {
                     <AlertCircle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
                     <div>
                       <div className="text-yellow-400 font-medium mb-1">Implementation Notes</div>
-                      <div className="text-[#8d857b] text-sm">{selectedRec.implementation_notes}</div>
+                      <div className="text-muted-foreground text-sm">{selectedRec.implementation_notes}</div>
                     </div>
                   </div>
                 </div>

@@ -231,48 +231,48 @@ export const SSO: React.FC = () => {
   };
 
   return (
-    <div className="h-full bg-[#0d0c0c]">
-      <div className="bg-[#161413] border-b border-[#2d2a27] px-8 py-6">
+    <div className="h-full bg-background">
+      <div className="bg-card border-b border-border px-8 py-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Shield className="h-7 w-7 text-[#ff6a3c]" />
+            <Shield className="h-7 w-7 text-primary" />
             <div>
-              <h1 className="text-2xl font-bold text-white">SSO Management</h1>
-              <p className="text-sm text-[#8d857b] mt-1">Configure enterprise SSO providers and email domains</p>
+              <h1 className="text-2xl font-bold text-foreground">SSO Management</h1>
+              <p className="text-sm text-muted-foreground mt-1">Configure enterprise SSO providers and email domains</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-[#161413] border border-[#2d2a27] rounded-lg overflow-hidden">
-          <div className="px-6 py-4 bg-[#1f1d1b] border-b border-[#2d2a27]">
-            <h3 className="text-sm font-bold text-white uppercase">Domain Verification Help</h3>
+        <div className="bg-card border border-border rounded-lg overflow-hidden">
+          <div className="px-6 py-4 bg-muted border-b border-border">
+            <h3 className="text-sm font-bold text-foreground uppercase">Domain Verification Help</h3>
           </div>
-          <div className="p-6 space-y-3 text-sm text-[#cfc7bd]">
+          <div className="p-6 space-y-3 text-sm text-foreground">
             <p>To verify a domain for SSO enforcement:</p>
-            <ol className="list-decimal list-inside space-y-1 text-[#cfc7bd]">
+            <ol className="list-decimal list-inside space-y-1 text-foreground">
               <li>Add your email domain in the Domains section above and assign an SSO connection if needed.</li>
               <li>Obtain the verification token issued for the domain by your administrator or support.</li>
               <li>Click Verify next to the domain and paste the token to complete verification.</li>
             </ol>
-            <p className="text-[#8d857b]">After verification, Enforce SSO can be enabled in the connection. Users with that domain will be required to sign in with SSO.</p>
+            <p className="text-muted-foreground">After verification, Enforce SSO can be enabled in the connection. Users with that domain will be required to sign in with SSO.</p>
           </div>
         </div>
       </div>
 
       <div className="p-8 space-y-8">
-        <div className="bg-[#161413] border border-[#2d2a27] rounded-lg overflow-hidden">
-          <div className="px-6 py-4 bg-[#1f1d1b] border-b border-[#2d2a27]">
-            <h3 className="text-sm font-bold text-white uppercase">Connections</h3>
+        <div className="bg-card border border-border rounded-lg overflow-hidden">
+          <div className="px-6 py-4 bg-muted border-b border-border">
+            <h3 className="text-sm font-bold text-foreground uppercase">Connections</h3>
           </div>
           <div className="p-6 grid md:grid-cols-2 gap-8">
             <div>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-semibold text-white mb-2">Provider</label>
+                  <label className="block text-sm font-semibold text-foreground mb-2">Provider</label>
                   <select
                     value={connectionForm.provider_type}
                     onChange={(e) => setConnectionForm({ ...connectionForm, provider_type: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#1f1d1b] border border-[#2d2a27] text-white rounded-lg"
+                    className="w-full px-3 py-2 bg-muted border border-border text-foreground rounded-lg"
                   >
                     <option value="okta">Okta</option>
                     <option value="azure">Azure AD</option>
@@ -281,69 +281,69 @@ export const SSO: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-white mb-2">Label</label>
+                  <label className="block text-sm font-semibold text-foreground mb-2">Label</label>
                   <input
                     value={connectionForm.provider_label}
                     onChange={(e) => setConnectionForm({ ...connectionForm, provider_label: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#1f1d1b] border border-[#2d2a27] text-white rounded-lg"
+                    className="w-full px-3 py-2 bg-muted border border-border text-foreground rounded-lg"
                     placeholder="e.g. Acme Okta"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-white mb-2">Issuer URL</label>
+                  <label className="block text-sm font-semibold text-foreground mb-2">Issuer URL</label>
                   <input
                     value={connectionForm.issuer_url}
                     onChange={(e) => setConnectionForm({ ...connectionForm, issuer_url: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#1f1d1b] border border-[#2d2a27] text-white rounded-lg"
+                    className="w-full px-3 py-2 bg-muted border border-border text-foreground rounded-lg"
                     placeholder="https://dev-123.okta.com"
                   />
                 </div>
                 <div className="grid md:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-sm font-semibold text-white mb-2">Authorization URL</label>
+                    <label className="block text-sm font-semibold text-foreground mb-2">Authorization URL</label>
                     <input
                       value={connectionForm.authorization_url}
                       onChange={(e) => setConnectionForm({ ...connectionForm, authorization_url: e.target.value })}
-                      className="w-full px-3 py-2 bg-[#1f1d1b] border border-[#2d2a27] text-white rounded-lg"
+                      className="w-full px-3 py-2 bg-muted border border-border text-foreground rounded-lg"
                       placeholder="Optional"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-white mb-2">Token URL</label>
+                    <label className="block text-sm font-semibold text-foreground mb-2">Token URL</label>
                     <input
                       value={connectionForm.token_url}
                       onChange={(e) => setConnectionForm({ ...connectionForm, token_url: e.target.value })}
-                      className="w-full px-3 py-2 bg-[#1f1d1b] border border-[#2d2a27] text-white rounded-lg"
+                      className="w-full px-3 py-2 bg-muted border border-border text-foreground rounded-lg"
                       placeholder="Optional"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-white mb-2">JWKS URL</label>
+                    <label className="block text-sm font-semibold text-foreground mb-2">JWKS URL</label>
                     <input
                       value={connectionForm.jwks_url}
                       onChange={(e) => setConnectionForm({ ...connectionForm, jwks_url: e.target.value })}
-                      className="w-full px-3 py-2 bg-[#1f1d1b] border border-[#2d2a27] text-white rounded-lg"
+                      className="w-full px-3 py-2 bg-muted border border-border text-foreground rounded-lg"
                       placeholder="Optional"
                     />
                   </div>
                 </div>
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-semibold text-white mb-2">Client ID</label>
+                    <label className="block text-sm font-semibold text-foreground mb-2">Client ID</label>
                     <input
                       value={connectionForm.client_id}
                       onChange={(e) => setConnectionForm({ ...connectionForm, client_id: e.target.value })}
-                      className="w-full px-3 py-2 bg-[#1f1d1b] border border-[#2d2a27] text-white rounded-lg"
+                      className="w-full px-3 py-2 bg-muted border border-border text-foreground rounded-lg"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-white mb-2">Client Secret</label>
+                    <label className="block text-sm font-semibold text-foreground mb-2">Client Secret</label>
                     <input
                       type="password"
                       value={connectionForm.client_secret}
                       onChange={(e) => setConnectionForm({ ...connectionForm, client_secret: e.target.value })}
-                      className="w-full px-3 py-2 bg-[#1f1d1b] border border-[#2d2a27] text-white rounded-lg"
+                      className="w-full px-3 py-2 bg-muted border border-border text-foreground rounded-lg"
                     />
                   </div>
                 </div>
@@ -355,7 +355,7 @@ export const SSO: React.FC = () => {
                       onChange={(e) => setConnectionForm({ ...connectionForm, enforce_sso: e.target.checked })}
                       className="h-4 w-4"
                     />
-                    <span className="text-sm text-white">Enforce SSO</span>
+                    <span className="text-sm text-foreground">Enforce SSO</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <input
@@ -364,14 +364,14 @@ export const SSO: React.FC = () => {
                       onChange={(e) => setConnectionForm({ ...connectionForm, allow_password_fallback: e.target.checked })}
                       className="h-4 w-4"
                     />
-                    <span className="text-sm text-white">Allow Password Fallback</span>
+                    <span className="text-sm text-foreground">Allow Password Fallback</span>
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-white mb-2">Default Role</label>
+                    <label className="block text-sm font-semibold text-foreground mb-2">Default Role</label>
                     <select
                       value={connectionForm.default_role_id}
                       onChange={(e) => setConnectionForm({ ...connectionForm, default_role_id: e.target.value })}
-                      className="w-full px-3 py-2 bg-[#1f1d1b] border border-[#2d2a27] text-white rounded-lg"
+                      className="w-full px-3 py-2 bg-muted border border-border text-foreground rounded-lg"
                     >
                       {roles.map(r => (
                         <option key={r.id} value={r.id}>{r.display_name}</option>
@@ -383,21 +383,21 @@ export const SSO: React.FC = () => {
                   <button
                     type="button"
                     onClick={applyProviderPreset}
-                    className="px-3 py-2 text-sm bg-[#1f1d1b] border border-[#2d2a27] text-white rounded-lg hover:bg-[#2d2a27]"
+                    className="px-3 py-2 text-sm bg-muted border border-border text-foreground rounded-lg hover:bg-accent"
                   >
                     Apply provider preset
                   </button>
                   <button
                     onClick={handleSaveConnection}
                     disabled={saving}
-                    className="px-4 py-2 bg-[#ff6a3c] text-white rounded-lg hover:bg-[#ff8c66] disabled:bg-[#2d2a27] disabled:text-[#8d857b] font-semibold"
+                    className="px-4 py-2 bg-primary text-foreground rounded-lg hover:bg-primary/90 disabled:bg-accent disabled:text-muted-foreground font-semibold"
                   >
                     {saving ? 'Saving...' : 'Save Connection'}
                   </button>
                   <button
                     type="button"
                     onClick={clearConnectionForm}
-                    className="px-4 py-2 bg-[#1f1d1b] border border-[#2d2a27] text-white rounded-lg hover:bg-[#2d2a27]"
+                    className="px-4 py-2 bg-muted border border-border text-foreground rounded-lg hover:bg-accent"
                   >
                     Clear
                   </button>
@@ -407,27 +407,27 @@ export const SSO: React.FC = () => {
             <div>
               <div className="space-y-4">
                 {connections.length === 0 && (
-                  <div className="p-4 bg-[#1f1d1b] border border-[#2d2a27] rounded-lg text-[#8d857b]">No connections configured</div>
+                  <div className="p-4 bg-muted border border-border rounded-lg text-muted-foreground">No connections configured</div>
                 )}
                 {connections.map((c) => (
-                  <div key={c.id} className="p-4 bg-[#1f1d1b] border border-[#2d2a27] rounded-lg">
+                  <div key={c.id} className="p-4 bg-muted border border-border rounded-lg">
                     <div className="flex items-center justify-between">
                       <div>
-                        <div className="text-white font-semibold">{c.provider_label || c.provider_type}</div>
-                        <div className="text-xs text-[#8d857b]">{c.issuer_url}</div>
+                        <div className="text-foreground font-semibold">{c.provider_label || c.provider_type}</div>
+                        <div className="text-xs text-muted-foreground">{c.issuer_url}</div>
                       </div>
                       <div className="flex items-center space-x-3 text-xs">
-                        <span className={`px-2 py-1 rounded-full ${c.enforce_sso ? 'bg-[#ff6a3c]/20 text-[#ff6a3c] border border-[#ff6a3c]/30' : 'bg-[#2d2a27] text-white'}`}>Enforced</span>
-                        <span className={`px-2 py-1 rounded-full ${c.allow_password_fallback ? 'bg-[#2d2a27] text-white' : 'bg-[#2d2a27] text-[#8d857b]'}`}>Password Fallback</span>
-                        <span className={`px-2 py-1 rounded-full ${c.has_client_secret ? 'bg-[#2d2a27] text-green-400' : 'bg-[#2d2a27] text-[#8d857b]'}`}>{c.has_client_secret ? 'Secret Set' : 'No Secret'}</span>
+                        <span className={`px-2 py-1 rounded-full ${c.enforce_sso ? 'bg-primary/20 text-primary border border-primary/30' : 'bg-accent text-white'}`}>Enforced</span>
+                        <span className={`px-2 py-1 rounded-full ${c.allow_password_fallback ? 'bg-accent text-white' : 'bg-accent text-muted-foreground'}`}>Password Fallback</span>
+                        <span className={`px-2 py-1 rounded-full ${c.has_client_secret ? 'bg-accent text-green-400' : 'bg-accent text-muted-foreground'}`}>{c.has_client_secret ? 'Secret Set' : 'No Secret'}</span>
                       </div>
                     </div>
-                    <div className="mt-2 text-xs text-[#8d857b]">Default Role: {roles.find(r => r.id === c.default_role_id)?.display_name || '—'}</div>
+                    <div className="mt-2 text-xs text-muted-foreground">Default Role: {roles.find(r => r.id === c.default_role_id)?.display_name || '—'}</div>
                     <div className="mt-3 flex justify-end space-x-2">
                       <button
                         type="button"
                         onClick={() => handleEditConnection(c)}
-                        className="px-3 py-1.5 text-sm bg-[#1f1d1b] border border-[#2d2a27] text-white rounded-lg hover:bg-[#2d2a27]"
+                        className="px-3 py-1.5 text-sm bg-muted border border-border text-foreground rounded-lg hover:bg-accent"
                       >
                         Edit
                       </button>
@@ -448,28 +448,28 @@ export const SSO: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-[#161413] border border-[#2d2a27] rounded-lg overflow-hidden">
-          <div className="px-6 py-4 bg-[#1f1d1b] border-b border-[#2d2a27]">
-            <h3 className="text-sm font-bold text-white uppercase">Domains</h3>
+        <div className="bg-card border border-border rounded-lg overflow-hidden">
+          <div className="px-6 py-4 bg-muted border-b border-border">
+            <h3 className="text-sm font-bold text-foreground uppercase">Domains</h3>
           </div>
           <div className="p-6 grid md:grid-cols-2 gap-8">
             <div>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-semibold text-white mb-2">Email Domain</label>
+                  <label className="block text-sm font-semibold text-foreground mb-2">Email Domain</label>
                   <input
                     value={domainForm.domain_name}
                     onChange={(e) => setDomainForm({ ...domainForm, domain_name: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#1f1d1b] border border-[#2d2a27] text-white rounded-lg"
+                    className="w-full px-3 py-2 bg-muted border border-border text-foreground rounded-lg"
                     placeholder="example.com"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-white mb-2">Connection</label>
+                  <label className="block text-sm font-semibold text-foreground mb-2">Connection</label>
                   <select
                     value={domainForm.connection_id || ''}
                     onChange={(e) => setDomainForm({ ...domainForm, connection_id: e.target.value || undefined })}
-                    className="w-full px-3 py-2 bg-[#1f1d1b] border border-[#2d2a27] text-white rounded-lg"
+                    className="w-full px-3 py-2 bg-muted border border-border text-foreground rounded-lg"
                   >
                     <option value="">Unassigned</option>
                     {connections.map(c => (
@@ -481,7 +481,7 @@ export const SSO: React.FC = () => {
                   <button
                     onClick={handleCreateDomain}
                     disabled={saving}
-                    className="px-4 py-2 bg-[#ff6a3c] text-white rounded-lg hover:bg-[#ff8c66] disabled:bg-[#2d2a27] disabled:text-[#8d857b] font-semibold"
+                    className="px-4 py-2 bg-primary text-foreground rounded-lg hover:bg-primary/90 disabled:bg-accent disabled:text-muted-foreground font-semibold"
                   >
                     {saving ? 'Saving...' : 'Add Domain'}
                   </button>
@@ -491,14 +491,14 @@ export const SSO: React.FC = () => {
             <div>
               <div className="space-y-4">
                 {domains.length === 0 && (
-                  <div className="p-4 bg-[#1f1d1b] border border-[#2d2a27] rounded-lg text-[#8d857b]">No domains configured</div>
+                  <div className="p-4 bg-muted border border-border rounded-lg text-muted-foreground">No domains configured</div>
                 )}
                 {domains.map((d) => (
-                  <div key={d.id} className="p-4 bg-[#1f1d1b] border border-[#2d2a27] rounded-lg">
+                  <div key={d.id} className="p-4 bg-muted border border-border rounded-lg">
                     <div className="flex items-center justify-between">
                       <div>
-                        <div className="text-white font-semibold">{d.domain_name}</div>
-                        <div className="text-xs text-[#8d857b]">{connections.find(c => c.id === d.connection_id)?.provider_label || 'Unassigned'}</div>
+                        <div className="text-foreground font-semibold">{d.domain_name}</div>
+                        <div className="text-xs text-muted-foreground">{connections.find(c => c.id === d.connection_id)?.provider_label || 'Unassigned'}</div>
                       </div>
                       <div className="flex items-center space-x-2">
                         {d.is_verified ? (
@@ -512,7 +512,7 @@ export const SSO: React.FC = () => {
                       {!d.is_verified && (
                         <button
                           onClick={() => handleVerifyDomain(d)}
-                          className="px-3 py-1.5 text-sm bg-[#ff6a3c] text-white rounded-lg hover:bg-[#ff8c66]"
+                          className="px-3 py-1.5 text-sm bg-primary text-foreground rounded-lg hover:bg-primary/90"
                         >
                           Verify
                         </button>
@@ -534,8 +534,8 @@ export const SSO: React.FC = () => {
       </div>
 
       {loading && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-40">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#ff6a3c]"></div>
+        <div className="fixed inset-0 bg-modal-overlay/40 flex items-center justify-center z-40">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
         </div>
       )}
     </div>

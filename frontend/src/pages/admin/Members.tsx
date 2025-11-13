@@ -262,7 +262,7 @@ export const Members: React.FC = () => {
       pending: <Clock className="h-5 w-5 text-yellow-400" />,
       accepted: <CheckCircle className="h-5 w-5 text-green-400" />,
       expired: <XCircle className="h-5 w-5 text-red-400" />,
-      cancelled: <XCircle className="h-5 w-5 text-[#8d857b]" />,
+      cancelled: <XCircle className="h-5 w-5 text-muted-foreground" />,
     };
     return icons[status] || icons.pending;
   };
@@ -273,7 +273,7 @@ export const Members: React.FC = () => {
       pending: 'bg-yellow-600/20 border border-yellow-600/30 text-yellow-400',
       accepted: 'bg-green-600/20 border border-green-600/30 text-green-400',
       expired: 'bg-red-600/20 border border-red-600/30 text-red-400',
-      cancelled: 'bg-[#2d2a27] border border-[#2d2a27] text-[#8d857b]',
+      cancelled: 'bg-accent border border-border text-muted-foreground',
     };
     return colors[status] || colors.pending;
   };
@@ -286,26 +286,26 @@ export const Members: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full bg-[#0d0c0c]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#ff6a3c]"></div>
+      <div className="flex items-center justify-center h-full bg-background">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }
 
   return (
-    <div className="h-full bg-[#0d0c0c]">
+    <div className="h-full bg-background">
       {/* Header */}
-      <div className="bg-[#161413] border-b border-[#2d2a27] px-8 py-6">
+      <div className="bg-card border-b border-border px-8 py-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-white">Team Members</h1>
-            <p className="text-sm text-[#8d857b] mt-1">
+            <h1 className="text-2xl font-bold text-foreground">Team Members</h1>
+            <p className="text-sm text-muted-foreground mt-1">
               Manage organization members and invitations
             </p>
           </div>
           <button
             onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-[#ff6a3c] text-white rounded-lg hover:bg-[#ff8c66] transition-colors font-semibold text-sm"
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-foreground rounded-lg hover:bg-primary/90 transition-colors font-semibold text-sm"
           >
             <UserPlus className="h-4 w-4" />
             Invite Members
@@ -317,7 +317,7 @@ export const Members: React.FC = () => {
       <div className="p-8">
 
       {/* View Tabs */}
-      <div className="mb-6 flex items-center space-x-2 border-b border-[#2d2a27]">
+      <div className="mb-6 flex items-center space-x-2 border-b border-border">
         {[
           { value: 'active', label: 'Active Members' },
           { value: 'pending', label: 'Pending Invitations' },
@@ -328,12 +328,12 @@ export const Members: React.FC = () => {
             onClick={() => setSelectedView(tab.value)}
             className={`px-4 py-2 font-semibold text-sm border-b-2 transition-colors ${
               selectedView === tab.value
-                ? 'border-[#ff6a3c] text-[#ff6a3c]'
-                : 'border-transparent text-[#8d857b] hover:text-white'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-white'
             }`}
           >
             {tab.label}
-            <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-[#2d2a27] text-white">
+            <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-accent text-foreground">
               {viewCounts[tab.value as keyof typeof viewCounts]}
             </span>
           </button>
@@ -342,45 +342,45 @@ export const Members: React.FC = () => {
 
       {/* Members and Invitations List */}
       {(selectedView === 'active' || selectedView === 'all') && members.length > 0 && (
-        <div className="bg-[#161413] border border-[#2d2a27] rounded-lg overflow-hidden mb-6">
-          <div className="px-6 py-4 bg-[#1f1d1b] border-b border-[#2d2a27]">
-            <h3 className="text-sm font-bold text-white uppercase">Active Members</h3>
+        <div className="bg-card border border-border rounded-lg overflow-hidden mb-6">
+          <div className="px-6 py-4 bg-muted border-b border-border">
+            <h3 className="text-sm font-bold text-foreground uppercase">Active Members</h3>
           </div>
-          <table className="min-w-full divide-y divide-[#2d2a27]">
-            <thead className="bg-[#1f1d1b]">
+          <table className="min-w-full divide-y divide-border">
+            <thead className="bg-muted">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-[#8d857b] uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                   Email
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-[#8d857b] uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                   Role
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-[#8d857b] uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-[#8d857b] uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                   Joined
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-semibold text-[#8d857b] uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-[#161413] divide-y divide-[#2d2a27]">
+            <tbody className="bg-card divide-y divide-border">
               {members.map((member) => (
-                <tr key={member.id} className="hover:bg-[#1f1d1b]">
+                <tr key={member.id} className="hover:bg-muted">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
-                      <Users className="h-5 w-5 text-[#8d857b] mr-3" />
-                      <span className="text-sm font-semibold text-white">
+                      <Users className="h-5 w-5 text-muted-foreground mr-3" />
+                      <span className="text-sm font-semibold text-foreground">
                         {member.email}
                       </span>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center space-x-2">
-                      <Shield className="h-4 w-4 text-[#8d857b]" />
-                      <span className="text-sm text-white">
+                      <Shield className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm text-foreground">
                         {member.role_name}
                       </span>
                     </div>
@@ -393,7 +393,7 @@ export const Members: React.FC = () => {
                       </span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-[#8d857b]">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                     {new Date(member.joined_at).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -427,50 +427,50 @@ export const Members: React.FC = () => {
       {/* Pending Invitations */}
       {(selectedView === 'pending' || selectedView === 'all') && 
        invitations.filter(i => i.status === 'pending' || i.status === 'expired').length > 0 && (
-        <div className="bg-[#161413] border border-[#2d2a27] rounded-lg overflow-hidden">
-          <div className="px-6 py-4 bg-[#1f1d1b] border-b border-[#2d2a27]">
-            <h3 className="text-sm font-bold text-white uppercase">Pending Invitations</h3>
+        <div className="bg-card border border-border rounded-lg overflow-hidden">
+          <div className="px-6 py-4 bg-muted border-b border-border">
+            <h3 className="text-sm font-bold text-foreground uppercase">Pending Invitations</h3>
           </div>
-          <table className="min-w-full divide-y divide-[#2d2a27]">
-            <thead className="bg-[#1f1d1b]">
+          <table className="min-w-full divide-y divide-border">
+            <thead className="bg-muted">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-[#8d857b] uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                   Email
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-[#8d857b] uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                   Role
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-[#8d857b] uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-[#8d857b] uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                   Invited By
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-[#8d857b] uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                   Expires
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-semibold text-[#8d857b] uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-[#161413] divide-y divide-[#2d2a27]">
+            <tbody className="bg-card divide-y divide-border">
               {invitations.filter(i => {
                 // Only show truly pending invitations (not accepted/cancelled)
                 const isPending = i.status === 'pending' || i.status === 'expired';
                 return selectedView === 'all' ? isPending : i.status === 'pending';
               }).map((invitation) => (
-                <tr key={invitation.id} className="hover:bg-[#1f1d1b]">
+                <tr key={invitation.id} className="hover:bg-muted">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
-                      <Clock className="h-5 w-5 text-[#8d857b] mr-3" />
-                      <span className="text-sm font-semibold text-white">
+                      <Clock className="h-5 w-5 text-muted-foreground mr-3" />
+                      <span className="text-sm font-semibold text-foreground">
                         {invitation.email}
                       </span>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-sm text-white">
+                    <span className="text-sm text-foreground">
                       {invitation.role_name || '—'}
                     </span>
                   </td>
@@ -482,10 +482,10 @@ export const Members: React.FC = () => {
                       </span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-[#8d857b]">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                     {invitation.invited_by_email || 'System'}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
                     {new Date(invitation.expires_at).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -515,17 +515,17 @@ export const Members: React.FC = () => {
 
       {/* Empty State */}
       {members.length === 0 && invitations.length === 0 && (
-        <div className="bg-[#161413] border border-[#2d2a27] rounded-lg p-12 text-center">
-          <Users className="h-16 w-16 text-[#8d857b] mx-auto mb-4" />
-          <h3 className="text-lg font-bold text-white mb-2">
+        <div className="bg-card border border-border rounded-lg p-12 text-center">
+          <Users className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-bold text-foreground mb-2">
             No members yet
           </h3>
-          <p className="text-[#8d857b] mb-6">
+          <p className="text-muted-foreground mb-6">
             Start building your team by adding members to your organization
           </p>
           <button
             onClick={() => setShowAddModal(true)}
-            className="inline-flex items-center space-x-2 px-4 py-2 bg-[#ff6a3c] text-white rounded-lg hover:bg-[#ff8c66] font-semibold"
+            className="inline-flex items-center space-x-2 px-4 py-2 bg-primary text-foreground rounded-lg hover:bg-primary/90 font-semibold"
           >
             <UserPlus className="h-5 w-5" />
             <span>Add Member</span>
@@ -535,15 +535,15 @@ export const Members: React.FC = () => {
 
       {/* Add Member Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-[#161413] border border-[#2d2a27] rounded-lg p-6 max-w-lg w-full mx-4">
-            <h3 className="text-lg font-bold text-white mb-4">
+        <div className="fixed inset-0 bg-modal-overlay/80 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-card border border-border rounded-lg p-6 max-w-lg w-full mx-4">
+            <h3 className="text-lg font-bold text-foreground mb-4">
               Add New Member
             </h3>
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-white mb-2">
+                <label className="block text-sm font-semibold text-foreground mb-2">
                   Email Addresses
                 </label>
                 <textarea
@@ -551,15 +551,15 @@ export const Members: React.FC = () => {
                   onChange={(e) => setFormData({ ...formData, emails: e.target.value })}
                   placeholder="user1@example.com&#10;user2@example.com&#10;user3@example.com"
                   rows={5}
-                  className="w-full px-3 py-2 bg-[#1f1d1b] border border-[#2d2a27] text-white placeholder-[#8d857b] rounded-lg focus:ring-2 focus:ring-[#ff6a3c]/50 focus:border-transparent font-mono text-sm"
+                  className="w-full px-3 py-2 bg-muted border border-border text-foreground placeholder-muted-foreground rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-transparent font-mono text-sm"
                 />
-                <p className="mt-1 text-xs text-[#8d857b]">
+                <p className="mt-1 text-xs text-muted-foreground">
                   Enter one email address per line
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-white mb-3">
+                <label className="block text-sm font-semibold text-foreground mb-3">
                   Assign Role
                 </label>
                 {roles.length === 0 ? (
@@ -588,19 +588,19 @@ export const Members: React.FC = () => {
                         onClick={() => setFormData({ ...formData, role_id: role.id })}
                         className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
                           isSelected
-                            ? 'border-[#ff6a3c] bg-[#ff6a3c]/10'
-                            : 'border-[#2d2a27] hover:border-[#ff6a3c]/50 hover:bg-[#1f1d1b]'
+                            ? 'border-primary bg-primary/10'
+                            : 'border-border hover:border-primary/50 hover:bg-muted'
                         }`}
                       >
                         <div className="flex items-start">
                           <div className="flex-shrink-0 mr-3">
                             <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
                               isSelected
-                                ? 'border-[#ff6a3c] bg-[#ff6a3c]'
-                                : 'border-[#2d2a27]'
+                                ? 'border-primary bg-primary'
+                                : 'border-border'
                             }`}>
                               {isSelected && (
-                                <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <svg className="w-3 h-3 text-foreground" fill="currentColor" viewBox="0 0 20 20">
                                   <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                 </svg>
                               )}
@@ -613,7 +613,7 @@ export const Members: React.FC = () => {
                                 {role.display_name}
                               </span>
                             </div>
-                            <p className={`text-sm mt-1 ${isSelected ? 'text-[#ff6a3c]/80' : 'text-[#8d857b]'}`}>
+                            <p className={`text-sm mt-1 ${isSelected ? 'text-primary/80' : 'text-muted-foreground'}`}>
                               {roleDescriptions[role.name] || 'Team member'}
                             </p>
                           </div>
@@ -626,7 +626,7 @@ export const Members: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-white mb-2">
+                <label className="block text-sm font-semibold text-foreground mb-2">
                   Welcome Message (Optional)
                 </label>
                 <textarea
@@ -634,7 +634,7 @@ export const Members: React.FC = () => {
                   onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                   placeholder="Welcome to the team! Looking forward to working with you."
                   rows={3}
-                  className="w-full px-3 py-2 bg-[#1f1d1b] border border-[#2d2a27] text-white placeholder-[#8d857b] rounded-lg focus:ring-2 focus:ring-[#ff6a3c]/50 focus:border-transparent"
+                  className="w-full px-3 py-2 bg-muted border border-border text-foreground placeholder-muted-foreground rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-transparent"
                 />
               </div>
 
@@ -648,14 +648,14 @@ export const Members: React.FC = () => {
             <div className="mt-6 flex justify-end space-x-3">
               <button
                 onClick={() => setShowAddModal(false)}
-                className="px-4 py-2 text-white bg-[#1f1d1b] border border-[#2d2a27] rounded-lg hover:bg-[#2d2a27] font-medium"
+                className="px-4 py-2 text-foreground bg-muted border border-border rounded-lg hover:bg-accent font-medium"
               >
                 Cancel
               </button>
               <button
                 onClick={handleAddMember}
                 disabled={loading}
-                className="px-4 py-2 bg-[#ff6a3c] text-white rounded-lg hover:bg-[#ff8c66] disabled:bg-[#2d2a27] disabled:text-[#8d857b] disabled:cursor-not-allowed font-semibold"
+                className="px-4 py-2 bg-primary text-foreground rounded-lg hover:bg-primary/90 disabled:bg-accent disabled:text-muted-foreground disabled:cursor-not-allowed font-semibold"
               >
                 {loading ? 'Adding...' : 'Add Member'}
               </button>
@@ -666,15 +666,15 @@ export const Members: React.FC = () => {
 
       {/* Edit Member Role Modal */}
       {showEditModal && selectedMember && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-[#161413] border border-[#2d2a27] rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-bold text-white mb-4">
+        <div className="fixed inset-0 bg-modal-overlay/80 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-card border border-border rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-bold text-foreground mb-4">
               Update Member Role
             </h3>
             
             <div className="mb-4">
-              <p className="text-sm text-[#8d857b] mb-4">
-                Change role for <strong className="text-white">{selectedMember.email}</strong>
+              <p className="text-sm text-muted-foreground mb-4">
+                Change role for <strong className="text-foreground">{selectedMember.email}</strong>
               </p>
               
               <div className="space-y-2">
@@ -684,12 +684,12 @@ export const Members: React.FC = () => {
                     onClick={() => handleUpdateMemberRole(selectedMember.id, role.id)}
                     className={`w-full text-left p-3 rounded-lg border-2 transition-all ${
                       role.id === selectedMember.role_id
-                        ? 'border-[#ff6a3c] bg-[#ff6a3c]/10'
-                        : 'border-[#2d2a27] hover:border-[#ff6a3c]/50 hover:bg-[#1f1d1b]'
+                        ? 'border-primary bg-primary/10'
+                        : 'border-border hover:border-primary/50 hover:bg-muted'
                     }`}
                   >
-                    <div className="font-bold text-white">{role.display_name}</div>
-                    <div className="text-xs text-[#8d857b]">
+                    <div className="font-bold text-foreground">{role.display_name}</div>
+                    <div className="text-xs text-muted-foreground">
                       {role.id === selectedMember.role_id && '(Current Role)'}
                     </div>
                   </button>
@@ -700,7 +700,7 @@ export const Members: React.FC = () => {
             <div className="flex justify-end space-x-3">
               <button
                 onClick={() => setShowEditModal(false)}
-                className="px-4 py-2 text-white bg-[#1f1d1b] border border-[#2d2a27] rounded-lg hover:bg-[#2d2a27] font-medium"
+                className="px-4 py-2 text-foreground bg-muted border border-border rounded-lg hover:bg-accent font-medium"
               >
                 Cancel
               </button>

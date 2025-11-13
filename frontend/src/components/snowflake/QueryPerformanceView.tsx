@@ -103,20 +103,20 @@ export default function QueryPerformanceView({ connectorId }: Props) {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <Loader2 className="w-8 h-8 animate-spin text-[#ff6a3c]" />
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-96 bg-[#161413] border border-[#2d2a27] rounded-xl">
+      <div className="flex flex-col items-center justify-center h-96 bg-card border border-border rounded-xl">
         <AlertTriangle className="w-16 h-16 text-red-400 mb-4" />
-        <h3 className="text-xl font-bold text-white mb-2">Failed to Load Query Performance</h3>
-        <p className="text-[#8d857b] text-sm mb-4">{error}</p>
+        <h3 className="text-xl font-bold text-foreground mb-2">Failed to Load Query Performance</h3>
+        <p className="text-muted-foreground text-sm mb-4">{error}</p>
         <button 
           onClick={loadData}
-          className="px-4 py-2 bg-[#ff6a3c] hover:bg-[#d94a1e] text-white rounded-lg font-medium transition"
+          className="px-4 py-2 bg-primary hover:bg-primary/90 text-foreground rounded-lg font-medium transition"
         >
           Retry
         </button>
@@ -136,49 +136,49 @@ export default function QueryPerformanceView({ connectorId }: Props) {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-          <Activity className="w-8 h-8 text-[#ff6a3c]" />
+        <h2 className="text-2xl font-bold text-foreground flex items-center gap-3">
+          <Activity className="w-8 h-8 text-primary" />
           Query Performance Analysis
         </h2>
-        <p className="text-[#8d857b] mt-1">Identify expensive and slow queries</p>
+        <p className="text-muted-foreground mt-1">Identify expensive and slow queries</p>
       </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-5">
+        <div className="bg-card border border-border rounded-xl p-5">
           <div className="flex items-center justify-between mb-2">
             <Activity className="w-6 h-6 text-purple-400" />
-            <span className="text-[#8d857b] text-xs font-bold uppercase">Total Queries</span>
+            <span className="text-muted-foreground text-xs font-bold uppercase">Total Queries</span>
           </div>
-          <div className="text-3xl font-bold text-white">{expensiveQueries.length}</div>
-          <div className="text-[#8d857b] text-sm mt-1">Analyzed patterns</div>
+          <div className="text-3xl font-bold text-foreground">{expensiveQueries.length}</div>
+          <div className="text-muted-foreground text-sm mt-1">Analyzed patterns</div>
         </div>
 
-        <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-5">
+        <div className="bg-card border border-border rounded-xl p-5">
           <div className="flex items-center justify-between mb-2">
             <TrendingDown className="w-6 h-6 text-red-400" />
-            <span className="text-[#8d857b] text-xs font-bold uppercase">Total Cost</span>
+            <span className="text-muted-foreground text-xs font-bold uppercase">Total Cost</span>
           </div>
           <div className="text-3xl font-bold text-red-400">{formatCurrency(totalCost)}</div>
-          <div className="text-[#8d857b] text-sm mt-1">Last 30 days</div>
+          <div className="text-muted-foreground text-sm mt-1">Last 30 days</div>
         </div>
 
-        <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-5">
+        <div className="bg-card border border-border rounded-xl p-5">
           <div className="flex items-center justify-between mb-2">
             <Clock className="w-6 h-6 text-blue-400" />
-            <span className="text-[#8d857b] text-xs font-bold uppercase">Avg Time</span>
+            <span className="text-muted-foreground text-xs font-bold uppercase">Avg Time</span>
           </div>
           <div className="text-3xl font-bold text-blue-400">{formatTime(avgExecutionTime)}</div>
-          <div className="text-[#8d857b] text-sm mt-1">Per execution</div>
+          <div className="text-muted-foreground text-sm mt-1">Per execution</div>
         </div>
 
-        <div className="bg-[#161413] border border-[#2d2a27] rounded-xl p-5">
+        <div className="bg-card border border-border rounded-xl p-5">
           <div className="flex items-center justify-between mb-2">
             <AlertTriangle className="w-6 h-6 text-orange-400" />
-            <span className="text-[#8d857b] text-xs font-bold uppercase">Executions</span>
+            <span className="text-muted-foreground text-xs font-bold uppercase">Executions</span>
           </div>
-          <div className="text-3xl font-bold text-white">{totalExecutions.toLocaleString()}</div>
-          <div className="text-[#8d857b] text-sm mt-1">Total runs</div>
+          <div className="text-3xl font-bold text-foreground">{totalExecutions.toLocaleString()}</div>
+          <div className="text-muted-foreground text-sm mt-1">Total runs</div>
         </div>
       </div>
 
@@ -188,8 +188,8 @@ export default function QueryPerformanceView({ connectorId }: Props) {
           onClick={() => setSortBy('cost')}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
             sortBy === 'cost'
-              ? 'bg-[#ff6a3c] text-white'
-              : 'bg-[#161413] border border-[#2d2a27] text-[#8d857b] hover:text-white'
+              ? 'bg-primary text-white'
+              : 'bg-card border border-border text-muted-foreground hover:text-white'
           }`}
         >
           Sort by Cost
@@ -198,8 +198,8 @@ export default function QueryPerformanceView({ connectorId }: Props) {
           onClick={() => setSortBy('time')}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
             sortBy === 'time'
-              ? 'bg-[#ff6a3c] text-white'
-              : 'bg-[#161413] border border-[#2d2a27] text-[#8d857b] hover:text-white'
+              ? 'bg-primary text-white'
+              : 'bg-card border border-border text-muted-foreground hover:text-white'
           }`}
         >
           Sort by Time
@@ -208,8 +208,8 @@ export default function QueryPerformanceView({ connectorId }: Props) {
           onClick={() => setSortBy('count')}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
             sortBy === 'count'
-              ? 'bg-[#ff6a3c] text-white'
-              : 'bg-[#161413] border border-[#2d2a27] text-[#8d857b] hover:text-white'
+              ? 'bg-primary text-white'
+              : 'bg-card border border-border text-muted-foreground hover:text-white'
           }`}
         >
           Sort by Frequency
@@ -217,56 +217,56 @@ export default function QueryPerformanceView({ connectorId }: Props) {
       </div>
 
       {/* Top Queries Table */}
-      <div className="bg-[#161413] border border-[#2d2a27] rounded-xl overflow-hidden">
-        <div className="p-6 border-b border-[#2d2a27]">
-          <h3 className="text-lg font-bold text-white">Top 50 Queries</h3>
+      <div className="bg-card border border-border rounded-xl overflow-hidden">
+        <div className="p-6 border-b border-border">
+          <h3 className="text-lg font-bold text-foreground">Top 50 Queries</h3>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-[#0d0c0a]">
+            <thead className="bg-input">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-[#8d857b] uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Query Preview
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-[#8d857b] uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Warehouse
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-[#8d857b] uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Executions
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-[#8d857b] uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Avg Time
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-[#8d857b] uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Data Scanned
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-[#8d857b] uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Total Cost
                 </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-[#8d857b] uppercase tracking-wider">
+                <th className="px-6 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#2d2a27]">
               {topQueries.map((query) => (
-                <tr key={query.query_hash} className="hover:bg-[#0d0c0a] transition-colors">
+                <tr key={query.query_hash} className="hover:bg-input transition-colors">
                   <td className="px-6 py-4">
                     <button
                       onClick={() => {
                         setSelectedQuery(query);
                         setShowModal(true);
                       }}
-                      className="text-sm text-white font-mono max-w-md truncate hover:text-[#ff6a3c] transition-colors flex items-center gap-2 group"
+                      className="text-sm text-foreground font-mono max-w-md truncate hover:text-primary transition-colors flex items-center gap-2 group"
                     >
-                      <Eye className="w-4 h-4 text-[#8d857b] group-hover:text-[#ff6a3c] flex-shrink-0" />
+                      <Eye className="w-4 h-4 text-muted-foreground group-hover:text-primary flex-shrink-0" />
                       <span className="truncate">{query.query_text.substring(0, 100)}...</span>
                     </button>
                   </td>
-                  <td className="px-6 py-4 text-sm text-[#8d857b]">
+                  <td className="px-6 py-4 text-sm text-muted-foreground">
                     {query.warehouse_name}
                   </td>
-                  <td className="px-6 py-4 text-sm text-right text-white">
+                  <td className="px-6 py-4 text-sm text-right text-foreground">
                     {query.execution_count.toLocaleString()}
                   </td>
                   <td className="px-6 py-4 text-sm text-right">
@@ -278,7 +278,7 @@ export default function QueryPerformanceView({ connectorId }: Props) {
                       {formatTime(query.avg_execution_time_ms)}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm text-right text-[#8d857b]">
+                  <td className="px-6 py-4 text-sm text-right text-muted-foreground">
                     {formatBytes(query.total_bytes_scanned)}
                   </td>
                   <td className="px-6 py-4 text-sm text-right">
@@ -296,9 +296,9 @@ export default function QueryPerformanceView({ connectorId }: Props) {
                         setSelectedQuery(query);
                         setShowModal(true);
                       }}
-                      className="p-2 hover:bg-[#2d2a27] rounded-lg transition-colors"
+                      className="p-2 hover:bg-accent rounded-lg transition-colors"
                     >
-                      <Code className="w-4 h-4 text-[#ff6a3c]" />
+                      <Code className="w-4 h-4 text-primary" />
                     </button>
                   </td>
                 </tr>
@@ -311,9 +311,9 @@ export default function QueryPerformanceView({ connectorId }: Props) {
       {/* Query Detail Modal */}
       {showModal && selectedQuery && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-[#161413] border border-[#2d2a27] rounded-xl max-w-6xl w-full max-h-[90vh] overflow-auto">
-            <div className="sticky top-0 bg-[#161413] border-b border-[#2d2a27] p-6 flex items-center justify-between">
-              <h3 className="text-xl font-bold text-white">Query Details</h3>
+          <div className="bg-card border border-border rounded-xl max-w-6xl w-full max-h-[90vh] overflow-auto">
+            <div className="sticky top-0 bg-card border-b border-border p-6 flex items-center justify-between">
+              <h3 className="text-xl font-bold text-foreground">Query Details</h3>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => {
@@ -321,7 +321,7 @@ export default function QueryPerformanceView({ connectorId }: Props) {
                     setCopied(true);
                     setTimeout(() => setCopied(false), 2000);
                   }}
-                  className="flex items-center gap-2 px-4 py-2 bg-[#ff6a3c] hover:bg-[#d94a1e] text-white rounded-lg transition-colors text-sm font-medium"
+                  className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-foreground rounded-lg transition-colors text-sm font-medium"
                 >
                   {copied ? (
                     <>
@@ -337,9 +337,9 @@ export default function QueryPerformanceView({ connectorId }: Props) {
                 </button>
                 <button
                   onClick={() => setShowModal(false)}
-                  className="p-2 hover:bg-[#2d2a27] rounded-lg transition-colors"
+                  className="p-2 hover:bg-accent rounded-lg transition-colors"
                 >
-                  <X className="w-5 h-5 text-white" />
+                  <X className="w-5 h-5 text-foreground" />
                 </button>
               </div>
             </div>
@@ -347,19 +347,19 @@ export default function QueryPerformanceView({ connectorId }: Props) {
               {/* Stats Grid */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
-                  <div className="text-[#8d857b] text-xs uppercase mb-1">Warehouse</div>
-                  <div className="text-white font-medium">{selectedQuery.warehouse_name}</div>
+                  <div className="text-muted-foreground text-xs uppercase mb-1">Warehouse</div>
+                  <div className="text-foreground font-medium">{selectedQuery.warehouse_name}</div>
                 </div>
                 <div>
-                  <div className="text-[#8d857b] text-xs uppercase mb-1">Executions</div>
-                  <div className="text-white font-medium">{selectedQuery.execution_count.toLocaleString()}</div>
+                  <div className="text-muted-foreground text-xs uppercase mb-1">Executions</div>
+                  <div className="text-foreground font-medium">{selectedQuery.execution_count.toLocaleString()}</div>
                 </div>
                 <div>
-                  <div className="text-[#8d857b] text-xs uppercase mb-1">Avg Time</div>
+                  <div className="text-muted-foreground text-xs uppercase mb-1">Avg Time</div>
                   <div className="text-blue-400 font-medium">{formatTime(selectedQuery.avg_execution_time_ms)}</div>
                 </div>
                 <div>
-                  <div className="text-[#8d857b] text-xs uppercase mb-1">Total Cost</div>
+                  <div className="text-muted-foreground text-xs uppercase mb-1">Total Cost</div>
                   <div className="text-red-400 font-bold">{formatCurrency(selectedQuery.total_cost)}</div>
                 </div>
               </div>
@@ -367,11 +367,11 @@ export default function QueryPerformanceView({ connectorId }: Props) {
               {/* Query Text */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <div className="text-[#8d857b] text-sm font-medium">Query Text</div>
-                  <div className="text-xs text-[#8d857b]">Click query to select all</div>
+                  <div className="text-muted-foreground text-sm font-medium">Query Text</div>
+                  <div className="text-xs text-muted-foreground">Click query to select all</div>
                 </div>
                 <div 
-                  className="bg-[#0d0c0a] border-2 border-[#2d2a27] hover:border-[#ff6a3c]/50 rounded-lg p-4 cursor-text transition-colors"
+                  className="bg-input border-2 border-border hover:border-primary/50 rounded-lg p-4 cursor-text transition-colors"
                   onClick={(e) => {
                     const selection = window.getSelection();
                     const range = document.createRange();
@@ -392,7 +392,7 @@ export default function QueryPerformanceView({ connectorId }: Props) {
                   <AlertTriangle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
                   <div>
                     <div className="text-yellow-400 font-medium mb-2">Optimization Suggestions</div>
-                    <ul className="text-[#8d857b] text-sm space-y-1 list-disc list-inside">
+                    <ul className="text-muted-foreground text-sm space-y-1 list-disc list-inside">
                       {selectedQuery.execution_count > 10 && (
                         <li>Query runs {selectedQuery.execution_count}x - consider result caching</li>
                       )}

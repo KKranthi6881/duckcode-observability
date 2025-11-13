@@ -74,9 +74,9 @@ const AppContent = () => {
   // or a minimal layout to prevent flashing the main content.
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <div className="min-h-screen flex items-center justify-center bg-background text-foreground">
         {/* You can replace this with a more sophisticated spinner component if desired */}
-        <p className="text-lg text-gray-700">Loading...</p>
+        <p className="text-lg text-muted-foreground">Loading...</p>
       </div>
     );
   }
@@ -84,7 +84,7 @@ const AppContent = () => {
   // If not loading, proceed to render the main application routes.
   // The useEffect above will handle redirection if necessary.
   return (
-    <div className="min-h-screen bg-gray-100 text-gray-900 transition-colors duration-200">
+    <div className="min-h-screen bg-background text-foreground transition-colors duration-200">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-96 h-96 bg-purple-500/20 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-blob" />
         <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-[#F5B72F]/20 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-blob animation-delay-2000" />
