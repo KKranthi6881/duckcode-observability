@@ -17,7 +17,7 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { supabase } from '../../config/supabaseClient';
-import { Database, GitBranch, Snowflake, Loader2, AlertCircle } from 'lucide-react';
+import { Database, GitBranch, Snowflake, Loader2, AlertCircle, Wind, BarChart3 } from 'lucide-react';
 
 interface UnifiedLineageGraphProps {
   objectId: string;
@@ -53,6 +53,39 @@ interface LineageResponse {
   };
 }
 
+interface ImpactObject {
+  id: string;
+  name: string;
+  fqn: string;
+  type: string;
+  source: string;
+  depth: number;
+}
+
+interface ImpactSummary {
+  focal_object: {
+    id: string;
+    name: string;
+    fqn: string;
+    type: string;
+    source: string;
+  };
+  impacted_objects: ImpactObject[];
+  summary: {
+    total_impacted: number;
+    by_source: Record<string, { count: number }>;
+    max_depth: number;
+    bi_assets: {
+      total: number;
+      tableau: number;
+      power_bi: number;
+    };
+    orchestration: {
+      airflow: number;
+    };
+  };
+}
+
 // Source-specific colors and icons
 const SOURCE_CONFIG: Record<string, { color: string; bgColor: string; icon: React.ReactNode }> = {
   github: {
@@ -60,14 +93,34 @@ const SOURCE_CONFIG: Record<string, { color: string; bgColor: string; icon: Reac
     bgColor: '#eef2ff',
     icon: <GitBranch className="w-4 h-4" />,
   },
+  dbt: {
+    color: '#f97316',
+    bgColor: '#fff7ed',
+    icon: <GitBranch className="w-4 h-4" />,
+  },
   snowflake: {
     color: '#06b6d4',
     bgColor: '#ecfeff',
     icon: <Snowflake className="w-4 h-4" />,
   },
-  bigquery: {
+  airflow: {
+    color: '#059669',
+    bgColor: '#ecfdf5',
+    icon: <Wind className="w-4 h-4" />,
+  },
+  tableau: {
+    color: '#4f46e5',
+    bgColor: '#eef2ff',
+    icon: <BarChart3 className="w-4 h-4" />,
+  },
+  power_bi: {
     color: '#f59e0b',
-    bgColor: '#fef3c7',
+    bgColor: '#fffbeb',
+    icon: <BarChart3 className="w-4 h-4" />,
+  },
+  bigquery: {
+    color: '#3b82f6',
+    bgColor: '#eff6ff',
     icon: <Database className="w-4 h-4" />,
   },
   databricks: {
@@ -149,6 +202,8 @@ export function UnifiedLineageGraph({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<LineageResponse['stats'] | null>(null);
+  const [impact, setImpact] = useState<ImpactSummary | null>(null);
+  const [impactError, setImpactError] = useState<string | null>(null);
 
   const fetchLineage = useCallback(async () => {
     try {
@@ -235,6 +290,40 @@ export function UnifiedLineageGraph({
   useEffect(() => {
     fetchLineage();
   }, [fetchLineage]);
+
+  useEffect(() => {
+    const fetchImpact = async () => {
+      try {
+        setImpactError(null);
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          throw new Error('Not authenticated');
+        }
+
+        const response = await fetch(
+          `http://localhost:3001/api/lineage/unified-impact/${objectId}?depth=${depth}`,
+          {
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch impact: ${response.status}`);
+        }
+
+        const data: ImpactSummary = await response.json();
+        setImpact(data);
+      } catch (err) {
+        console.error('[UnifiedLineage] Impact error:', err);
+        setImpactError(err instanceof Error ? err.message : 'Unknown error');
+      }
+    };
+
+    fetchImpact();
+  }, [objectId, depth]);
 
   // Simple auto-layout (hierarchical)
   const autoLayout = (nodes: Node[], edges: Edge[]): Node[] => {
@@ -369,10 +458,85 @@ export function UnifiedLineageGraph({
                 })}
               </div>
             </div>
-            <div className="text-xs text-gray-500">
-              Depth: {stats.max_depth} levels
+            <div className="text-xs text-gray-500">Depth: {stats.max_depth} levels</div>
+          </div>
+        </div>
+      )}
+
+      {/* Impact Summary */}
+      {impact && (
+        <div className="flex-shrink-0 px-4 py-3 bg-white border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1 text-sm">
+              <div className="font-semibold text-gray-900">Impact summary</div>
+              <div className="text-gray-700">
+                <span className="font-semibold">{impact.summary.total_impacted}</span>{' '}
+                downstream objects
+                {impact.summary.bi_assets.total > 0 && (
+                  <span className="ml-2 text-xs text-gray-600">
+                    BI: {impact.summary.bi_assets.total} (Tableau {impact.summary.bi_assets.tableau}, Power BI {impact.summary.bi_assets.power_bi})
+                  </span>
+                )}
+                {impact.summary.orchestration.airflow > 0 && (
+                  <span className="ml-2 text-xs text-gray-600">
+                    Airflow DAGs: {impact.summary.orchestration.airflow}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="hidden md:flex items-center gap-4 text-xs text-gray-600">
+              {Object.entries(impact.summary.by_source).map(([source, info]) => {
+                const cfg = SOURCE_CONFIG[source] || SOURCE_CONFIG.unknown;
+                return (
+                  <div
+                    key={source}
+                    className="flex items-center gap-1 px-2 py-1 rounded"
+                    style={{ backgroundColor: cfg.bgColor, color: cfg.color }}
+                  >
+                    {cfg.icon}
+                    <span className="uppercase">{source}</span>
+                    <span className="ml-1">{info.count}</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
+          {impact.impacted_objects.length > 0 && (
+            <div className="mt-2 text-xs text-gray-700">
+              <div className="font-medium mb-1">Top impacted (closest downstream):</div>
+              <div className="flex flex-wrap gap-2">
+                {impact.impacted_objects.slice(0, 5).map(obj => {
+                  const cfg = SOURCE_CONFIG[obj.source] || SOURCE_CONFIG.unknown;
+                  return (
+                    <div
+                      key={obj.id}
+                      className="flex items-center gap-1 px-2 py-1 rounded border text-[11px]"
+                      style={{ borderColor: cfg.color }}
+                    >
+                      <span
+                        className="font-mono truncate max-w-[180px]"
+                        title={obj.fqn || obj.name}
+                      >
+                        {obj.name}
+                      </span>
+                      <span className="text-gray-400">·</span>
+                      <span className="uppercase" style={{ color: cfg.color }}>
+                        {obj.source}
+                      </span>
+                      <span className="text-gray-400">·</span>
+                      <span>depth {obj.depth}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {impactError && (
+        <div className="flex-shrink-0 px-4 py-2 bg-white border-b border-gray-200 text-xs text-red-500">
+          Failed to load impact summary: {impactError}
         </div>
       )}
 

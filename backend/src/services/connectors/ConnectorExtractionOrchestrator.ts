@@ -122,6 +122,8 @@ export class ConnectorExtractionOrchestrator {
           database_name: obj.database_name,
           object_type: obj.object_type,
           definition: obj.definition,
+          // Ensure multi-source lineage can distinguish origin
+          source_type: connector.type,
         });
 
         if (obj.columns && obj.columns.length) {
@@ -129,6 +131,166 @@ export class ConnectorExtractionOrchestrator {
           await storage.storeColumns(inserted.id, obj.columns, connector.organization_id);
         } else {
           console.log(`[EXTRACT] No columns to store for ${obj.name} (columns: ${obj.columns?.length || 0})`);
+        }
+
+        // Airflow-specific: derive dependencies to Snowflake objects via DAG tags
+        if (connector.type === 'airflow' && typeof obj.definition === 'string') {
+          try {
+            const def = JSON.parse(obj.definition);
+            const tags = Array.isArray(def.tags) ? def.tags : [];
+            for (const rawTag of tags) {
+              if (typeof rawTag !== 'string') continue;
+              const trimmed = rawTag.trim();
+              const match = /^sf:(.+)$/i.exec(trimmed);
+              if (!match) continue;
+
+              const fqn = match[1].toUpperCase();
+              const { data: targetObj, error: targetErr } = await supabaseAdmin
+                .schema('metadata')
+                .from('objects')
+                .select('id')
+                .eq('organization_id', connector.organization_id)
+                .eq('fqn', fqn)
+                .eq('source_type', 'snowflake')
+                .single();
+
+              if (targetErr || !targetObj) {
+                if (targetErr && targetErr.code !== 'PGRST116') {
+                  console.warn('[EXTRACT][AIRFLOW] Failed to resolve Snowflake object for tag', trimmed, targetErr);
+                }
+                continue;
+              }
+
+              await storage.storeDependency({
+                organization_id: connector.organization_id,
+                source_object_id: inserted.id,
+                target_object_id: targetObj.id,
+                dependency_type: 'orchestration',
+                column_level: false,
+                source_column: null,
+                target_column: null,
+                expression: null,
+                confidence: 0.85,
+                metadata: {
+                  via: 'airflow_tag',
+                  tag: trimmed,
+                },
+              });
+            }
+          } catch (e: any) {
+            console.warn('[EXTRACT][AIRFLOW] Failed to derive dependencies from tags:', e?.message || e);
+          }
+        }
+
+        // Tableau-specific: derive dependencies to Snowflake objects via FQN hints (e.g. "sf:DB.SCHEMA.TABLE")
+        if (connector.type === 'tableau' && typeof obj.definition === 'string') {
+          try {
+            const def = JSON.parse(obj.definition || '{}');
+            const texts: string[] = [];
+            if (obj.name) texts.push(String(obj.name));
+            if (def.projectName) texts.push(String(def.projectName));
+            if (def.contentUrl) texts.push(String(def.contentUrl));
+
+            const fqnHints = new Set<string>();
+            const re = /sf:([A-Za-z0-9_\.]+)/gi;
+            for (const txt of texts) {
+              let m: RegExpExecArray | null;
+              while ((m = re.exec(txt)) !== null) {
+                fqnHints.add(m[1].toUpperCase());
+              }
+            }
+
+            for (const fqn of fqnHints) {
+              const { data: targetObj, error: targetErr } = await supabaseAdmin
+                .schema('metadata')
+                .from('objects')
+                .select('id')
+                .eq('organization_id', connector.organization_id)
+                .eq('fqn', fqn)
+                .eq('source_type', 'snowflake')
+                .single();
+
+              if (targetErr || !targetObj) {
+                if (targetErr && targetErr.code !== 'PGRST116') {
+                  console.warn('[EXTRACT][TABLEAU] Failed to resolve Snowflake object for hint', fqn, targetErr);
+                }
+                continue;
+              }
+
+              await storage.storeDependency({
+                organization_id: connector.organization_id,
+                source_object_id: inserted.id,
+                target_object_id: targetObj.id,
+                dependency_type: 'bi_dependency',
+                column_level: false,
+                source_column: null,
+                target_column: null,
+                expression: null,
+                confidence: 0.85,
+                metadata: {
+                  via: 'tableau_hint',
+                  fqn,
+                },
+              });
+            }
+          } catch (e: any) {
+            console.warn('[EXTRACT][TABLEAU] Failed to derive dependencies from workbook metadata:', e?.message || e);
+          }
+        }
+
+        // Power BI-specific: derive dependencies to Snowflake objects via FQN hints in dataset names (e.g. "sf:DB.SCHEMA.TABLE")
+        if (connector.type === 'power_bi' && typeof obj.definition === 'string') {
+          try {
+            const def = JSON.parse(obj.definition || '{}');
+            const texts: string[] = [];
+            if (obj.name) texts.push(String(obj.name));
+            if (def.workspaceId) texts.push(String(def.workspaceId));
+
+            const fqnHints = new Set<string>();
+            const re = /sf:([A-Za-z0-9_\.]+)/gi;
+            for (const txt of texts) {
+              let m: RegExpExecArray | null;
+              while ((m = re.exec(txt)) !== null) {
+                fqnHints.add(m[1].toUpperCase());
+              }
+            }
+
+            for (const fqn of fqnHints) {
+              const { data: targetObj, error: targetErr } = await supabaseAdmin
+                .schema('metadata')
+                .from('objects')
+                .select('id')
+                .eq('organization_id', connector.organization_id)
+                .eq('fqn', fqn)
+                .eq('source_type', 'snowflake')
+                .single();
+
+              if (targetErr || !targetObj) {
+                if (targetErr && targetErr.code !== 'PGRST116') {
+                  console.warn('[EXTRACT][POWER_BI] Failed to resolve Snowflake object for hint', fqn, targetErr);
+                }
+                continue;
+              }
+
+              await storage.storeDependency({
+                organization_id: connector.organization_id,
+                source_object_id: inserted.id,
+                target_object_id: targetObj.id,
+                dependency_type: 'bi_dependency',
+                column_level: false,
+                source_column: null,
+                target_column: null,
+                expression: null,
+                confidence: 0.85,
+                metadata: {
+                  via: 'power_bi_hint',
+                  fqn,
+                },
+              });
+            }
+          } catch (e: any) {
+            console.warn('[EXTRACT][POWER_BI] Failed to derive dependencies from dataset metadata:', e?.message || e);
+          }
         }
 
         // Build object map for lineage resolution (needed before storing constraints)

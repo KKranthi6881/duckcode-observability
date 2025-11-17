@@ -40,6 +40,13 @@ export interface CreateSnowflakeRequest {
   };
 }
 
+export interface CreateConnectorRequest {
+  organizationId: string;
+  name: string;
+  type: string;
+  config: Record<string, unknown>;
+}
+
 class ConnectorsService {
   private baseUrl: string;
   constructor() {
@@ -71,16 +78,30 @@ class ConnectorsService {
     return json.connectors || [];
   }
 
-  async createSnowflake(req: CreateSnowflakeRequest): Promise<ConnectorItem> {
+  async createConnector(req: CreateConnectorRequest): Promise<ConnectorItem> {
     const t = await this.token();
     const res = await fetch(`${this.baseUrl}/api/connectors`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${t}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ organizationId: req.organizationId, name: req.name, type: 'snowflake', config: req.config }),
+      body: JSON.stringify({ 
+        organizationId: req.organizationId, 
+        name: req.name, 
+        type: req.type, 
+        config: req.config 
+      }),
     });
     if (!res.ok) throw new Error('Failed to create connector');
     const json = await res.json();
     return json.connector as ConnectorItem;
+  }
+
+  async createSnowflake(req: CreateSnowflakeRequest): Promise<ConnectorItem> {
+    return this.createConnector({
+      organizationId: req.organizationId,
+      name: req.name,
+      type: 'snowflake',
+      config: req.config,
+    });
   }
 
   async test(id: string): Promise<void> {

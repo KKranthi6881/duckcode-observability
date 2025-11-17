@@ -1,20 +1,52 @@
 import { useState } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import { ArrowLeft, Plug2 } from 'lucide-react';
+import { SiGithub, SiSnowflake } from 'react-icons/si';
 import ConnectorsPage from '../dashboard/ConnectorsPage';
 import { MetadataExtraction } from './MetadataExtraction';
+import { connectorsService } from '../../services/connectorsService';
+import type { Organization } from '../../types/enterprise';
 
-// Import SVG icons
+// Import icons
 const GitHubIcon = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-  </svg>
+  <SiGithub className={className} />
 );
 
 const SnowflakeIcon = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M15.27 2.23l-1.27.76-1.27-.76-1.27.76-1.27-.76-1.27.76-1.27-.76-1.27.76-1.27-.76v1.51l1.27.76 1.27-.76 1.27.76 1.27-.76 1.27.76 1.27-.76 1.27.76 1.27-.76V2.23zm-3.81 3.82l-1.27.76-1.27-.76-1.27.76-1.27-.76v1.51l1.27.76 1.27-.76 1.27.76 1.27-.76V6.05zm7.62 1.52l-1.27-.76-1.27.76-1.27-.76-1.27.76V6.05l1.27-.76 1.27.76 1.27-.76 1.27.76v1.52zm-11.43 0l-1.27-.76-1.27.76-1.27-.76-1.27.76V6.05l1.27-.76 1.27.76 1.27-.76 1.27.76v1.52zm15.24 3.81l-1.27-.76-1.27.76-1.27-.76v1.52l1.27.76 1.27-.76 1.27.76 1.27-.76v-1.52l-1.27.76zm-19.05 0l-1.27-.76-1.27.76v-1.52l1.27-.76 1.27.76 1.27-.76 1.27.76v1.52l-1.27-.76zm11.43 0l-1.27-.76-1.27.76-1.27-.76-1.27.76v-1.52l1.27-.76 1.27.76 1.27-.76 1.27.76v1.52zm3.81-3.81l-1.27-.76-1.27.76v-1.52l1.27-.76 1.27.76v1.52zm-7.62 11.43l-1.27-.76-1.27.76-1.27-.76-1.27.76v-1.52l1.27-.76 1.27.76 1.27-.76 1.27.76V18zm7.62-3.81l-1.27-.76-1.27.76-1.27-.76-1.27.76v-1.52l1.27-.76 1.27.76 1.27-.76 1.27.76v1.52zm-3.81 7.62l-1.27-.76-1.27.76v-1.52l1.27-.76 1.27.76v1.52z"/>
-  </svg>
+  <SiSnowflake className={className} />
 );
+
+const AirflowIcon = ({ className }: { className?: string }) => (
+  <img
+    src="/connectors/service-icon-airflow.png"
+    alt="Apache Airflow logo"
+    className={`object-contain ${className ?? ''}`}
+  />
+);
+
+const TableauIcon = ({ className }: { className?: string }) => (
+  <img
+    src="/connectors/service-icon-tableau.png"
+    alt="Tableau logo"
+    className={`object-contain ${className ?? ''}`}
+  />
+);
+
+const PowerBIIcon = ({ className }: { className?: string }) => (
+  <img
+    src="/connectors/service-icon-power-bi.png"
+    alt="Power BI logo"
+    className={`object-contain ${className ?? ''}`}
+  />
+);
+
+interface AdminContext {
+  selectedOrg: Organization | null;
+}
+
+interface ConnectorConfigPageProps {
+  onBack: () => void;
+}
 
 interface Connector {
   id: string;
@@ -46,7 +78,543 @@ const CONNECTORS: Connector[] = [
     iconColor: 'text-blue-400',
     gradient: 'from-blue-600 to-blue-700',
   },
+  {
+    id: 'airflow',
+    name: 'Apache Airflow',
+    description: 'Orchestrate and monitor your data pipelines using Airflow DAGs.',
+    icon: AirflowIcon,
+    iconColor: 'text-sky-400',
+    gradient: 'from-sky-500 to-sky-600',
+  },
+  {
+    id: 'tableau',
+    name: 'Tableau',
+    description: 'Power rich BI dashboards with governed, trusted datasets.',
+    icon: TableauIcon,
+    iconColor: 'text-indigo-400',
+    gradient: 'from-indigo-500 to-indigo-600',
+  },
+  {
+    id: 'power-bi',
+    name: 'Power BI',
+    description: 'Deliver self-service analytics to business users using Power BI.',
+    icon: PowerBIIcon,
+    iconColor: 'text-yellow-400',
+    gradient: 'from-yellow-500 to-amber-500',
+  },
 ];
+
+const VISIBLE_CONNECTORS: Connector[] = CONNECTORS.filter(
+  (connector) => !['airflow', 'tableau', 'power-bi'].includes(connector.id)
+);
+
+function AirflowConnectorConfig({ onBack }: ConnectorConfigPageProps) {
+  const { selectedOrg } = useOutletContext<AdminContext>();
+  const [name, setName] = useState('Apache Airflow - Production');
+  const [baseUrl, setBaseUrl] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [apiToken, setApiToken] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  const handleSave = async () => {
+    if (!selectedOrg) {
+      setError('No organization selected.');
+      return;
+    }
+    if (!name.trim() || !baseUrl.trim()) {
+      setError('Name and Base URL are required.');
+      return;
+    }
+    if (!apiToken.trim() && (!username.trim() || !password)) {
+      setError('Provide either an API token or username and password.');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setError(null);
+      setSuccess(null);
+
+      const config: Record<string, unknown> = {
+        base_url: baseUrl.trim(),
+      };
+
+      if (apiToken.trim()) {
+        config.api_token = apiToken.trim();
+      } else {
+        config.username = username.trim();
+        config.password = password;
+      }
+
+      await connectorsService.createConnector({
+        organizationId: selectedOrg.id,
+        name: name.trim(),
+        type: 'airflow',
+        config,
+      });
+
+      setSuccess('Airflow connector configuration saved.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to save connector');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="border-b border-border bg-card px-6 py-4">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition mb-3"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Connectors
+        </button>
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-sky-500/10 rounded-lg">
+            <AirflowIcon className="w-6 h-6" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Apache Airflow Connector</h1>
+            <p className="text-sm text-muted-foreground">Pipeline orchestration and monitoring</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="px-6 py-6">
+        <div className="max-w-2xl bg-card border border-border rounded-xl p-6 space-y-4">
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-foreground">Connector name</label>
+            <input
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g., Airflow - Production"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-foreground">Airflow base URL</label>
+            <input
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+              value={baseUrl}
+              onChange={(e) => setBaseUrl(e.target.value)}
+              placeholder="https://airflow.my-company.com"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-foreground">Username</label>
+              <input
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="airflow_admin"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-foreground">Password</label>
+              <input
+                type="password"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-foreground">API token (optional)</label>
+            <input
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 font-mono"
+              value={apiToken}
+              onChange={(e) => setApiToken(e.target.value)}
+              placeholder="Use instead of username/password when available"
+            />
+            <p className="text-xs text-muted-foreground">
+              If an API token is provided, it will be used instead of username and password.
+            </p>
+          </div>
+
+          <div className="mt-4 rounded-lg border border-border bg-muted/40 p-3 text-xs text-muted-foreground space-y-1">
+            <div className="font-medium text-foreground text-[11px] tracking-wide uppercase">Snowflake lineage hints</div>
+            <p>
+              To link Airflow DAGs to Snowflake tables in the lineage graph, add tags of the form
+              <span className="font-mono bg-background px-1 py-0.5 rounded border border-border mx-1">sf:DB.SCHEMA.TABLE</span>
+              to your DAGs.
+            </p>
+            <p>
+              Example tag:
+              <span className="font-mono bg-background px-1 py-0.5 rounded border border-border ml-1">sf:ANALYTICS.PUBLIC.CUSTOMERS</span>
+            </p>
+          </div>
+
+          {error && (
+            <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+              {error}
+            </div>
+          )}
+          {success && (
+            <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-400">
+              {success}
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              onClick={onBack}
+              className="rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-foreground hover:bg-primary/90 disabled:opacity-60 transition-colors"
+            >
+              {saving ? 'Saving...' : 'Save configuration'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TableauConnectorConfig({ onBack }: ConnectorConfigPageProps) {
+  const { selectedOrg } = useOutletContext<AdminContext>();
+  const [name, setName] = useState('Tableau - Production');
+  const [serverUrl, setServerUrl] = useState('');
+  const [siteName, setSiteName] = useState('');
+  const [tokenName, setTokenName] = useState('');
+  const [tokenSecret, setTokenSecret] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  const handleSave = async () => {
+    if (!selectedOrg) {
+      setError('No organization selected.');
+      return;
+    }
+    if (!name.trim() || !serverUrl.trim() || !tokenName.trim() || !tokenSecret) {
+      setError('Name, server URL, token name, and token secret are required.');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setError(null);
+      setSuccess(null);
+
+      const config: Record<string, unknown> = {
+        server_url: serverUrl.trim(),
+        token_name: tokenName.trim(),
+        token_secret: tokenSecret,
+      };
+
+      if (siteName.trim()) {
+        config.site_name = siteName.trim();
+      }
+
+      await connectorsService.createConnector({
+        organizationId: selectedOrg.id,
+        name: name.trim(),
+        type: 'tableau',
+        config,
+      });
+
+      setSuccess('Tableau connector configuration saved.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to save connector');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="border-b border-border bg-card px-6 py-4">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition mb-3"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Connectors
+        </button>
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-indigo-500/10 rounded-lg">
+            <TableauIcon className="w-6 h-6" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Tableau Connector</h1>
+            <p className="text-sm text-muted-foreground">Business intelligence dashboards</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="px-6 py-6">
+        <div className="max-w-2xl bg-card border border-border rounded-xl p-6 space-y-4">
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-foreground">Connector name</label>
+            <input
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g., Tableau - Executive Dashboards"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-foreground">Server URL</label>
+            <input
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+              value={serverUrl}
+              onChange={(e) => setServerUrl(e.target.value)}
+              placeholder="https://tableau.my-company.com"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-foreground">Site name (optional)</label>
+            <input
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+              value={siteName}
+              onChange={(e) => setSiteName(e.target.value)}
+              placeholder="Default"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-foreground">Token name</label>
+              <input
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                value={tokenName}
+                onChange={(e) => setTokenName(e.target.value)}
+                placeholder="tableau-pat-name"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-foreground">Token secret</label>
+              <input
+                type="password"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 font-mono"
+                value={tokenSecret}
+                onChange={(e) => setTokenSecret(e.target.value)}
+                placeholder="••••••••"
+              />
+            </div>
+          </div>
+
+          {error && (
+            <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+              {error}
+            </div>
+          )}
+          {success && (
+            <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-400">
+              {success}
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              onClick={onBack}
+              className="rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-foreground hover:bg-primary/90 disabled:opacity-60 transition-colors"
+            >
+              {saving ? 'Saving...' : 'Save configuration'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PowerBIConnectorConfig({ onBack }: ConnectorConfigPageProps) {
+  const { selectedOrg } = useOutletContext<AdminContext>();
+  const [name, setName] = useState('Power BI - Production');
+  const [tenantId, setTenantId] = useState('');
+  const [clientId, setClientId] = useState('');
+  const [clientSecret, setClientSecret] = useState('');
+  const [workspaceId, setWorkspaceId] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  const handleSave = async () => {
+    if (!selectedOrg) {
+      setError('No organization selected.');
+      return;
+    }
+    if (!name.trim() || !tenantId.trim() || !clientId.trim() || !clientSecret) {
+      setError('Name, tenant ID, client ID, and client secret are required.');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setError(null);
+      setSuccess(null);
+
+      const config: Record<string, unknown> = {
+        tenant_id: tenantId.trim(),
+        client_id: clientId.trim(),
+        client_secret: clientSecret,
+      };
+
+      if (workspaceId.trim()) {
+        config.workspace_id = workspaceId.trim();
+      }
+
+      await connectorsService.createConnector({
+        organizationId: selectedOrg.id,
+        name: name.trim(),
+        type: 'power_bi',
+        config,
+      });
+
+      setSuccess('Power BI connector configuration saved.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to save connector');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="border-b border-border bg-card px-6 py-4">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition mb-3"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Connectors
+        </button>
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-amber-500/10 rounded-lg">
+            <PowerBIIcon className="w-6 h-6" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Power BI Connector</h1>
+            <p className="text-sm text-muted-foreground">Self-service analytics for business users</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="px-6 py-6">
+        <div className="max-w-2xl bg-card border border-border rounded-xl p-6 space-y-4">
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-foreground">Connector name</label>
+            <input
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g., Power BI - Finance Workspace"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-foreground">Tenant ID</label>
+              <input
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 font-mono"
+                value={tenantId}
+                onChange={(e) => setTenantId(e.target.value)}
+                placeholder="00000000-0000-0000-0000-000000000000"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-foreground">Client ID</label>
+              <input
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 font-mono"
+                value={clientId}
+                onChange={(e) => setClientId(e.target.value)}
+                placeholder="00000000-0000-0000-0000-000000000000"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-foreground">Client secret</label>
+            <input
+              type="password"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 font-mono"
+              value={clientSecret}
+              onChange={(e) => setClientSecret(e.target.value)}
+              placeholder="••••••••"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-foreground">Workspace ID (optional)</label>
+            <input
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 font-mono"
+              value={workspaceId}
+              onChange={(e) => setWorkspaceId(e.target.value)}
+              placeholder="00000000-0000-0000-0000-000000000000"
+            />
+          </div>
+
+          <div className="mt-4 rounded-lg border border-border bg-muted/40 p-3 text-xs text-muted-foreground space-y-1">
+            <div className="font-medium text-foreground text-[11px] tracking-wide uppercase">Snowflake lineage hints</div>
+            <p>
+              To connect Power BI datasets to Snowflake tables in lineage, include markers like
+              <span className="font-mono bg-background px-1 py-0.5 rounded border border-border mx-1">sf:DB.SCHEMA.TABLE</span>
+              in the dataset name or workspace description.
+            </p>
+            <p>
+              Example dataset name:
+              <span className="font-mono bg-background px-1 py-0.5 rounded border border-border ml-1">Sales Model (sf:ANALYTICS.PUBLIC.ORDERS)</span>
+            </p>
+          </div>
+
+          {error && (
+            <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+              {error}
+            </div>
+          )}
+          {success && (
+            <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-400">
+              {success}
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              onClick={onBack}
+              className="rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-foreground hover:bg-primary/90 disabled:opacity-60 transition-colors"
+            >
+              {saving ? 'Saving...' : 'Save configuration'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function ConnectorsHub() {
   const [selectedConnector, setSelectedConnector] = useState<string | null>(null);
@@ -104,6 +672,18 @@ export default function ConnectorsHub() {
     );
   }
 
+  if (selectedConnector === 'airflow') {
+    return <AirflowConnectorConfig onBack={() => setSelectedConnector(null)} />;
+  }
+
+  if (selectedConnector === 'tableau') {
+    return <TableauConnectorConfig onBack={() => setSelectedConnector(null)} />;
+  }
+
+  if (selectedConnector === 'power-bi') {
+    return <PowerBIConnectorConfig onBack={() => setSelectedConnector(null)} />;
+  }
+
   // Main hub view
   return (
     <div className="min-h-screen bg-background p-6">
@@ -119,56 +699,23 @@ export default function ConnectorsHub() {
           </div>
         </div>
 
-        {/* Overview Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-card border border-border rounded-xl p-5">
-            <div className="flex items-center justify-between mb-2">
-              <Plug2 className="w-8 h-8 text-primary" />
-              <span className="text-xs font-bold text-muted-foreground uppercase">Available</span>
-            </div>
-            <div className="text-3xl font-bold text-foreground mb-1">{CONNECTORS.length}</div>
-            <div className="text-sm text-muted-foreground">Data connectors</div>
-          </div>
-
-          <div className="bg-card border border-border rounded-xl p-5">
-            <div className="flex items-center justify-between mb-2">
-              <GitHubIcon className="w-8 h-8 text-purple-400" />
-              <span className="text-xs font-bold text-muted-foreground uppercase">GitHub</span>
-            </div>
-            <div className="text-3xl font-bold text-foreground mb-1">-</div>
-            <div className="text-sm text-muted-foreground">Repositories connected</div>
-          </div>
-
-          <div className="bg-card border border-border rounded-xl p-5">
-            <div className="flex items-center justify-between mb-2">
-              <SnowflakeIcon className="w-8 h-8 text-blue-400" />
-              <span className="text-xs font-bold text-muted-foreground uppercase">Snowflake</span>
-            </div>
-            <div className="text-3xl font-bold text-foreground mb-1">-</div>
-            <div className="text-sm text-muted-foreground">Accounts configured</div>
-          </div>
-        </div>
-
         {/* Connectors Grid */}
         <div>
           <h2 className="text-xl font-semibold text-foreground mb-4">Available Connectors</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {CONNECTORS.map((connector) => {
+            {VISIBLE_CONNECTORS.map((connector) => {
               const Icon = connector.icon;
               return (
                 <button
                   key={connector.id}
                   onClick={() => setSelectedConnector(connector.id)}
-                  className="group relative bg-card border border-border rounded-xl p-6 hover:border-primary/50 transition-all duration-200 text-left overflow-hidden"
+                  className="group bg-card border border-border rounded-xl p-6 hover:border-primary/50 transition-all duration-200 text-left"
                 >
-                  {/* Gradient background on hover */}
-                  <div className={`absolute inset-0 bg-gradient-to-br ${connector.gradient} opacity-0 group-hover:opacity-5 transition-opacity`} />
-                  
                   <div className="relative">
                     {/* Icon and Title */}
                     <div className="flex items-start gap-4 mb-4">
-                      <div className={`p-3 bg-gradient-to-br ${connector.gradient} rounded-xl shadow-lg`}>
-                        <Icon className="w-8 h-8 text-foreground" />
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+                        <Icon className={`w-7 h-7 ${connector.iconColor}`} />
                       </div>
                       <div className="flex-1">
                         <h3 className="text-xl font-bold text-foreground mb-1 group-hover:text-primary transition-colors">

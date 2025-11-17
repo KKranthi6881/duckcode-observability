@@ -8,7 +8,8 @@ import { Router } from 'express';
 import { auth } from '../../middleware/auth';
 import { 
   getUnifiedLineage,
-  getLineageStats
+  getLineageStats,
+  getUnifiedImpact,
 } from '../controllers/unified-lineage.controller';
 
 const router = Router();
@@ -32,5 +33,7 @@ router.get('/unified/:objectId', getUnifiedLineage);
  * Get lineage statistics for the organization
  */
 router.get('/stats', getLineageStats);
+
+router.get('/unified-impact/:objectId', getUnifiedImpact);
 
 export default router;

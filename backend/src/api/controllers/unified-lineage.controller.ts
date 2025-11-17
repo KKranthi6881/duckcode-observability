@@ -42,6 +42,39 @@ interface UnifiedLineageResponse {
   };
 }
 
+interface UnifiedImpactObject {
+  id: string;
+  name: string;
+  fqn: string;
+  type: string;
+  source: string;
+  depth: number;
+}
+
+interface UnifiedImpactSummary {
+  focal_object: {
+    id: string;
+    name: string;
+    fqn: string;
+    type: string;
+    source: string;
+  };
+  impacted_objects: UnifiedImpactObject[];
+  summary: {
+    total_impacted: number;
+    by_source: Record<string, { count: number }>;
+    max_depth: number;
+    bi_assets: {
+      total: number;
+      tableau: number;
+      power_bi: number;
+    };
+    orchestration: {
+      airflow: number;
+    };
+  };
+}
+
 /**
  * Get unified lineage graph for an object
  * Combines all lineage sources into a single graph
@@ -196,6 +229,204 @@ export async function getUnifiedLineage(req: Request, res: Response) {
 
   } catch (error) {
     console.error('[UnifiedLineage] Error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+export async function getUnifiedImpact(req: Request, res: Response) {
+  try {
+    const { objectId } = req.params;
+    const { depth = 3 } = req.query;
+
+    if (!objectId) {
+      return res.status(400).json({ error: 'Object ID required' });
+    }
+
+    const userId = (req as any).user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'User ID required' });
+    }
+
+    const { data: profile, error: profileError } = await supabaseAdmin
+      .schema('duckcode')
+      .from('user_profiles')
+      .select('organization_id')
+      .eq('id', userId)
+      .single();
+
+    if (profileError || !profile?.organization_id) {
+      console.error('[UnifiedImpact] Failed to get organization_id:', profileError);
+      return res.status(401).json({ error: 'Organization ID required' });
+    }
+
+    const organizationId = profile.organization_id;
+
+    const { data: focalObject, error: focalError } = await supabaseAdmin
+      .schema('metadata')
+      .from('objects')
+      .select('id, name, fqn, object_type, source_type')
+      .eq('id', objectId)
+      .eq('organization_id', organizationId)
+      .single();
+
+    if (focalError || !focalObject) {
+      console.error('[UnifiedImpact] Focal object not found:', focalError);
+      return res.status(404).json({ error: 'Object not found' });
+    }
+
+    const { data: lineageData, error: lineageError } = await supabaseAdmin
+      .schema('metadata')
+      .rpc('get_lineage_graph', {
+        p_object_id: objectId,
+        p_organization_id: organizationId,
+        p_depth: parseInt(depth as string),
+        p_direction: 'downstream',
+      });
+
+    if (lineageError) {
+      console.error('[UnifiedImpact] Error fetching lineage:', lineageError);
+      return res.status(500).json({ error: 'Failed to fetch lineage for impact analysis' });
+    }
+
+    const adjacency = new Map<string, Set<string>>();
+    const nodeMeta = new Map<
+      string,
+      { id: string; name: string; fqn: string; object_type: string; source_type: string }
+    >();
+
+    nodeMeta.set(focalObject.id, {
+      id: focalObject.id,
+      name: focalObject.name,
+      fqn: focalObject.fqn,
+      object_type: focalObject.object_type,
+      source_type: focalObject.source_type || 'unknown',
+    });
+
+    if (Array.isArray(lineageData)) {
+      for (const row of lineageData as any[]) {
+        const sourceId = row.source_id as string | null;
+        const targetId = row.target_id as string | null;
+
+        if (sourceId && !nodeMeta.has(sourceId)) {
+          nodeMeta.set(sourceId, {
+            id: sourceId,
+            name: row.source_name,
+            fqn: row.source_fqn,
+            object_type: row.source_object_type || 'table',
+            source_type: row.source_type || 'unknown',
+          });
+        }
+
+        if (targetId && !nodeMeta.has(targetId)) {
+          nodeMeta.set(targetId, {
+            id: targetId,
+            name: row.target_name,
+            fqn: row.target_fqn,
+            object_type: row.target_object_type || 'table',
+            source_type: row.target_type || 'unknown',
+          });
+        }
+
+        if (sourceId && targetId) {
+          if (!adjacency.has(sourceId)) {
+            adjacency.set(sourceId, new Set<string>());
+          }
+          adjacency.get(sourceId)!.add(targetId);
+        }
+      }
+    }
+
+    const depths = new Map<string, number>();
+    const queue: string[] = [];
+
+    depths.set(focalObject.id, 0);
+    queue.push(focalObject.id);
+
+    while (queue.length > 0) {
+      const current = queue.shift() as string;
+      const currentDepth = depths.get(current) || 0;
+      const neighbors = adjacency.get(current);
+      if (!neighbors) continue;
+
+      for (const neighbor of neighbors) {
+        if (!depths.has(neighbor)) {
+          depths.set(neighbor, currentDepth + 1);
+          queue.push(neighbor);
+        }
+      }
+    }
+
+    const impacted: UnifiedImpactObject[] = [];
+    const bySource: Record<string, { count: number }> = {};
+    let maxDepthSeen = 0;
+    let biTableau = 0;
+    let biPowerBi = 0;
+    let orchestrationAirflow = 0;
+
+    depths.forEach((d, id) => {
+      if (id === focalObject.id || d <= 0) {
+        return;
+      }
+      const meta = nodeMeta.get(id);
+      if (!meta) {
+        return;
+      }
+      const source = meta.source_type || 'unknown';
+      if (!bySource[source]) {
+        bySource[source] = { count: 0 };
+      }
+      bySource[source].count += 1;
+      if (source === 'tableau') {
+        biTableau += 1;
+      }
+      if (source === 'power_bi') {
+        biPowerBi += 1;
+      }
+      if (source === 'airflow') {
+        orchestrationAirflow += 1;
+      }
+      if (d > maxDepthSeen) {
+        maxDepthSeen = d;
+      }
+      impacted.push({
+        id: meta.id,
+        name: meta.name,
+        fqn: meta.fqn,
+        type: meta.object_type,
+        source,
+        depth: d,
+      });
+    });
+
+    impacted.sort((a, b) => a.depth - b.depth);
+
+    const response: UnifiedImpactSummary = {
+      focal_object: {
+        id: focalObject.id,
+        name: focalObject.name,
+        fqn: focalObject.fqn,
+        type: focalObject.object_type,
+        source: focalObject.source_type || 'unknown',
+      },
+      impacted_objects: impacted,
+      summary: {
+        total_impacted: impacted.length,
+        by_source: bySource,
+        max_depth: maxDepthSeen,
+        bi_assets: {
+          total: biTableau + biPowerBi,
+          tableau: biTableau,
+          power_bi: biPowerBi,
+        },
+        orchestration: {
+          airflow: orchestrationAirflow,
+        },
+      },
+    };
+
+    res.json(response);
+  } catch (error) {
+    console.error('[UnifiedImpact] Error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 }

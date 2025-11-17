@@ -1,6 +1,6 @@
 import { memo, useState, useCallback } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
-import { ChevronDown, Loader2, Database, Table2, FileText, Focus, Cloud, GitBranch } from 'lucide-react';
+import { ChevronDown, Loader2, Database, Table2, FileText, Focus, Cloud, GitBranch, Wind, BarChart3 } from 'lucide-react';
 
 interface ColumnLineage {
   id: string;
@@ -153,23 +153,38 @@ function ModernModelNode({ data }: NodeProps<ModelNodeData>) {
               {/* Source Type Badge with Icon(s) - Shows multiple sources if available */}
               {(data.sources && data.sources.length > 0 ? data.sources : data.source ? [data.source] : []).length > 0 && (
                 <div className="flex-shrink-0 flex items-center gap-1">
-                  {(data.sources && data.sources.length > 0 ? data.sources : [data.source!]).map((src, idx) => (
-                    <div 
-                      key={idx}
-                      className={`flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${
-                        src === 'snowflake' 
-                          ? 'bg-cyan-50 text-cyan-700 border border-cyan-200' 
-                          : src === 'dbt'
-                          ? 'bg-orange-50 text-orange-700 border border-orange-200'
-                          : 'bg-gray-600/20 border border-gray-600/30 text-gray-400'
-                      }`}
-                      title={`Source: ${src.toUpperCase()}`}
-                    >
-                      {src === 'snowflake' && <Cloud className="w-3 h-3" />}
-                      {src === 'dbt' && <GitBranch className="w-3 h-3" />}
-                      <span className="text-[9px]">{src.toUpperCase()}</span>
-                    </div>
-                  ))}
+                  {(data.sources && data.sources.length > 0 ? data.sources : [data.source!]).map((src, idx) => {
+                    const source = String(src || '').toLowerCase();
+                    const classes =
+                      source === 'snowflake'
+                        ? 'bg-cyan-50 text-cyan-700 border border-cyan-200'
+                        : source === 'dbt' || source === 'github'
+                        ? 'bg-orange-50 text-orange-700 border border-orange-200'
+                        : source === 'airflow'
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        : source === 'tableau'
+                        ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                        : source === 'power_bi'
+                        ? 'bg-yellow-50 text-yellow-700 border border-yellow-200'
+                        : 'bg-gray-600/20 border border-gray-600/30 text-gray-400';
+
+                    return (
+                      <div
+                        key={idx}
+                        className={`flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${classes}`}
+                        title={`Source: ${source.toUpperCase()}`}
+                      >
+                        {source === 'snowflake' && <Cloud className="w-3 h-3" />}
+                        {(source === 'dbt' || source === 'github') && <GitBranch className="w-3 h-3" />}
+                        {source === 'airflow' && <Wind className="w-3 h-3" />}
+                        {(source === 'tableau' || source === 'power_bi') && <BarChart3 className="w-3 h-3" />}
+                        {!['snowflake', 'dbt', 'github', 'airflow', 'tableau', 'power_bi'].includes(source) && (
+                          <Database className="w-3 h-3" />
+                        )}
+                        <span className="text-[9px]">{source.toUpperCase()}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
               {data.isFocal && (

@@ -1,4 +1,17 @@
-export type ConnectorType = 'snowflake' | 'dbt_cloud' | 'github' | 'gitlab' | 'bigquery' | 'postgresql' | 'mysql' | 'redshift' | 'tableau' | 'looker' | 'databricks';
+export type ConnectorType =
+  | 'snowflake'
+  | 'dbt_cloud'
+  | 'github'
+  | 'gitlab'
+  | 'bigquery'
+  | 'postgresql'
+  | 'mysql'
+  | 'redshift'
+  | 'tableau'
+  | 'looker'
+  | 'databricks'
+  | 'airflow'
+  | 'power_bi';
 
 export interface ConnectorConfig {
   [key: string]: any;

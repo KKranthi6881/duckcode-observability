@@ -61,8 +61,9 @@ export class MetadataStorageService {
       objectData.name
     );
     
-    // Determine source type based on connector_id vs connection_id
-    const source_type = objectData.connector_id ? 'snowflake' : 'dbt';
+    // Determine source type: prefer explicit, otherwise infer from connector_id vs connection_id
+    const source_type = objectData.source_type
+      || (objectData.connector_id ? 'snowflake' : 'dbt');
     
     console.log(`[STORAGE] FQN: ${fqn}, source_type: ${source_type}`);
     

@@ -11,6 +11,7 @@ import {
   TrendingUp
 } from 'lucide-react';
 import axios from 'axios';
+import { supabase } from '@/config/supabaseClient';
 
 interface SubscriptionInfo {
   subscription_status: string;
@@ -47,7 +48,10 @@ const Subscription: React.FC = () => {
   const [selectedPlan, setSelectedPlan] = useState<'professional' | 'enterprise'>('professional');
   const [seats, setSeats] = useState(1);
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+  const API_URL =
+    import.meta.env.VITE_BACKEND_URL ||
+    import.meta.env.VITE_API_URL ||
+    'http://localhost:3001';
 
   useEffect(() => {
     fetchSubscriptionInfo();
@@ -57,9 +61,12 @@ const Subscription: React.FC = () => {
 
   const fetchSubscriptionInfo = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Not authenticated');
+      }
       const response = await axios.get(`${API_URL}/api/subscriptions/info`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${session.access_token}` },
       });
       setSubscriptionInfo(response.data);
     } catch (error) {
@@ -77,7 +84,12 @@ const Subscription: React.FC = () => {
   const fetchPricingPlans = async () => {
     try {
       const response = await axios.get(`${API_URL}/api/subscriptions/plans`);
-      setPricingPlans(response.data.plans);
+      const { plans, trial } = response.data;
+      setPricingPlans({
+        professional: plans.professional,
+        enterprise: plans.enterprise,
+        trial,
+      });
     } catch (error) {
       console.error('Error fetching pricing plans:', error);
       // Set default pricing if API fails
@@ -121,11 +133,14 @@ const Subscription: React.FC = () => {
   const handleSubscribe = async () => {
     setActionLoading(true);
     try {
-      const token = localStorage.getItem('token');
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Not authenticated');
+      }
       const response = await axios.post(
         `${API_URL}/api/subscriptions/checkout`,
         { plan: selectedPlan, seats },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${session.access_token}` } }
       );
       
       // Redirect to Stripe Checkout
@@ -143,11 +158,14 @@ const Subscription: React.FC = () => {
   const handleManageSubscription = async () => {
     setActionLoading(true);
     try {
-      const token = localStorage.getItem('token');
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Not authenticated');
+      }
       const response = await axios.post(
         `${API_URL}/api/subscriptions/portal`,
         {},
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${session.access_token}` } }
       );
       
       // Redirect to Stripe Customer Portal
@@ -220,26 +238,7 @@ const Subscription: React.FC = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
-
-        {/* Setup Required Banner */}
-        {hasNoSubscription && (
-          <div className="mb-6 p-4 rounded-lg border bg-yellow-500/10 border-yellow-500/30">
-            <div className="flex items-start">
-              <AlertCircle className="w-5 h-5 mt-0.5 mr-3 text-yellow-500" />
-            <div>
-              <h3 className="font-semibold text-foreground">
-                Subscription System Setup Required
-              </h3>
-              <p className="text-sm mt-1 text-muted-foreground">
-                The subscription system needs to be configured. Please run the database migration and set up your Stripe credentials.
-                See <strong>SUBSCRIPTION_QUICK_START.md</strong> for setup instructions.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Trial Warning Banner */}
+        {/* Trial Warning Banner */}
       {isOnTrial && subscriptionInfo && (
         <div className={`mb-6 p-4 rounded-lg border ${
           subscriptionInfo.trial_days_remaining <= 7 
@@ -353,12 +352,15 @@ const Subscription: React.FC = () => {
                   <CheckCircle className="w-6 h-6 text-primary" />
                 )}
               </div>
-              <div className="mb-4">
+              <div className="mb-1">
                 <span className="text-4xl font-bold text-foreground">
                   ${pricingPlans.professional.pricePerSeat}
                 </span>
                 <span className="text-muted-foreground ml-2">/user/month</span>
               </div>
+              <p className="text-xs font-medium text-muted-foreground mb-4 uppercase tracking-wide">
+                Billed annually
+              </p>
               <ul className="space-y-2 mb-4">
                 {pricingPlans.professional.features.map((feature, idx) => (
                   <li key={idx} className="flex items-start text-sm text-foreground">
@@ -382,12 +384,15 @@ const Subscription: React.FC = () => {
                   <CheckCircle className="w-6 h-6 text-primary" />
                 )}
               </div>
-              <div className="mb-4">
+              <div className="mb-1">
                 <span className="text-4xl font-bold text-foreground">
                   ${pricingPlans.enterprise.pricePerSeat}
                 </span>
                 <span className="text-muted-foreground ml-2">/user/month</span>
               </div>
+              <p className="text-xs font-medium text-muted-foreground mb-4 uppercase tracking-wide">
+                Billed annually
+              </p>
               <ul className="space-y-2 mb-4">
                 {pricingPlans.enterprise.features.map((feature, idx) => (
                   <li key={idx} className="flex items-start text-sm text-foreground">
@@ -413,7 +418,9 @@ const Subscription: React.FC = () => {
               className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-transparent text-foreground"
             />
             <p className="text-sm text-muted-foreground mt-2">
-              Total: ${((selectedPlan === 'professional' ? pricingPlans.professional.pricePerSeat : pricingPlans.enterprise.pricePerSeat) * seats).toLocaleString()}/month
+              Total (billed annually): ${(((selectedPlan === 'professional'
+                ? pricingPlans.professional.pricePerSeat
+                : pricingPlans.enterprise.pricePerSeat) * 12 * seats).toLocaleString())}/year
             </p>
           </div>
 

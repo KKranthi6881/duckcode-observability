@@ -28,7 +28,7 @@ export const auth = async (req: AuthenticatedRequest, res: Response, next: NextF
       const { data: profile } = await supabaseDuckCode
         .from('user_profiles')
         .select('organization_id')
-        .eq('user_id', user.id)
+        .eq('id', user.id)
         .single();
       
       req.user = {
