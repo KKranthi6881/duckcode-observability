@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight, Check, Database, PlayCircle, Send, Sparkles, Zap, Code, GitBranch, LineChart, FileText, Bot, DollarSign } from 'lucide-react';
+import { ArrowRight, Check, Database, PlayCircle, Send, Sparkles, Zap, GitBranch, LineChart, FileText, Bot, DollarSign } from 'lucide-react';
+import { SiSnowflake, SiDbt, SiGithub, SiApacheairflow } from 'react-icons/si';
+import { DataFlowDiagram } from './DataFlowDiagram';
 
 const featureRows = [
   {
@@ -57,145 +59,195 @@ const featureRows = [
 ];
 
 const integrations = [
-  { name: 'Snowflake', description: 'Cost intelligence & query optimization' },
-  { name: 'dbt', description: 'Model lineage & documentation sync' },
-  { name: 'Airflow', description: 'Pipeline orchestration & monitoring' },
-  { name: 'GitHub', description: 'Repository analysis & code insights' },
-  { name: 'GitLab', description: 'Source control & metadata extraction' },
-  { name: 'Azure DevOps', description: 'Enterprise Git integration' },
-  { name: 'Postgres', description: 'Metadata storage & analytics' },
-  { name: 'VS Code', description: 'Native IDE extension' }
+  {
+    name: 'Snowflake',
+    description: 'Cost intelligence & query optimization',
+    icon: SiSnowflake,
+    iconBg: 'from-[#e3f2ff] to-[#cfe6ff]',
+    iconColor: 'text-[#29b5e8]'
+  },
+  {
+    name: 'dbt',
+    description: 'Model lineage & documentation sync',
+    icon: SiDbt,
+    iconBg: 'from-[#fff0e7] to-[#ffd9c2]',
+    iconColor: 'text-[#ff6a3c]'
+  },
+  {
+    name: 'Airflow',
+    description: 'Pipeline orchestration & monitoring',
+    icon: SiApacheairflow,
+    iconBg: 'from-[#e5f9fb] to-[#cceff5]',
+    iconColor: 'text-[#0094ce]'
+  },
+  {
+    name: 'GitHub',
+    description: 'Repository analysis & code insights',
+    icon: SiGithub,
+    iconBg: 'from-[#f2f2f2] to-[#e0e0e0]',
+    iconColor: 'text-[#161413]'
+  }
 ];
 
 export function Hero() {
   return (
     <div className="bg-[#f5f1e9] text-[#161413]">
-      <section id="home" className="px-4 pb-32 pt-32 sm:px-6 lg:px-8">
+      <section id="home" className="px-4 pb-16 pt-32 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
-          {/* Hero Content */}
-          <div className="grid gap-16 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
-            <div className="space-y-10">
-              {/* Badge */}
-              <div className="inline-flex items-center gap-2 rounded-full border border-[#d6d2c9] bg-gradient-to-r from-white/90 to-white/70 px-5 py-2.5 text-sm font-medium text-[#6f695f] shadow-sm backdrop-blur-sm">
-                <Sparkles className="h-4 w-4 animate-pulse text-[#ff6a3c]" />
-                AI-Powered IDE + Observability Platform
-              </div>
-              
-              {/* Main Headline */}
-              <div className="space-y-6">
-                <h1 className="text-5xl font-bold leading-[1.1] tracking-tight text-[#0d0c0a] sm:text-6xl lg:text-7xl">
-                  Build faster.<br />
-                  <span className="bg-gradient-to-r from-[#ff6a3c] to-[#d94a1e] bg-clip-text text-transparent">
-                    Ship smarter.
-                  </span>
-                  <br />
-                  Spend wisely.
-                </h1>
-                <p className="text-xl leading-relaxed text-[#59544c] sm:text-2xl">
-                  The only platform that combines an <strong className="font-semibold text-[#161413]">AI-powered IDE</strong> with enterprise <strong className="font-semibold text-[#161413]">observability</strong> — built for modern data teams working with Snowflake, dbt, and Airflow.
-                </p>
-              </div>
+          {/* Hero Content - Centered */}
+          <div className="mx-auto max-w-4xl text-center">
+            {/* Badge */}
+            <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-[#d6d2c9] bg-gradient-to-r from-white/90 to-white/70 px-5 py-2.5 text-sm font-medium text-[#6f695f] shadow-sm backdrop-blur-sm">
+              <Sparkles className="h-4 w-4 animate-pulse text-[#ff6a3c]" />
+              AI-Powered IDE + Observability Platform
+            </div>
+            
+            {/* Main Headline */}
+            <div className="space-y-6">
+              <h1 className="text-5xl font-bold leading-[1.1] tracking-tight text-[#0d0c0a] sm:text-6xl lg:text-7xl">
+                Build faster.<br />
+                <span className="bg-gradient-to-r from-[#ff6a3c] to-[#d94a1e] bg-clip-text text-transparent">
+                  Ship smarter.
+                </span>
+                <br />
+                Spend wisely.
+              </h1>
+              <p className="mx-auto max-w-3xl text-xl leading-relaxed text-[#59544c] sm:text-2xl">
+                The only platform that combines an <strong className="font-semibold text-[#161413]">AI-powered IDE</strong> with enterprise <strong className="font-semibold text-[#161413]">observability</strong> — built for modern data teams working with Snowflake, dbt, and Airflow.
+              </p>
+            </div>
 
-              {/* Value Props */}
-              <div className="flex flex-wrap gap-4">
-                <div className="flex items-center gap-2 text-[#4e493f]">
-                  <Zap className="h-5 w-5 text-[#ff6a3c]" />
-                  <span className="font-medium">10x faster development</span>
-                </div>
-                <div className="flex items-center gap-2 text-[#4e493f]">
-                  <DollarSign className="h-5 w-5 text-[#ff6a3c]" />
-                  <span className="font-medium">Auto-detect $10K+ savings</span>
-                </div>
-                <div className="flex items-center gap-2 text-[#4e493f]">
-                  <Bot className="h-5 w-5 text-[#ff6a3c]" />
-                  <span className="font-medium">AI agents that ship code</span>
-                </div>
+            {/* Value Props */}
+            <div className="mt-10 flex flex-wrap justify-center gap-6">
+              <div className="flex items-center gap-2 text-[#4e493f]">
+                <Zap className="h-5 w-5 text-[#ff6a3c]" />
+                <span className="font-medium">10x faster development</span>
               </div>
-
-              {/* CTAs */}
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                <Link
-                  to="/register"
-                  className="group inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#ff6a3c] to-[#d94a1e] px-8 py-4 text-lg font-semibold text-white shadow-[0_20px_50px_rgba(255,106,60,0.4)] transition-all duration-300 hover:scale-105 hover:shadow-[0_25px_60px_rgba(255,106,60,0.5)]"
-                >
-                  Start free trial
-                  <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
-                </Link>
-                <a
-                  href="#demo"
-                  className="group inline-flex items-center justify-center gap-2 rounded-full border-2 border-[#bfb8ac] bg-white px-8 py-4 text-lg font-semibold text-[#161413] transition-all duration-300 hover:border-[#ff6a3c] hover:bg-[#fff4ee]"
-                >
-                  Watch demo
-                  <PlayCircle className="h-5 w-5 transition-transform group-hover:scale-110" />
-                </a>
+              <div className="flex items-center gap-2 text-[#4e493f]">
+                <DollarSign className="h-5 w-5 text-[#ff6a3c]" />
+                <span className="font-medium">Auto-detect $10K+ savings</span>
               </div>
-
-              {/* Trust Indicators */}
-              <div className="flex flex-wrap items-center gap-6 border-t border-[#e1dcd3] pt-8 text-sm text-[#7b7469]">
-                <div className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-[#d94a1e]" />
-                  <span>15-minute setup</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-[#d94a1e]" />
-                  <span>No credit card required</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-[#d94a1e]" />
-                  <span>SOC 2 compliant</span>
-                </div>
+              <div className="flex items-center gap-2 text-[#4e493f]">
+                <Bot className="h-5 w-5 text-[#ff6a3c]" />
+                <span className="font-medium">AI agents that ship code</span>
               </div>
             </div>
 
-            {/* Hero Visual */}
-            <div className="relative">
-              <div className="rounded-[40px] border-2 border-[#d6d2c9] bg-gradient-to-br from-white via-white to-[#f8f4ec] p-8 shadow-[0_40px_80px_rgba(26,20,15,0.12)]">
-                <div className="min-h-[500px] rounded-3xl border-2 border-dashed border-[#d6d2c9] bg-gradient-to-br from-[#f8f4ec] to-[#f0ede5] p-8 text-center">
-                  <div className="flex h-full flex-col items-center justify-center gap-4">
-                    <Code className="h-16 w-16 text-[#a39c92]" />
-                    <p className="text-base font-medium text-[#6f695f]">
-                      Your hero video/GIF showcasing:
-                    </p>
-                    <ul className="space-y-2 text-sm text-[#a39c92]">
-                      <li>• DuckCode IDE with AI agents</li>
-                      <li>• Real-time lineage visualization</li>
-                      <li>• Cost intelligence dashboard</li>
-                      <li>• Auto-generated documentation</li>
-                    </ul>
-                  </div>
-                </div>
+            {/* CTAs */}
+            <div className="mt-10 flex flex-col justify-center gap-4 sm:flex-row sm:items-center">
+              <Link
+                to="/register"
+                className="group inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#ff6a3c] to-[#d94a1e] px-8 py-4 text-lg font-semibold text-white shadow-[0_20px_50px_rgba(255,106,60,0.4)] transition-all duration-300 hover:scale-105 hover:shadow-[0_25px_60px_rgba(255,106,60,0.5)]"
+              >
+                Start free trial
+                <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+              </Link>
+              <a
+                href="#demo"
+                className="group inline-flex items-center justify-center gap-2 rounded-full border-2 border-[#bfb8ac] bg-white px-8 py-4 text-lg font-semibold text-[#161413] transition-all duration-300 hover:border-[#ff6a3c] hover:bg-[#fff4ee]"
+              >
+                Watch demo
+                <PlayCircle className="h-5 w-5 transition-transform group-hover:scale-110" />
+              </a>
+            </div>
 
-                {/* Tech Stack Indicator */}
-                <div className="mt-6 flex flex-wrap items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-[#f5efe3] to-[#f0ede5] p-4">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-[#a39c92]">
-                    Works with
-                  </span>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <span className="text-sm font-semibold text-[#161413]">Snowflake</span>
-                    <span className="text-[#d6d2c9]">•</span>
-                    <span className="text-sm font-semibold text-[#161413]">dbt</span>
-                    <span className="text-[#d6d2c9]">•</span>
-                    <span className="text-sm font-semibold text-[#161413]">Airflow</span>
-                    <span className="text-[#d6d2c9]">•</span>
-                    <span className="text-sm font-semibold text-[#161413]">GitHub</span>
-                  </div>
-                </div>
+            {/* Trust Indicators */}
+            <div className="mt-10 flex flex-wrap items-center justify-center gap-6 border-t border-[#e1dcd3] pt-8 text-sm text-[#7b7469]">
+              <div className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-[#d94a1e]" />
+                <span>15-minute setup</span>
               </div>
-
-              {/* Floating Stats */}
-              <div className="absolute -bottom-6 -left-6 rounded-2xl border border-[#d6d2c9] bg-white p-4 shadow-lg">
-                <p className="text-3xl font-bold text-[#ff6a3c]">100-200x</p>
-                <p className="text-xs font-medium text-[#6f695f]">Faster than PostgreSQL</p>
+              <div className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-[#d94a1e]" />
+                <span>No credit card required</span>
               </div>
-              <div className="absolute -right-6 -top-6 rounded-2xl border border-[#d6d2c9] bg-white p-4 shadow-lg">
-                <p className="text-3xl font-bold text-[#ff6a3c]">$134K</p>
-                <p className="text-xs font-medium text-[#6f695f]">Avg. yearly savings</p>
+              <div className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-[#d94a1e]" />
+                <span>SOC 2 compliant</span>
               </div>
             </div>
           </div>
+        </div>
+      </section>
 
-          {/* Social Proof Stats */}
-          <div className="mt-24 grid gap-6 sm:grid-cols-3">
+      {/* Data Flow Visualization Section */}
+      <section className="px-4 pb-32 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl">
+          {/* Section Header */}
+          <div className="mb-12 text-center">
+            <h2 className="text-3xl font-bold tracking-tight text-[#0d0c0a] sm:text-4xl">
+              Your Data, <span className="bg-gradient-to-r from-[#ff6a3c] to-[#d94a1e] bg-clip-text text-transparent">Unified & Optimized</span>
+            </h2>
+            <p className="mx-auto mt-4 max-w-3xl text-lg leading-relaxed text-[#59544c]">
+              Connect <strong className="text-[#161413]">Snowflake, dbt, and Airflow</strong> → DuckCode AI processes locally with <strong className="text-[#161413]">10x speed</strong> → Get instant <strong className="text-[#161413]">docs, lineage, cost insights</strong>, and team collaboration
+            </p>
+            <div className="mx-auto mt-3 flex items-center justify-center gap-2 text-sm text-[#a39c92]">
+              <div className="h-2 w-2 rounded-full bg-blue-500"></div>
+              <span>Inputs</span>
+              <ArrowRight className="h-4 w-4 text-[#ff6a3c]" />
+              <div className="h-2 w-2 rounded-full bg-[#ff6a3c]"></div>
+              <span>Processing</span>
+              <ArrowRight className="h-4 w-4 text-emerald-500" />
+              <div className="h-2 w-2 rounded-full bg-emerald-500"></div>
+              <span>Outputs</span>
+            </div>
+          </div>
+
+          {/* Animated Flow Diagram */}
+          <div className="relative overflow-visible rounded-[2rem] border border-gray-200/50 bg-white shadow-2xl">
+            <DataFlowDiagram />
+          </div>
+
+          {/* Key Metrics Row */}
+          <div className="mt-16 grid gap-6 sm:grid-cols-3">
+            <div className="rounded-2xl border-2 border-[#e1dcd3] bg-white p-6 text-center shadow-sm">
+              <Zap className="mx-auto mb-3 h-8 w-8 text-[#ff6a3c]" />
+              <p className="text-3xl font-bold text-[#ff6a3c]">10x</p>
+              <p className="mt-1 text-sm font-medium text-[#6f695f]">Faster Development</p>
+            </div>
+            <div className="rounded-2xl border-2 border-[#e1dcd3] bg-white p-6 text-center shadow-sm">
+              <LineChart className="mx-auto mb-3 h-8 w-8 text-emerald-500" />
+              <p className="text-3xl font-bold text-emerald-500">5-10ms</p>
+              <p className="mt-1 text-sm font-medium text-[#6f695f]">Search Speed</p>
+            </div>
+            <div className="rounded-2xl border-2 border-[#e1dcd3] bg-white p-6 text-center shadow-sm">
+              <DollarSign className="mx-auto mb-3 h-8 w-8 text-green-500" />
+              <p className="text-3xl font-bold text-green-500">$134K</p>
+              <p className="mt-1 text-sm font-medium text-[#6f695f]">Avg. Annual Savings</p>
+            </div>
+          </div>
+
+          {/* Tech Stack Badges */}
+          <div className="mt-12 flex flex-wrap items-center justify-center gap-4">
+            <span className="text-sm font-semibold uppercase tracking-wider text-[#a39c92]">
+              Works with
+            </span>
+            <div className="flex flex-wrap items-center justify-center gap-4">
+              <div className="flex items-center gap-2 rounded-full border border-[#e1dcd3] bg-white px-4 py-2 shadow-sm transition-all hover:scale-105 hover:border-[#29b5e8] hover:shadow-md">
+                <SiSnowflake className="h-4 w-4 text-[#29b5e8]" />
+                <span className="text-sm font-semibold text-[#161413]">Snowflake</span>
+              </div>
+              <div className="flex items-center gap-2 rounded-full border border-[#e1dcd3] bg-white px-4 py-2 shadow-sm transition-all hover:scale-105 hover:border-[#ff6a3c] hover:shadow-md">
+                <SiDbt className="h-4 w-4 text-[#ff6a3c]" />
+                <span className="text-sm font-semibold text-[#161413]">dbt</span>
+              </div>
+              <div className="flex items-center gap-2 rounded-full border border-[#e1dcd3] bg-white px-4 py-2 shadow-sm transition-all hover:scale-105 hover:border-[#0094ce] hover:shadow-md">
+                <SiApacheairflow className="h-4 w-4 text-[#0094ce]" />
+                <span className="text-sm font-semibold text-[#161413]">Airflow</span>
+              </div>
+              <div className="flex items-center gap-2 rounded-full border border-[#e1dcd3] bg-white px-4 py-2 shadow-sm transition-all hover:scale-105 hover:border-[#161413] hover:shadow-md">
+                <SiGithub className="h-4 w-4 text-[#161413]" />
+                <span className="text-sm font-semibold text-[#161413]">GitHub</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Social Proof Stats */}
+      <section className="px-4 pb-32 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl">
+          <div className="grid gap-6 sm:grid-cols-3">
             <div className="group rounded-3xl border border-[#e1dcd3] bg-gradient-to-br from-white to-[#f8f4ec] p-8 shadow-sm transition-all duration-300 hover:scale-105 hover:shadow-xl">
               <div className="mb-3 flex items-center gap-3">
                 <div className="rounded-full bg-gradient-to-r from-[#ff6a3c]/10 to-[#d94a1e]/10 p-3">
@@ -327,7 +379,7 @@ export function Hero() {
               Works with your entire data stack
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-lg text-[#59544c]">
-              Native integrations with the tools you already use — Snowflake, dbt, Airflow, Git providers, and more.
+              Native integrations with the tools you already use — Snowflake, dbt, Airflow, and GitHub.
             </p>
           </div>
 
@@ -339,8 +391,12 @@ export function Hero() {
                 className="group relative overflow-hidden rounded-3xl border-2 border-[#e1dcd3] bg-white p-8 shadow-sm transition-all duration-300 hover:scale-105 hover:border-[#ff6a3c] hover:shadow-xl"
               >
                 {/* Icon/Logo Placeholder */}
-                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#f8f4ec] to-[#f0ede5] transition-all duration-300 group-hover:from-[#fff4ee] group-hover:to-[#ffe8dc]">
-                  <Database className="h-8 w-8 text-[#161413] transition-all duration-300 group-hover:scale-110 group-hover:text-[#ff6a3c]" />
+                <div
+                  className={`mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br ${integration.iconBg} transition-all duration-300 group-hover:from-[#fff4ee] group-hover:to-[#ffe8dc]`}
+                >
+                  <integration.icon
+                    className={`h-8 w-8 ${integration.iconColor} transition-all duration-300 group-hover:scale-110`}
+                  />
                 </div>
                 
                 {/* Integration Name */}

@@ -329,7 +329,7 @@ export const Members: React.FC = () => {
             className={`px-4 py-2 font-semibold text-sm border-b-2 transition-colors ${
               selectedView === tab.value
                 ? 'border-primary text-primary'
-                : 'border-transparent text-muted-foreground hover:text-white'
+                : 'border-transparent text-muted-foreground hover:text-primary'
             }`}
           >
             {tab.label}
@@ -570,17 +570,17 @@ export const Members: React.FC = () => {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {roles.map(role => {
+                  {roles.map(role => {
                     const isSelected = formData.role_id === role.id;
                     const roleDescriptions: Record<string, string> = {
-                      'Admin': 'Full administrative access and control',
-                      'Member': 'Can work with data and run operations',
+                      Admin: 'Full administrative access and control',
+                      Member: 'Can work with data and run operations',
                     };
                     const roleIcons: Record<string, string> = {
-                      'Admin': '👑',
-                      'Member': '🔧',
+                      Admin: '👑',
+                      Member: '🔧',
                     };
-                    
+
                     return (
                       <button
                         key={role.id}
@@ -609,7 +609,7 @@ export const Members: React.FC = () => {
                           <div className="flex-1">
                             <div className="flex items-center space-x-2">
                               <span className="text-lg">{roleIcons[role.name]}</span>
-                              <span className={`font-bold ${isSelected ? 'text-white' : 'text-white'}`}>
+                              <span className="font-bold text-foreground">
                                 {role.display_name}
                               </span>
                             </div>

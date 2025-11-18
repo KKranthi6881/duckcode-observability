@@ -154,14 +154,18 @@ export const ApiKeys: React.FC = () => {
       {/* Main Content */}
       <div className="p-8">
         {/* Security Notice */}
-        <div className="mb-6 bg-blue-600/10 border border-blue-600/20 rounded-lg p-4">
-          <div className="flex items-start space-x-3">
-            <Key className="h-5 w-5 text-blue-400 mt-0.5" />
+        <div className="mb-6 bg-card border border-border rounded-xl p-5 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="mt-1 flex h-9 w-9 items-center justify-center rounded-full bg-primary/10">
+              <Key className="h-4 w-4 text-primary" />
+            </div>
             <div>
-              <h3 className="font-semibold text-blue-300 mb-1">Secure API Key Storage</h3>
-              <p className="text-sm text-blue-400/80">
-              All API keys are encrypted with AES-256-GCM before storage. Only organization admins can view and manage keys.
-            </p>
+              <h3 className="text-sm font-semibold text-foreground">Secure API Key Storage</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                All API keys are encrypted with <span className="font-mono font-medium">AES-256-GCM</span> before storage.
+                Only organization admins can view and manage keys.
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -366,7 +370,6 @@ export const ApiKeys: React.FC = () => {
           </div>
         </div>
       )}
-      </div>
     </div>
   );
 };
