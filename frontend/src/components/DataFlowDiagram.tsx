@@ -1,4 +1,3 @@
-import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import Xarrow, { Xwrapper } from 'react-xarrows';
 import { Database, FileText, GitBranch, BarChart3, Users, TrendingDown, Code2 } from 'lucide-react';
@@ -12,97 +11,8 @@ interface FlowNode {
   iconColor: string;
 }
 
-interface ConnectorCoords {
-  startX: number;
-  startY: number;
-  endX: number;
-  endY: number;
-}
-
-const VIEWBOX_WIDTH = 800;
-const VIEWBOX_HEIGHT = 600;
-
 export function DataFlowDiagram() {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const centerRef = useRef<HTMLDivElement | null>(null);
-  const inputRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const outputRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const [inputLines, setInputLines] = useState<ConnectorCoords[]>([]);
-  const [outputLines, setOutputLines] = useState<ConnectorCoords[]>([]);
   const centerId = 'center-duckcode';
-
-  useEffect(() => {
-    const computePositions = () => {
-      const container = containerRef.current;
-      const center = centerRef.current;
-
-      if (!container || !center) return;
-
-      const containerRect = container.getBoundingClientRect();
-      const centerRect = center.getBoundingClientRect();
-
-      if (!containerRect.width || !containerRect.height) return;
-
-      const centerLeftX =
-        ((centerRect.left - containerRect.left) / containerRect.width) *
-        VIEWBOX_WIDTH;
-      const centerRightX =
-        ((centerRect.right - containerRect.left) / containerRect.width) *
-        VIEWBOX_WIDTH;
-      const centerY =
-        ((centerRect.top + centerRect.height / 2 - containerRect.top) /
-          containerRect.height) *
-        VIEWBOX_HEIGHT;
-
-      const newInputLines: ConnectorCoords[] = [];
-      inputRefs.current.forEach((el) => {
-        if (!el) return;
-        const rect = el.getBoundingClientRect();
-        const startX =
-          ((rect.right - containerRect.left) / containerRect.width) *
-          VIEWBOX_WIDTH;
-        const startY =
-          ((rect.top + rect.height / 2 - containerRect.top) /
-            containerRect.height) *
-          VIEWBOX_HEIGHT;
-        // End at the left visible edge of the center box
-        newInputLines.push({ startX, startY, endX: centerLeftX, endY: centerY });
-      });
-
-      const newOutputLines: ConnectorCoords[] = [];
-      outputRefs.current.forEach((el) => {
-        if (!el) return;
-        const rect = el.getBoundingClientRect();
-        const endX =
-          ((rect.left - containerRect.left) / containerRect.width) *
-          VIEWBOX_WIDTH;
-        const endY =
-          ((rect.top + rect.height / 2 - containerRect.top) /
-            containerRect.height) *
-          VIEWBOX_HEIGHT;
-        // Start at the right visible edge of the center box
-        newOutputLines.push({ startX: centerRightX, startY: centerY, endX, endY });
-      });
-
-      setInputLines(newInputLines);
-      setOutputLines(newOutputLines);
-    };
-
-    // Initial measurement
-    computePositions();
-
-    // Re-measure after entrance animations complete to align with final layout
-    const timeoutId = window.setTimeout(() => {
-      computePositions();
-    }, 900);
-
-    window.addEventListener('resize', computePositions);
-
-    return () => {
-      window.removeEventListener('resize', computePositions);
-      window.clearTimeout(timeoutId);
-    };
-  }, []);
 
   const inputNodes: FlowNode[] = [
     { 
@@ -175,7 +85,7 @@ export function DataFlowDiagram() {
 
   return (
     <Xwrapper>
-      <div ref={containerRef} className="relative h-[600px] px-12 py-16">
+      <div className="relative h-[600px] px-12 py-16">
       {/* Subtle background gradient */}
       <div className="absolute inset-0 bg-gradient-to-br from-blue-50/30 via-white to-emerald-50/30"></div>
       
@@ -201,9 +111,6 @@ export function DataFlowDiagram() {
               stiffness: 100
             }}
             className="group relative"
-            ref={(el: HTMLDivElement | null) => {
-              inputRefs.current[index] = el;
-            }}
           >
             <motion.div
               whileHover={{ scale: 1.05, y: -2 }}
@@ -223,172 +130,6 @@ export function DataFlowDiagram() {
         ))}
       </div>
 
-      {/* SVG Layer for Connections (legacy, visually hidden) */}
-      <svg
-        className="absolute inset-0 h-full w-full opacity-0"
-        style={{ overflow: 'visible', pointerEvents: 'none' }}
-        viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`}
-      >
-        <defs>
-          <linearGradient id="gradient-in" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.2" />
-            <stop offset="50%" stopColor="#ff6a3c" stopOpacity="1" />
-            <stop offset="100%" stopColor="#ff6a3c" stopOpacity="0.2" />
-          </linearGradient>
-          <linearGradient id="gradient-out" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#ff6a3c" stopOpacity="0.2" />
-            <stop offset="50%" stopColor="#10b981" stopOpacity="1" />
-            <stop offset="100%" stopColor="#10b981" stopOpacity="0.2" />
-          </linearGradient>
-          <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
-            <feMerge>
-              <feMergeNode in="coloredBlur"/>
-              <feMergeNode in="SourceGraphic"/>
-            </feMerge>
-          </filter>
-          {/* Arrow markers */}
-          <marker
-            id="arrowhead-in"
-            markerWidth="12"
-            markerHeight="12"
-            refX="10"
-            refY="6"
-            orient="auto"
-          >
-            <polygon
-              points="0 0, 12 6, 0 12"
-              fill="#ff6a3c"
-            />
-          </marker>
-          <marker
-            id="arrowhead-out"
-            markerWidth="12"
-            markerHeight="12"
-            refX="10"
-            refY="6"
-            orient="auto"
-          >
-            <polygon
-              points="0 0, 12 6, 0 12"
-              fill="#10b981"
-            />
-          </marker>
-        </defs>
-
-        {/* Input connections (legacy) */}
-        {inputLines.map((line, index) => {
-          // Slightly pull the line in from the card edge and into the center box
-          const startX = line.startX - 6;
-          const endX = line.endX + 6;
-          const midX = (startX + endX) / 2;
-          const verticalOffset = (index - (inputLines.length - 1) / 2) * 20;
-          const controlY = line.startY + verticalOffset;
-          const pathD = `M ${startX} ${line.startY} Q ${midX} ${controlY} ${endX} ${line.endY}`;
-
-          return (
-            <g key={`input-${index}`}>
-              {/* Static background path */}
-              <path
-                d={pathD}
-                stroke="#e0edff"
-                strokeWidth="2.5"
-                fill="none"
-                opacity="0.5"
-                markerEnd="url(#arrowhead-in)"
-              />
-
-              {/* Animated gradient path */}
-              <motion.path
-                d={pathD}
-                stroke="url(#gradient-in)"
-                strokeWidth="3"
-                fill="none"
-                strokeLinecap="round"
-                initial={{ pathLength: 0, opacity: 0 }}
-                animate={{
-                  pathLength: [0, 1],
-                  opacity: [0, 1, 0]
-                }}
-                transition={{
-                  duration: 2,
-                  ease: "easeInOut",
-                  repeat: Infinity,
-                  delay: index * 0.4,
-                  repeatDelay: 1.5
-                }}
-              />
-
-              {/* Animated data packet */}
-              <motion.circle r="6" fill="#ff6a3c" filter="url(#glow)">
-                <animateMotion
-                  dur="2s"
-                  repeatCount="indefinite"
-                  begin={`${index * 0.4}s`}
-                  path={pathD}
-                />
-              </motion.circle>
-            </g>
-          );
-        })}
-
-        {/* Output connections (legacy) */}
-        {outputLines.map((line, index) => {
-          // Slightly pull the line out from the center box and into the output cards
-          const startX = line.startX + 6;
-          const endX = line.endX - 6;
-          const midX = (startX + endX) / 2;
-          const verticalOffset = (index - (outputLines.length - 1) / 2) * 18;
-          const controlY = line.endY + verticalOffset;
-          const pathD = `M ${startX} ${line.startY} Q ${midX} ${controlY} ${endX} ${line.endY}`;
-
-          return (
-            <g key={`output-${index}`}>
-              {/* Static background path */}
-              <path
-                d={pathD}
-                stroke="#d6f6eb"
-                strokeWidth="2.5"
-                fill="none"
-                opacity="0.5"
-                markerEnd="url(#arrowhead-out)"
-              />
-
-              {/* Animated gradient path */}
-              <motion.path
-                d={pathD}
-                stroke="url(#gradient-out)"
-                strokeWidth="4"
-                fill="none"
-                strokeLinecap="round"
-                initial={{ pathLength: 0, opacity: 0 }}
-                animate={{
-                  pathLength: [0, 1],
-                  opacity: [0, 1, 0]
-                }}
-                transition={{
-                  duration: 2,
-                  ease: "easeInOut",
-                  repeat: Infinity,
-                  delay: 1 + index * 0.3,
-                  repeatDelay: 1.5
-                }}
-              />
-
-              {/* Animated data packet */}
-              <motion.circle r="6" fill="#10b981" filter="url(#glow)">
-                <animateMotion
-                  dur="2s"
-                  repeatCount="indefinite"
-                  begin={`${1 + index * 0.3}s`}
-                  path={pathD}
-                />
-              </motion.circle>
-            </g>
-          );
-        })}
-      </svg>
-
       {/* React-Xarrows Connections */}
       <div className="pointer-events-none">
         {inputNodes.map((node) => (
@@ -402,10 +143,10 @@ export function DataFlowDiagram() {
             curveness={0.7}
             color="#fb923c" // softer orange
             strokeWidth={2}
-            headSize={4}
-            dashness={{ strokeLen: 4, nonStrokeLen: 10, animation: 0.5 }}
+            headSize={0}
+            dashness={{ strokeLen: 6, nonStrokeLen: 10, animation: -1.2 }}
             animateDrawing={0.8}
-            zIndex={0}
+            zIndex={5}
           />
         ))}
         {outputNodes.map((node) => (
@@ -419,10 +160,10 @@ export function DataFlowDiagram() {
             curveness={0.7}
             color="#10b981"
             strokeWidth={3}
-            headSize={6}
-            dashness={{ strokeLen: 5, nonStrokeLen: 8, animation: 0.8 }}
+            headSize={0}
+            dashness={{ strokeLen: 6, nonStrokeLen: 10, animation: -1.5 }}
             animateDrawing={0.8}
-            zIndex={0}
+            zIndex={5}
           />
         ))}
       </div>
@@ -457,7 +198,6 @@ export function DataFlowDiagram() {
           {/* Main AI Node */}
           <motion.div
             id={centerId}
-            ref={centerRef}
             animate={{
               boxShadow: [
                 '0 16px 40px rgba(15,23,42,0.6)',
@@ -581,9 +321,6 @@ export function DataFlowDiagram() {
               stiffness: 100
             }}
             className="group relative"
-            ref={(el: HTMLDivElement | null) => {
-              outputRefs.current[index] = el;
-            }}
           >
             <motion.div
               whileHover={{ scale: 1.05, y: -2 }}
