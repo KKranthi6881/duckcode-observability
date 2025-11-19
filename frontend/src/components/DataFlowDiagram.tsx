@@ -185,9 +185,7 @@ export function DataFlowDiagram() {
           <motion.div
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="inline-block rounded-xl border border-blue-200/50 bg-gradient-to-br from-blue-50 to-blue-100/50 px-5 py-2.5 shadow-sm backdrop-blur-sm"
           >
-            <p className="text-xs font-bold uppercase tracking-wider text-blue-700">Data Sources</p>
           </motion.div>
         </div>
         {inputNodes.map((node, index) => (
@@ -566,9 +564,8 @@ export function DataFlowDiagram() {
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.3 }}
-            className="inline-block rounded-xl border border-emerald-200/50 bg-gradient-to-br from-emerald-50 to-emerald-100/50 px-5 py-2.5 shadow-sm backdrop-blur-sm"
           >
-            <p className="text-xs font-bold uppercase tracking-wider text-emerald-700">Outputs</p>
+            
           </motion.div>
         </div>
         {outputNodes.map((node, index) => (

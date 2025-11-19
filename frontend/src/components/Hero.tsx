@@ -1,7 +1,11 @@
+import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Check, Database, PlayCircle, Send, Sparkles, Zap, GitBranch, LineChart, FileText, Bot, DollarSign } from 'lucide-react';
 import { SiSnowflake, SiDbt, SiGithub, SiApacheairflow } from 'react-icons/si';
 import { DataFlowDiagram } from './DataFlowDiagram';
+import autoCodeVideo from '../assets/AutoCode-Generation.mov';
+import lineageVideo from '../assets/Lineage-Visualization.mp4';
+import costVideo from '../assets/snowflake-cost-analysis.mp4';
 
 const featureRows = [
   {
@@ -21,7 +25,7 @@ const featureRows = [
     id: 'lineage',
     tag: 'Column-Level Lineage',
     title: 'Trace every transformation in seconds, not hours',
-    description: 'Visual lineage that shows exactly how data flows — from raw tables through dbt models to BI dashboards. 100-200x faster than PostgreSQL with Tantivy search.',
+    description: 'Visual lineage that shows exactly how data flows — for all your code base objects and columns. 100-200x faster search within your local code base.',
     bullets: [
       'Column-level lineage with full dependency graph',
       '5-10ms search across millions of objects',
@@ -46,50 +50,130 @@ const featureRows = [
   {
     id: 'cost',
     tag: 'Cost Intelligence',
-    title: 'Find $10K+ monthly waste automatically',
-    description: 'Snowflake cost dashboard that detects unused tables, idle warehouses, and optimization opportunities — saving customers $134K/year on average.',
+    title: 'Cut Snowflake spend by double-digit % automatically',
+    description: 'Snowflake cost dashboard that detects unused tables, idle warehouses, and inefficient workloads — giving you clear, percentage-based savings and ROI instead of static dollar guesses.',
     bullets: [
-      'Real-time cost breakdown by warehouse',
-      'Auto-detect waste & underutilized resources',
-      'Historical spend trends & forecasting',
-      'One-click recommendations with ROI'
+      'Real-time cost breakdown by warehouse, database, and workload',
+      'Auto-detect waste & underutilized resources across compute and storage',
+      'Historical spend trends, forecasting, and usage patterns',
+      'One-click optimization recommendations with projected % savings and ROI'
     ],
     placeholder: 'Cost intelligence dashboard (GIF)'
   }
 ];
-
-const integrations = [
-  {
-    name: 'Snowflake',
-    description: 'Cost intelligence & query optimization',
-    icon: SiSnowflake,
-    iconBg: 'from-[#e3f2ff] to-[#cfe6ff]',
-    iconColor: 'text-[#29b5e8]'
-  },
-  {
-    name: 'dbt',
-    description: 'Model lineage & documentation sync',
-    icon: SiDbt,
-    iconBg: 'from-[#fff0e7] to-[#ffd9c2]',
-    iconColor: 'text-[#ff6a3c]'
-  },
-  {
-    name: 'Airflow',
-    description: 'Pipeline orchestration & monitoring',
-    icon: SiApacheairflow,
-    iconBg: 'from-[#e5f9fb] to-[#cceff5]',
-    iconColor: 'text-[#0094ce]'
-  },
-  {
-    name: 'GitHub',
-    description: 'Repository analysis & code insights',
-    icon: SiGithub,
-    iconBg: 'from-[#f2f2f2] to-[#e0e0e0]',
-    iconColor: 'text-[#161413]'
-  }
-];
-
 export function Hero() {
+  const ideVideoRef = useRef<HTMLVideoElement | null>(null);
+  const ideVideoContainerRef = useRef<HTMLDivElement | null>(null);
+  const lineageVideoRef = useRef<HTMLVideoElement | null>(null);
+  const lineageVideoContainerRef = useRef<HTMLDivElement | null>(null);
+  const costVideoRef = useRef<HTMLVideoElement | null>(null);
+  const costVideoContainerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('IntersectionObserver' in window)) {
+      return;
+    }
+
+    const videoEl = ideVideoRef.current;
+    const containerEl = ideVideoContainerRef.current;
+    if (!videoEl || !containerEl) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (!entry) return;
+        if (entry.isIntersecting) {
+          videoEl
+            .play()
+            .catch(() => {
+              // Autoplay might be blocked; ignore errors.
+            });
+        } else {
+          videoEl.pause();
+        }
+      },
+      {
+        threshold: 0.4,
+      }
+    );
+
+    observer.observe(containerEl);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('IntersectionObserver' in window)) {
+      return;
+    }
+
+    const videoEl = costVideoRef.current;
+    const containerEl = costVideoContainerRef.current;
+    if (!videoEl || !containerEl) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (!entry) return;
+        if (entry.isIntersecting) {
+          videoEl
+            .play()
+            .catch(() => {
+              // Autoplay might be blocked; ignore errors.
+            });
+        } else {
+          videoEl.pause();
+        }
+      },
+      {
+        threshold: 0.4,
+      }
+    );
+
+    observer.observe(containerEl);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('IntersectionObserver' in window)) {
+      return;
+    }
+
+    const videoEl = lineageVideoRef.current;
+    const containerEl = lineageVideoContainerRef.current;
+    if (!videoEl || !containerEl) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (!entry) return;
+        if (entry.isIntersecting) {
+          videoEl
+            .play()
+            .catch(() => {
+              // Autoplay might be blocked; ignore errors.
+            });
+        } else {
+          videoEl.pause();
+        }
+      },
+      {
+        threshold: 0.4,
+      }
+    );
+
+    observer.observe(containerEl);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
   return (
     <div className="bg-[#f5f1e9] text-[#161413]">
       <section id="home" className="px-4 pb-16 pt-32 sm:px-6 lg:px-8">
@@ -105,16 +189,40 @@ export function Hero() {
             {/* Main Headline */}
             <div className="space-y-6">
               <h1 className="text-5xl font-bold leading-[1.1] tracking-tight text-[#0d0c0a] sm:text-6xl lg:text-7xl">
-                Build faster.<br />
+                Build faster.{' '}
                 <span className="bg-gradient-to-r from-[#ff6a3c] to-[#d94a1e] bg-clip-text text-transparent">
                   Ship smarter.
-                </span>
-                <br />
+                </span>{' '}
                 Spend wisely.
               </h1>
               <p className="mx-auto max-w-3xl text-xl leading-relaxed text-[#59544c] sm:text-2xl">
-                The only platform that combines an <strong className="font-semibold text-[#161413]">AI-powered IDE</strong> with enterprise <strong className="font-semibold text-[#161413]">observability</strong> — built for modern data teams working with Snowflake, dbt, and Airflow.
+                Unified AI Workspace for enterprise data teams.
               </p>
+            </div>
+
+            {/* Works with */}
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+              <span className="text-sm font-semibold uppercase tracking-wider text-[#a39c92]">
+                Works with
+              </span>
+              <div className="flex flex-wrap items-center justify-center gap-4">
+                <div className="flex items-center gap-2 rounded-full border border-[#e1dcd3] bg-white px-4 py-2 shadow-sm transition-all hover:scale-105 hover:border-[#29b5e8] hover:shadow-md">
+                  <SiSnowflake className="h-4 w-4 text-[#29b5e8]" />
+                  <span className="text-sm font-semibold text-[#161413]">Snowflake</span>
+                </div>
+                <div className="flex items-center gap-2 rounded-full border border-[#e1dcd3] bg-white px-4 py-2 shadow-sm transition-all hover:scale-105 hover:border-[#ff6a3c] hover:shadow-md">
+                  <SiDbt className="h-4 w-4 text-[#ff6a3c]" />
+                  <span className="text-sm font-semibold text-[#161413]">dbt</span>
+                </div>
+                <div className="flex items-center gap-2 rounded-full border border-[#e1dcd3] bg-white px-4 py-2 shadow-sm transition-all hover:scale-105 hover:border-[#0094ce] hover:shadow-md">
+                  <SiApacheairflow className="h-4 w-4 text-[#0094ce]" />
+                  <span className="text-sm font-semibold text-[#161413]">Airflow</span>
+                </div>
+                <div className="flex items-center gap-2 rounded-full border border-[#e1dcd3] bg-white px-4 py-2 shadow-sm transition-all hover:scale-105 hover:border-[#161413] hover:shadow-md">
+                  <SiGithub className="h-4 w-4 text-[#161413]" />
+                  <span className="text-sm font-semibold text-[#161413]">GitHub</span>
+                </div>
+              </div>
             </div>
 
             {/* Value Props */}
@@ -125,7 +233,7 @@ export function Hero() {
               </div>
               <div className="flex items-center gap-2 text-[#4e493f]">
                 <DollarSign className="h-5 w-5 text-[#ff6a3c]" />
-                <span className="font-medium">Auto-detect $10K+ savings</span>
+                <span className="font-medium">Auto-detect 20–30% cost savings</span>
               </div>
               <div className="flex items-center gap-2 text-[#4e493f]">
                 <Bot className="h-5 w-5 text-[#ff6a3c]" />
@@ -173,73 +281,9 @@ export function Hero() {
       {/* Data Flow Visualization Section */}
       <section className="px-4 pb-32 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
-          {/* Section Header */}
-          <div className="mb-12 text-center">
-            <h2 className="text-3xl font-bold tracking-tight text-[#0d0c0a] sm:text-4xl">
-              Your Data, <span className="bg-gradient-to-r from-[#ff6a3c] to-[#d94a1e] bg-clip-text text-transparent">Unified & Optimized</span>
-            </h2>
-            <p className="mx-auto mt-4 max-w-3xl text-lg leading-relaxed text-[#59544c]">
-              Connect <strong className="text-[#161413]">Snowflake, dbt, and Airflow</strong> → DuckCode AI processes locally with <strong className="text-[#161413]">10x speed</strong> → Get instant <strong className="text-[#161413]">docs, lineage, cost insights</strong>, and team collaboration
-            </p>
-            <div className="mx-auto mt-3 flex items-center justify-center gap-2 text-sm text-[#a39c92]">
-              <div className="h-2 w-2 rounded-full bg-blue-500"></div>
-              <span>Inputs</span>
-              <ArrowRight className="h-4 w-4 text-[#ff6a3c]" />
-              <div className="h-2 w-2 rounded-full bg-[#ff6a3c]"></div>
-              <span>Processing</span>
-              <ArrowRight className="h-4 w-4 text-emerald-500" />
-              <div className="h-2 w-2 rounded-full bg-emerald-500"></div>
-              <span>Outputs</span>
-            </div>
-          </div>
-
           {/* Animated Flow Diagram */}
           <div className="relative overflow-visible rounded-[2rem] border border-gray-200/50 bg-white shadow-2xl">
             <DataFlowDiagram />
-          </div>
-
-          {/* Key Metrics Row */}
-          <div className="mt-16 grid gap-6 sm:grid-cols-3">
-            <div className="rounded-2xl border-2 border-[#e1dcd3] bg-white p-6 text-center shadow-sm">
-              <Zap className="mx-auto mb-3 h-8 w-8 text-[#ff6a3c]" />
-              <p className="text-3xl font-bold text-[#ff6a3c]">10x</p>
-              <p className="mt-1 text-sm font-medium text-[#6f695f]">Faster Development</p>
-            </div>
-            <div className="rounded-2xl border-2 border-[#e1dcd3] bg-white p-6 text-center shadow-sm">
-              <LineChart className="mx-auto mb-3 h-8 w-8 text-emerald-500" />
-              <p className="text-3xl font-bold text-emerald-500">5-10ms</p>
-              <p className="mt-1 text-sm font-medium text-[#6f695f]">Search Speed</p>
-            </div>
-            <div className="rounded-2xl border-2 border-[#e1dcd3] bg-white p-6 text-center shadow-sm">
-              <DollarSign className="mx-auto mb-3 h-8 w-8 text-green-500" />
-              <p className="text-3xl font-bold text-green-500">$134K</p>
-              <p className="mt-1 text-sm font-medium text-[#6f695f]">Avg. Annual Savings</p>
-            </div>
-          </div>
-
-          {/* Tech Stack Badges */}
-          <div className="mt-12 flex flex-wrap items-center justify-center gap-4">
-            <span className="text-sm font-semibold uppercase tracking-wider text-[#a39c92]">
-              Works with
-            </span>
-            <div className="flex flex-wrap items-center justify-center gap-4">
-              <div className="flex items-center gap-2 rounded-full border border-[#e1dcd3] bg-white px-4 py-2 shadow-sm transition-all hover:scale-105 hover:border-[#29b5e8] hover:shadow-md">
-                <SiSnowflake className="h-4 w-4 text-[#29b5e8]" />
-                <span className="text-sm font-semibold text-[#161413]">Snowflake</span>
-              </div>
-              <div className="flex items-center gap-2 rounded-full border border-[#e1dcd3] bg-white px-4 py-2 shadow-sm transition-all hover:scale-105 hover:border-[#ff6a3c] hover:shadow-md">
-                <SiDbt className="h-4 w-4 text-[#ff6a3c]" />
-                <span className="text-sm font-semibold text-[#161413]">dbt</span>
-              </div>
-              <div className="flex items-center gap-2 rounded-full border border-[#e1dcd3] bg-white px-4 py-2 shadow-sm transition-all hover:scale-105 hover:border-[#0094ce] hover:shadow-md">
-                <SiApacheairflow className="h-4 w-4 text-[#0094ce]" />
-                <span className="text-sm font-semibold text-[#161413]">Airflow</span>
-              </div>
-              <div className="flex items-center gap-2 rounded-full border border-[#e1dcd3] bg-white px-4 py-2 shadow-sm transition-all hover:scale-105 hover:border-[#161413] hover:shadow-md">
-                <SiGithub className="h-4 w-4 text-[#161413]" />
-                <span className="text-sm font-semibold text-[#161413]">GitHub</span>
-              </div>
-            </div>
           </div>
         </div>
       </section>
@@ -256,7 +300,7 @@ export function Hero() {
               </div>
               <p className="text-4xl font-bold text-[#161413]">5-10ms</p>
               <p className="mt-2 text-sm leading-relaxed text-[#59544c]">
-                Lightning-fast search with Tantivy — find any model, column, or dependency instantly.
+                Lightning-fast search with Our Unique metadata engine  — find any model, column, or dependency instantly.
               </p>
             </div>
             
@@ -268,7 +312,7 @@ export function Hero() {
               </div>
               <p className="text-4xl font-bold text-[#161413]">Column-level</p>
               <p className="mt-2 text-sm leading-relaxed text-[#59544c]">
-                Trace every transformation — from source tables to BI dashboards in seconds.
+                Trace every transformation — from source tables to BI dashboards in seconds with Local Offline.
               </p>
             </div>
             
@@ -294,7 +338,17 @@ export function Hero() {
             <div
               key={id}
               id={id}
-              className={`grid gap-12 lg:grid-cols-2 lg:gap-16 ${index % 2 === 1 ? 'lg:grid-cols-[1fr_1.1fr]' : 'lg:grid-cols-[1.1fr_1fr]'}`}
+              className={`grid gap-12 lg:grid-cols-2 lg:gap-16 ${
+                id === 'ide'
+                  ? 'lg:grid-cols-[0.9fr_1.2fr]'
+                  : id === 'lineage'
+                  ? 'lg:grid-cols-[1.2fr_0.9fr]'
+                  : id === 'cost'
+                  ? 'lg:grid-cols-[1.2fr_0.9fr]'
+                  : index % 2 === 1
+                  ? 'lg:grid-cols-[1fr_1.1fr]'
+                  : 'lg:grid-cols-[1.1fr_1fr]'
+              }`}
             >
               {/* Content Side */}
               <div className={`flex flex-col justify-center space-y-8 ${index % 2 === 1 ? 'lg:order-2' : ''}`}>
@@ -341,153 +395,74 @@ export function Hero() {
 
               {/* Visual Side */}
               <div className={`${index % 2 === 1 ? 'lg:order-1' : ''}`}>
-                <div className="group relative overflow-hidden rounded-[32px] border-2 border-[#1f1d1b] bg-gradient-to-br from-[#0b0a09] to-[#141211] p-8 shadow-[0_40px_80px_rgba(7,7,7,0.4)] transition-all duration-500 hover:scale-[1.02]">
-                  {/* Video/GIF Placeholder */}
-                  <div className="relative min-h-[450px] overflow-hidden rounded-[24px] border border-[#24211e] bg-[#0d0c0b]">
-                    <div className="flex h-full min-h-[450px] items-center justify-center">
-                      <div className="text-center text-[#8d857b]">
-                        <div className="mb-4 flex justify-center">
-                          <div className="rounded-full bg-gradient-to-r from-[#ff6a3c]/20 to-[#d94a1e]/20 p-6">
-                            <PlayCircle className="h-12 w-12 text-[#ff6a3c]" />
+                {id === 'ide' ? (
+                  // Simplified, larger video layout for the IDE feature (no zoom)
+                  <div
+                    className="relative h-[480px] sm:h-[540px] lg:h-[620px] overflow-hidden rounded-[32px] shadow-[0_40px_80px_rgba(7,7,7,0.4)]"
+                    ref={ideVideoContainerRef}
+                  >
+                    <video
+                      ref={ideVideoRef}
+                      src={autoCodeVideo}
+                      className="block h-full w-full object-contain bg-black"
+                      muted
+                      loop
+                      playsInline
+                    />
+                  </div>
+                ) : id === 'lineage' ? (
+                  <div
+                    className="relative h-[480px] sm:h-[540px] lg:h-[620px] overflow-hidden rounded-[32px] shadow-[0_40px_80px_rgba(7,7,7,0.4)]"
+                    ref={lineageVideoContainerRef}
+                  >
+                    <video
+                      ref={lineageVideoRef}
+                      src={lineageVideo}
+                      className="block h-full w-full object-contain bg-black"
+                      muted
+                      loop
+                      playsInline
+                    />
+                  </div>
+                ) : id === 'cost' ? (
+                  <div
+                    className="relative h-[480px] sm:h-[540px] lg:h-[620px] overflow-hidden rounded-[32px] shadow-[0_40px_80px_rgba(7,7,7,0.4)]"
+                    ref={costVideoContainerRef}
+                  >
+                    <video
+                      ref={costVideoRef}
+                      src={costVideo}
+                      className="block h-full w-full object-contain bg-black"
+                      muted
+                      loop
+                      playsInline
+                    />
+                  </div>
+                ) : (
+                  <div className="group relative overflow-hidden rounded-[32px] border-2 border-[#1f1d1b] bg-gradient-to-br from-[#0b0a09] to-[#141211] p-8 shadow-[0_40px_80px_rgba(7,7,7,0.4)] transition-all duration-500 hover:scale-[1.02]">
+                    {/* Video/GIF Placeholder or Autoplay Video */}
+                    <div className="relative min-h-[450px] overflow-hidden rounded-[24px] border border-[#24211e] bg-[#0d0c0b]">
+                      <div className="flex h-full min-h-[450px] items-center justify-center">
+                        <div className="text-center text-[#8d857b]">
+                          <div className="mb-4 flex justify-center">
+                            <div className="rounded-full bg-gradient-to-r from-[#ff6a3c]/20 to-[#d94a1e]/20 p-6">
+                              <PlayCircle className="h-12 w-12 text-[#ff6a3c]" />
+                            </div>
                           </div>
+                          <p className="text-base font-medium">{placeholder}</p>
                         </div>
-                        <p className="text-base font-medium">{placeholder}</p>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Animated Glow Effect */}
-                  <div className="pointer-events-none absolute -inset-px rounded-[32px] opacity-0 transition-opacity duration-500 group-hover:opacity-100">
-                    <div className="absolute inset-0 rounded-[32px] bg-gradient-to-r from-[#ff6a3c]/20 via-[#d94a1e]/20 to-transparent blur-2xl"></div>
+                    {/* Animated Glow Effect */}
+                    <div className="pointer-events-none absolute -inset-px rounded-[32px] opacity-0 transition-opacity duration-500 group-hover:opacity-100">
+                      <div className="absolute inset-0 rounded-[32px] bg-gradient-to-r from-[#ff6a3c]/20 via-[#d94a1e]/20 to-transparent blur-2xl"></div>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           ))}
-        </div>
-      </section>
-
-      {/* Integrations Section */}
-      <section className="px-4 pb-32 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-7xl">
-          {/* Section Header */}
-          <div className="mb-16 text-center">
-            <span className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#ff6a3c]/10 to-[#d94a1e]/10 px-4 py-2 text-sm font-bold uppercase tracking-wider text-[#ff6a3c]">
-              Integrations
-            </span>
-            <h2 className="mt-6 text-4xl font-bold tracking-tight text-[#0d0c0a] sm:text-5xl">
-              Works with your entire data stack
-            </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-lg text-[#59544c]">
-              Native integrations with the tools you already use — Snowflake, dbt, Airflow, and GitHub.
-            </p>
-          </div>
-
-          {/* Integration Grid */}
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {integrations.map((integration) => (
-              <div
-                key={integration.name}
-                className="group relative overflow-hidden rounded-3xl border-2 border-[#e1dcd3] bg-white p-8 shadow-sm transition-all duration-300 hover:scale-105 hover:border-[#ff6a3c] hover:shadow-xl"
-              >
-                {/* Icon/Logo Placeholder */}
-                <div
-                  className={`mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br ${integration.iconBg} transition-all duration-300 group-hover:from-[#fff4ee] group-hover:to-[#ffe8dc]`}
-                >
-                  <integration.icon
-                    className={`h-8 w-8 ${integration.iconColor} transition-all duration-300 group-hover:scale-110`}
-                  />
-                </div>
-                
-                {/* Integration Name */}
-                <h3 className="text-xl font-bold text-[#161413]">{integration.name}</h3>
-                
-                {/* Description */}
-                <p className="mt-2 text-sm leading-relaxed text-[#6f695f]">
-                  {integration.description}
-                </p>
-
-                {/* Hover Effect Border */}
-                <div className="pointer-events-none absolute inset-0 rounded-3xl opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                  <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-[#ff6a3c]/5 to-[#d94a1e]/5"></div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Bottom CTA */}
-          <div className="mt-12 text-center">
-            <p className="text-sm text-[#7b7469]">
-              Need a custom integration?{' '}
-              <a href="mailto:hello@duckcode.ai" className="font-semibold text-[#ff6a3c] transition hover:text-[#d94a1e]">
-                Let's talk →
-              </a>
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Final CTA Section */}
-      <section id="cta" className="px-4 pb-32 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-6xl">
-          <div className="relative overflow-hidden rounded-[48px] border-2 border-[#e1dcd3] bg-gradient-to-br from-[#fff7f2] via-[#fff4ee] to-[#ffe8dc] p-16 shadow-2xl">
-            {/* Background Pattern */}
-            <div className="pointer-events-none absolute inset-0 opacity-[0.03]">
-              <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, #161413 1px, transparent 0)', backgroundSize: '32px 32px' }}></div>
-            </div>
-
-            {/* Content */}
-            <div className="relative z-10 text-center">
-              <h2 className="text-4xl font-bold tracking-tight text-[#0d0c0a] sm:text-5xl lg:text-6xl">
-                Ready to transform how your{' '}
-                <span className="bg-gradient-to-r from-[#ff6a3c] to-[#d94a1e] bg-clip-text text-transparent">
-                  data team works?
-                </span>
-              </h2>
-              <p className="mx-auto mt-6 max-w-2xl text-xl leading-relaxed text-[#59544c]">
-                Join teams using DuckCode to build faster, ship smarter, and spend wisely. Start your free trial today — no credit card required.
-              </p>
-
-              {/* Stats Row */}
-              <div className="mt-12 flex flex-wrap justify-center gap-12">
-                <div>
-                  <p className="text-3xl font-bold text-[#ff6a3c]">$134K</p>
-                  <p className="mt-1 text-sm text-[#6f695f]">Avg. annual savings</p>
-                </div>
-                <div>
-                  <p className="text-3xl font-bold text-[#ff6a3c]">100-200x</p>
-                  <p className="mt-1 text-sm text-[#6f695f]">Faster search</p>
-                </div>
-                <div>
-                  <p className="text-3xl font-bold text-[#ff6a3c]">15 min</p>
-                  <p className="mt-1 text-sm text-[#6f695f]">Setup time</p>
-                </div>
-              </div>
-
-              {/* CTA Buttons */}
-              <div className="mt-12 flex flex-col justify-center gap-4 sm:flex-row">
-                <Link
-                  to="/register"
-                  className="group inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#ff6a3c] to-[#d94a1e] px-10 py-5 text-lg font-bold text-white shadow-[0_20px_50px_rgba(255,106,60,0.4)] transition-all duration-300 hover:scale-105 hover:shadow-[0_25px_60px_rgba(255,106,60,0.5)]"
-                >
-                  Start free trial
-                  <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
-                </Link>
-                <a
-                  href="mailto:hello@duckcode.ai"
-                  className="inline-flex items-center justify-center gap-2 rounded-full border-2 border-[#161413] bg-white px-10 py-5 text-lg font-bold text-[#161413] transition-all duration-300 hover:bg-[#161413] hover:text-white"
-                >
-                  Talk to sales
-                  <PlayCircle className="h-5 w-5" />
-                </a>
-              </div>
-
-              {/* Trust Badge */}
-              <p className="mt-8 text-sm text-[#7b7469]">
-                Used by data teams at Fortune 500 companies • SOC 2 Type II in progress • GDPR compliant
-              </p>
-            </div>
-          </div>
         </div>
       </section>
 
