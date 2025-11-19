@@ -389,22 +389,7 @@ export function Hero() {
                   ))}
                 </ul>
 
-                <div className="flex flex-wrap gap-4 pt-4">
-                  <Link
-                    to="/register"
-                    className="group inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#ff6a3c] to-[#d94a1e] px-6 py-3 text-base font-semibold text-white shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl"
-                  >
-                    Try for free
-                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                  </Link>
-                  <a
-                    href="#demo"
-                    className="inline-flex items-center gap-2 rounded-full border-2 border-[#d6d2c9] bg-white px-6 py-3 text-base font-semibold text-[#161413] transition-all duration-300 hover:border-[#ff6a3c] hover:bg-[#fff4ee]"
-                  >
-                    See demo
-                    <PlayCircle className="h-4 w-4" />
-                  </a>
-                </div>
+         
               </div>
 
               {/* Visual Side */}
