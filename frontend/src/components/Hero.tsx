@@ -264,13 +264,13 @@ export function Hero() {
                 Start free trial
                 <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
               </Link>
-              <a
-                href="#demo"
+              <Link
+                to="/request-demo"
                 className="group inline-flex items-center justify-center gap-2 rounded-full border-2 border-[#bfb8ac] bg-white px-8 py-4 text-lg font-semibold text-[#161413] transition-all duration-300 hover:border-[#ff6a3c] hover:bg-[#fff4ee]"
               >
-                Watch demo
+                Request demo
                 <PlayCircle className="h-5 w-5 transition-transform group-hover:scale-110" />
-              </a>
+              </Link>
             </div>
 
             {/* Trust Indicators */}

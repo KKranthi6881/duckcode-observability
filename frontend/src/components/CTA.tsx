@@ -27,11 +27,11 @@ export function CTA() {
             solutions faster than ever before with Duckcode.ai
           </p>
           <div className="mt-10 flex flex-col sm:flex-row justify-center gap-4 animate-fade-in animation-delay-400">
-            <a href="#" className="group inline-flex items-center justify-center px-8 py-4 border border-transparent text-base font-medium rounded-full shadow-lg text-slate-900 bg-gradient-to-r from-[#F5B72F] to-[#F5B72F]/80 hover:shadow-xl hover:scale-105 transition-all duration-200">
+            <a href="/register" className="group inline-flex items-center justify-center px-8 py-4 border border-transparent text-base font-medium rounded-full shadow-lg text-slate-900 bg-gradient-to-r from-[#F5B72F] to-[#F5B72F]/80 hover:shadow-xl hover:scale-105 transition-all duration-200">
               Start free trial
               <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
             </a>
-            <a href="#" className="inline-flex items-center justify-center px-8 py-4 border border-[#2AB7A9] text-base font-medium rounded-full text-[#2AB7A9] bg-transparent hover:bg-[#2AB7A9]/10 shadow-sm transition-all duration-200">
+            <a href="/request-demo" className="inline-flex items-center justify-center px-8 py-4 border border-[#2AB7A9] text-base font-medium rounded-full text-[#2AB7A9] bg-transparent hover:bg-[#2AB7A9]/10 shadow-sm transition-all duration-200">
               Schedule demo
             </a>
           </div>

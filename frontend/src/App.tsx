@@ -11,6 +11,8 @@ import { AnalysisSetup } from './pages/dashboard/AnalysisSetup';
 import { EnhancedAnalytics } from './pages/dashboard/EnhancedAnalytics';
 import { DataLineage } from './pages/dashboard/DataLineage';
 import AnalyticsDashboard from './pages/AnalyticsDashboard';
+import RequestDemoPage from './pages/RequestDemoPage';
+import DemoRequests from './pages/admin/DemoRequests';
 import SnowflakeCostDashboard from './pages/dashboard/SnowflakeCostDashboard';
 import SnowflakeRecommendations from './pages/dashboard/SnowflakeRecommendations';
 import SnowflakeIntelligence from './pages/dashboard/SnowflakeIntelligence'; // Using old working version temporarily
@@ -106,6 +108,9 @@ const AppContent = () => {
         {/* Invitation Accept - Public route (no auth required) */}
         <Route path="/invite/:token" element={<InvitationAcceptPage />} />
 
+        {/* Public marketing/sales routes */}
+        <Route path="/request-demo" element={<RequestDemoPage />} />
+
         {/* IDE Analytics - No auth required (backend handles auth) */}
         <Route path="/dashboard/ide-analytics" element={<AnalyticsDashboard />} />
 
@@ -125,7 +130,10 @@ const AppContent = () => {
             <Route path="profile" element={<Profile />} />
           </Route>
           <Route path="/profile" element={<ProfilePage />} />
-          
+
+          {/* Duckcode internal admin routes */}
+          <Route path="/duckcode-admin/demo-requests" element={<DemoRequests />} />
+
           {/* Admin Portal Routes */}
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<AdminDashboard />} />

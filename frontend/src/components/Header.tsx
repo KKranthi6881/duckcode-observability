@@ -14,13 +14,13 @@ export function Header() {
         </Link>
 
         <nav className="hidden items-center gap-4 md:flex">
-          <a
-            href="#demo"
+          <Link
+            to="/request-demo"
             className="inline-flex items-center gap-2 rounded-full border border-[#bfb8ac] px-4 py-2 text-sm font-medium text-[#161413] transition hover:border-[#ff6a3c]"
           >
             <PlayCircle className="h-4 w-4" />
-            Watch demo
-          </a>
+            Request demo
+          </Link>
           <Link
             to="/register"
             className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-[#ff6a3c] to-[#d94a1e] px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(255,106,60,0.35)] transition hover:translate-y-[-2px]"
@@ -41,14 +41,14 @@ export function Header() {
       {isMenuOpen && (
         <div className="border-b border-[#e1dcd3] bg-[#f5f1e9] md:hidden">
           <div className="space-y-3 px-4 py-4">
-            <a
-              href="#demo"
+            <Link
+              to="/request-demo"
               className="flex items-center justify-between rounded-lg border border-[#d6d2c9] px-3 py-2 text-base font-medium text-[#161413] transition hover:border-[#ff6a3c]"
               onClick={() => setIsMenuOpen(false)}
             >
-              Watch demo
+              Request demo
               <PlayCircle className="h-5 w-5" />
-            </a>
+            </Link>
             <Link
               to="/register"
               className="block rounded-lg bg-gradient-to-r from-[#ff6a3c] to-[#d94a1e] px-3 py-2 text-center text-base font-semibold text-white shadow-[0_12px_24px_rgba(255,106,60,0.35)] transition hover:translate-y-[-2px]"
