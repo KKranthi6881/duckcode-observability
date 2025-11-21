@@ -1,6 +1,6 @@
 -- Create tantivy_indexes table to track search index metadata
 CREATE TABLE IF NOT EXISTS metadata.tantivy_indexes (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL,
     version INTEGER NOT NULL DEFAULT 1,
     document_count INTEGER NOT NULL DEFAULT 0,

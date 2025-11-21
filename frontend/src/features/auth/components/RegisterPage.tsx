@@ -8,17 +8,25 @@ import { signInWithSSODomain } from '../services/authService';
 import { useSsoOptions } from '../hooks/useSsoOptions';
 import { getProviderDisplayName } from '../utils/providerDisplayName';
 
-const deriveDomain = (email: string): string | null => {
-  if (!email.includes('@')) return null;
-  return email.split('@')[1]?.trim().toLowerCase() || null;
-};
+  const deriveDomain = (email: string): string | null => {
+    if (!email.includes('@')) return null;
+    return email.split('@')[1]?.trim().toLowerCase() || null;
+  };
 
-const RegisterPage: React.FC = () => {
-  const {
-    email, setEmail,
-    error, setError,
-    isLoading, setIsLoading,
-  } = useAuthForm();
+  const cleanEmail = (email: string): string => {
+    // Remove BOM (\uFEFF), other invisible chars, and trim whitespace
+    return email.replace(/[\uFEFF\u200B]/g, '').trim().toLowerCase();
+  };
+
+  const RegisterPage: React.FC = () => {
+    const {
+      email: rawEmail, setEmail,
+      error, setError,
+      isLoading, setIsLoading,
+    } = useAuthForm();
+    
+    const email = cleanEmail(rawEmail); // Use sanitized email for logic
+
   const [searchParams] = useSearchParams();
   const [fullName, setFullName] = React.useState('');
   const [organizationName, setOrganizationName] = React.useState('');
@@ -111,11 +119,16 @@ const RegisterPage: React.FC = () => {
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
 
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-
-      if (signInError) {
-        console.error('Failed to create Supabase session:', signInError);
-        throw new Error('Registration successful but failed to sign in. Please login manually.');
+      // Attempt to create Supabase session (client-side)
+      // We catch errors here so we don't block the flow if the backend token is already valid
+      try {
+        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+        if (signInError) {
+          console.warn('Supabase session creation failed (non-critical):', signInError);
+          // Do not throw; continue with backend token
+        }
+      } catch (sessionError) {
+        console.warn('Supabase session error (non-critical):', sessionError);
       }
 
       if (isIdeFlow && oauthData) {
@@ -279,7 +292,7 @@ const RegisterPage: React.FC = () => {
               <input
                 type="email"
                 id="email"
-                value={email}
+                value={rawEmail}
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 className={`w-full px-4 py-3 rounded-2xl border-2 bg-white text-base text-[#161413] transition focus:border-[#ff6a3c] focus:outline-none focus:ring-4 focus:ring-[#ff6a3c]/20 ${isSsoEnforced ? 'border-amber-400 bg-amber-50' : 'border-[#d6d2c9]'}`}

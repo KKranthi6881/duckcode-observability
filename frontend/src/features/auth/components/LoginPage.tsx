@@ -12,13 +12,20 @@ const deriveDomain = (email: string): string | null => {
   return email.split('@')[1]?.trim().toLowerCase() || null;
 };
 
+const cleanEmail = (email: string): string => {
+  // Remove BOM (\uFEFF), other invisible chars, and trim whitespace
+  return email.replace(/[\uFEFF\u200B]/g, '').trim().toLowerCase();
+};
+
 const LoginPage: React.FC = () => {
   const {
-    email, setEmail,
+    email: rawEmail, setEmail,
     password, setPassword,
     error, setError,
     isLoading, setIsLoading,
   } = useAuthForm();
+  
+  const email = cleanEmail(rawEmail);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { session } = useAuth();
@@ -196,7 +203,7 @@ const LoginPage: React.FC = () => {
               <input
                 type="email"
                 id="email"
-                value={email}
+                value={rawEmail}
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 className={`w-full px-4 py-3 rounded-2xl border-2 bg-white text-base text-[#161413] transition focus:border-[#ff6a3c] focus:outline-none focus:ring-4 focus:ring-[#ff6a3c]/20 ${isSsoEnforced ? 'border-amber-400 bg-amber-50' : 'border-[#d6d2c9]'}`}

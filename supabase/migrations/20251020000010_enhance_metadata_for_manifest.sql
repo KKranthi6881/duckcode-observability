@@ -25,7 +25,7 @@ ADD COLUMN IF NOT EXISTS extracted_from TEXT DEFAULT 'sql_parsing'; -- 'manifest
 
 -- Add workspaces table for IDE sync
 CREATE TABLE IF NOT EXISTS metadata.workspaces (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES enterprise.organizations(id) ON DELETE CASCADE,
     connection_id UUID REFERENCES enterprise.github_connections(id) ON DELETE SET NULL,
     

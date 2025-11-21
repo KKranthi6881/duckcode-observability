@@ -32,12 +32,19 @@ interface SsoEnforcementResult {
   domain: string;
 }
 
+const cleanEmail = (email: unknown): string => {
+  if (!email || typeof email !== 'string') return '';
+  // Remove BOM (\uFEFF), other invisible chars, and trim whitespace
+  return email.replace(/[\uFEFF\u200B]/g, '').trim().toLowerCase();
+};
+
 const getEmailDomain = (email: string): string | null => {
-  if (!email || typeof email !== 'string' || !email.includes('@')) {
+  const cleaned = cleanEmail(email);
+  if (!cleaned || !cleaned.includes('@')) {
     return null;
   }
-  const parts = email.split('@');
-  return parts[1]?.trim().toLowerCase() || null;
+  const parts = cleaned.split('@');
+  return parts[1] || null;
 };
 
 const getSsoRequirementForEmail = async (email: string): Promise<SsoEnforcementResult | null> => {
@@ -140,7 +147,8 @@ router.post('/register',
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { email, password, fullName, organizationName } = req.body;
+    const { email: rawEmail, password, fullName, organizationName } = req.body;
+    const email = cleanEmail(rawEmail);
     const ipAddress = req.ip || 'unknown';
     const userAgent = req.headers['user-agent'];
 
@@ -287,7 +295,8 @@ router.post('/login',
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { email, password } = req.body;
+    const { email: rawEmail, password } = req.body;
+    const email = cleanEmail(rawEmail);
     const ipAddress = req.ip || 'unknown';
     const userAgent = req.headers['user-agent'];
 
@@ -1015,7 +1024,8 @@ router.get('/sso/callback', async (req: Request, res: Response) => {
 // @access  Public
 router.get('/sso/options', async (req: Request, res: Response) => {
   try {
-    const email = (req.query.email as string) || '';
+    const rawEmail = req.query.email as string;
+    const email = cleanEmail(rawEmail);
     const domain = getEmailDomain(email);
 
     if (!email || !domain) {

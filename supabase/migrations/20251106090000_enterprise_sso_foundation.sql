@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS enterprise.sso_domains (
     connection_id UUID REFERENCES enterprise.sso_connections(id) ON DELETE CASCADE,
     domain_name TEXT NOT NULL,
     is_verified BOOLEAN NOT NULL DEFAULT FALSE,
-    verification_token TEXT NOT NULL DEFAULT encode(gen_random_bytes(16), 'hex'),
+    verification_token TEXT NOT NULL DEFAULT md5((clock_timestamp()::text || gen_random_uuid()::text || random()::text)),
     verified_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()

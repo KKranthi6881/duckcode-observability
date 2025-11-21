@@ -6,7 +6,7 @@
 
 -- Track IDE sync sessions
 CREATE TABLE IF NOT EXISTS metadata.ide_sync_sessions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES enterprise.organizations(id) ON DELETE CASCADE,
     workspace_identifier TEXT NOT NULL,
     workspace_hash TEXT,

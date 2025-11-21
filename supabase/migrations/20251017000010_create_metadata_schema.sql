@@ -3,6 +3,9 @@
 -- Foundation for Data Catalog, Lineage, Quality, AI Chat
 -- =====================================================
 
+-- Ensure uuid-ossp extension is available for uuid_generate_v4()
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 -- Create metadata schema
 CREATE SCHEMA IF NOT EXISTS metadata;
 
@@ -12,7 +15,7 @@ CREATE SCHEMA IF NOT EXISTS metadata;
 
 -- GitHub Repository Connections
 CREATE TABLE IF NOT EXISTS enterprise.github_connections (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES enterprise.organizations(id) ON DELETE CASCADE,
     repository_url TEXT NOT NULL,
     repository_name TEXT NOT NULL,
@@ -34,7 +37,7 @@ CREATE TABLE IF NOT EXISTS enterprise.github_connections (
 
 -- Repository metadata
 CREATE TABLE IF NOT EXISTS metadata.repositories (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES enterprise.organizations(id) ON DELETE CASCADE,
     connection_id UUID REFERENCES enterprise.github_connections(id) ON DELETE CASCADE,
     path TEXT NOT NULL,
@@ -47,7 +50,7 @@ CREATE TABLE IF NOT EXISTS metadata.repositories (
 
 -- File metadata
 CREATE TABLE IF NOT EXISTS metadata.files (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     repository_id UUID NOT NULL REFERENCES metadata.repositories(id) ON DELETE CASCADE,
     organization_id UUID NOT NULL REFERENCES enterprise.organizations(id) ON DELETE CASCADE,
     connection_id UUID REFERENCES enterprise.github_connections(id) ON DELETE CASCADE,
@@ -68,7 +71,7 @@ CREATE TABLE IF NOT EXISTS metadata.files (
 
 -- Database objects (tables, views, functions, CTEs, models)
 CREATE TABLE IF NOT EXISTS metadata.objects (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     file_id UUID NOT NULL REFERENCES metadata.files(id) ON DELETE CASCADE,
     repository_id UUID NOT NULL REFERENCES metadata.repositories(id) ON DELETE CASCADE,
     organization_id UUID NOT NULL REFERENCES enterprise.organizations(id) ON DELETE CASCADE,
@@ -100,7 +103,7 @@ CREATE TABLE IF NOT EXISTS metadata.objects (
 
 -- Column metadata
 CREATE TABLE IF NOT EXISTS metadata.columns (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     object_id UUID NOT NULL REFERENCES metadata.objects(id) ON DELETE CASCADE,
     organization_id UUID NOT NULL REFERENCES enterprise.organizations(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
@@ -118,7 +121,7 @@ CREATE TABLE IF NOT EXISTS metadata.columns (
 
 -- Dependencies between objects
 CREATE TABLE IF NOT EXISTS metadata.dependencies (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES enterprise.organizations(id) ON DELETE CASCADE,
     source_object_id UUID NOT NULL REFERENCES metadata.objects(id) ON DELETE CASCADE,
     target_object_id UUID NOT NULL REFERENCES metadata.objects(id) ON DELETE CASCADE,
@@ -135,7 +138,7 @@ CREATE TABLE IF NOT EXISTS metadata.dependencies (
 
 -- Column-level lineage
 CREATE TABLE IF NOT EXISTS metadata.columns_lineage (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES enterprise.organizations(id) ON DELETE CASCADE,
     source_object_id UUID NOT NULL REFERENCES metadata.objects(id) ON DELETE CASCADE,
     source_column TEXT NOT NULL,
@@ -151,7 +154,7 @@ CREATE TABLE IF NOT EXISTS metadata.columns_lineage (
 
 -- Lineage paths (for quick traversal)
 CREATE TABLE IF NOT EXISTS metadata.lineage_paths (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES enterprise.organizations(id) ON DELETE CASCADE,
     ancestor_id UUID NOT NULL REFERENCES metadata.objects(id) ON DELETE CASCADE,
     descendant_id UUID NOT NULL REFERENCES metadata.objects(id) ON DELETE CASCADE,
@@ -163,7 +166,7 @@ CREATE TABLE IF NOT EXISTS metadata.lineage_paths (
 
 -- Cross-file imports
 CREATE TABLE IF NOT EXISTS metadata.imports (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES enterprise.organizations(id) ON DELETE CASCADE,
     source_file_id UUID NOT NULL REFERENCES metadata.files(id) ON DELETE CASCADE,
     target_file_id UUID REFERENCES metadata.files(id) ON DELETE SET NULL,
@@ -177,7 +180,7 @@ CREATE TABLE IF NOT EXISTS metadata.imports (
 
 -- Constraints (PK, FK, UNIQUE, CHECK)
 CREATE TABLE IF NOT EXISTS metadata.constraints (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES enterprise.organizations(id) ON DELETE CASCADE,
     object_id UUID NOT NULL REFERENCES metadata.objects(id) ON DELETE CASCADE,
     constraint_name TEXT,
@@ -194,7 +197,7 @@ CREATE TABLE IF NOT EXISTS metadata.constraints (
 -- =====================================================
 
 CREATE TABLE IF NOT EXISTS metadata_extraction_jobs (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     connection_id UUID NOT NULL REFERENCES enterprise.github_connections(id) ON DELETE CASCADE,
     organization_id UUID NOT NULL REFERENCES enterprise.organizations(id) ON DELETE CASCADE,
     job_type TEXT NOT NULL, -- full, incremental, revalidation
@@ -218,7 +221,7 @@ CREATE TABLE IF NOT EXISTS metadata_extraction_jobs (
 -- =====================================================
 
 CREATE TABLE IF NOT EXISTS metadata.search_index_status (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES enterprise.organizations(id) ON DELETE CASCADE,
     index_type TEXT NOT NULL, -- objects, columns, files
     last_indexed_at TIMESTAMPTZ,

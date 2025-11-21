@@ -9,7 +9,7 @@
 
 -- Stores AI-generated documentation for each metadata object
 CREATE TABLE IF NOT EXISTS metadata.object_documentation (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     object_id UUID NOT NULL REFERENCES metadata.objects(id) ON DELETE CASCADE,
     organization_id UUID NOT NULL REFERENCES enterprise.organizations(id) ON DELETE CASCADE,
     
@@ -102,7 +102,7 @@ COMMENT ON COLUMN metadata.object_documentation.code_explanations IS 'Layer 4: C
 
 -- Tracks documentation generation jobs for batch processing
 CREATE TABLE IF NOT EXISTS metadata.documentation_jobs (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES enterprise.organizations(id) ON DELETE CASCADE,
     connection_id UUID REFERENCES enterprise.github_connections(id) ON DELETE CASCADE,
     
@@ -206,7 +206,7 @@ COMMENT ON COLUMN metadata.documentation_jobs.estimated_cost IS 'Estimated cost 
 
 -- Granular logs for each layer generation per object
 CREATE TABLE IF NOT EXISTS metadata.documentation_generation_logs (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     job_id UUID NOT NULL REFERENCES metadata.documentation_jobs(id) ON DELETE CASCADE,
     object_id UUID REFERENCES metadata.objects(id) ON DELETE CASCADE,
     
