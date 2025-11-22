@@ -9,13 +9,18 @@ const RequestDemoPage: React.FC = () => {
   const [role, setRole] = useState('');
   const [teamSize, setTeamSize] = useState('');
   const [useCase, setUseCase] = useState('');
-  const [preferredDate, setPreferredDate] = useState('');
-  const [preferredTimeWindow, setPreferredTimeWindow] = useState('');
-  const [availabilityNotes, setAvailabilityNotes] = useState('');
   const [wantsTrial, setWantsTrial] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
+
+  const baseCalendlyUrl = 'https://calendly.com/kranthi-duckcode/duckcode-demo-session';
+  const calendlyParams = new URLSearchParams();
+  if (fullName) calendlyParams.append('name', fullName);
+  if (email) calendlyParams.append('email', email);
+  const calendlyUrl = calendlyParams.toString()
+    ? `${baseCalendlyUrl}?${calendlyParams.toString()}`
+    : baseCalendlyUrl;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,9 +42,6 @@ const RequestDemoPage: React.FC = () => {
           team_size: teamSize,
           use_case: useCase.trim(),
           wants_trial: wantsTrial,
-          preferred_date: preferredDate || undefined,
-          preferred_time_window: preferredTimeWindow || undefined,
-          availability_notes: availabilityNotes.trim() || undefined,
           from_page: 'request_demo',
         },
       });
@@ -51,9 +53,6 @@ const RequestDemoPage: React.FC = () => {
       setRole('');
       setTeamSize('');
       setUseCase('');
-      setPreferredDate('');
-      setPreferredTimeWindow('');
-      setAvailabilityNotes('');
       setWantsTrial(true);
     } catch (err: unknown) {
       setStatus('error');
@@ -190,62 +189,6 @@ const RequestDemoPage: React.FC = () => {
               </label>
             </div>
 
-            <div className="space-y-3 rounded-2xl border border-[#e1dcd3] bg-[#f9f6f0] px-4 py-4">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-medium text-[#4e493f]">
-                  When are you generally available for a demo?
-                </p>
-                <span className="text-[11px] text-[#7b7469]">Optional, but helps us schedule faster</span>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label className="flex flex-col text-sm font-medium text-[#4e493f]">
-                  Preferred date
-                  <input
-                    type="date"
-                    value={preferredDate}
-                    onChange={(e) => setPreferredDate(e.target.value)}
-                    className="mt-1 rounded-xl border border-[#e1dcd3] bg-white px-3 py-2.5 text-sm text-[#161413] focus:border-[#ff6a3c] focus:outline-none focus:ring-1 focus:ring-[#ff6a3c]"
-                  />
-                </label>
-
-                <label className="flex flex-col text-sm font-medium text-[#4e493f]">
-                  Preferred time of day (US time zones)
-                  <select
-                    value={preferredTimeWindow}
-                    onChange={(e) => setPreferredTimeWindow(e.target.value)}
-                    className="mt-1 rounded-xl border border-[#e1dcd3] bg-white px-3 py-2.5 text-sm text-[#161413] focus:border-[#ff6a3c] focus:outline-none focus:ring-1 focus:ring-[#ff6a3c]"
-                  >
-                    <option value="">Select an option</option>
-                    <option value="Morning (9–12 ET / 8–11 CT / 6–9 PT)">
-                      Morning (9–12 ET / 8–11 CT / 6–9 PT)
-                    </option>
-                    <option value="Afternoon (12–4 ET / 11–3 CT / 9–1 PT)">
-                      Afternoon (12–4 ET / 11–3 CT / 9–1 PT)
-                    </option>
-                    <option value="Late afternoon (4–7 ET / 3–6 CT / 1–4 PT)">
-                      Late afternoon (4–7 ET / 3–6 CT / 1–4 PT)
-                    </option>
-                  </select>
-                  <p className="mt-1 text-[11px] text-[#7b7469]">
-                    We&apos;ll confirm the exact slot by email. If you&apos;re outside the US, you can mention your
-                    timezone below.
-                  </p>
-                </label>
-              </div>
-
-              <label className="flex flex-col text-sm font-medium text-[#4e493f]">
-                Additional availability details (optional)
-                <textarea
-                  value={availabilityNotes}
-                  onChange={(e) => setAvailabilityNotes(e.target.value)}
-                  rows={2}
-                  className="mt-1 rounded-2xl border border-[#e1dcd3] bg-white px-3 py-2.5 text-sm text-[#161413] placeholder:text-[#b3aa9d] focus:border-[#ff6a3c] focus:outline-none focus:ring-1 focus:ring-[#ff6a3c]"
-                  placeholder="Share a couple of options for next week and your timezone (e.g. PST, EST, CET)."
-                />
-              </label>
-            </div>
-
             <label className="flex flex-col text-sm font-medium text-[#4e493f]">
               What would you like to focus on in the demo?
               <textarea
@@ -270,6 +213,24 @@ const RequestDemoPage: React.FC = () => {
               We&apos;ll only use your details to coordinate the demo and trial. No spam.
             </p>
           </form>
+
+          <div className="mt-10 border-t border-[#e1dcd3] pt-6">
+            <h2 className="text-sm font-semibold text-[#4e493f] mb-2">
+              Step 2 – Pick a time for your live demo
+            </h2>
+            <p className="text-xs text-[#7b7469] mb-4">
+              Use the scheduler below to book a slot that works for you. You&apos;ll get a calendar invite with a Zoom
+              link automatically.
+            </p>
+            <div className="rounded-2xl border border-[#e1dcd3] bg-white/70 overflow-hidden">
+              <iframe
+                title="Schedule a Duckcode demo"
+                src={calendlyUrl}
+                className="w-full h-[640px]"
+                frameBorder="0"
+              />
+            </div>
+          </div>
         </div>
       </div>
     </div>

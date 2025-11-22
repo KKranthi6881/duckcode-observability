@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Check, Database, PlayCircle, Sparkles, Zap, GitBranch, LineChart, FileText, Bot, DollarSign, ShieldCheck } from 'lucide-react';
 import { SiSnowflake, SiDbt, SiGithub, SiApacheairflow, SiOkta } from 'react-icons/si';
@@ -7,6 +7,15 @@ import autoCodeVideo from '../assets/AutoCode-Generation.mov';
 import lineageVideo from '../assets/Lineage-Visualization.mp4';
 import costVideo from '../assets/snowflake-cost-analysis.mp4';
 import documentationVideo from '../assets/duckcode-document.mov';
+
+const features = [
+  'AI-Powered IDE',
+  'Offline Lineage',
+  'Auto Docs',
+  'Smart Data Catalog',
+  'Multi-Repo Intelligence',
+  'Snowflake Cost Optimizer'
+];
 
 const featureRows = [
   {
@@ -63,6 +72,10 @@ const featureRows = [
   }
 ];
 export function Hero() {
+  const [currentFeatureIndex, setCurrentFeatureIndex] = useState(0);
+  const [displayedText, setDisplayedText] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+  
   const ideVideoRef = useRef<HTMLVideoElement | null>(null);
   const ideVideoContainerRef = useRef<HTMLDivElement | null>(null);
   const lineageVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -71,6 +84,34 @@ export function Hero() {
   const costVideoContainerRef = useRef<HTMLDivElement | null>(null);
   const documentationVideoRef = useRef<HTMLVideoElement | null>(null);
   const documentationVideoContainerRef = useRef<HTMLDivElement | null>(null);
+
+  // Typing animation effect
+  useEffect(() => {
+    const currentFeature = features[currentFeatureIndex];
+    const typingSpeed = 35; // ms per character (faster typing)
+    const deletingSpeed = 10; // ms per character when deleting (faster)
+    const pauseBeforeDelete = 1200; // pause at end before deleting (shorter)
+    const pauseBeforeNext = 200; // pause before typing next feature (shorter)
+
+    const timeout = setTimeout(() => {
+      if (!isDeleting && displayedText === currentFeature) {
+        // Finished typing, pause then start deleting
+        setIsDeleting(true);
+      } else if (isDeleting && displayedText === '') {
+        // Finished deleting, move to next feature
+        setIsDeleting(false);
+        setCurrentFeatureIndex((prev) => (prev + 1) % features.length);
+      } else if (!isDeleting) {
+        // Typing
+        setDisplayedText(currentFeature.slice(0, displayedText.length + 1));
+      } else {
+        // Deleting
+        setDisplayedText(currentFeature.slice(0, displayedText.length - 1));
+      }
+    }, !isDeleting && displayedText === currentFeature ? pauseBeforeDelete : isDeleting && displayedText === '' ? pauseBeforeNext : !isDeleting ? typingSpeed : deletingSpeed);
+
+    return () => clearTimeout(timeout);
+  }, [displayedText, isDeleting, currentFeatureIndex]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !('IntersectionObserver' in window)) {
@@ -218,10 +259,15 @@ export function Hero() {
         <div className="mx-auto max-w-7xl">
           {/* Hero Content - Centered */}
           <div className="mx-auto max-w-4xl text-center">
-            {/* Badge */}
-            <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-[#d6d2c9] bg-gradient-to-r from-white/90 to-white/70 px-5 py-2.5 text-sm font-medium text-[#6f695f] shadow-sm backdrop-blur-sm">
-              <Sparkles className="h-4 w-4 animate-pulse text-[#ff6a3c]" />
-              AI-Powered IDE + Observability Platform
+            {/* Animated Badge with Typing Effect */}
+            <div className="mb-8 inline-flex min-h-[50px] items-center justify-center gap-2.5 rounded-xl border-2 border-[#ff6a3c]/30 bg-gradient-to-r from-white/95 to-white/90 px-6 py-3 shadow-lg backdrop-blur-sm transition-all duration-300 hover:border-[#ff6a3c]/50 hover:shadow-xl">
+              <Sparkles className="h-5 w-5 flex-shrink-0 animate-pulse text-[#ff6a3c]" />
+              <div className="flex items-center">
+                <span className="text-lg font-bold tracking-tight text-[#0d0c0a] sm:text-xl lg:text-2xl">
+                  {displayedText || '\u00A0'}
+                </span>
+                <span className="ml-1 inline-block h-5 w-0.5 animate-pulse bg-[#ff6a3c] sm:h-6 lg:h-7"></span>
+              </div>
             </div>
             
             {/* Main Headline */}

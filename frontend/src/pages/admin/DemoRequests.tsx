@@ -19,6 +19,11 @@ interface WaitlistRecord {
     preferred_date?: string;
     preferred_time_window?: string;
     availability_notes?: string;
+    scheduled_start?: string;
+    scheduled_end?: string;
+    scheduled_timezone?: string;
+    schedule_status?: string;
+    calendly_event_name?: string;
     [key: string]: unknown;
   } | null;
   created_at?: string;
@@ -256,18 +261,39 @@ export const DemoRequests: React.FC = () => {
                         </td>
                         <td className="px-4 py-3 align-top">
                           <div className="flex flex-col gap-1 text-[11px] text-muted-foreground">
-                            {req.metadata?.preferred_date || req.metadata?.preferred_time_window ? (
-                              <div className="flex items-center gap-1 text-foreground">
-                                <CalendarClock className="h-3 w-3" />
-                                <span>
-                                  {req.metadata?.preferred_date || 'Flexible date'}
-                                  {req.metadata?.preferred_time_window
-                                    ? ` · ${req.metadata.preferred_time_window}`
-                                    : ''}
+                            {req.metadata?.scheduled_start ? (
+                              <>
+                                <div className="flex items-center gap-1 text-foreground">
+                                  <CalendarClock className="h-3 w-3" />
+                                  <span>
+                                    {formatDate(req.metadata.scheduled_start as string)}
+                                    {req.metadata.scheduled_timezone
+                                      ? ` · ${String(req.metadata.scheduled_timezone)}`
+                                      : ''}
+                                  </span>
+                                </div>
+                                <span className="inline-flex w-fit items-center rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-200">
+                                  {req.metadata.schedule_status === 'booked'
+                                    ? 'Calendly booked'
+                                    : (req.metadata.schedule_status || 'Scheduled')}
                                 </span>
-                              </div>
+                              </>
                             ) : (
-                              <span>Not specified</span>
+                              <>
+                                {req.metadata?.preferred_date || req.metadata?.preferred_time_window ? (
+                                  <div className="flex items-center gap-1 text-foreground">
+                                    <CalendarClock className="h-3 w-3" />
+                                    <span>
+                                      {req.metadata?.preferred_date || 'Flexible date'}
+                                      {req.metadata?.preferred_time_window
+                                        ? ` · ${req.metadata.preferred_time_window}`
+                                        : ''}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span>Not specified</span>
+                                )}
+                              </>
                             )}
                             {req.metadata?.availability_notes && (
                               <span className="truncate max-w-[260px]">

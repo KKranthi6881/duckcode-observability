@@ -8,6 +8,9 @@ const router = Router();
 // Public: Join waitlist
 router.post('/join', WaitlistController.join);
 
+// Public: Calendly webhook for demo scheduling
+router.post('/calendly-webhook', WaitlistController.calendlyWebhook);
+
 // Admin: List waitlist by status (default pending)
 router.get('/', requireAuth, requireAdmin, WaitlistController.list);
 

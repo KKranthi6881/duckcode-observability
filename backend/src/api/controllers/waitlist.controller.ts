@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import supabaseAdmin, { supabaseDuckCode } from '../../config/supabaseClient';
+import EmailService from '../../services/EmailService';
 
 function normalizeAgentInterests(input: any): string[] {
   if (!input) return ['all'];
@@ -51,6 +52,126 @@ export const WaitlistController = {
       return res.json({ success: true, waitlist: data });
     } catch (err) {
       console.error('[Waitlist join] Unexpected error:', err);
+      return res.status(500).json({ error: 'Server error' });
+    }
+  },
+
+  // Public endpoint: Calendly webhook for demo scheduling
+  async calendlyWebhook(req: Request, res: Response) {
+    try {
+      const eventType = req.body?.event;
+      const payload = req.body?.payload || {};
+
+      if (eventType !== 'invitee.created') {
+        return res.status(200).json({ success: true, message: 'Event ignored' });
+      }
+
+      const emailRaw = payload.email || payload.email_address;
+      if (!emailRaw || typeof emailRaw !== 'string') {
+        console.warn('[Calendly webhook] Missing email in payload');
+        return res.status(200).json({ success: false, message: 'Missing email' });
+      }
+
+      const email = emailRaw.trim().toLowerCase();
+      const startTime = payload.calendar_event?.start_time || payload.start_time;
+      const endTime = payload.calendar_event?.end_time || payload.end_time;
+      const timezone = payload.timezone || payload.invitee_timezone || null;
+      const eventName = payload.event_type?.name || payload.event_type_name || null;
+      const calendlyCreatedAt = payload.created_at || null;
+
+      if (!startTime || !endTime) {
+        console.warn('[Calendly webhook] Missing start or end time', { email, startTime, endTime });
+      }
+
+      // Find the most recent demo_request waitlist record for this email
+      const { data: matches, error: fetchErr } = await supabaseDuckCode
+        .from('waitlist')
+        .select('*')
+        .eq('email', email)
+        .contains('metadata', { type: 'demo_request' })
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (fetchErr) {
+        console.error('[Calendly webhook] Failed to look up waitlist record:', fetchErr);
+        return res.status(500).json({ error: 'Failed to look up waitlist record' });
+      }
+
+      const record = matches && matches[0];
+      if (!record) {
+        console.warn('[Calendly webhook] No matching waitlist record found for email', email);
+        return res.status(200).json({ success: true, message: 'No matching waitlist record' });
+      }
+
+      const existingMetadata = (record.metadata && typeof record.metadata === 'object')
+        ? record.metadata
+        : {};
+
+      const newMetadata = {
+        ...existingMetadata,
+        scheduled_start: startTime,
+        scheduled_end: endTime,
+        scheduled_timezone: timezone,
+        calendly_event_name: eventName,
+        calendly_created_at: calendlyCreatedAt,
+        schedule_status: 'booked',
+      };
+
+      const { data: updated, error: updateErr } = await supabaseDuckCode
+        .from('waitlist')
+        .update({ metadata: newMetadata })
+        .eq('id', record.id)
+        .select('*')
+        .single();
+
+      if (updateErr) {
+        console.error('[Calendly webhook] Failed to update waitlist record:', updateErr);
+        return res.status(500).json({ error: 'Failed to update waitlist record' });
+      }
+
+      // Build notification email for internal team
+      const contactName: string = updated.full_name || payload.name || email;
+      const company: string = (updated.metadata && (updated.metadata as any).company) || 'Unknown company';
+      const role: string = (updated.metadata && (updated.metadata as any).role) || 'Not specified';
+      const teamSize: string = (updated.metadata && (updated.metadata as any).team_size) || 'Not specified';
+      const useCase: string = (updated.metadata && (updated.metadata as any).use_case) || 'Not specified';
+      const wantsTrialFlag: boolean = !!(updated.metadata && (updated.metadata as any).wants_trial);
+
+      const scheduledTimeText = startTime
+        ? `${startTime}${timezone ? ` (${timezone})` : ''}`
+        : 'Not captured (check Calendly event)';
+
+      const subject = `New Duckcode demo booked – ${company} (${contactName})`;
+      const html = `
+        <h2>New demo booked via Calendly</h2>
+        <p>A new demo has been scheduled from the marketing site.</p>
+        <h3>Contact</h3>
+        <ul>
+          <li><strong>Name:</strong> ${contactName}</li>
+          <li><strong>Email:</strong> ${email}</li>
+          <li><strong>Company:</strong> ${company}</li>
+          <li><strong>Role:</strong> ${role}</li>
+          <li><strong>Team size:</strong> ${teamSize}</li>
+        </ul>
+        <h3>Demo details</h3>
+        <ul>
+          <li><strong>Scheduled time:</strong> ${scheduledTimeText}</li>
+          <li><strong>Event type:</strong> ${eventName || 'Duckcode demo session'}</li>
+          <li><strong>Use case focus:</strong> ${useCase}</li>
+          <li><strong>Wants 30-day trial:</strong> ${wantsTrialFlag ? 'Yes' : 'No'}</li>
+        </ul>
+        <p>You can also find this contact in the <strong>Admin → Demo Requests</strong> view (waitlist table, type=demo_request).</p>
+      `;
+
+      await EmailService.sendEmail({
+        to: 'kranthi@duckcode.ai',
+        subject,
+        html,
+      });
+
+      return res.status(200).json({ success: true });
+    } catch (err) {
+      console.error('[Calendly webhook] Unexpected error:', err);
       return res.status(500).json({ error: 'Server error' });
     }
   },

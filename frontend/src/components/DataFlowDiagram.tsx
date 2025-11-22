@@ -2,7 +2,6 @@ import { motion } from 'framer-motion';
 import Xarrow, { Xwrapper } from 'react-xarrows';
 import { Database, FileText, GitBranch, BarChart3, Users, TrendingDown, Code2 } from 'lucide-react';
 import { SiSnowflake, SiDbt, SiApacheairflow } from 'react-icons/si';
-import { GrCatalog } from 'react-icons/gr';
 
 interface FlowNode {
   id: string;
