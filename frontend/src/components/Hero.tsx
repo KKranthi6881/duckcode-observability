@@ -6,6 +6,7 @@ import { DataFlowDiagram } from './DataFlowDiagram';
 import autoCodeVideo from '../assets/AutoCode-Generation.mov';
 import lineageVideo from '../assets/Lineage-Visualization.mp4';
 import costVideo from '../assets/snowflake-cost-analysis.mp4';
+import documentationVideo from '../assets/duckcode-document.mov';
 
 const featureRows = [
   {
@@ -68,6 +69,8 @@ export function Hero() {
   const lineageVideoContainerRef = useRef<HTMLDivElement | null>(null);
   const costVideoRef = useRef<HTMLVideoElement | null>(null);
   const costVideoContainerRef = useRef<HTMLDivElement | null>(null);
+  const documentationVideoRef = useRef<HTMLVideoElement | null>(null);
+  const documentationVideoContainerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !('IntersectionObserver' in window)) {
@@ -146,6 +149,41 @@ export function Hero() {
 
     const videoEl = lineageVideoRef.current;
     const containerEl = lineageVideoContainerRef.current;
+    if (!videoEl || !containerEl) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (!entry) return;
+        if (entry.isIntersecting) {
+          videoEl
+            .play()
+            .catch(() => {
+              // Autoplay might be blocked; ignore errors.
+            });
+        } else {
+          videoEl.pause();
+        }
+      },
+      {
+        threshold: 0.4,
+      }
+    );
+
+    observer.observe(containerEl);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('IntersectionObserver' in window)) {
+      return;
+    }
+
+    const videoEl = documentationVideoRef.current;
+    const containerEl = documentationVideoContainerRef.current;
     if (!videoEl || !containerEl) return;
 
     const observer = new IntersectionObserver(
@@ -417,6 +455,20 @@ export function Hero() {
                     <video
                       ref={lineageVideoRef}
                       src={lineageVideo}
+                      className="block h-full w-full object-contain bg-black"
+                      muted
+                      loop
+                      playsInline
+                    />
+                  </div>
+                ) : id === 'documentation' ? (
+                  <div
+                    className="relative h-[480px] sm:h-[540px] lg:h-[620px] overflow-hidden rounded-[32px] shadow-[0_40px_80px_rgba(7,7,7,0.4)]"
+                    ref={documentationVideoContainerRef}
+                  >
+                    <video
+                      ref={documentationVideoRef}
+                      src={documentationVideo}
                       className="block h-full w-full object-contain bg-black"
                       muted
                       loop

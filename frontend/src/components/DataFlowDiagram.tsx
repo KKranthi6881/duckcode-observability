@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import Xarrow, { Xwrapper } from 'react-xarrows';
 import { Database, FileText, GitBranch, BarChart3, Users, TrendingDown, Code2 } from 'lucide-react';
 import { SiSnowflake, SiDbt, SiApacheairflow } from 'react-icons/si';
+import { GrCatalog } from 'react-icons/gr';
 
 interface FlowNode {
   id: string;
@@ -63,7 +64,7 @@ export function DataFlowDiagram() {
     { 
       id: 'analytics', 
       icon: BarChart3, 
-      label: 'Observability', 
+      label: 'Catalog', 
       color: 'from-amber-400 to-amber-500',
       iconColor: 'text-amber-500'
     },
@@ -144,8 +145,8 @@ export function DataFlowDiagram() {
             color="#fb923c" // softer orange
             strokeWidth={2}
             headSize={0}
-            dashness={{ strokeLen: 6, nonStrokeLen: 10, animation: -1.2 }}
-            animateDrawing={0.8}
+            dashness={{ strokeLen: 10, nonStrokeLen: 10 }}
+            animateDrawing={false}
             zIndex={5}
           />
         ))}
@@ -161,8 +162,8 @@ export function DataFlowDiagram() {
             color="#10b981"
             strokeWidth={3}
             headSize={0}
-            dashness={{ strokeLen: 6, nonStrokeLen: 10, animation: -1.5 }}
-            animateDrawing={0.8}
+            dashness={{ strokeLen: 10, nonStrokeLen: 10 }}
+            animateDrawing={false}
             zIndex={5}
           />
         ))}
