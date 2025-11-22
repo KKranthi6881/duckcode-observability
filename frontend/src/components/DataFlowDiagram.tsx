@@ -85,12 +85,12 @@ export function DataFlowDiagram() {
 
   return (
     <Xwrapper>
-      <div className="relative h-[600px] px-12 py-16">
+      <div className="relative min-h-[600px] px-4 py-8 sm:px-12 sm:py-16 lg:h-[600px]">
       {/* Subtle background gradient */}
       <div className="absolute inset-0 bg-gradient-to-br from-blue-50/30 via-white to-emerald-50/30"></div>
       
       {/* Left Column - Inputs */}
-      <div className="absolute left-12 top-16 z-10 flex w-56 flex-col gap-5">
+      <div className="relative z-10 mx-auto mb-8 flex w-full max-w-xs flex-col gap-5 sm:mb-0 lg:absolute lg:left-12 lg:top-16 lg:w-56">
         <div className="mb-3 text-center">
           <motion.div
             initial={{ scale: 0.8, opacity: 0 }}
@@ -130,8 +130,8 @@ export function DataFlowDiagram() {
         ))}
       </div>
 
-      {/* React-Xarrows Connections */}
-      <div className="pointer-events-none">
+      {/* React-Xarrows Connections - Hidden on mobile */}
+      <div className="pointer-events-none hidden lg:block">
         {inputNodes.map((node) => (
           <Xarrow
             key={`in-${node.id}`}
@@ -169,7 +169,7 @@ export function DataFlowDiagram() {
       </div>
 
       {/* Center - DuckCode AI */}
-      <div className="absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2">
+      <div className="relative z-20 mx-auto mb-8 sm:mb-0 lg:absolute lg:left-1/2 lg:top-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2">
         {/* Center AI Node - Enhanced */}
         <motion.div
           initial={{ scale: 0, rotate: -180 }}
@@ -216,7 +216,7 @@ export function DataFlowDiagram() {
             <div className="pointer-events-none absolute inset-0 rounded-[2rem] bg-gradient-to-br from-[#0f172a] via-transparent to-[#020617]"></div>
             
             {/* IDE-style editor window */}
-            <div className="relative w-[280px] rounded-2xl border border-white/10 bg-[#020617] shadow-xl overflow-hidden">
+            <div className="relative w-[240px] rounded-2xl border border-white/10 bg-[#020617] shadow-xl overflow-hidden sm:w-[280px]">
               {/* Editor header */}
               <div className="flex items-center justify-between border-b border-white/5 bg-gradient-to-r from-slate-900 to-slate-800 px-4 py-2">
                 <div className="flex items-center gap-1.5">
@@ -298,7 +298,7 @@ export function DataFlowDiagram() {
       </div>
 
       {/* Right Column - Outputs */}
-      <div className="absolute right-12 top-16 z-10 flex w-56 flex-col gap-4">
+      <div className="relative z-10 mx-auto flex w-full max-w-xs flex-col gap-4 lg:absolute lg:right-12 lg:top-16 lg:w-56">
         <div className="mb-2 text-center">
           <motion.div
             initial={{ scale: 0.8, opacity: 0 }}
