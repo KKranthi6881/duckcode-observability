@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, Check, Database, PlayCircle, Sparkles, Zap, GitBranch, LineChart, FileText, Bot, DollarSign, ShieldCheck } from 'lucide-react';
 import { SiSnowflake, SiDbt, SiGithub, SiApacheairflow, SiOkta } from 'react-icons/si';
 import { DataFlowDiagram } from './DataFlowDiagram';
-import architectureVideo from '../assets/Duckcode-architecture.mov';
+import architectureVideo from '../assets/duckcode-architecture.mov';
 import autoCodeVideo from '../assets/AutoCode-Generation.mov';
 import lineageVideo from '../assets/Lineage-Visualization.mp4';
 import costVideo from '../assets/snowflake-cost-analysis.mp4';
