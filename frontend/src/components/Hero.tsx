@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, Check, Database, PlayCircle, Sparkles, Zap, GitBranch, LineChart, FileText, Bot, DollarSign, ShieldCheck } from 'lucide-react';
 import { SiSnowflake, SiDbt, SiGithub, SiApacheairflow, SiOkta } from 'react-icons/si';
 import { DataFlowDiagram } from './DataFlowDiagram';
+import architectureVideo from '../assets/Duckcode-architecture.mov';
 import autoCodeVideo from '../assets/AutoCode-Generation.mov';
 import lineageVideo from '../assets/Lineage-Visualization.mp4';
 import costVideo from '../assets/snowflake-cost-analysis.mp4';
@@ -18,6 +19,20 @@ const features = [
 ];
 
 const featureRows = [
+  {
+    id: 'architecture',
+    tag: 'Architecture & Logic',
+    title: 'Instant architecture diagrams with business logic explained',
+    description:
+      'Out-of-the-box architecture diagrams that explain business logic, dependencies, and data flows — even for large, complex, multi-repo setups.',
+    bullets: [
+      'Auto-generate architecture diagrams from your existing dbt and SQL code',
+      'Understand complex business logic at the root level of your repo',
+      'See dependencies and data contracts across domains and teams',
+      'Share a clear, high-level view of how data powers the business'
+    ],
+    placeholder: 'Architecture diagrams and explanations demo (GIF)'
+  },
   {
     id: 'ide',
     tag: 'AI-Powered IDE',
@@ -76,6 +91,8 @@ export function Hero() {
   const [displayedText, setDisplayedText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   
+  const architectureVideoRef = useRef<HTMLVideoElement | null>(null);
+  const architectureVideoContainerRef = useRef<HTMLDivElement | null>(null);
   const ideVideoRef = useRef<HTMLVideoElement | null>(null);
   const ideVideoContainerRef = useRef<HTMLDivElement | null>(null);
   const lineageVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -112,6 +129,41 @@ export function Hero() {
 
     return () => clearTimeout(timeout);
   }, [displayedText, isDeleting, currentFeatureIndex]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('IntersectionObserver' in window)) {
+      return;
+    }
+
+    const videoEl = architectureVideoRef.current;
+    const containerEl = architectureVideoContainerRef.current;
+    if (!videoEl || !containerEl) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (!entry) return;
+        if (entry.isIntersecting) {
+          videoEl
+            .play()
+            .catch(() => {
+              // Autoplay might be blocked; ignore errors.
+            });
+        } else {
+          videoEl.pause();
+        }
+      },
+      {
+        threshold: 0.4,
+      }
+    );
+
+    observer.observe(containerEl);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !('IntersectionObserver' in window)) {
@@ -432,24 +484,14 @@ export function Hero() {
       {/* Features Section */}
       <section className="px-4 pb-32 pt-16 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl space-y-32">
-          {featureRows.map(({ id, tag, title, description, bullets, placeholder }, index) => (
+          {featureRows.map(({ id, tag, title, description, bullets, placeholder }) => (
             <div
               key={id}
               id={id}
-              className={`grid gap-12 lg:grid-cols-2 lg:gap-16 ${
-                id === 'ide'
-                  ? 'lg:grid-cols-[0.9fr_1.2fr]'
-                  : id === 'lineage'
-                  ? 'lg:grid-cols-[1.2fr_0.9fr]'
-                  : id === 'cost'
-                  ? 'lg:grid-cols-[1.2fr_0.9fr]'
-                  : index % 2 === 1
-                  ? 'lg:grid-cols-[1fr_1.1fr]'
-                  : 'lg:grid-cols-[1.1fr_1fr]'
-              }`}
+              className="grid gap-12 lg:grid-cols-[0.85fr_1.15fr] lg:gap-16"
             >
               {/* Content Side */}
-              <div className={`flex flex-col justify-center space-y-8 ${index % 2 === 1 ? 'lg:order-2' : ''}`}>
+              <div className="flex flex-col justify-center space-y-8">
                 <div className="space-y-4">
                   <span className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#ff6a3c]/10 to-[#d94a1e]/10 px-4 py-2 text-sm font-bold uppercase tracking-wider text-[#ff6a3c]">
                     {tag}
@@ -475,10 +517,23 @@ export function Hero() {
 
          
               </div>
-
               {/* Visual Side */}
-              <div className={`${index % 2 === 1 ? 'lg:order-1' : ''}`}>
-                {id === 'ide' ? (
+              <div>
+                {id === 'architecture' ? (
+                  <div
+                    className="relative h-[480px] sm:h-[540px] lg:h-[620px] overflow-hidden rounded-[32px] bg-black shadow-[0_40px_80px_rgba(7,7,7,0.4)]"
+                    ref={architectureVideoContainerRef}
+                  >
+                    <video
+                      ref={architectureVideoRef}
+                      src={architectureVideo}
+                      className="block h-full w-full object-contain bg-black"
+                      muted
+                      loop
+                      playsInline
+                    />
+                  </div>
+                ) : id === 'ide' ? (
                   // Simplified, larger video layout for the IDE feature (no zoom)
                   <div
                     className="relative h-[480px] sm:h-[540px] lg:h-[620px] overflow-hidden rounded-[32px] shadow-[0_40px_80px_rgba(7,7,7,0.4)]"
