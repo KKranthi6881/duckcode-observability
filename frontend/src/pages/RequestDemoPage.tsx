@@ -13,6 +13,7 @@ const RequestDemoPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
+  const [showCalendly, setShowCalendly] = useState(false);
 
   const baseCalendlyUrl = 'https://calendly.com/kranthi-duckcode/duckcode-demo-session';
   const calendlyParams = new URLSearchParams();
@@ -47,13 +48,8 @@ const RequestDemoPage: React.FC = () => {
       });
 
       setStatus('success');
-      setFullName('');
-      setEmail('');
-      setCompany('');
-      setRole('');
-      setTeamSize('');
-      setUseCase('');
-      setWantsTrial(true);
+      setShowCalendly(true);
+      // Keep the form data to pre-fill Calendly - don't clear it
     } catch (err: unknown) {
       setStatus('error');
       const message = err instanceof Error ? err.message : 'Failed to submit demo request. Please try again.';
@@ -79,19 +75,13 @@ const RequestDemoPage: React.FC = () => {
             See Duckcode.ai in action for your team
           </h1>
           <p className="mt-3 text-sm sm:text-base text-[#59544c]">
-            Share a few details and we&apos;ll reach out to schedule a live walkthrough, tailored to your
-            data stack and workflows. You can optionally start a 30-day trial right after the session.
+            {!showCalendly 
+              ? "Share a few details below, then pick a time for your personalized demo. You can optionally start a 30-day trial right after the session."
+              : "Your details have been saved. Now choose a convenient time for your live demo."}
           </p>
 
-          <form onSubmit={handleSubmit} className="mt-8 space-y-5">
-            {status === 'success' && (
-              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-                <div className="font-semibold">Thanks for your interest!</div>
-                <p className="mt-1">
-                  Your demo request has been received. We&apos;ll email you shortly with scheduling options.
-                </p>
-              </div>
-            )}
+          {!showCalendly ? (
+            <form onSubmit={handleSubmit} className="mt-8 space-y-5">
 
             {status === 'error' && error && (
               <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
@@ -213,24 +203,39 @@ const RequestDemoPage: React.FC = () => {
               We&apos;ll only use your details to coordinate the demo and trial. No spam.
             </p>
           </form>
+          ) : (
+            <div className="mt-8">
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-800 mb-6">
+                <div className="font-semibold">✓ Thanks, {fullName}!</div>
+                <p className="mt-1">
+                  Your information has been saved. Now pick a time that works best for your demo session.
+                </p>
+                <button
+                  onClick={() => setShowCalendly(false)}
+                  className="mt-3 text-xs text-emerald-700 hover:text-emerald-900 underline"
+                >
+                  ← Edit my information
+                </button>
+              </div>
 
-          <div className="mt-10 border-t border-[#e1dcd3] pt-6">
-            <h2 className="text-sm font-semibold text-[#4e493f] mb-2">
-              Step 2 – Pick a time for your live demo
-            </h2>
-            <p className="text-xs text-[#7b7469] mb-4">
-              Use the scheduler below to book a slot that works for you. You&apos;ll get a calendar invite with a Zoom
-              link automatically.
-            </p>
-            <div className="rounded-2xl border border-[#e1dcd3] bg-white/70 overflow-hidden">
-              <iframe
-                title="Schedule a Duckcode demo"
-                src={calendlyUrl}
-                className="w-full h-[640px]"
-                frameBorder="0"
-              />
+              <div className="border-t border-[#e1dcd3] pt-6">
+                <h2 className="text-lg font-semibold text-[#0d0c0a] mb-2">
+                  Schedule your live demo
+                </h2>
+                <p className="text-sm text-[#59544c] mb-4">
+                  Pick a time slot below. You&apos;ll receive a calendar invite with the Zoom link automatically.
+                </p>
+                <div className="rounded-2xl border border-[#e1dcd3] bg-white/70 overflow-hidden">
+                  <iframe
+                    title="Schedule a Duckcode demo"
+                    src={calendlyUrl}
+                    className="w-full h-[640px]"
+                    frameBorder="0"
+                  />
+                </div>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

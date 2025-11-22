@@ -1,5 +1,4 @@
-import React from 'react';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { PlayCircle, Sparkles } from 'lucide-react';
 export function CTA() {
   return <div className="relative bg-slate-900 overflow-hidden">
       <div className="absolute inset-0">
@@ -27,18 +26,14 @@ export function CTA() {
             solutions faster than ever before with Duckcode.ai
           </p>
           <div className="mt-10 flex flex-col sm:flex-row justify-center gap-4 animate-fade-in animation-delay-400">
-            <a href="/register" className="group inline-flex items-center justify-center px-8 py-4 border border-transparent text-base font-medium rounded-full shadow-lg text-slate-900 bg-gradient-to-r from-[#F5B72F] to-[#F5B72F]/80 hover:shadow-xl hover:scale-105 transition-all duration-200">
-              Start free trial
-              <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-            </a>
-            <a href="/request-demo" className="inline-flex items-center justify-center px-8 py-4 border border-[#2AB7A9] text-base font-medium rounded-full text-[#2AB7A9] bg-transparent hover:bg-[#2AB7A9]/10 shadow-sm transition-all duration-200">
-              Schedule demo
+            <a href="/request-demo" className="group inline-flex items-center justify-center px-8 py-4 border border-transparent text-base font-medium rounded-full shadow-lg text-white bg-gradient-to-r from-[#ff6a3c] to-[#d94a1e] hover:shadow-xl hover:scale-105 transition-all duration-200">
+              Request demo
+              <PlayCircle className="ml-2 h-5 w-5 group-hover:scale-110 transition-transform" />
             </a>
           </div>
           <div className="mt-12 animate-fade-in animation-delay-600">
             <p className="text-sm text-slate-400">
-              No credit card required. 14-day free trial with full access to all
-              features.
+              See how Duckcode.ai can transform your data development workflow.
             </p>
           </div>
         </div>

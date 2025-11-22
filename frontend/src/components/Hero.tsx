@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Check, Database, PlayCircle, Sparkles, Zap, GitBranch, LineChart, FileText, Bot, DollarSign, ShieldCheck } from 'lucide-react';
+import { Check, Database, PlayCircle, Sparkles, Zap, GitBranch, LineChart, FileText, Bot, DollarSign, ShieldCheck } from 'lucide-react';
 import { SiSnowflake, SiDbt, SiGithub, SiApacheairflow, SiOkta } from 'react-icons/si';
 import { DataFlowDiagram } from './DataFlowDiagram';
 import architectureVideo from '../assets/duckcode-architecture.mov';
@@ -394,15 +394,8 @@ export function Hero() {
             {/* CTAs */}
             <div className="mt-10 flex flex-col justify-center gap-4 sm:flex-row sm:items-center">
               <Link
-                to="/register"
-                className="group inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#ff6a3c] to-[#d94a1e] px-8 py-4 text-lg font-semibold text-white shadow-[0_20px_50px_rgba(255,106,60,0.4)] transition-all duration-300 hover:scale-105 hover:shadow-[0_25px_60px_rgba(255,106,60,0.5)]"
-              >
-                Start free trial
-                <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
-              </Link>
-              <Link
                 to="/request-demo"
-                className="group inline-flex items-center justify-center gap-2 rounded-full border-2 border-[#bfb8ac] bg-white px-8 py-4 text-lg font-semibold text-[#161413] transition-all duration-300 hover:border-[#ff6a3c] hover:bg-[#fff4ee]"
+                className="group inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#ff6a3c] to-[#d94a1e] px-8 py-4 text-lg font-semibold text-white shadow-[0_20px_50px_rgba(255,106,60,0.4)] transition-all duration-300 hover:scale-105 hover:shadow-[0_25px_60px_rgba(255,106,60,0.5)]"
               >
                 Request demo
                 <PlayCircle className="h-5 w-5 transition-transform group-hover:scale-110" />
