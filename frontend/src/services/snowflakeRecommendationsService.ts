@@ -89,6 +89,23 @@ class SnowflakeRecommendationsService {
     return session.access_token;
   }
 
+  private cache = new Map<string, { data: unknown; ts: number }>();
+  private cacheTTLms = 60000;
+
+  private getFromCache<T>(key: string): T | null {
+    const entry = this.cache.get(key);
+    if (!entry) return null;
+    if (Date.now() - entry.ts > this.cacheTTLms) {
+      this.cache.delete(key);
+      return null;
+    }
+    return entry.data as T;
+  }
+
+  private setCache<T>(key: string, data: T) {
+    this.cache.set(key, { data, ts: Date.now() });
+  }
+
   /**
    * List all recommendations for a connector
    */
@@ -96,6 +113,10 @@ class SnowflakeRecommendationsService {
     connectorId: string, 
     filters?: { status?: string; priority?: string; type?: string }
   ): Promise<Recommendation[]> {
+    const cacheKey = `list:${connectorId}:${filters ? JSON.stringify(filters) : ''}`;
+    const cached = this.getFromCache<Recommendation[]>(cacheKey);
+    if (cached) return cached;
+
     const t = await this.token();
     const url = new URL(`${this.baseUrl}/api/connectors/${connectorId}/recommendations`);
     
@@ -109,13 +130,19 @@ class SnowflakeRecommendationsService {
     
     if (!res.ok) throw new Error('Failed to fetch recommendations');
     const json = await res.json();
-    return json.data || [];
+    const data = json.data || [];
+    this.setCache(cacheKey, data);
+    return data;
   }
 
   /**
    * Get recommendations summary
    */
   async getSummary(connectorId: string): Promise<RecommendationsSummary> {
+    const cacheKey = `summary:${connectorId}`;
+    const cached = this.getFromCache<RecommendationsSummary>(cacheKey);
+    if (cached) return cached;
+
     const t = await this.token();
     const res = await fetch(`${this.baseUrl}/api/connectors/${connectorId}/recommendations/summary`, {
       headers: { 'Authorization': `Bearer ${t}` }
@@ -123,6 +150,7 @@ class SnowflakeRecommendationsService {
     
     if (!res.ok) throw new Error('Failed to fetch recommendations summary');
     const json = await res.json();
+    this.setCache(cacheKey, json.data);
     return json.data;
   }
 
@@ -146,6 +174,7 @@ class SnowflakeRecommendationsService {
       const error = await res.json();
       throw new Error(error.error || 'Failed to apply recommendation');
     }
+    this.cache.clear();
   }
 
   /**
@@ -170,6 +199,7 @@ class SnowflakeRecommendationsService {
     );
     
     if (!res.ok) throw new Error('Failed to dismiss recommendation');
+    this.cache.clear();
   }
 
   /**
@@ -189,12 +219,17 @@ class SnowflakeRecommendationsService {
     );
     
     if (!res.ok) throw new Error('Failed to generate recommendations');
+    this.cache.clear();
   }
 
   /**
    * Get ROI summary and breakdown
    */
   async getROI(connectorId: string): Promise<{ summary: ROISummary; breakdown: ROIBreakdownItem[] }> {
+    const cacheKey = `roi:${connectorId}`;
+    const cached = this.getFromCache<{ summary: ROISummary; breakdown: ROIBreakdownItem[] }>(cacheKey);
+    if (cached) return cached;
+
     const t = await this.token();
     const res = await fetch(`${this.baseUrl}/api/connectors/${connectorId}/roi`, {
       headers: { 'Authorization': `Bearer ${t}` }
@@ -202,6 +237,7 @@ class SnowflakeRecommendationsService {
     
     if (!res.ok) throw new Error('Failed to fetch ROI data');
     const json = await res.json();
+    this.setCache(cacheKey, json.data);
     return json.data;
   }
 }

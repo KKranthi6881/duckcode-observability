@@ -4,12 +4,13 @@ import snowflakeCostPhase1Service, { WasteDetectionData } from '../../services/s
 
 interface Props {
   connectorId: string;
+  initialData?: WasteDetectionData;
 }
 
-export default function WasteDetectionView({ connectorId }: Props) {
-  const [loading, setLoading] = useState(true);
+export default function WasteDetectionView({ connectorId, initialData }: Props) {
+  const [loading, setLoading] = useState(!initialData);
   const [error, setError] = useState<string | null>(null);
-  const [wasteData, setWasteData] = useState<WasteDetectionData | null>(null);
+  const [wasteData, setWasteData] = useState<WasteDetectionData | null>(initialData || null);
   const [selectedCategory, setSelectedCategory] = useState<'all' | 'unused_tables' | 'idle_warehouses' | 'underutilized'>('all');
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
 
@@ -29,8 +30,10 @@ export default function WasteDetectionView({ connectorId }: Props) {
   }, [connectorId]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (!initialData) {
+      loadData();
+    }
+  }, [loadData, initialData]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', { 
@@ -67,7 +70,7 @@ export default function WasteDetectionView({ connectorId }: Props) {
     }, 1000);
   };
 
-  if (loading) {
+  if (loading && !wasteData) {
     return (
       <div className="flex items-center justify-center h-96">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -120,9 +123,9 @@ export default function WasteDetectionView({ connectorId }: Props) {
         </div>
 
         {/* Monthly Savings */}
-        <div className="bg-gradient-to-br from-green-500/10 to-emerald-600/10 border border-green-500/30 rounded-lg p-4">
+        <div className="bg-card border border-border rounded-lg p-4">
           <div className="text-xs text-muted-foreground uppercase mb-1">Monthly Savings</div>
-          <div className="text-2xl font-bold text-green-400">{formatCurrency(totalSavings)}</div>
+          <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatCurrency(totalSavings)}</div>
           <div className="text-xs text-muted-foreground mt-1">Potential</div>
         </div>
 
@@ -130,7 +133,7 @@ export default function WasteDetectionView({ connectorId }: Props) {
         <div className="bg-card border border-border rounded-lg p-4">
           <div className="text-xs text-muted-foreground uppercase mb-1">Annual Impact</div>
           <div className="text-2xl font-bold text-foreground">{formatCurrency(totalSavings * 12)}</div>
-          <div className="text-xs text-green-400 mt-1">Per year</div>
+          <div className="text-xs text-green-600 dark:text-green-400 mt-1">Per year</div>
         </div>
 
         {/* Opportunities */}
@@ -154,11 +157,11 @@ export default function WasteDetectionView({ connectorId }: Props) {
         >
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <div className="p-2 bg-red-500/10 rounded-lg">
+              <div className="p-2 bg-muted rounded-lg">
                 <Database className="w-5 h-5 text-red-400" />
               </div>
               <div>
-                <div className="text-xs font-semibold text-red-400 uppercase">Critical</div>
+                <div className="text-xs font-semibold text-red-600 dark:text-red-400 uppercase">Critical</div>
                 <div className="text-xs text-muted-foreground">{unusedTables.length} Tables</div>
               </div>
             </div>
@@ -176,11 +179,11 @@ export default function WasteDetectionView({ connectorId }: Props) {
         >
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <div className="p-2 bg-orange-500/10 rounded-lg">
+              <div className="p-2 bg-muted rounded-lg">
                 <Server className="w-5 h-5 text-orange-400" />
               </div>
               <div>
-                <div className="text-xs font-semibold text-orange-400 uppercase">Warning</div>
+                <div className="text-xs font-semibold text-orange-600 dark:text-orange-400 uppercase">Warning</div>
                 <div className="text-xs text-muted-foreground">{idleWarehouses.length} Warehouses</div>
               </div>
             </div>
@@ -198,11 +201,11 @@ export default function WasteDetectionView({ connectorId }: Props) {
         >
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <div className="p-2 bg-yellow-500/10 rounded-lg">
+              <div className="p-2 bg-muted rounded-lg">
                 <Activity className="w-5 h-5 text-yellow-400" />
               </div>
               <div>
-                <div className="text-xs font-semibold text-yellow-400 uppercase">Optimize</div>
+                <div className="text-xs font-semibold text-yellow-600 dark:text-yellow-400 uppercase">Optimize</div>
                 <div className="text-xs text-muted-foreground">{underutilizedWarehouses.length} Warehouses</div>
               </div>
             </div>
@@ -215,7 +218,7 @@ export default function WasteDetectionView({ connectorId }: Props) {
       {/* Unused Tables Details */}
       {(selectedCategory === 'all' || selectedCategory === 'unused_tables') && unusedTables.length > 0 && (
         <div className="bg-card border border-border rounded-lg overflow-hidden">
-          <div className="px-4 py-3 border-b border-border bg-red-500/5">
+          <div className="px-4 py-3 border-b border-border bg-muted">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                 <Database className="w-4 h-4 text-red-400" />
@@ -243,14 +246,14 @@ export default function WasteDetectionView({ connectorId }: Props) {
                       <div className="text-xs font-medium text-foreground">{table.DATABASE_NAME}.{table.SCHEMA_NAME}.{table.TABLE_NAME}</div>
                     </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground text-right">{formatBytes(table.STORAGE_BYTES)}</td>
-                    <td className="px-4 py-3 text-xs font-semibold text-red-400 text-right">
+                    <td className="px-4 py-3 text-xs font-semibold text-red-600 dark:text-red-400 text-right">
                       {formatCurrency((table.STORAGE_BYTES / (1024 * 1024 * 1024)) * 40)}
                     </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">
                       {table.LAST_ACCESS ? new Date(table.LAST_ACCESS).toLocaleDateString() : 'Never'}
                     </td>
                     <td className="px-4 py-3">
-                      <span className="text-xs font-medium text-red-400">{table.DAYS_SINCE_ACCESS} days</span>
+                      <span className="text-xs font-medium text-red-600 dark:text-red-400">{table.DAYS_SINCE_ACCESS} days</span>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-2">
@@ -279,7 +282,7 @@ export default function WasteDetectionView({ connectorId }: Props) {
       {/* Idle Warehouses Details */}
       {(selectedCategory === 'all' || selectedCategory === 'idle_warehouses') && idleWarehouses.length > 0 && (
         <div className="bg-card border border-border rounded-lg overflow-hidden">
-          <div className="px-4 py-3 border-b border-border bg-orange-500/5">
+          <div className="px-4 py-3 border-b border-border bg-muted">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                 <Server className="w-4 h-4 text-orange-400" />
@@ -307,14 +310,14 @@ export default function WasteDetectionView({ connectorId }: Props) {
                       <div className="text-sm font-medium text-foreground">{warehouse.WAREHOUSE_NAME}</div>
                     </td>
                     <td className="px-6 py-4 text-sm text-muted-foreground text-right">{warehouse.QUERY_COUNT}</td>
-                    <td className="px-6 py-4 text-sm font-bold text-orange-400 text-right">
+                    <td className="px-6 py-4 text-sm font-bold text-orange-600 dark:text-orange-400 text-right">
                       {formatCurrency(warehouse.MONTHLY_CREDITS * 4)} {/* ~$4/credit */}
                     </td>
                     <td className="px-6 py-4 text-sm text-muted-foreground">
                       {warehouse.LAST_QUERY_TIME ? new Date(warehouse.LAST_QUERY_TIME).toLocaleDateString() : 'Never'}
                     </td>
                     <td className="px-6 py-4">
-                      <span className="text-sm font-medium text-orange-400">{warehouse.DAYS_IDLE} days</span>
+                      <span className="text-sm font-medium text-orange-600 dark:text-orange-400">{warehouse.DAYS_IDLE} days</span>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-center gap-2">
@@ -343,7 +346,7 @@ export default function WasteDetectionView({ connectorId }: Props) {
       {/* Underutilized Warehouses Details */}
       {(selectedCategory === 'all' || selectedCategory === 'underutilized') && underutilizedWarehouses.length > 0 && (
         <div className="bg-card border border-border rounded-lg overflow-hidden">
-          <div className="px-4 py-3 border-b border-border bg-yellow-500/5">
+          <div className="px-4 py-3 border-b border-border bg-muted">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                 <Activity className="w-4 h-4 text-yellow-400" />
@@ -372,15 +375,15 @@ export default function WasteDetectionView({ connectorId }: Props) {
                     </td>
                     <td className="px-6 py-4 text-sm text-muted-foreground">{warehouse.WAREHOUSE_SIZE}</td>
                     <td className="px-6 py-4 text-right">
-                      <span className="text-sm font-medium text-yellow-400">{warehouse.AVG_UTILIZATION}%</span>
+                      <span className="text-sm font-medium text-yellow-600 dark:text-yellow-400">{warehouse.AVG_UTILIZATION}%</span>
                     </td>
                     <td className="px-6 py-4 text-sm text-muted-foreground text-right">{warehouse.AVG_QUEUE_LOAD.toFixed(2)}</td>
-                    <td className="px-6 py-4 text-sm font-bold text-yellow-400 text-right">
+                    <td className="px-6 py-4 text-sm font-bold text-yellow-600 dark:text-yellow-400 text-right">
                       {formatCurrency(warehouse.TOTAL_CREDITS * 4)} {/* ~$4/credit */}
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-center">
-                        <span className="text-xs text-yellow-300 font-medium">Downsize recommended</span>
+                        <span className="text-xs text-yellow-700 dark:text-yellow-300 font-medium">Downsize recommended</span>
                       </div>
                     </td>
                   </tr>
@@ -393,20 +396,20 @@ export default function WasteDetectionView({ connectorId }: Props) {
 
       {/* Quick Wins Summary - Compact */}
       {totalSavings > 0 && (
-        <div className="bg-gradient-to-br from-purple-500/10 to-purple-600/10 border border-purple-500/30 rounded-lg p-4">
+        <div className="bg-card border border-border rounded-lg p-4">
           <div className="flex items-start gap-3">
-            <div className="p-2 bg-purple-500/10 rounded-lg">
-              <TrendingDown className="w-5 h-5 text-purple-400" />
+            <div className="p-2 bg-muted rounded-lg">
+              <TrendingDown className="w-5 h-5 text-purple-600 dark:text-purple-400" />
             </div>
             <div className="flex-1">
-              <h3 className="text-sm font-bold text-purple-400 mb-2">Quick Wins Available 🎯</h3>
+              <h3 className="text-sm font-bold text-purple-700 dark:text-purple-400 mb-2">Quick Wins Available 🎯</h3>
               <p className="text-xs text-foreground mb-3">
-                Save <span className="text-purple-400 font-semibold">{formatCurrency(totalSavings)}/mo</span> ({formatCurrency(totalSavings * 12)}/yr) by implementing these:
+                Save <span className="text-purple-700 dark:text-purple-400 font-semibold">{formatCurrency(totalSavings)}/mo</span> ({formatCurrency(totalSavings * 12)}/yr) by implementing these:
               </p>
               <ul className="space-y-1.5 text-xs text-muted-foreground">
                 {unusedTables.length > 0 && (
                   <li className="flex items-center gap-2">
-                    <CheckCircle className="w-3.5 h-3.5 text-green-400 flex-shrink-0" />
+                    <CheckCircle className="w-3.5 h-3.5 text-green-600 dark:text-green-400 flex-shrink-0" />
                     <span>Archive {unusedTables.length} tables → {formatCurrency(wasteData.summary?.unused_table_savings || 0)}/mo</span>
                   </li>
                 )}

@@ -10,7 +10,7 @@ export function Header() {
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link to="/" className="flex items-center gap-3">
           <img src="/icon-duck-obs.png" alt="DuckCode Logo" className="h-9 w-9" />
-          <span className="text-lg font-semibold text-slate-900">Duckcode.ai</span>
+          <span className="text-lg font-semibold text-slate-900">DuckCode.ai</span>
         </Link>
 
         <nav className="hidden items-center gap-4 md:flex">

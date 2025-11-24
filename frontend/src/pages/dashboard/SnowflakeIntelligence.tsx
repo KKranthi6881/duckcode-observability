@@ -1015,8 +1015,8 @@ export default function SnowflakeIntelligence() {
 
         {/* Waste Detection Tab */}
         {activeTab === 'waste' && connectorId && (
-          <WasteDetectionView connectorId={connectorId} />
-        )}
+	          <WasteDetectionView connectorId={connectorId} initialData={wasteData || undefined} />
+	        )}
 
         {/* Budget Guardrails Tab */}
         {activeTab === 'budgets' && connectorId && (

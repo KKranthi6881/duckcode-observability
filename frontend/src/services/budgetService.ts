@@ -51,6 +51,23 @@ export interface BudgetAlert {
 class BudgetService {
   private baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
+  private cache = new Map<string, { data: unknown; ts: number }>();
+  private cacheTTLms = 60000;
+
+  private getFromCache<T>(key: string): T | null {
+    const entry = this.cache.get(key);
+    if (!entry) return null;
+    if (Date.now() - entry.ts > this.cacheTTLms) {
+      this.cache.delete(key);
+      return null;
+    }
+    return entry.data as T;
+  }
+
+  private setCache<T>(key: string, data: T) {
+    this.cache.set(key, { data, ts: Date.now() });
+  }
+
   private async token(): Promise<string> {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) throw new Error('Not authenticated');
@@ -58,13 +75,19 @@ class BudgetService {
   }
 
   async listBudgets(connectorId: string): Promise<Budget[]> {
+    const cacheKey = `list:${connectorId}`;
+    const cached = this.getFromCache<Budget[]>(cacheKey);
+    if (cached) return cached;
+
     const t = await this.token();
     const res = await fetch(`${this.baseUrl}/api/connectors/${connectorId}/budgets`, {
       headers: { 'Authorization': `Bearer ${t}` }
     });
     if (!res.ok) throw new Error('Failed to fetch budgets');
     const json = await res.json();
-    return json.budgets || [];
+    const data = json.budgets || [];
+    this.setCache(cacheKey, data);
+    return data;
   }
 
   async createBudget(connectorId: string, budget: Partial<Budget>): Promise<Budget> {
@@ -79,6 +102,7 @@ class BudgetService {
     });
     if (!res.ok) throw new Error('Failed to create budget');
     const json = await res.json();
+    this.cache.clear();
     return json.budget;
   }
 
@@ -94,6 +118,7 @@ class BudgetService {
     });
     if (!res.ok) throw new Error('Failed to update budget');
     const json = await res.json();
+    this.cache.clear();
     return json.budget;
   }
 
@@ -104,15 +129,21 @@ class BudgetService {
       headers: { 'Authorization': `Bearer ${t}` }
     });
     if (!res.ok) throw new Error('Failed to delete budget');
+    this.cache.clear();
   }
 
   async getCurrentSpend(connectorId: string, budgetId: string): Promise<BudgetSpend> {
+    const cacheKey = `spend:${connectorId}:${budgetId}`;
+    const cached = this.getFromCache<BudgetSpend>(cacheKey);
+    if (cached) return cached;
+
     const t = await this.token();
     const res = await fetch(`${this.baseUrl}/api/connectors/${connectorId}/budgets/${budgetId}/spend`, {
       headers: { 'Authorization': `Bearer ${t}` }
     });
     if (!res.ok) throw new Error('Failed to fetch current spend');
     const json = await res.json();
+    this.setCache(cacheKey, json.data);
     return json.data;
   }
 

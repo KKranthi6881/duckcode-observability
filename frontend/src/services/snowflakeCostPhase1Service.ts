@@ -97,6 +97,8 @@ export interface DataTransferRow {
 
 class SnowflakeCostPhase1Service {
   private baseUrl: string;
+  private cache = new Map<string, { data: unknown; ts: number }>();
+  private cacheTTLms = 60000; // 60s TTL to keep data fresh but avoid refetching on quick tab switches
   
   constructor() {
     this.baseUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
@@ -108,16 +110,35 @@ class SnowflakeCostPhase1Service {
     return session.access_token;
   }
 
+  private getFromCache<T>(key: string): T | null {
+    const entry = this.cache.get(key);
+    if (!entry) return null;
+    if (Date.now() - entry.ts > this.cacheTTLms) {
+      this.cache.delete(key);
+      return null;
+    }
+    return entry.data as T;
+  }
+
+  private setCache<T>(key: string, data: T) {
+    this.cache.set(key, { data, ts: Date.now() });
+  }
+
   /**
    * Get comprehensive cost overview (compute + storage + queries)
    */
   async getCostOverview(connectorId: string, days: number = 30): Promise<CostOverview> {
+    const cacheKey = `overview:${connectorId}:${days}`;
+    const cached = this.getFromCache<CostOverview>(cacheKey);
+    if (cached) return cached;
+
     const t = await this.token();
     const res = await fetch(`${this.baseUrl}/api/connectors/${connectorId}/cost/overview?days=${days}`, {
       headers: { 'Authorization': `Bearer ${t}` }
     });
     if (!res.ok) throw new Error('Failed to fetch cost overview');
     const json = await res.json();
+    this.setCache(cacheKey, json.data);
     return json.data;
   }
 
@@ -125,19 +146,29 @@ class SnowflakeCostPhase1Service {
    * Get table-level storage usage breakdown
    */
   async getStorageUsage(connectorId: string): Promise<StorageUsageRow[]> {
+    const cacheKey = `storage-usage:${connectorId}`;
+    const cached = this.getFromCache<StorageUsageRow[]>(cacheKey);
+    if (cached) return cached;
+
     const t = await this.token();
     const res = await fetch(`${this.baseUrl}/api/connectors/${connectorId}/cost/storage-usage`, {
       headers: { 'Authorization': `Bearer ${t}` }
     });
     if (!res.ok) throw new Error('Failed to fetch storage usage');
     const json = await res.json();
-    return json.data || [];
+    const data = json.data || [];
+    this.setCache(cacheKey, data);
+    return data;
   }
 
   /**
    * Get historical storage costs
    */
   async getStorageCosts(connectorId: string, start?: string, end?: string): Promise<StorageCostRow[]> {
+    const cacheKey = `storage-costs:${connectorId}:${start || ''}:${end || ''}`;
+    const cached = this.getFromCache<StorageCostRow[]>(cacheKey);
+    if (cached) return cached;
+
     const t = await this.token();
     const url = new URL(`${this.baseUrl}/api/connectors/${connectorId}/cost/storage-costs`);
     if (start) url.searchParams.set('start', start);
@@ -147,19 +178,26 @@ class SnowflakeCostPhase1Service {
     });
     if (!res.ok) throw new Error('Failed to fetch storage costs');
     const json = await res.json();
-    return json.data || [];
+    const data = json.data || [];
+    this.setCache(cacheKey, data);
+    return data;
   }
 
   /**
    * Get waste detection opportunities
    */
   async getWasteDetection(connectorId: string): Promise<WasteDetectionData> {
+    const cacheKey = `waste:${connectorId}`;
+    const cached = this.getFromCache<WasteDetectionData>(cacheKey);
+    if (cached) return cached;
+
     const t = await this.token();
     const res = await fetch(`${this.baseUrl}/api/connectors/${connectorId}/cost/waste-detection`, {
       headers: { 'Authorization': `Bearer ${t}` }
     });
     if (!res.ok) throw new Error('Failed to detect waste');
     const json = await res.json();
+    this.setCache(cacheKey, json.data);
     return json.data;
   }
 
@@ -167,13 +205,19 @@ class SnowflakeCostPhase1Service {
    * Get data transfer costs
    */
   async getDataTransferCosts(connectorId: string, days: number = 30): Promise<DataTransferRow[]> {
+    const cacheKey = `transfer:${connectorId}:${days}`;
+    const cached = this.getFromCache<DataTransferRow[]>(cacheKey);
+    if (cached) return cached;
+
     const t = await this.token();
     const res = await fetch(`${this.baseUrl}/api/connectors/${connectorId}/cost/data-transfer?days=${days}`, {
       headers: { 'Authorization': `Bearer ${t}` }
     });
     if (!res.ok) throw new Error('Failed to fetch data transfer costs');
     const json = await res.json();
-    return json.data || [];
+    const data = json.data || [];
+    this.setCache(cacheKey, data);
+    return data;
   }
 }
 

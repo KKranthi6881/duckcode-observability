@@ -9,7 +9,7 @@ import {
   TrendingUp,
   Plug,
   LogOut,
-  Shield,
+  IdCard,
   CreditCard,
 } from 'lucide-react';
 import { supabase } from '../../config/supabaseClient';
@@ -80,13 +80,13 @@ export const AdminLayout: React.FC = () => {
   };
 
   const navigationItems = [
-    { name: 'Main Dashboard', path: '/dashboard', icon: Home, highlight: true },
+    { name: 'Admin Overview', path: '/admin', icon: Home, highlight: true },
     { name: 'Cost Analytics', path: '/admin/analytics', icon: TrendingUp },
     { name: 'Subscription', path: '/admin/subscription', icon: CreditCard },
     { name: 'Connectors Hub', path: '/admin/connectors', icon: Plug },
     { name: 'API Keys', path: '/admin/api-keys', icon: Key },
     { name: 'Members', path: '/admin/members', icon: Users },
-    { name: 'SSO', path: '/admin/sso', icon: Shield },
+    { name: 'SSO', path: '/admin/sso', icon: IdCard },
     { name: 'Settings', path: '/admin/settings', icon: Settings },
   ];
 

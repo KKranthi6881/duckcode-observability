@@ -41,14 +41,37 @@ class SnowflakeBudgetsService {
     return session.access_token;
   }
 
+  private cache = new Map<string, { data: unknown; ts: number }>();
+  private cacheTTLms = 60000;
+
+  private getFromCache<T>(key: string): T | null {
+    const entry = this.cache.get(key);
+    if (!entry) return null;
+    if (Date.now() - entry.ts > this.cacheTTLms) {
+      this.cache.delete(key);
+      return null;
+    }
+    return entry.data as T;
+  }
+
+  private setCache<T>(key: string, data: T) {
+    this.cache.set(key, { data, ts: Date.now() });
+  }
+
   async list(connectorId: string): Promise<SnowflakeBudget[]> {
+    const cacheKey = `list:${connectorId}`;
+    const cached = this.getFromCache<SnowflakeBudget[]>(cacheKey);
+    if (cached) return cached;
+
     const t = await this.token();
     const res = await fetch(`${this.baseUrl}/api/connectors/${connectorId}/budgets`, {
       headers: { 'Authorization': `Bearer ${t}` },
     });
     if (!res.ok) throw new Error('Failed to fetch budgets');
     const json = await res.json();
-    return json.budgets || [];
+    const data = json.budgets || [];
+    this.setCache(cacheKey, data);
+    return data;
   }
 
   async save(connectorId: string, budget: Partial<SnowflakeBudget> & { level: SnowflakeBudget['level']; threshold_credits: number; period?: SnowflakeBudget['period'] }, upsert = false): Promise<SnowflakeBudget> {
@@ -62,6 +85,7 @@ class SnowflakeBudgetsService {
     });
     if (!res.ok) throw new Error('Failed to save budget');
     const json = await res.json();
+    this.cache.clear();
     return json.budget as SnowflakeBudget;
   }
 
@@ -72,16 +96,23 @@ class SnowflakeBudgetsService {
       headers: { 'Authorization': `Bearer ${t}` },
     });
     if (!res.ok) throw new Error('Failed to delete budget');
+    this.cache.clear();
   }
 
   async listAlerts(connectorId: string): Promise<BudgetAlert[]> {
+    const cacheKey = `alerts:${connectorId}`;
+    const cached = this.getFromCache<BudgetAlert[]>(cacheKey);
+    if (cached) return cached;
+
     const t = await this.token();
     const res = await fetch(`${this.baseUrl}/api/connectors/${connectorId}/budgets/alerts`, {
       headers: { 'Authorization': `Bearer ${t}` },
     });
     if (!res.ok) throw new Error('Failed to fetch alerts');
     const json = await res.json();
-    return (json.alerts || []) as BudgetAlert[];
+    const data = (json.alerts || []) as BudgetAlert[];
+    this.setCache(cacheKey, data);
+    return data;
   }
 
   async check(connectorId: string, budgetId: string): Promise<{ fired: boolean; current: number }> {
@@ -91,6 +122,7 @@ class SnowflakeBudgetsService {
     });
     if (!res.ok) throw new Error('Failed to check budget');
     const json = await res.json();
+    this.cache.clear();
     return { fired: !!json.fired, current: Number(json.current || 0) };
   }
 }

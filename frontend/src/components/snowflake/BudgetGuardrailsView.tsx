@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { DollarSign, TrendingUp, AlertCircle, CheckCircle, Loader2, Plus, Edit2, Trash2, Bell, Calendar, Target, TrendingDown, X } from 'lucide-react';
+import { DollarSign, TrendingUp, AlertCircle, Loader2, Plus, Edit2, Trash2, Bell, Calendar, Target, TrendingDown, X } from 'lucide-react';
 import budgetService, { Budget, BudgetSpend } from '../../services/budgetService';
 
 interface Props {
@@ -568,9 +568,13 @@ export default function BudgetGuardrailsView({ connectorId }: Props) {
                       {spend.projected_end_of_period_spend !== undefined && (
                         <div>
                           <div className="text-muted-foreground mb-1">Projected</div>
-                          <div className={`font-medium ${
-                            (spend.projected_end_of_period_spend || 0) > budget.budget_amount ? 'text-red-400' : 'text-white'
-                          }`}>
+                          <div
+                            className={`font-medium ${
+                              (spend.projected_end_of_period_spend || 0) > budget.budget_amount
+                                ? 'text-red-600 dark:text-red-400'
+                                : 'text-foreground'
+                            }`}
+                          >
                             {formatCurrency(spend.projected_end_of_period_spend || 0)}
                           </div>
                         </div>
@@ -579,7 +583,7 @@ export default function BudgetGuardrailsView({ connectorId }: Props) {
                         <div>
                           <div className="text-muted-foreground mb-1">Limit Date</div>
                           <div className="text-orange-400 font-medium">
-                            {new Date(spend.days_until_limit).toLocaleDateString()}
+                            {new Date(spend.days_until_limit as string).toLocaleDateString()}
                           </div>
                         </div>
                       )}

@@ -47,6 +47,23 @@ export interface SecuritySummary {
 class SecurityService {
   private baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
+  private cache = new Map<string, { data: unknown; ts: number }>();
+  private cacheTTLms = 60000;
+
+  private getFromCache<T>(key: string): T | null {
+    const entry = this.cache.get(key);
+    if (!entry) return null;
+    if (Date.now() - entry.ts > this.cacheTTLms) {
+      this.cache.delete(key);
+      return null;
+    }
+    return entry.data as T;
+  }
+
+  private setCache<T>(key: string, data: T) {
+    this.cache.set(key, { data, ts: Date.now() });
+  }
+
   private async token(): Promise<string> {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) throw new Error('Not authenticated');
@@ -54,23 +71,34 @@ class SecurityService {
   }
 
   async getSecuritySummary(connectorId: string): Promise<SecuritySummary> {
+    const cacheKey = `summary:${connectorId}`;
+    const cached = this.getFromCache<SecuritySummary>(cacheKey);
+    if (cached) return cached;
+
     const t = await this.token();
     const res = await fetch(`${this.baseUrl}/api/connectors/${connectorId}/security/summary`, {
       headers: { 'Authorization': `Bearer ${t}` }
     });
     if (!res.ok) throw new Error('Failed to fetch security summary');
     const json = await res.json();
+    this.setCache(cacheKey, json.data);
     return json.data;
   }
 
   async getTopExpensiveUsers(connectorId: string, limit: number = 20): Promise<UserCost[]> {
+    const cacheKey = `top-users:${connectorId}:${limit}`;
+    const cached = this.getFromCache<UserCost[]>(cacheKey);
+    if (cached) return cached;
+
     const t = await this.token();
     const res = await fetch(`${this.baseUrl}/api/connectors/${connectorId}/security/user-costs?limit=${limit}`, {
       headers: { 'Authorization': `Bearer ${t}` }
     });
     if (!res.ok) throw new Error('Failed to fetch top users');
     const json = await res.json();
-    return json.data || [];
+    const data = json.data || [];
+    this.setCache(cacheKey, data);
+    return data;
   }
 
   async getUserDetails(connectorId: string, userName: string): Promise<UserCost | null> {
@@ -109,13 +137,19 @@ class SecurityService {
   }
 
   async getAnomalies(connectorId: string, days: number = 30): Promise<AccessPattern[]> {
+    const cacheKey = `anomalies:${connectorId}:${days}`;
+    const cached = this.getFromCache<AccessPattern[]>(cacheKey);
+    if (cached) return cached;
+
     const t = await this.token();
     const res = await fetch(`${this.baseUrl}/api/connectors/${connectorId}/security/anomalies?days=${days}`, {
       headers: { 'Authorization': `Bearer ${t}` }
     });
     if (!res.ok) throw new Error('Failed to fetch anomalies');
     const json = await res.json();
-    return json.data || [];
+    const data = json.data || [];
+    this.setCache(cacheKey, data);
+    return data;
   }
 
   async detectAnomalies(connectorId: string, lookbackDays: number = 30): Promise<any[]> {
@@ -130,17 +164,24 @@ class SecurityService {
     });
     if (!res.ok) throw new Error('Failed to detect anomalies');
     const json = await res.json();
+    this.cache.clear();
     return json.data || [];
   }
 
   async getSecurityIssues(connectorId: string): Promise<SecurityIssue[]> {
+    const cacheKey = `issues:${connectorId}`;
+    const cached = this.getFromCache<SecurityIssue[]>(cacheKey);
+    if (cached) return cached;
+
     const t = await this.token();
     const res = await fetch(`${this.baseUrl}/api/connectors/${connectorId}/security/issues`, {
       headers: { 'Authorization': `Bearer ${t}` }
     });
     if (!res.ok) throw new Error('Failed to fetch security issues');
     const json = await res.json();
-    return json.data || [];
+    const data = json.data || [];
+    this.setCache(cacheKey, data);
+    return data;
   }
 
   async getPermissionIssues(connectorId: string): Promise<any[]> {
