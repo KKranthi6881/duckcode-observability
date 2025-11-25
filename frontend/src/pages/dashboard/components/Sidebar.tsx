@@ -1,6 +1,15 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
-  Settings as SettingsIcon, Shield, Network, Snowflake, TrendingUp, LogOut, Sun, Moon, Monitor
+  Settings as SettingsIcon,
+  Shield,
+  Network,
+  Snowflake,
+  TrendingUp,
+  LogOut,
+  Sun,
+  Moon,
+  Monitor,
+  BookOpen,
 } from 'lucide-react';
 import { useAuth } from '../../../features/auth/contexts/AuthContext';
 import { useTheme } from '../../../contexts/ThemeContext';
@@ -20,6 +29,10 @@ const navigation = [
     name: 'Snowflake Intelligence',
     href: '/dashboard/snowflake-intelligence',
     icon: Snowflake
+  }, {
+    name: 'Docs',
+    href: '/docs',
+    icon: BookOpen
   }, {
     name: 'Profile',
     href: '/dashboard/profile',

@@ -15,6 +15,12 @@ export function Header() {
 
         <nav className="hidden items-center gap-4 md:flex">
           <Link
+            to="/docs"
+            className="text-sm font-medium text-[#5f594f] hover:text-[#161413] transition"
+          >
+            Docs
+          </Link>
+          <Link
             to="/request-demo"
             className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#ff6a3c] to-[#d94a1e] px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(255,106,60,0.35)] transition hover:translate-y-[-2px]"
           >
@@ -42,6 +48,13 @@ export function Header() {
             >
               Request demo
               <PlayCircle className="h-5 w-5" />
+            </Link>
+            <Link
+              to="/docs"
+              className="block rounded-lg border border-[#d6d2c9] px-3 py-2 text-center text-base font-medium text-[#161413] transition hover:border-[#ff6a3c]"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Docs
             </Link>
             <Link
               to="/login"

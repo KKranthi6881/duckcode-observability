@@ -13,6 +13,7 @@ import { DataLineage } from './pages/dashboard/DataLineage';
 import AnalyticsDashboard from './pages/AnalyticsDashboard';
 import RequestDemoPage from './pages/RequestDemoPage';
 import DemoRequests from './pages/admin/DemoRequests';
+import FounderTrials from './pages/admin/FounderTrials';
 import SnowflakeCostDashboard from './pages/dashboard/SnowflakeCostDashboard';
 import SnowflakeRecommendations from './pages/dashboard/SnowflakeRecommendations';
 import SnowflakeIntelligence from './pages/dashboard/SnowflakeIntelligence'; // Using old working version temporarily
@@ -47,6 +48,22 @@ import {
   Subscription as AdminSubscription,
 } from './pages/admin';
 import LineagePage from './pages/lineage/LineagePage';
+import EnterpriseSecurityFAQ from './pages/docs/EnterpriseSecurityFAQ';
+import EnterpriseOverview from './pages/docs/EnterpriseOverview';
+import EnterpriseIAM from './pages/docs/EnterpriseIAM';
+import EnterpriseSSOManagement from './pages/docs/EnterpriseSSOManagement';
+import EnterpriseApiKeysIntegrations from './pages/docs/EnterpriseApiKeysIntegrations';
+import EnterpriseSnowflakeSecurityPage from './pages/docs/EnterpriseSnowflakeSecurityPage';
+import ProductOverviewDocs from './pages/docs/ProductOverviewDocs';
+import GettingStartedDocs from './pages/docs/GettingStartedDocs';
+import WorkspacesOrganizationsDocs from './pages/docs/WorkspacesOrganizationsDocs';
+import ConnectorsDocs from './pages/docs/ConnectorsDocs';
+import CodeIntelAIDocs from './pages/docs/CodeIntelAIDocs';
+import ObservabilityAnalyticsDocs from './pages/docs/ObservabilityAnalyticsDocs';
+import APIOverviewDocs from './pages/docs/APIOverviewDocs';
+import TroubleshootingDocs from './pages/docs/TroubleshootingDocs';
+import ReleaseNotesDocs from './pages/docs/ReleaseNotesDocs';
+import DocsLayout from './pages/docs/DocsLayout';
 
 // Debug component to test routing
 const DebugComponent = () => {
@@ -111,6 +128,25 @@ const AppContent = () => {
         {/* Public marketing/sales routes */}
         <Route path="/request-demo" element={<RequestDemoPage />} />
 
+        {/* Public documentation routes */}
+        <Route path="/docs" element={<DocsLayout />}>
+          <Route index element={<ProductOverviewDocs />} />
+          <Route path="getting-started" element={<GettingStartedDocs />} />
+          <Route path="workspaces-organizations" element={<WorkspacesOrganizationsDocs />} />
+          <Route path="connectors" element={<ConnectorsDocs />} />
+          <Route path="code-intel-ai-docs" element={<CodeIntelAIDocs />} />
+          <Route path="observability-analytics" element={<ObservabilityAnalyticsDocs />} />
+          <Route path="api-overview" element={<APIOverviewDocs />} />
+          <Route path="troubleshooting" element={<TroubleshootingDocs />} />
+          <Route path="release-notes" element={<ReleaseNotesDocs />} />
+          <Route path="enterprise/overview" element={<EnterpriseOverview />} />
+          <Route path="enterprise/iam" element={<EnterpriseIAM />} />
+          <Route path="enterprise/sso-management" element={<EnterpriseSSOManagement />} />
+          <Route path="enterprise/api-keys" element={<EnterpriseApiKeysIntegrations />} />
+          <Route path="enterprise/snowflake-security" element={<EnterpriseSnowflakeSecurityPage />} />
+          <Route path="enterprise/security-faq" element={<EnterpriseSecurityFAQ />} />
+        </Route>
+
         {/* IDE Analytics - No auth required (backend handles auth) */}
         <Route path="/dashboard/ide-analytics" element={<AnalyticsDashboard />} />
 
@@ -133,6 +169,7 @@ const AppContent = () => {
 
           {/* Duckcode internal admin routes */}
           <Route path="/duckcode-admin/demo-requests" element={<DemoRequests />} />
+          <Route path="/duckcode-admin/trials" element={<FounderTrials />} />
 
           {/* Admin Portal Routes */}
           <Route path="/admin" element={<AdminLayout />}>
